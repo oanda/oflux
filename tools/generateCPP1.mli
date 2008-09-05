@@ -1,0 +1,12 @@
+(** code generator for the C++ runtime engine c++.1 *)
+
+val emit_cpp : 
+		string option -> (** name of the module if generating for one*)
+		Flow.built_flow -> (** flattened flow *)
+			CodePrettyPrinter.code 
+			* CodePrettyPrinter.code 
+			* ((string * bool) * int) list
+
+val get_module_file_suffix : string option -> string
+
+exception CppGenFailure of string (** when things go wrong *)

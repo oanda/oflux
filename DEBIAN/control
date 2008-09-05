@@ -1,0 +1,7 @@
+Package: oflux
+Version: 1.0-1
+Section: oanda/txs
+Priority: optional
+Architecture: all
+Maintainer: Miranda Ilechukwu <miranda@oanda.com>
+Description: OANDA OFlux for CXS

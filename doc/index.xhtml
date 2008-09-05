@@ -1,0 +1,476 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <title> OFlux Language
+ </title>
+ <body>
+ <h1> OFlux Language </h1>
+ <p>
+   OFlux is a language for describing server programs.  The language itself is based on a data-flow model.  This implementation only implements an event-based runtime in C++ (at the time of writing this documentation).
+ </p>
+ <h2> OFlux Syntax </h2>
+ <p> What does an OFlux program look like? 
+ </p>
+ <p> The recursive syntax definition (BNF) is given in the below file:
+ </p>
+ <p> <a href="oflux-syntax.html">OFlux syntax description</a>
+ </p>
+ <p>
+    An oflux program consists of (in order):
+ </p>
+ <p> <b> <ul> 
+      <li> conditional-function declarations </li>
+      <li> guard-function declarations </li>
+      <li> node-function declarations </li>
+      <li> source-node definitions </li>
+      <li> sucessor expression definitions </li>
+     </ul> </b>
+ </p>
+ <h3> Brief Explanation of the Components </h3>
+ <p> <b>Conditional-functions</b> are used to control flow (make choices) 
+   in the flow.  In order to determine which node(s) succeed the current node,
+   the output of the current node can be tested with a conditional-function 
+   (or two).
+ </p>
+ <p> <b>Guard-functions</b> specify the atomic guards needed to execute a node. An <i>atomic guard</i> is a resource that the node must acquire before it can execute.  If the resource is busy, the node's execute is delayed until its turn comes up.  The ordering on atomic guards is based on their textual location in the program (earlier - higher priority) and the value of the arguments.  This ordering ensures that an OFlux program is deadlock free (w.r.t atomic guards).  Atomic guards also allow an rvalue (pointer), which provides a safe way to cache contextual information within the atomic guard.
+ </p>
+ <p> <b>Node-functions </b> are the execution functions for each node.  The declaration of these tell the OFlux compiler what the signatures of the C++ functions will look like (and their input/output structures).
+ </p>
+ <p> <b>Source-nodes</b> are the special nodes that are generators of events (they take no input and produce output).  A node that listens for socket connections is an example of such a node.  Source nodes have no predecessors (nodes before them in the flow graph). The OFlux syntax has source nodes specifying their first successor.
+ </p>
+ <p> <b>Successor expressions</b> are descriptions of how the nodes are 
+  related with respect to order of execution (and input/output).  
+  Sources will often have multiple successors, since they are in effect 
+  spawning themselves (and so are their own successor, in addition to what 
+  ever other successors there are).  With this exception in mind, 
+  the flow graph described by the successor relationship is acyclic.
+ </p>
+ <h2> OFlux (Informal) Semantics </h2>
+ <p> What does an OFlux program mean?
+ </p>
+ <h3> Conditions </h3>
+ <p> Conditions are declared as follows:
+ </p>
+ <p><font color="#770077"><tt> 
+     <b>condition</b> aCondition <b>( </b> sourceType <b> ) =&gt;</b> bool
+    </tt></font></p>
+ <p> Conditions take single arguments and result in boolean values.  
+     These declarations correspond to C++ functions that must be implemented
+     in the C++ code:
+ </p>
+ <p><font color="#777700"><tt> 
+     <b>bool</b> aCondition <b>( </b> sourceType arg <b>) { ... } </b> 
+    </tt></font></p>
+ <p> We show an example of the application of conditions in the flow section below.
+ </p>
+ <h3> Guards </h3>
+ <p> Guards are an atomicity constraint feature of the OFlux language.  
+     They are used to ensure that no two nodes (nodes are discussed in the
+     subsequent section) can be working on the same 
+     "thing" when that is not the desired behaviour.  
+     In the common case, despite the fact that the program that uses OFlux 
+     is effectively single threaded, the context switching of node executions
+     (due to blocking system calls) means that concurrency (not necessarily 
+     parallelism) is possible.
+ </p>
+ <p> Guards are declared as follows:
+ </p>
+ <p><font color="#770077"><tt> 
+     <b>exclusive</b> aGuard <b>( </b> sourceType1 <b>,</b> sourceType2<b>, ... ) =&gt;</b> targetType <b>*</b>
+    </tt></font></p>
+ <p> The keyword <b><tt>exclusive</tt></b> is used here since we anticipate 
+     there will eventually be guards with read/write semantics at a later time.
+     Guard functions take multiple arguments of arbitrary type and return a 
+     single value.  A guard that takes no arguments is more akin to a 
+     classical mutex, since there is really only one argument that can 
+     be given.  The structure comprising the arguments to the guard function 
+     are called (collectively) the <i>key structure</i>
+ </p>
+ <p> A node is said to <i>hold</i> a guard and so have exclusive access to data indexed with its key.  Example: if the key structure has a single integer argument which is used for account_ids.  Multiple nodes can hold the guards simultaneosly (thus executing at the sametime).
+ </p>
+ <p> The compilation of a guard causes a few things to happen:
+    <ul>
+     <li> A single global map is created with its name. This map keeps track of the keys that are signed out by various nodes, and the waiting lists for nodes that are waiting to obtain access to one of their guard keys.</li>
+     <li> Structures for accessing the rvalues (results of the guard function) in the case that the pointer caching facility is used in the guards</li>
+     <li> Functions for binding arguments of the appropriate type for each node in the program are generated (the user/programmer never uses these directly). </li>
+    </ul>
+ </p>
+ <h3> Nodes </h3>
+ <p> A node is a C++ function that takes an input structure, an output structure and a structure of guard rvalues.  Its implementation (execution function) is not constructed by the OFlux compiler -- rather it is provided by the programmer.
+Node guards instances required for the safe execution of the node are described in the node declaration.
+ </p>
+ <p><font color="#770077"><tt> 
+     <b>node</b> aNode <b>( </b> sourceType1 in_record1<b>,</b> sourceType2 in_record2<b>, ..., guard </b> guard1(in_record<i>i</i>, in_record<i>j</i>,...) <b>as</b> guardname1<b>,</b> ... <b>) =&gt;</b> (targetType1 out_record1, targetType2 out_record2<b>, ...)</b>
+    </tt></font></p>
+  <p> On the C++ side, the implementation of the node will look like
+  </p>
+ <p><font color="#777700"><tt> 
+     <b>int</b> aNode <b>( </b> const aNode_in * in <b>,</b> 
+              aNode_out *out<b>,</b> aNode_atoms * atoms <b>) { ... } </b> 
+    </tt></font></p>
+ <p> The return value is used to indicate errors (return code = 0 means no error).  When an error happens, an error handler is called on the input with the error code (if one is specified).
+ </p>
+ <p>
+    The component structures of the input, output and guard instances 
+    will look like:
+ </p>
+ <p><font color="#777700"><tt> 
+     <b>struct</b> aNode_in <b>{ </b> sourceType1 in_record1<b>,</b> 
+		sourceType2 in_record2<b>,</b> ... <b>};</b>
+    </tt></font></p>
+ <p><font color="#777700"><tt> 
+     <b>struct</b> aNode_out <b>{ </b> targetType1 out_record1<b>,</b> 
+		targetType2 out_record2<b>,</b> ... <b>};</b>
+    </tt></font></p>
+ <p><font color="#777700"><tt> 
+     <b>class</b> aNode_atoms <b>{ </b> guardtargetType1 <b>* &amp;</b> guardname1()<b>,</b> 
+		 ... <b>};</b>
+    </tt></font></p>
+ <p>
+   Here we have assumed that the guards are declared in the following way:
+ </p>
+ <p><font color="#770077"><tt> 
+     <b>exclusive</b> guard1 <b>( </b> sourceType<i>i</i><b>,</b> sourceType<i>j</i><b>, ...) =&gt;</b> guardtargetType1 *
+    </tt></font></p>
+ <h4> Source Nodes </h4>
+ <p> A source node's execution function should contain at least one blocking system call.  The behaviour of the runtime should this condition be violated, will be wrong/hazardous (thread-bomb most likely).
+ </p>
+
+ <h4> Detached Nodes </h4>
+ <p> A node can be declared <tt>detached</tt>, so that its entire execution (the call to the node function) is treated as one big system call.  This increases the concurrency of the program.  This is particularly worth while if the following conditions are present for that node:
+  <ol>
+   <li> <b>Absence of contention</b>: The data/resources the node is access is guaranteed to be only accessed by the node function </li>
+  <li> <b>Processor use</b>: The node makes either intensive use of the CPU or it has very frequent system calls which would otherwise cause much context switching. </li>
+  </ol>
+ </p>
+ 
+ <h3> Flows </h3>
+ <p> A flow is a directed graph of nodes.  
+     They are described using the source lines 
+     and conditional successor expressions.
+ </p>
+ <p><font color="#770077"><tt> 
+     <b>source</b> aNode <b>=&gt; </b> aNotherNode;
+    </tt></font></p>
+ <p> The source node just tells us what is next after a source node (in addition to tell us that it is a source node).
+ </p>
+ <p><font color="#770077"><tt> 
+     aNotherNode <b>: [</b>testarg1<b>,*,</b>..., testarg<i>i</i><b>]</b>
+     = aNode1 <b>-&gt;</b> aNode2 <b>-&gt; </b> ... aNodeMaybeAbstract;
+    </tt></font></p>
+ <p> A conditional expression describes an abstract node <tt>aNotherNode</tt> and the tests that are applied to the records of its inputs (a <tt>*</tt> indicates the test that returns true).  The first such successor expression to "match" (have all of its argument tests pass) is used to route an event (determining successor nodes).  The sequence of concrete nodes <tt> aNode1, aNode2, ...</tt> (ending possibly in an abstract node are executed in sequence.
+ </p>
+ <p> The result of compiling a flow is mostly the successor relationships 
+   encoded in the XML file (filename.flux gives rise to filename.xml).  
+   This encoding of the flow (conditionals and successors) can be changed 
+   (theoretically) on a program while it is running.  
+   Newly generated events will use the newly loaded flow - so that events 
+   inflight drain out with their existing flow.
+ </p>
+ <h3> Putting it together</h3>
+ <p> The following event graph can be described in OFlux (below)
+ </p>
+ <!-- OFLUX code begins
+  -->
+ <font color="#770077"><tt>
+ <p> condition isEmpty (string name) =&gt; bool;
+ </p>
+ <p> exclusive ACCT(int acctid) =&gt; string *;
+ </p>
+ <p> node aSource () =&gt; (int acctid);
+ </p>
+ <p> node anAbstractNode(string name) =&gt; ();
+ </p>
+ <p> node aCNode (int acctid, guard ACCT(acctid) as acct) =&gt; (string name);
+ </p>
+ <p> node aSinkNode1 (string name) =&gt; ();
+ </p>
+ <p> node aSinkNode2 (string name) =&gt; ();
+ </p>
+ <p> source aSource =&gt; aCNode -&gt; anAbstractNode ;
+ </p>
+ <p> anAbstractNode : [isEmpty] = aSinkNode1;
+ </p>
+ <p> anAbstractNode : [*] = aSinkNode1; /* default case */
+ </p>
+ </tt></font>
+ <!-- OFLUX code end
+  -->
+ <p> This code is representable graphically as the following flow:
+ </p>
+ <p><center>
+ <!-- OFLUX graph begins (CUT & PASTE)
+  -->
+
+<!--<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"> -->
+<!-- Creator: fig2dev Version 3.2 Patchlevel 5-alpha7 -->
+<!-- CreationDate: Tue Nov  6 15:58:38 2007 -->
+<!-- Magnification: 1.050 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="4.6in" height="3.8in" viewBox="-485 176 5552 4513">
+<g style="stroke-width:.025in; stroke:black; fill:none">
+<!-- Line: box -->
+<rect x="1228" y="472" width="2173" height="850" rx="110" 
+style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+"/>
+<!-- Line: box -->
+<rect x="1228" y="2031" width="2173" height="850" rx="110" 
+style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+"/>
+<!-- Line: box -->
+<rect x="2740" y="3496" width="2173" height="850" rx="110" 
+style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+"/>
+<!-- Line: box -->
+<rect x="-330" y="3543" width="2173" height="850" rx="110" 
+style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+"/>
+<!-- Line -->
+<polyline points="2125,2881
+1427,3532
+" style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+"/>
+<!-- Arrowhead on XXXpoint -->
+<polyline points="1512 3409
+1442 3519
+1555 3456
+" style="stroke:#000000;stroke-width:8;
+"/>
+<!-- Line -->
+<polyline points="2409,2881
+3106,3486
+" style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+"/>
+<!-- Arrowhead on XXXpoint -->
+<polyline points="2975 3414
+3091 3472
+3016 3365
+" style="stroke:#000000;stroke-width:8;
+"/>
+<!-- Line: box -->
+<rect x="-472" y="2929" width="5527" height="1748" rx="110" 
+style="stroke:#000000;stroke-width:8;
+stroke-linejoin:miter; stroke-linecap:butt;
+stroke-dasharray:10 10 10;
+"/>
+<!-- Line -->
+<polyline points="2173,1322
+2173,2016
+" style="stroke:#000000;stroke-width:8;
+stroke-linejoin:bevel; stroke-linecap:butt;
+"/>
+<!-- Arrowhead on XXXpoint -->
+<polyline points="2141 1870
+2173 1996
+2204 1870
+" style="stroke:#000000;stroke-width:8;
+"/>
+<!-- Line -->
+<polyline points="2220,1322
+2222,1322
+2227,1323
+2237,1325
+2251,1328
+2272,1332
+2300,1336
+2333,1342
+2373,1349
+2418,1356
+2469,1364
+2523,1373
+2581,1381
+2641,1391
+2701,1399
+2762,1408
+2822,1416
+2880,1423
+2937,1430
+2992,1437
+3044,1442
+3093,1446
+3141,1450
+3186,1453
+3229,1455
+3270,1456
+3309,1456
+3345,1456
+3381,1454
+3416,1451
+3448,1448
+3481,1444
+3512,1439
+3543,1433
+3575,1425
+3607,1417
+3638,1408
+3670,1398
+3700,1387
+3731,1375
+3761,1362
+3791,1349
+3820,1333
+3848,1317
+3877,1300
+3903,1282
+3929,1265
+3954,1246
+3979,1226
+4002,1205
+4023,1184
+4043,1163
+4061,1141
+4077,1119
+4093,1097
+4107,1075
+4118,1053
+4128,1030
+4135,1008
+4141,986
+4146,964
+4149,942
+4150,921
+4149,900
+4145,879
+4141,858
+4135,835
+4125,813
+4115,790
+4101,768
+4087,745
+4070,723
+4051,700
+4030,677
+4007,654
+3982,630
+3955,608
+3928,585
+3898,563
+3867,542
+3836,520
+3802,500
+3769,480
+3734,461
+3699,444
+3665,426
+3630,410
+3594,395
+3560,382
+3526,368
+3491,356
+3459,346
+3425,337
+3394,328
+3361,321
+3331,314
+3297,309
+3265,305
+3232,302
+3199,300
+3167,300
+3133,301
+3099,303
+3063,307
+3026,312
+2987,319
+2948,326
+2906,335
+2862,346
+2818,358
+2773,370
+2728,383
+2684,396
+2642,410
+2602,423
+2565,434
+2534,445
+2509,454
+2488,460
+2470,467
+" style="stroke:#000000;stroke-width:8;
+stroke-linejoin:bevel; stroke-linecap:butt;
+"/>
+<!-- Arrowhead on XXXpoint -->
+<polyline points="2596 387
+2489 460
+2617 446
+" style="stroke:#000000;stroke-width:8;
+"/>
+<!-- Line -->
+<polyline points="2173,188
+2173,457
+" style="stroke:#000000;stroke-width:8;
+stroke-linejoin:bevel; stroke-linecap:butt;
+"/>
+<!-- Arrowhead on XXXpoint -->
+<polyline points="2141 311
+2173 437
+2204 311
+" style="stroke:#000000;stroke-width:8;
+"/>
+<!-- Text -->
+<text xml:space="preserve" x="1559" y="4582" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">anAbstractNode</text>
+<!-- Text -->
+<text xml:space="preserve" x="1275" y="944" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">aSource</text>
+<!-- Text -->
+<text xml:space="preserve" x="1275" y="2456" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">aCNode</text>
+<!-- Text -->
+<text xml:space="preserve" x="1748" y="1228" stroke="#00008f" fill="#00008f"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">(int acctid)</text>
+<!-- Text -->
+<text xml:space="preserve" x="1653" y="2740" stroke="#00008f" fill="#00008f"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">(string name)</text>
+<!-- Text -->
+<text xml:space="preserve" x="1417" y="2220" stroke="#008f00" fill="#008f00"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">guard ACCT(acctid)</text>
+<!-- Text -->
+<text xml:space="preserve" x="3732" y="4251" stroke="#00008f" fill="#00008f"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">()</text>
+<!-- Text -->
+<text xml:space="preserve" x="-283" y="4062" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">aSinkNode1</text>
+<!-- Text -->
+<text xml:space="preserve" x="2787" y="4015" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">aSinkNode2</text>
+<!-- Text -->
+<text xml:space="preserve" x="614" y="4299" stroke="#00008f" fill="#00008f"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">()</text>
+<!-- Text -->
+<text xml:space="preserve" x="2881" y="3212" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">[*]</text>
+<!-- Text -->
+<text xml:space="preserve" x="755" y="3212" stroke="#000000" fill="#000000"  font-family="Helvetica" font-style="normal" font-weight="bold" font-size="152" text-anchor="start">[isEmpty]</text>
+</g>
+</svg>
+ <!-- OFLUX graph ends
+  -->
+ </center></p>
+ <p> <b> Comments:</b> 
+    <ol>
+     <li> <tt>aSourceNode</tt> is the only source node in the OFlux program.</li>
+     <li> node <tt>aCNode</tt> is exclusive on its input (two events on that node cannot be running on the same <tt>acctid</tt>) due to the <tt>ACCT</tt> guard instance <tt>acct</tt>.  </li>
+     <li> <tt>anAbstractNode</tt> is abstract and does not need to be implemented.  It is used to describe the decision subgraph (based on the <tt>isEmpty</tt> test to the <tt>name</tt> record). </li>
+    <li> Caching the <tt>name</tt> values is possible using the guard data:
+      <dl> 
+      <dt/>
+      <dd><font color="#777700"><tt> 
+           string * &amp; cached_name = atoms-&gt;acct();
+         </tt></font> </dd>
+      <dt/>
+      <dd><font color="#777700"><tt> 
+           if(!cached_name) { cached_name = new string  }
+         </tt></font> </dd>
+      <dt/>
+      <dd><font color="#777700"><tt> 
+           *cached_name = ...; // whatever
+         </tt></font> </dd>
+      </dl>
+      </li>
+    </ol>
+ </p>
+ <h2> Advanced Reference </h2>
+ <p> If you are looking at the below bits of information, then your are 
+  delving into the implementation details below:
+ </p>
+ <p> <a href="runtime/html/index.html">OFlux Event-based C++ Runtime documentation</a>
+ </p>
+ <p> <a href="compiler/index.html">OFlux compiler code documentation</a>
+ </p>
+ </body>
+</html>

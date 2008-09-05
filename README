@@ -1,0 +1,85 @@
+
+ABOUT
+-----
+
+This is my verion of the flux tool.  The original is found at:
+
+http://flux.cs.umass.edu/
+
+IMPROVEMENTS ON ORIGINAL
+------------------------
+
+1. statemachine is not hardcoded as a case statement (not very scalable)
+2. live loading of the flow graph from an XML file is possible
+3. nice memory management
+4. minimal code in the generated source (more reliance on a run time library)
+5. if there is an empty event queue and no work to do, then there is blocking. 
+   so CPU goes to 0 until one outstanding blocking call returns (efficiency)
+
+
+REQUIREMENTS
+------------
+
+OCaml (used version 3.09.1)
+
+g++   (used version 4.0.3)
+
+boost & stl C++ libraries
+
+expat
+
+(I have only compiled this on an Ubuntu Linux box - fair warning)
+
+
+BUILDING
+--------
+
+To build
+
+   make all
+
+To clean 
+
+   make clean
+
+EXAMPLES
+--------
+
+The default build builds these.
+
+The webserver is based on the original stock flux example.
+You run it with
+	./run.sh 8080 /tmp
+(for instance)
+
+
+TODO
+----
+
+bugs:
+
+<none known>
+
+features to add:
+
+Compiler:
+1. add condition function forward declarations [DONE]
+2. atomics (flux's notion of this is a bit brain dead) [DONE]
+   I want to have atomics attached to values (e.g. atomic for session 3)
+3. detachable nodes : basically the entire function call is treated as 
+   the shim would treat a system call - this increases concurrency [DONE]
+4. dot output of the flow graph (a bit corny) -> SVG too [DONE]
+5. support for multiple node target successors (one event leads to multiple child events)
+6. priorities for nodes
+
+Run Time:
+1. live loading of new flow graphs from an XML file (API completion) [DONE]
+2. catch node exceptions
+3. instrumentation and viewing what is going on in the runtime [DONE]
+4. implement a thread pool size limit [DONE]
+5. implement a limit on the number of detached nodes running [DONE]
+6. priorities for nodes
+7. guard maps that can garbage collect (sweep)
+8. guard maps for implementing finite pools
+9. watermarked monitoring of waiting-in-pool threads to allow for collecting these
+10. option to use Solaris native threads
