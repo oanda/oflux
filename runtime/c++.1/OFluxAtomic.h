@@ -198,47 +198,7 @@ private:
 	int _seq_number;
 	int * _to_sn;
 };
-
-class AtomicPool {
-public:
-	void * get_data();
-	void put_data(void *);
-	boost::shared_ptr<EventBase> get_waiter();
-	void put_waiter(boost::shared_ptr<EventBase> & ev);
-	int waiter_count();
-private:
-	std::deque<boost::shared_ptr<EventBase> > _q;
-};
-
-class AtomicPooled { // implements AtomicScaffold
-public:
-	AtomicPooled(AtomicPool & pool,void * data)
-		: _data(data)
-		, _pool(pool)
-		{}
-	inline void ** data() { return &_data; }
-	inline int held() const { return _data != NULL; }
-	inline int waiter_count() { return _pool.waiter_count(); }
-	inline int acquire(int)
-		{
-			_data = _pool.get_data();
-			return _data != NULL;
-		}
-	inline void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
-		{ 
-			put_data(_data);
-			if(_pool.waiter_count()) {
-				rel_ev.push_back(_pool.get_waiter());
-			}
-			_data = NULL;
-		}
-	inline void wait(boost::shared_ptr<EventBase> & ev, int)
-		{ _pool.put_waiter(ev); }
-private:
-	void *       _data;
-	AtomicPool & _pool;
-};
-***/
+****/
 
 /**
  * @class AtomicMapAbstract
@@ -272,6 +232,69 @@ public:
 	virtual void delete_key(void *) = 0;
 };
 
+class AtomicPooled;
+
+class AtomicPool : public AtomicMapAbstract {
+public:
+        friend class AtomicPooled;
+        AtomicPool () 
+                : _ap_list(NULL)
+                , _alloc_count(0)
+                {}
+        virtual ~AtomicPool() {}
+	void * get_data();
+	void put_data(void *);
+        boost::shared_ptr<EventBase> get_waiter();
+	void put_waiter(boost::shared_ptr<EventBase> & ev);
+	int waiter_count() { return _q.size(); }
+        virtual int compare (const void * v_k1, const void * v_k2) const { return 0; }
+        virtual void * new_key() { return NULL; }
+	virtual void delete_key(void *) {}
+        virtual const void * get(Atomic * & a_out,const void * key);
+        void put(AtomicPooled * ap);
+private:
+	std::deque<boost::shared_ptr<EventBase> > _q;
+	std::deque<void *> _dq;
+        AtomicPooled * _ap_list;
+        int _alloc_count;
+};
+
+class AtomicPooled : public Atomic { // implements AtomicScaffold
+public:
+	AtomicPooled(AtomicPool & pool,void * data)
+		: _data(data)
+		, _pool(pool)
+                , _next(NULL)
+		{}
+	virtual void ** data() { return &_data; }
+	virtual int held() const { return _data != NULL; }
+	virtual int waiter_count() { return _pool.waiter_count(); }
+	virtual int acquire(int)
+		{
+			_data = _pool.get_data();
+			return _data != NULL;
+		}
+	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
+		{ 
+			_pool.put_data(_data);
+			if(_pool.waiter_count()) {
+				rel_ev.push_back(_pool.get_waiter());
+			}
+			_data = NULL;
+                        _pool.put(this);
+		}
+	virtual void wait(boost::shared_ptr<EventBase> & ev, int)
+		{ _pool.put_waiter(ev); }
+	virtual void * new_key() { return NULL; }
+	virtual void delete_key(void *) {}
+public:
+        AtomicPooled * next() { return _next; }
+        void next(AtomicPooled * ap) { _next = ap; }
+private:
+	void *         _data;
+	AtomicPool &   _pool;
+        AtomicPooled * _next;
+};
 /**
  * @class AtomicMapTrivial
  * @brief implementation of the AtomicMap interface for keys that are empty

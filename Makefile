@@ -12,7 +12,8 @@ EXAMPLES= \
 	moduletest1 \
 	concur1 \
 	splaytest1 \
-	initial1
+	initial1 \
+	poolguard
 
 ################################################################
 #
@@ -22,7 +23,7 @@ RUNTIMESWITHDIRS= $(addprefix runtime/,$(RUNTIMES))
 OFLUXRUNTIMES= $(addsuffix /bin/liboflux.a,$(RUNTIMESWITHDIRS))
 EXAMPLESBUILT= $(foreach ex,$(EXAMPLES),examples/$(ex)/$(ex).xml) 
 
-all: $(OFLUX) $(OFLUXRUNTIMES)
+all: $(OFLUX) $(OFLUXRUNTIMES) examples
 
 test:
 	@echo "EXAMPLESWITHDIRS=" $(EXAMPLESWITHDIRS)

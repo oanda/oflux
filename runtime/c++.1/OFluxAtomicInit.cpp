@@ -1,5 +1,6 @@
 #include "OFluxAtomic.h"
 #include "OFluxAtomicInit.h"
+#include <vector>
 #include <cassert>
 
 namespace oflux {
@@ -16,6 +17,9 @@ bool GuardInserter::insert(const void * key, void * value)
 	} else {
 		res = false;
 	}
+        std::vector<boost::shared_ptr<EventBase> > vec;
+        aptr->release(vec);
+        assert(vec.size() == 0);
 	return res;
 }
 

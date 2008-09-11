@@ -2,7 +2,7 @@
 open TopLevel
 open ParserTypes
 
-let banner = "OFlux v0.352"
+let banner = "OFlux v0.353"
 
 let help_text = banner^"\n"^CmdLine.help_text
 
