@@ -393,20 +393,24 @@ let emit_atom_map_map symtable code =
 		(*let rtt = (strip_position gd.return.dctypemod)
 			^" "^(strip_position gd.return.dctype)
 		in*) 
+                let clean_n = clean_dots n in
+                List.fold_left add_code code
+		((
+                if gd.gtype = "pool" then
+                        ("oflux::AtomicPool "^clean_n^"_map;")
+                else
 		let atomic_class_str =
 			match gd.gtype with
 				"exclusive" -> "oflux::AtomicExclusive"
 				| "readwrite" -> "oflux::AtomicReadWrite"
-				| _ -> raise (CppGenFailure ("unsupported guard type "^gd.gtype)) in
-		let clean_n = clean_dots n
-		in  List.fold_left add_code code
-		    ((if 0 = (List.length gd.garguments) then
+				| _ -> raise (CppGenFailure ("unsupported guard type "^gd.gtype))
+		in  (if 0 = (List.length gd.garguments) then
 			("oflux::AtomicMapTrivial<"
 				^atomic_class_str^"> "^clean_n^"_map;")
 		    else
 			("oflux::AtomicMapStdMap<"^clean_n^"_key"
 				^","^atomic_class_str^"> "^clean_n^"_map;")
-			)::[ "oflux::AtomicMapAbstract * "^clean_n
+			))::[ "oflux::AtomicMapAbstract * "^clean_n
                                 ^"_map_ptr = &"^clean_n^"_map;" ])
 		in
 	let e_two n gd codelist =

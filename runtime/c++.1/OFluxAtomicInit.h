@@ -18,6 +18,7 @@ private:
 	AtomicMapAbstract * _ama;
 };
 
+
 #define OFLUX_GUARD_POPULATER(GUARDNAME,POPNAME) \
 	oflux::GuardInserter POPNAME(ofluximpl::GUARDNAME##_map_ptr)
 #define OFLUX_MODULE_INIT(MODULENAME,INST, ...) \
