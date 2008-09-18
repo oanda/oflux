@@ -153,7 +153,7 @@ public:
 		}
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
 		{
-			--_held;
+			_held = std::max(_held-1,0);
 			if(_held == 0) {
 				_mode = AtomicCommon::None;
 				if(_waiters.size()) {
