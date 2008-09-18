@@ -23,8 +23,10 @@ RUNTIMESWITHDIRS= $(addprefix runtime/,$(RUNTIMES))
 OFLUXRUNTIMES= $(addsuffix /bin/liboflux.a,$(RUNTIMESWITHDIRS))
 EXAMPLESBUILT= $(foreach ex,$(EXAMPLES),examples/$(ex)/$(ex).xml) 
 
+.PHONY : all
 all: $(OFLUX) $(OFLUXRUNTIMES) examples
 
+.PHONY : test
 test:
 	@echo "EXAMPLESWITHDIRS=" $(EXAMPLESWITHDIRS)
 	@echo "RUNTIMESWITHDIRS=" $(RUNTIMESWITHDIRS)
@@ -37,11 +39,11 @@ $(OFLUX):
 $(OFLUXRUNTIMES):
 	$(foreach rtd,$(RUNTIMESWITHDIRS),make -wC $(rtd);)
 
-$(EXAMPLESBUILT): $(OFLUX) $(OFLUXRUNTIMES)
+.PHONY : examples
+examples: $(OFLUX) $(OFLUXRUNTIMES)
 	$(foreach exd,$(EXAMPLESWITHDIRS),make -wC $(exd);)
 
-examples: $(EXAMPLESBUILT)
-
+.PHONY : clean
 clean:
 	make -wC tools clean;
 	$(foreach rtd,$(RUNTIMESWITHDIRS),make -wC $(rtd) clean;)
