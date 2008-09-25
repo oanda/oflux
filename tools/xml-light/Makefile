@@ -15,10 +15,20 @@ CODE= xml_parser.ml xml_lexer.ml dtd.ml xmlParser.ml xml.ml
 
 HEADERS= dtd.mli xml_parser.mli xml.mli xmlParser.mli
 
-COMPILED_CODE = $(addprefix $(BINDIR)/,$(addsuffix .cmo,$(basename $(CODE))))
+ifneq ($(OCAMLCONFIG),dev)
+  OCAMLCOMPILER=ocamlopt -p
+  OBJECTEXT=cmx
+  LIBRARYEXT=cmxa
+else
+  OCAMLCOMPILER=ocamlc -g
+  OBJECTEXT=cmo
+  LIBRARYEXT=cma
+endif
+
+COMPILED_CODE = $(addprefix $(BINDIR)/,$(addsuffix .$(OBJECTEXT),$(basename $(CODE))))
 COMPILED_HEADERS = $(addprefix $(BINDIR)/,$(addsuffix .cmi,$(basename $(HEADERS))))
 
-XMLLIGHTLIB = $(BINDIR)/xml-light.cma
+XMLLIGHTLIB = $(BINDIR)/xml-light.$(LIBRARYEXT)
 
 
 all: $(XMLLIGHTLIB)
@@ -28,18 +38,18 @@ doc:
 	ocamldoc -sort -html -d doc xml.mli dtd.mli xmlParser.mli
 
 $(XMLLIGHTLIB): $(COMPILED_HEADERS) $(COMPILED_CODE)
-	ocamlc -o $(BINDIR)/xml-light.cma $(LFLAGS) $(LIBS) $(COMPILED_CODE)
+	$(OCAMLCOMPILER) -o $(BINDIR)/xml-light.$(LIBRARYEXT) $(LFLAGS) $(LIBS) $(COMPILED_CODE)
 
 
 # SUFFIXES
 
-$(BINDIR)/%.cmo: %.ml
+$(BINDIR)/%.$(OBJECTEXT): %.ml
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlc $(INCLUDEOPTS) -g -o $@ -c $< 
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $< 
 
 $(BINDIR)/%.cmi: %.mli
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlc $(INCLUDEOPTS) -g -o $@ -c $< 
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $< 
 
 # %.ml: %.mll
 # 	if [ `df -TP $< | egrep -v "^Filesystem" | cut -d " " -f 2` = "nfs" ] ; then \
@@ -72,7 +82,7 @@ $(BINDIR)/.depend:
 	ocamldep $(INCLUDEOPTS) *.mli *.ml > $(BINDIR)/.depend
 
 clean:
-	rm -f $(BINDIR)/* $(BINDIR)/.depend* parser.output xml_parser.mli xml_lexer.ml xml_parser.ml xml_lexer.mli *.cmo *.cmi doc/*
+	rm -f $(BINDIR)/* $(BINDIR)/.depend* parser.output xml_parser.mli xml_lexer.ml xml_parser.ml xml_lexer.mli *.cmo *.cmi *.cmx doc/*
 
 
 ifneq ($(MAKECMDGOALS),depend)

@@ -2,7 +2,7 @@
 open TopLevel
 open ParserTypes
 
-let banner = "OFlux v0.353"
+let banner = "OFlux v0.36"
 
 let help_text = banner^"\n"^CmdLine.help_text
 
@@ -12,8 +12,11 @@ let main () =
 	let res =
 		try match CmdLine.get_root_filename () with
 			(Some fl) ->
-				let _ = print_string (banner^" on "^fl^"\n")
-				in xmain write_result fl
+				let _ = print_string (banner^" on "^fl^"\n") in
+                                let main_timer = Debug.timer "total" in
+				let r = xmain write_result fl in
+                                let _ = main_timer ()
+                                in r
 			| None -> 
 				let _ = print_string help_text
 				in  None
