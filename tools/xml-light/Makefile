@@ -15,14 +15,16 @@ CODE= xml_parser.ml xml_lexer.ml dtd.ml xmlParser.ml xml.ml
 
 HEADERS= dtd.mli xml_parser.mli xml.mli xmlParser.mli
 
-ifneq ($(OCAMLCONFIG),dev)
-  OCAMLCOMPILER=ocamlopt -p
+ifneq ($(findstring dev,$(OCAMLCONFIG)),dev)
+  OCAMLCOMPILER=ocamlopt $(if $(findstring profile,$(OCAMLCONFIG)),-p,)
   OBJECTEXT=cmx
   LIBRARYEXT=cmxa
 else
-  OCAMLCOMPILER=ocamlc -g
+  OCAMLCOMPILER=$(if $(findstring profile,$(OCAMLCONFIG)),ocamlcp -p a,ocamlc -g
+)
   OBJECTEXT=cmo
   LIBRARYEXT=cma
+  WILLMAKETOPLEVEL=yes
 endif
 
 COMPILED_CODE = $(addprefix $(BINDIR)/,$(addsuffix .$(OBJECTEXT),$(basename $(CODE))))
