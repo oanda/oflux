@@ -129,7 +129,8 @@ let apply_guardref_subst gsubst pr =
                 in
         let remove_subst_decl ll ad =
                 let atomname = strip_position ad.atomname
-                in  try List.assoc atomname gsubst; ll
+                in  try  let _ = List.assoc atomname gsubst
+                         in  ll
                     with Not_found -> ad::ll
                 in
         let apply_nd nd =

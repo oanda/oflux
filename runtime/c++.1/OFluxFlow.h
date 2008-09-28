@@ -174,7 +174,7 @@ public:
 	 */
 	inline const void * get(Atomic * & a_out,const void * node_in)
 	{ 
-		(*_guardfn)(_local_key, node_in);
+		if(_guardfn) (*_guardfn)(_local_key, node_in);
 		return _flow_guard->get(a_out,_local_key);
 	}
 	/**

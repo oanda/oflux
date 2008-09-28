@@ -457,6 +457,8 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 	*)
 	let get_u_n x = List.assoc (x,true) umap in
 	let one_inst garg gn nn nf (code,line) pi =
+                if pi = [] then code,line
+                else
 		let alist = List.map (fun (_,i) -> (string_of_int i)^", ") pi in
 		let cat a b = a^b in
 		let arglist = "{ "^(List.fold_right cat alist "0 }, ") in

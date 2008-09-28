@@ -166,44 +166,71 @@ let write_result fn of_result =
 		with Not_found -> fn in
 	let xml_file = base_file^".xml" in
 	let dot_file = base_file^".dot" in
-	let dot_flat_file = base_file^"-flat.dot" 
-	in  
+	let dot_flat_file = base_file^"-flat.dot" in  
+        let write_timer = Debug.timer "writing" in
+        let result =
 	    begin
-	    (let h_outchan = open_out of_result.h_filename in
+	    (let h_timer = Debug.timer "write .h" in
+             let h_outchan = open_out of_result.h_filename in
 	     let h_lines =CodePrettyPrinter.to_string of_result.h_code 
 		(*in
 	     let _ = Debug.dprint_string ("wrote h:\n"^h_lines) *)
-	     in  output_string h_outchan h_lines; close_out h_outchan); 
-            (let cpp_outchan = open_out of_result.cpp_filename in
+	     in  output_string h_outchan h_lines; 
+                 close_out h_outchan;
+                 h_timer ()); 
+            (let cpp_timer = Debug.timer "write .cpp" in 
+             let cpp_outchan = open_out of_result.cpp_filename in
 	     let cpp_lines = CodePrettyPrinter.to_string of_result.cpp_code
-	     in output_string cpp_outchan cpp_lines; close_out cpp_outchan); 
-            (let dot_outchan = open_out dot_file 
-		 in output_string dot_outchan (Dot.to_string of_result.dot_output); close_out dot_outchan);
+	     in output_string cpp_outchan cpp_lines; 
+                close_out cpp_outchan;
+                cpp_timer ()); 
+            (let dot_timer = Debug.timer "write .dot" in
+             let dot_outchan = open_out dot_file 
+		 in output_string dot_outchan (Dot.to_string of_result.dot_output); 
+                    close_out dot_outchan;
+                    dot_timer ());
 	    if is_module then ()
 	    else
 		begin
-		(let xml_outchan = open_out xml_file
-		 in output_string xml_outchan (Xml.to_string_fmt of_result.xml); close_out xml_outchan);
-                (let dot_flat_outchan = open_out dot_flat_file in
+		(let xml_timer = Debug.timer "write .xml" in
+                 let xml_outchan = open_out xml_file
+		 in output_string xml_outchan (Xml.to_string_fmt of_result.xml);
+                    close_out xml_outchan;
+                    xml_timer ());
+                (let dot_flat_timer = Debug.timer "write -flat.dot" in
+                 let dot_flat_outchan = open_out dot_flat_file in
                  let df_out = match  of_result.dot_flat_output with
                                 (Some op) -> op
                                 | None -> raise Not_found
-                 in output_string dot_flat_outchan (Dot.to_string df_out); close_out dot_flat_outchan);
+                 in output_string dot_flat_outchan (Dot.to_string df_out); 
+                    close_out dot_flat_outchan;
+                    dot_flat_timer ());
 		end
-	    end
+	    end in
+        let _ = write_timer () 
+        in  result
 
 let xmain do_result fn = 
+        let parse_timer = Debug.timer "parser" in
 	match parsefile fn with
-		None -> (print_string "no parse result\n"; Some 1)
+		None -> (print_string "no parse result\n"; parse_timer(); Some 1)
 		| (Some pres) ->
+                        let _ = parse_timer () in
+                        let flatten_timer = Debug.timer "flatten" in
 			let pres_flat = (match CmdLine.get_module_name() with
 					None ->  Flatten.flatten pres 
 					| (Some mn) -> Flatten.flatten_module mn pres)
 				in
+                        let _ = flatten_timer () in
+                        let sem_an_timer = Debug.timer "semantic analysis" in
 			let br = semantic_analysis pres_flat pres.mod_def_list in
+                        let _ = sem_an_timer () in
 			let debug = ! Debug.debug in
 			let _ = Flow.pp_flow_map debug br.Flow.fmap in
+                        let generate_timer = Debug.timer "generate" in
 			let xml,cpp_code,h_code = generate fn br in
+                        let _ = generate_timer () in
+                        let dot_timer = Debug.timer "dot" in
 			let dot_flat_output = 
                                         match CmdLine.get_module_name () with
                                                 None -> 
@@ -215,6 +242,7 @@ let xmain do_result fn =
                                         | (Some mn) ->
                                                 Dot.generate_program mn 
                                                         (Flatten.context_for_module pres mn) in
+                        let _ = dot_timer () in
 			let suff_string = GenerateCPP1.get_module_file_suffix
 				(CmdLine.get_module_name()) in
 			let h_filename = "OFluxGenerate"^suff_string^".h" in

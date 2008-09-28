@@ -31,41 +31,52 @@ HEADERS= \
 	generateXML.mli \
 	dot.mli
 
+ifneq ($(findstring dev,$(OCAMLCONFIG)),dev)
+  OCAMLCOMPILER=ocamlopt $(if $(findstring profile,$(OCAMLCONFIG)),-p,)
+  OBJECTEXT=cmx
+  LIBRARYEXT=cmxa
+else
+  OCAMLCOMPILER=$(if $(findstring profile,$(OCAMLCONFIG)),ocamlcp -p a,ocamlc -g)
+  OBJECTEXT=cmo
+  LIBRARYEXT=cma
+  WILLMAKETOPLEVEL=yes
+endif
+
 BINDIR= bin
 
-COMPILED_CODE = $(addprefix $(BINDIR)/,$(addsuffix .cmo,$(basename $(CODE))))
+COMPILED_CODE = $(addprefix $(BINDIR)/,$(addsuffix .$(OBJECTEXT),$(basename $(CODE))))
 COMPILED_HEADERS = $(addprefix $(BINDIR)/,$(addsuffix .cmi,$(basename $(HEADERS))))
 
-COMPILED_MAIN = $(BINDIR)/main.cmi $(BINDIR)/main.cmo
+COMPILED_MAIN = $(BINDIR)/main.cmi $(BINDIR)/main.$(OBJECTEXT)
 
-XMLLIGHTLIB=xml-light/bin/xml-light.cma
+XMLLIGHTLIB=xml-light/bin/xml-light.$(LIBRARYEXT)
 
 INCLUDEOPTS= -I $(BINDIR) -I xml-light/bin
 
-OFLUXLIB=$(BINDIR)/oflux.cma
+OFLUXLIB=$(BINDIR)/oflux.$(LIBRARYEXT)
 OFLUXTOPLEVEL=$(BINDIR)/ofluxcli
 OFLUX=$(BINDIR)/oflux
 
-all: test $(XMLLIGHTLIB) $(BINDIR)/.depend.bin $(OFLUXLIB) $(OFLUXTOPLEVEL) $(OFLUX)
+all: test $(XMLLIGHTLIB) $(BINDIR)/.depend.bin $(OFLUXLIB) $(if $(WILLMAKETOPLEVEL),$(OFLUXTOPLEVEL),) $(OFLUX)
 
 test:
 	@echo $(COMPILED_HEADERS) $(COMPILED_CODE)
 
 $(OFLUXTOPLEVEL): $(OFLUXLIB) $(XMLLIGHTLIB)
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlmktop $(INCLUDEOPTS) $(XMLLIGHTLIB) $(OFLUXLIB) -o $(OFLUXTOPLEVEL)
+	ocamlmktop $(INCLUDEOPTS) unix.$(LIBRARYEXT) $(XMLLIGHTLIB) $(OFLUXLIB) -o $(OFLUXTOPLEVEL)
 
 $(OFLUX): $(OFLUXLIB) $(XMLLIGHTLIB) $(COMPILED_MAIN)
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlc $(INCLUDEOPTS) -g $(XMLLIGHTLIB) $(OFLUXLIB) $(BINDIR)/main.cmo -o $(OFLUX)
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) $(XMLLIGHTLIB) $(OFLUXLIB) $(BINDIR)/main.$(OBJECTEXT) -o $(OFLUX)
 
 
 $(XMLLIGHTLIB):
-	make -wC xml-light bin/xml-light.cma
+	make -wC xml-light bin/xml-light.$(LIBRARYEXT)
 
 $(OFLUXLIB): $(COMPILED_HEADERS) $(COMPILED_CODE)
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlc -a $(COMPILED_CODE) -o $@
+	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
 lexer.ml: lexer.mll
 	ocamllex lexer.mll
@@ -86,13 +97,13 @@ parser.ml: parser.mli
 # 		ocamllex $< ; \
 # 	fi
 
-$(BINDIR)/%.cmo: %.ml
+$(BINDIR)/%.$(OBJECTEXT): %.ml
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlc $(INCLUDEOPTS) -g -o $@ -c $<
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $<
 
 $(BINDIR)/%.cmi: %.mli
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	ocamlc $(INCLUDEOPTS) -g -o $@ -c $<
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $<
 
 depend: $(BINDIR)/.depend.bin
 	make -wC xml-light depend
@@ -106,7 +117,7 @@ $(BINDIR)/.depend:
 	ocamldep $(INCLUDEOPTS) *.mli *.ml > $(BINDIR)/.depend
 
 clean:
-	rm -f $(BINDIR)/* lexer.ml parser.ml parser.mli oflux ofluxcli parser.output $(BINDIR)/.depend* *.cmi *.cmo ../doc/oflux-syntax.html ../doc/compiler/*;
+	rm -f $(BINDIR)/* lexer.ml parser.ml parser.mli oflux ofluxcli parser.output $(BINDIR)/.depend* *.cmi *.cmo *.cmx ../doc/oflux-syntax.html ../doc/compiler/*;
 	make -wC xml-light clean
 
 doc:

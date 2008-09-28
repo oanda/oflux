@@ -281,7 +281,8 @@ let generate_program pname p =
                 let not_an_expr nd = 
                         let nn = strip nd.nodename
                         in
-                        try List.find (fun e -> (strip e.exprname) = nn) md.programdef.expr_list; false
+                        try  let _ = List.find (fun e -> (strip e.exprname) = nn) md.programdef.expr_list
+                             in false
                         with Not_found -> true
                         in
                 let nsofar = List.fold_left on_each_hook nsofar 

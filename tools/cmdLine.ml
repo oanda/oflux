@@ -13,13 +13,16 @@ let root_filename = ref None
 
 let noios = ref false
 
+let get_timing_on () = !Debug.timing_on
+
 let help_text =
 	 "usage: oflux [-duribase path] [-dnoios] [-a modulename] [-I incpath] file.flux\n"
 	^" -a  for compiling module code\n"
 	^" -I  for adding an include path (useful for locating modules elsewhere\n"
 	^" -d  throws out debugging information (verbose)\n"
         ^" -duribase lets you specify the URI base path for generated DOT docs\n"
-        ^" -dnoios avoids dot output with input/output data labels"
+        ^" -dnoios avoids dot output with input/output data labels\n"
+        ^" -t turn on timing of compilation steps"
 
 let parse_argv () =
     let sz = Array.length Sys.argv in
@@ -35,6 +38,7 @@ let parse_argv () =
 			    | ("-a",[modname]) -> (module_name := (Some modname); [])
 			    | ("-duribase",[dub]) -> (uribase_path := dub; [])
 			    | ("-d",[]) -> (Debug.debug := true; [])
+			    | ("-t",[]) -> (Debug.timing_on := true; [])
 			    | ("-dnoios",[]) -> (noios := true; [])
 			    | _ -> arg::stk)
 	    in  pa stk (i-1)
