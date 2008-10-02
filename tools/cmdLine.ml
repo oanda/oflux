@@ -15,6 +15,12 @@ let noios = ref false
 
 let get_timing_on () = !Debug.timing_on
 
+let weak_unify_on = ref true
+
+let set_weak_unify tf = (weak_unify_on := tf)
+
+let get_weak_unify () = !weak_unify_on
+
 let help_text =
 	 "usage: oflux [-duribase path] [-dnoios] [-a modulename] [-I incpath] file.flux\n"
 	^" -a  for compiling module code\n"
@@ -23,6 +29,7 @@ let help_text =
         ^" -duribase lets you specify the URI base path for generated DOT docs\n"
         ^" -dnoios avoids dot output with input/output data labels\n"
         ^" -t turn on timing of compilation steps"
+        ^" -us turn on timing of compilation steps"
 
 let parse_argv () =
     let sz = Array.length Sys.argv in
@@ -40,6 +47,7 @@ let parse_argv () =
 			    | ("-d",[]) -> (Debug.debug := true; [])
 			    | ("-t",[]) -> (Debug.timing_on := true; [])
 			    | ("-dnoios",[]) -> (noios := true; [])
+			    | ("-us",[]) -> (set_weak_unify false; [])
 			    | _ -> arg::stk)
 	    in  pa stk (i-1)
     in  pa [] (sz-1)

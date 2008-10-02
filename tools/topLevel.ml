@@ -128,7 +128,7 @@ let generate fn br =
 	let h_code,cpp_code,umap = GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br in
 	let xml = match CmdLine.get_module_name() with
                 None -> GenerateXML.emit_xml fn br umap
-                | _ -> Xml.PCData "no xml for modules"
+                | _ -> raise (SemanticFailure ("no xml for modules",noposition))
 	in  xml,cpp_code,h_code
 
 

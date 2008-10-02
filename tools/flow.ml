@@ -165,7 +165,7 @@ let check_guard_refs stable =
 		let ngrs = nd.SymbolTable.nodeguardrefs
 		in  List.iter (fun gr ->
 			List.iter (fun (((_,_,(nn:string)) as trip), pos) -> 
-					(match SymbolTable.unify_single (map_node_arg_type nn) trip with
+					(match Unify.unify_single (map_node_arg_type nn) trip with
 						None -> ()
 						| (Some r) ->
 							raise (Failure ("cannot unify guard argument - "^r,pos)))
@@ -175,10 +175,10 @@ let check_guard_refs stable =
 
 let type_check' (siot,iot) unified symtable sfl_n fl_n srcpos =
 	let iot_to_str iot = if iot then "input" else "output"
-	in  match SymbolTable.unify' (siot,iot) symtable sfl_n fl_n with
-		SymbolTable.Success -> ((sfl_n,siot),(fl_n,iot))::unified
+	in  match Unify.unify' (siot,iot) symtable sfl_n fl_n with
+		Unify.Success -> ((sfl_n,siot),(fl_n,iot))::unified
 				(* true for input *)
-		| (SymbolTable.Fail (i,reason)) ->
+		| (Unify.Fail (i,reason)) ->
 			raise (if i < 0 then Failure (reason,srcpos) 
 				else Failure (("Node "^(iot_to_str iot)^" "^fl_n^" and "^(iot_to_str siot)^" "
 						^sfl_n^" unify failed."
@@ -255,7 +255,7 @@ let add_conditionals symtable expr = (* returns a new symtable *)
 			with (Invalid_argument _) ->
 				raise (Failure ("mismatch on expression "^n^" argument count",npos)) in
 		let unify pos ty1 ty2 =
-			match SymbolTable.unify_single ty1 ty2 with
+			match Unify.unify_single ty1 ty2 with
 				None -> ()
 				| (Some msg) ->
 					raise (Failure ("type unify failure for conditional. "^msg,pos)) in
@@ -325,16 +325,16 @@ let add_choice_expr symtable fmap unified expr =
 			| _ -> raise (Failure("expression must have consequences",identpos)) in
 	let unified = type_check_all unified conseq in
 	let unified =
-		(match SymbolTable.unify_type_in_out in_param conseq_in with
-		 	SymbolTable.Success -> ((ident_n,true),(first_n,true))::unified
-			| (SymbolTable.Fail (i,reason)) -> raise (Failure ("Nodes "^ident_n^" and "^first_n^" have inconsistent (input) type",identpos))
+		(match Unify.unify_type_in_out in_param conseq_in with
+		 	Unify.Success -> ((ident_n,true),(first_n,true))::unified
+			| (Unify.Fail (i,reason)) -> raise (Failure ("Nodes "^ident_n^" and "^first_n^" have inconsistent (input) type",identpos))
 		) in
 	let unified = 
 		match out_param, conseq_out with
 			(Some op,Some co) ->
-				(match SymbolTable.unify_type_in_out op co with
-					SymbolTable.Success -> ((ident_n,false),(last_n,false))::unified
-					| (SymbolTable.Fail (i,reason)) -> raise (Failure ("Nodes "^ident_n^" and "^last_n^" have inconsistent (output) type",identpos))
+				(match Unify.unify_type_in_out op co with
+					Unify.Success -> ((ident_n,false),(last_n,false))::unified
+					| (Unify.Fail (i,reason)) -> raise (Failure ("Nodes "^ident_n^" and "^last_n^" have inconsistent (output) type",identpos))
 				)
 			| _ -> unified in
 	let fl = FlowMap.find ident_n fmap in

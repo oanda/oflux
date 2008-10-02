@@ -16,9 +16,9 @@ let unify_atoms pos a1 a2 =
                 (strip_position dt1.dctypemod) = (strip_position dt2.dctypemod)
                 &&
                 (strip_position dt1.dctype) = (strip_position dt2.dctype)
-        in  (match SymbolTable.unify_type_in_out a1.atominputs a2.atominputs with
-                        (SymbolTable.Success) -> ()
-                        | (SymbolTable.Fail (i,reason)) ->
+        in  (match Unify.unify_type_in_out a1.atominputs a2.atominputs with
+                        (Unify.Success) -> ()
+                        | (Unify.Fail (i,reason)) ->
                                 raise (FlattenFailure ("could not unify guard types (argument"^(string_of_int i)^" "^reason^")", pos)))
             ; if match_dt a1.outputtype a2.outputtype then ()
               else raise (FlattenFailure ("could not unify guard types (output type)", pos))

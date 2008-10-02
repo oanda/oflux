@@ -438,7 +438,7 @@ let possible_instances_of to_dfl from_dfl =
 					hl) (cart_prod tll))
 			| [] -> [] in
 	let type_match df1 df2 =
-		match SymbolTable.unify_single (SymbolTable.strip_position3 df1)
+		match Unify.unify_single (SymbolTable.strip_position3 df1)
 			(SymbolTable.strip_position3 df2) with
 		    None -> true
 		    | (Some _) -> false in
@@ -654,7 +654,7 @@ let emit_cond_map ufs umap symtable code =
 	let unify s t =
 		let s' = SymbolTable.strip_position3 s in
 		let t' = SymbolTable.strip_position3 t 
-		in  match SymbolTable.unify_single s' t' with
+		in  match Unify.unify_single s' t' with
 			(Some _) -> false
 			| _ -> true in
 	let try_arg n nf unionnumber d (i,code) arg =
