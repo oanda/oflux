@@ -57,17 +57,31 @@ val type_check_outputs_only :  unification_result -> (* unification result so fa
 
 (* getting the consequences *)
 
+type consequence_result = 
+        { equiv_classes : (string * bool) list list
+        ; union_map : ((string * bool) * int) list
+        }
+
 val consequences : unification_result ->
         SymbolTable.symbol_table ->
-        (string * bool) list list (*list*)
-        (** The output is a list of list of equivalence classes:
-            [ [ e11; e21; e31; ...] ; [ e12; e22; e32; ...] ; ... ]
-            eij : string list ( an equivalence class
-            - all the eij have pairwise empty intersections
-            - Name1 & Name2 in eij means that they are exactly the same (type)
-            - eij;e{i+1}j side by side means that the type list of eij
-                is a subset of e{i+1}j
-          The concept is that we want the equivalence class chains in the result          to be of maximal size.  
-          Each chain is an oportunity to do some inheritance on IO structs
-          if we ever get that fancy.
-        *)
+        consequence_result
+
+val get_union_from_equiv : consequence_result ->
+        (string * bool) list ->
+        int
+
+val get_union_from_strio : consequence_result ->
+        (string * bool) ->
+        int
+
+val consequences_equiv_fold : ( 'a -> (string * bool) list -> 'a ) ->
+        'a ->
+        consequence_result ->
+        'a
+
+val consequences_umap_fold : ( 'a -> ((string * bool) * int) -> 'a ) ->
+        'a ->
+        consequence_result ->
+        'a
+
+

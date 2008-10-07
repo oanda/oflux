@@ -53,6 +53,11 @@ let from_basic_nodes symtable sinks sources =
         let ulist = SymbolTable.fold_nodes ensure_each symtable ulist
         in  ulist
         
+type consequence_result = 
+        { equiv_classes : (string * bool) list list
+        ; union_map : ((string * bool) * int) list
+        }
+
 
 let consequences ulist stable = 
         let union_find_uniq ufs =
@@ -73,7 +78,28 @@ let consequences ulist stable =
                 in  List.map (fun (x,y) -> (to_func x,to_func y)) ulist
                 in
 	let ulist = translate_node_to_function stable ulist in
-        let ufs = UnionFind.union_find ulist 
-        in  union_find_uniq ufs
+        let ufs = UnionFind.union_find ulist in  
+        let ufs = union_find_uniq ufs in
+        let get_umap ufs =  
+                let do_one (umap,i) ul =
+                        ( (List.map (fun y -> (y,i)) ul) @ umap, i+1 ) in
+                let umap,_ = List.fold_left do_one ([],1) ufs
+                in  umap
+        in  { equiv_classes=ufs
+            ; union_map=get_umap ufs
+            }
+
         
+let get_union_from_strio conseq_r strio = List.assoc strio conseq_r.union_map
+
+let get_union_from_equiv conseq_r ul = 
+        get_union_from_strio conseq_r (List.hd ul)
+
+let consequences_equiv_fold ffun onobj conseq_res =
+        List.fold_left ffun onobj conseq_res.equiv_classes
+
+let consequences_umap_fold ffun onobj conseq_res =
+        List.fold_left ffun onobj conseq_res.union_map
+
+
 

@@ -120,7 +120,10 @@ let flow el_name nodes =
 
 exception XMLConversion of string * ParserTypes.position
 
-let emit_xml programname br unionmap = 
+let emit_xml programname br conseq_res = 
+        let unionmap_as_string strio =
+                let u_n = TypeCheck.get_union_from_strio conseq_res strio
+                in  string_of_int u_n in
 	let stable = br.Flow.symtable in
 	let fmap = br.Flow.fmap in
 	let sourcelist = br.Flow.sources in
@@ -201,7 +204,7 @@ let emit_xml programname br unionmap =
                 in
 	let find_union_number (y,io) = 
 		let nd = SymbolTable.lookup_node_symbol stable y
-		in  string_of_int (List.assoc (nd.SymbolTable.functionname,io) unionmap) in
+		in  unionmap_as_string (nd.SymbolTable.functionname,io) in
 	let rec gen_succ' ccond fl = 
 		let sfun n _ _ _ = 
 			let u_n = find_union_number (n,true) in
@@ -265,7 +268,7 @@ let emit_xml programname br unionmap =
 		let do_gr gr = 
 			let _,gr_pos,_ = gr.ParserTypes.guardname in
 			guardref (ParserTypes.strip_position gr.ParserTypes.guardname)
-			(string_of_int (List.assoc (nd.SymbolTable.functionname,true) unionmap))
+			(unionmap_as_string (nd.SymbolTable.functionname,true))
 			(match gr.ParserTypes.modifiers with
 				(ParserTypes.Read::_) -> "1"
 				| (ParserTypes.Write::_) -> "2"

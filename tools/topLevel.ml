@@ -125,9 +125,9 @@ let semantic_analysis p mod_defs =
 let generate fn br =
 	let debug = !Debug.debug in
 	let _ = Debug.dprint_string "FINAL FMAP\n"; Flow.pp_flow_map debug br.Flow.fmap in
-	let h_code,cpp_code,umap = GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br in
+	let h_code,cpp_code,conseq_res = GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br in
 	let xml = match CmdLine.get_module_name() with
-                None -> GenerateXML.emit_xml fn br umap
+                None -> GenerateXML.emit_xml fn br conseq_res
                 | _ -> raise (SemanticFailure ("no xml for modules",noposition))
 	in  xml,cpp_code,h_code
 

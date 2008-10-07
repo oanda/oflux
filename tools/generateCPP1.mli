@@ -5,7 +5,7 @@ val emit_cpp :
 		Flow.built_flow -> (** flattened flow *)
 			CodePrettyPrinter.code 
 			* CodePrettyPrinter.code 
-			* ((string * bool) * int) list
+			* TypeCheck.consequence_result
 
 val get_module_file_suffix : string option -> string
 
