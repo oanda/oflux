@@ -22,14 +22,14 @@ let set_weak_unify tf = (weak_unify_on := tf)
 let get_weak_unify () = !weak_unify_on
 
 let help_text =
-	 "usage: oflux [-duribase path] [-dnoios] [-a modulename] [-I incpath] file.flux\n"
+	 "usage: oflux [-d] [-t] [-duribase path] [-dnoios] [-a modulename] [-I incpath] file.flux\n"
 	^" -a  for compiling module code\n"
 	^" -I  for adding an include path (useful for locating modules elsewhere\n"
 	^" -d  throws out debugging information (verbose)\n"
         ^" -duribase lets you specify the URI base path for generated DOT docs\n"
         ^" -dnoios avoids dot output with input/output data labels\n"
         ^" -t turn on timing of compilation steps"
-        ^" -us turn on timing of compilation steps"
+        ^" -us cause only strong (old style) type unification to be allowed"
 
 let parse_argv () =
     let sz = Array.length Sys.argv in

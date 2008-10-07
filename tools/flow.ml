@@ -173,20 +173,6 @@ let check_guard_refs stable =
 			) ngrs
 	in  SymbolTable.fold_nodes e_one stable ()
 
-let type_check' (siot,iot) unified symtable sfl_n fl_n srcpos =
-	let iot_to_str iot = if iot then "input" else "output"
-	in  match Unify.unify' (siot,iot) symtable sfl_n fl_n with
-		Unify.Success -> ((sfl_n,siot),(fl_n,iot))::unified
-				(* true for input *)
-		| (Unify.Fail (i,reason)) ->
-			raise (if i < 0 then Failure (reason,srcpos) 
-				else Failure (("Node "^(iot_to_str iot)^" "^fl_n^" and "^(iot_to_str siot)^" "
-						^sfl_n^" unify failed."
-						^reason^" ( argument "
-						^(string_of_int i)^")"), srcpos))
-
-let type_check  unified symtable sfl_n fl_n srcpos =
-	type_check' (true,false) unified symtable sfl_n fl_n srcpos
 
 let add_named symtable fmap = 
 	let iterf n fl sinks =
@@ -213,7 +199,6 @@ let add_named symtable fmap =
 	let _ = dprint_string "AFTER ADD NAMED FMAP(part1)\n"; pp_flow_map (debug()) fmap 
 	in  FlowMap.fold iterf2 fmap res
 
-type unified_list = ((string * bool) * (string * bool)) list
 
 let add_main_fn symtable fmap unified mainfun =
 	let (_,srcpos,_) as name = mainfun.sourcename in
@@ -225,7 +210,7 @@ let add_main_fn symtable fmap unified mainfun =
 			| (Some succ) -> 
 				let sfl_n = strip_position succ
 				in (Some sfl_n
-				   , type_check unified symtable sfl_n fl_n srcpos )
+				   , TypeCheck.type_check unified symtable sfl_n fl_n srcpos )
 	in      try let sfl = match sfl_n_opt with
 				None -> ref_null()
 				| (Some sfl_n) -> FlowMap.find sfl_n fmap in
@@ -281,12 +266,9 @@ let add_concurrent_expr symtable fmap unified expr =
         let ident_n, identpos, _ = expr.exprname in
         let tounify_names = List.map strip_position
                 expr.successors in
-        let type_check_concur unified ename =
-                let unified = type_check' (true,true) unified
-                        symtable ident_n ename identpos
-                in  type_check' (false,false) unified
-                        symtable ident_n ename identpos in
-        let unified = List.fold_left type_check_concur unified tounify_names in
+        let type_check_concur_local unified ename =
+                TypeCheck.type_check_concur unified symtable ident_n ename identpos in
+        let unified = List.fold_left type_check_concur_local unified tounify_names in
 	let getfl n =
 		try FlowMap.find n fmap
 		with Not_found -> raise (Failure ("node "^n^" referenced in the flow not found",identpos)) in
@@ -302,14 +284,14 @@ let add_choice_expr symtable fmap unified expr =
 	let rec type_check_all unified ll = 
 		match ll with
 			((h1,hpos,_)::((h2,_,_) as hh)::t) -> 
-				let unied = type_check unified symtable h2 h1 hpos
+				let unied = TypeCheck.type_check unified symtable h2 h1 hpos
 				in type_check_all unied (hh::t)
 			| _ -> unified in
 	let lookup_node pos n =
 		try SymbolTable.lookup_node_symbol symtable n
 		with Not_found -> raise (Failure ("cannot find node definition "^n,pos)) in
 	let nd = lookup_node identpos ident_n in
-	let in_param = nd.SymbolTable.nodeinputs in
+	(*let in_param = nd.SymbolTable.nodeinputs in*)
 	let out_param = nd.SymbolTable.nodeoutputs in
 	let conseq_in, conseq_out, first_n, last_n = 
 		match conseq, List.rev conseq with
@@ -325,18 +307,12 @@ let add_choice_expr symtable fmap unified expr =
 			| _ -> raise (Failure("expression must have consequences",identpos)) in
 	let unified = type_check_all unified conseq in
 	let unified =
-		(match Unify.unify_type_in_out in_param conseq_in with
-		 	Unify.Success -> ((ident_n,true),(first_n,true))::unified
-			| (Unify.Fail (i,reason)) -> raise (Failure ("Nodes "^ident_n^" and "^first_n^" have inconsistent (input) type",identpos))
-		) in
+                TypeCheck.type_check_inputs_only unified symtable ident_n first_n identpos in
 	let unified = 
 		match out_param, conseq_out with
 			(Some op,Some co) ->
-				(match Unify.unify_type_in_out op co with
-					Unify.Success -> ((ident_n,false),(last_n,false))::unified
-					| (Unify.Fail (i,reason)) -> raise (Failure ("Nodes "^ident_n^" and "^last_n^" have inconsistent (output) type",identpos))
-				)
-			| _ -> unified in
+                                TypeCheck.type_check_outputs_only unified symtable ident_n last_n identpos 
+                        | _ -> unified in
 	let fl = FlowMap.find ident_n fmap in
 	let _ = dprint_string "DEBUGGING:\n"; 
 		dprint_string ("on "^ident_n^"\n");
@@ -454,7 +430,7 @@ let add_error symtable fmap unified err =
 		in  match !fl with
 			((Source (a,_,b,hr)) | (CNode (a,_,b,hr))) -> 
 				let _ = hr := h
-				in  type_check' (true,true) unified symtable hname n npos
+				in  TypeCheck.type_check_general (true,true) unified symtable hname n npos
 			| _ -> raise (Failure ("trying to bind error handler to non-concrete node "^n,npos))
 	in  List.fold_left a_e unified nodes
 
@@ -462,7 +438,7 @@ let add_error symtable fmap unified err =
 type built_flow = 
 		{ sources : string list
 		; fmap : flowmap
-		; ulist : ((string * bool) * (string * bool)) list
+		; ulist : TypeCheck.unification_result
 		; symtable : SymbolTable.symbol_table
 		; errhandlers : string list
 		; modules : string list
@@ -491,7 +467,7 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
 	let flowmap = build_map flowmap node_decls in
 	let debug = debug () in
 	let _ = dprint_string "INITIAL FMAP\n"; pp_flow_map debug flowmap in
-	let unified = [] in
+	let unified = TypeCheck.empty in
 	let unified = List.fold_left (add_expr symboltable flowmap) unified (List.rev exprs) in
 	let _ = dprint_string "AFTER EXPRs FMAP\n"; pp_flow_map debug flowmap in
 	let unified = List.fold_left (add_main_fn symboltable flowmap) unified m_fns in
@@ -514,12 +490,6 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
         let run_once_sources = List.map (fun mf -> strip_position mf.sourcename)
                 (List.filter (fun x -> x.runonce) m_fns) in
 	let _ = List.iter (verify_source symboltable) sources in
-	let more_unified = 
-		match (List.map (fun x -> (x,false)) sinks) 
-				@ (List.map (fun x -> (x,true)) sources) with
-			(h::t) -> List.map (fun y ->(h,y)) t
-			| _ -> []
-		in
 	let _ = check_guard_refs symboltable in
         (*
 	let ulist = UnionFind.union_find (unified @ more_unified) in
@@ -535,12 +505,8 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
 	let _,ulist = SymbolTable.fold_nodes ensure_each symboltable 
 		(List.concat ulist,ulist)
         *)
-        let ulist = unified @ more_unified in
-        let ensure_each n nd ul =
-                if nd.SymbolTable.nodeoutputs = None then
-                        ((n,true),(n,true))::ul
-                else ((n,true),(n,true))::((n,false),(n,false))::ul in
-        let ulist = SymbolTable.fold_nodes ensure_each symboltable ulist
+        let more_unified = TypeCheck.from_basic_nodes symboltable sinks sources in
+        let ulist = TypeCheck.concat unified more_unified
 	in  { sources = sources
 	    ; fmap = flowmap
 	    ; ulist = ulist

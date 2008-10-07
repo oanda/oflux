@@ -11,8 +11,9 @@ CODE= \
 	lexer.ml \
 	symbolTable.ml \
 	unify.ml \
-	flatten.ml \
 	unionFind.ml \
+	typeCheck.ml \
+	flatten.ml \
 	flow.ml \
 	generateXML.ml \
 	dot.ml \
@@ -30,6 +31,7 @@ HEADERS= \
 	parser.mli \
 	symbolTable.mli \
 	unify.mli \
+	typeCheck.mli \
 	flow.mli \
 	generateCPP1.mli \
 	generateXML.mli \

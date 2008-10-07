@@ -764,30 +764,9 @@ let get_module_file_suffix modulenameopt =
 		else ""
 	in  const_ns
 
-let union_find_uniq ufs =
-	let rec uniq ll ul =
-		match ul with
-			(h::t) -> if List.mem h ll then uniq ll t
-				else uniq (h::ll) t
-			| _ -> ll
-		in
-	let oneach_cls cl = uniq [] cl
-	in  List.map oneach_cls ufs
-
-let translate_node_to_function stable ulist =
-	let to_func (n,boolval) =
-		try let nd = SymbolTable.lookup_node_symbol stable n
-		    in  nd.functionname, boolval
-		with _ ->  (n,boolval)
-        in  List.map (fun (x,y) -> (to_func x,to_func y)) ulist
-
 let emit_cpp modulenameopt br =
 	let stable = br.Flow.symtable in
-	let ulist = translate_node_to_function stable br.Flow.ulist in
-	let uffs = 
-                let ufs = UnionFind.union_find ulist 
-                in  union_find_uniq ufs
-                in
+	let uffs = TypeCheck.consequences br.Flow.ulist stable in
 	let fm = br.Flow.fmap in
 	let ehs = br.Flow.errhandlers in
 	let h_code = CodePrettyPrinter.empty_code in
