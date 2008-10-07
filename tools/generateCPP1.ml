@@ -62,6 +62,7 @@ let get_decls stable (name,isin) =
 			| (Some x) -> x)
 	with Not_found -> raise (CppGenFailure ("could not resolve node "^name))
 
+(*
 let get_collapsed_types stable conseq_res =
 	let is_equal x1 x2 = 
 		try let l = List.combine (get_decls stable x1) 
@@ -95,13 +96,15 @@ let get_collapsed_types stable conseq_res =
 			[singlel] -> ((i,ul)::full_collapsed_i, ul @ full_collapsed_ns, aliases)
 			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl))
 	in  TypeCheck.consequences_equiv_fold do_one ([],[],[]) conseq_res
+*)
 
 
-let emit_structs (collt_i,collt_n,aliases) symbol_table code =
+let emit_structs conseq_res symbol_table code =
 	let struct_decl nclss =
 		(nclss^" : public oflux::BaseOutputStruct<"
 		    ^nclss^"> ") in
-	let avoids = collt_n @ (List.map (fun (x,_) -> x) aliases) in
+	let avoids = conseq_res.TypeCheck.full_collapsed_names 
+                @ (List.map (fun (x,_) -> x) conseq_res.TypeCheck.aliases) in
 	let avoid_struct ((n,_) as x) = (List.exists (fun y -> x=y) avoids)
 		|| (has_dot n)
 		in
@@ -167,10 +170,6 @@ let emit_structs (collt_i,collt_n,aliases) symbol_table code =
 						::(e_two (i+1) tl)
 				| _ -> [] in
 		let decl = get_decls symbol_table (un,uisin)
-			(*match StringMap.find un symbol_table with
-				(Node (declin,declout,_,_)) ->
-					if uisin then declin else declout
-				| _ -> raise Not_found *)
 		in  List.fold_left add_code code 
 			( [ "struct "
 			    ^(struct_decl ("OFluxUnion"^(string_of_int i)))
@@ -181,18 +180,17 @@ let emit_structs (collt_i,collt_n,aliases) symbol_table code =
 			@ (List.map one_typedef ul)
 			@ [ "" ] ) 
 		   , ignoreis in
-	let code = List.fold_left emit_type_def_alias code aliases
-	in  List.fold_left emit_type_def_union (code,[]) collt_i
+	let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
+	in  List.fold_left emit_type_def_union (code,[]) conseq_res.TypeCheck.full_collapsed
 
-let emit_unions collt_i conseq_res symtable code =
+let emit_unions conseq_res symtable code =
+        let collt_i = conseq_res.TypeCheck.full_collapsed in
 	let avoid_is = List.map (fun (i,_) -> i) collt_i in
 	let avoid_union i = List.mem i avoid_is in
 	let e_one (fl_n,is_in) =
 		let iostr = (if is_in then "_in" else "_out") in
 		let cname = cstyle_name (break_namespaced_name fl_n)
 		in  (fl_n^iostr^" _"^cname^iostr^";") in
-	(*let get_i x = List.assoc x umap in*)
-        (*let _ = print_string (if (avoid_union 3) then "avoiding 3\n" else "3 is ok\n") in*)
 	let e_union code ul =
 		let i = 
                         TypeCheck.get_union_from_equiv conseq_res ul
@@ -201,13 +199,7 @@ let emit_unions collt_i conseq_res symtable code =
 			let nn,nn_isinp = List.hd ul in
 			let cname = cstyle_name (break_namespaced_name nn) in
 			let iostr = if nn_isinp then "_in" else "_out" in
-                        (*let _ = print_string ("on union "^nn^iostr^"\n") in*)
 			let decll = get_decls symtable (nn,nn_isinp) in
-				(*match StringMap.find nn symtable with
-					(Node (in_dl,out_dl,_,_)) ->
-						if nn_isinp then in_dl else out_dl
-					| _ -> raise (CppGenFailure ("emit_unions: unexpected "^nn))
-				in *)
 			let gen_mem_fun (j,codelist) df =
 				let tm = strip_position df.ctypemod in
 				let t = strip_position df.ctype in
@@ -220,7 +212,6 @@ let emit_unions collt_i conseq_res symtable code =
 					^"_"^cname^iostr^"."^a^"; }  ")::codelist)
 				in
 			let _,mem_funs = List.fold_left gen_mem_fun (1,[]) decll in
-                        (*let _ = print_string ("union "^(string_of_int i)^"\n") in*)
 			let code = List.fold_left add_code code
 				( [ "union OFluxUnion"^(string_of_int i)^" {" ]
 				@ (List.map e_one ul)
@@ -258,8 +249,6 @@ let emit_atomic_key_structs symtable code =
 	in  SymbolTable.fold_guards e_one symtable code
 
 let gather_atom_aliases symtable =
-	(*let _ = let ff n _ () = Debug.dprint_string (n^" guard sym\n")
-		in  SymbolTable.fold_guards ff symtable () in*)
 	let lookup_return_type n =
 		let gd = SymbolTable.lookup_guard_symbol symtable n in
 		let rt = gd.return
@@ -390,9 +379,6 @@ let emit_atom_map_decl symtable code =
 
 let emit_atom_map_map symtable code =
 	let e_one n gd code =
-		(*let rtt = (strip_position gd.return.dctypemod)
-			^" "^(strip_position gd.return.dctype)
-		in*) 
                 let clean_n = clean_dots n in
                 List.fold_left add_code code
 		((
@@ -560,11 +546,7 @@ let emit_create_map is_concrete symtable conseq_res ehs code =
 			else code
 		in
 	let code = List.fold_left add_code code 
-			[ (*"struct CreateMap {"
-			; "const char * name;"
-			; "CreateNodeFn createfn;"
-			; "};"
-			; *) ""
+			[ ""
 			; "oflux::CreateMap __create_map[] = {"
 			] in
 	let code = SymbolTable.fold_nodes e_one symtable code in
@@ -584,7 +566,9 @@ let emit_master_create_map modules code =
 		  ; "" ] 
                 )
 
-let emit_converts modulenameopt (ignoreis,collapsed_types_i,aliased_types) conseq_res code =
+let emit_converts modulenameopt ignoreis conseq_res code =
+        let collapsed_types_i = conseq_res.TypeCheck.full_collapsed in
+        let aliased_types = conseq_res.TypeCheck.aliases in
 	let nspace =
 		match modulenameopt with
 			None -> ""
@@ -594,7 +578,6 @@ let emit_converts modulenameopt (ignoreis,collapsed_types_i,aliased_types) conse
 		try let _ = List.find (fun (ii,_) -> i=ii) ll
 		    in true
 		with Not_found -> false in
-	(*let avoid_i i = avoid collapsed_types_i i in*)
 	let avoid_n x = avoid aliased_types x in
 	let code = List.fold_left add_code code
 		[ "namespace oflux {  "
@@ -679,8 +662,6 @@ let emit_cond_map conseq_res symtable code =
 		let n,isin = List.hd u in
 		let unionnumber = TypeCheck.get_union_from_strio conseq_res (n,isin) in
 		let args = get_decls symtable (n,isin) in
-			(*let inargs,outargs,_,_ = SymbolTable.lookup_node_symbol symtable n
-			in  if isin then inargs else outargs in*)
 		let _,code = List.fold_left (try_arg cond_n condfunc_n unionnumber d) (1,code) args
 		in code in
 	let e_one n cond code =
@@ -690,13 +671,7 @@ let emit_cond_map conseq_res symtable code =
                                 code conseq_res
 			| _ -> raise (CppGenFailure "e_one - internal") in
 	let code = List.fold_left add_code code
-			[ (*"struct ConditionalMap {"
-			; "const int unionnumber;"
-			; "const int argno;"
-			; "const char * name;"
-			; "ConditionFn condfn;"
-			; "};"
-			;*) ""
+			[ ""
 			; "oflux::ConditionalMap __conditional_map[] = {"
 			] in
 	let code = SymbolTable.fold_conditionals e_one symtable code
@@ -730,7 +705,6 @@ let emit_test_main code =
 		; "init(argc-1,&(argv[1]));"
 		; "#endif //HASINIT"
 		; "FlowFunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map);"
-		(*; "oflux::XMLReader xml(argv[1],&ffmaps);"*)
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
 		; ", 1 // initial threads (ignored really)"
@@ -740,7 +714,6 @@ let emit_test_main code =
 		; ", 1000 // thread collection sample period (every N node execs)"
 		; ", argv[1] // XML file"
 		; ", &ffmaps"
-		(*; ", false // prioritize sources in the event queue above all els"*)
 		; "};"
 		; "RunTime rt(rtc);"
 		; "theRT = &rt;"
@@ -768,7 +741,6 @@ let get_module_file_suffix modulenameopt =
 
 let emit_cpp modulenameopt br =
 	let stable = br.Flow.symtable in
-	(*let uffs = TypeCheck.consequences br.Flow.ulist stable in*)
         let conseq_res = TypeCheck.consequences br.Flow.ulist stable in
 	let fm = br.Flow.fmap in
 	let ehs = br.Flow.errhandlers in
@@ -840,10 +812,10 @@ let emit_cpp modulenameopt br =
 	let is_concrete n = Flow.is_concrete stable fm n in
 	(*let _ = let ff n _ () = Debug.dprint_string (n^" guard sym(5)\n")
 		in  SymbolTable.fold_guards ff stable () in*)
-	let collapsed_types_i, collapsed_types_n, aliased_types = 
-		get_collapsed_types stable conseq_res in
-	let h_code,ignoreis = emit_structs 
-		(collapsed_types_i,collapsed_types_n, aliased_types)
+	(*let collapsed_types_i, collapsed_types_n, aliased_types = 
+		get_collapsed_types stable conseq_res in*)
+	let h_code,ignoreis = emit_structs conseq_res
+		(*(collapsed_types_i,collapsed_types_n, aliased_types)*)
 		stable h_code in
 	let h_code = emit_atomic_key_structs stable h_code in
 	let node_atom_aliases = gather_atom_aliases stable in
@@ -855,9 +827,9 @@ let emit_cpp modulenameopt br =
 			conseq_res stable h_code in
 	let h_code = emit_cond_func_decl stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
-	let h_code = emit_unions collapsed_types_i (*umap uffs*) conseq_res stable h_code in
+	let h_code = emit_unions (*collapsed_types_i umap uffs*) conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
-	let h_code = emit_converts modulenameopt (ignoreis, collapsed_types_i,aliased_types) conseq_res h_code in
+	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
 	let h_code = CodePrettyPrinter.add_code h_code "#endif // _OFLUX_GENERATED" in
 	let cpp_code = CodePrettyPrinter.empty_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code
@@ -874,23 +846,23 @@ let emit_cpp modulenameopt br =
 		] in
 	let cpp_code = namespaceheader cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
-	let cpp_code = emit_create_map is_concrete stable (*umap*) conseq_res ehs cpp_code in
+	let cpp_code = emit_create_map is_concrete stable conseq_res ehs cpp_code in
 	let cpp_code = if is_module then cpp_code else emit_master_create_map modules cpp_code in
-	let cpp_code = emit_cond_map (*uffs umap*) conseq_res stable cpp_code in
+	let cpp_code = emit_cond_map conseq_res stable cpp_code in
 	let cpp_code = if is_module then cpp_code
 		else
 		let cpp_code = emit_atom_map_map stable cpp_code in
-		let cpp_code = emit_guard_trans_map (true,true,false,false) (*umap*) conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (true,true,false,false)  conseq_res stable cpp_code in
 		let max_guard_size = calc_max_guard_size stable in
 		let cpp_code = add_code cpp_code
 				("const int _argument_arr[]["
 				^(string_of_int (max_guard_size+1))
 				^"] = {") in
-		let cpp_code = emit_guard_trans_map (false,false,true,false) (*umap*) conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (false,false,true,false) conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code [ "{ 0 }  "; "};" ] in
 		let cpp_code = add_code cpp_code
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
-		let cpp_code = emit_guard_trans_map (false,false,false,true) (*umap*) conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (false,false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
 				[ "{ NULL,0,0,NULL, NULL}  "; "};" ]
 		in  cpp_code in

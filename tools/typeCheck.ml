@@ -56,7 +56,45 @@ let from_basic_nodes symtable sinks sources =
 type consequence_result = 
         { equiv_classes : (string * bool) list list
         ; union_map : ((string * bool) * int) list
+        ; full_collapsed : (int * ((string * bool) list)) list
+        ; full_collapsed_names : (string * bool) list
+        ; aliases : ((string * bool) * (string * bool)) list
         }
+
+
+let get_collapsed_types stable ufs umap =
+	let is_equal x1 x2 = 
+		try let l = List.combine (SymbolTable.get_decls stable x1) 
+				(SymbolTable.get_decls stable x2) 
+		    in  List.for_all 
+				(fun (df1,df2) ->
+					(((strip_position df1.ctypemod) = (strip_position df2.ctypemod))
+					&&
+					((strip_position df1.ctype) = (strip_position df2.ctype))
+					&&
+					((strip_position df1.name) = (strip_position df2.name))))
+				l
+		with (Invalid_argument _) -> false
+		in
+	let do_one' ul =
+		let rec d_o ll u =
+			match ll with
+				(((hh::_) as h)::t) -> 
+					if is_equal hh u then
+						(u::h)::t
+					else h::(d_o t u)
+				| _ -> [u]::ll
+		in List.fold_left d_o [] ul in
+	let get_aliases ll =
+		match ll with
+			[] -> []
+			| (h::t) -> List.map (fun x -> (x,h)) t in
+	let do_one (full_collapsed_i,full_collapsed_ns,aliases) ul =
+		let i = List.assoc (List.hd ul) umap
+		in  match do_one' ul with
+			[singlel] -> ((i,ul)::full_collapsed_i, ul @ full_collapsed_ns, aliases)
+			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl))
+	in  List.fold_left do_one ([],[],[]) ufs
 
 
 let consequences ulist stable = 
@@ -84,9 +122,15 @@ let consequences ulist stable =
                 let do_one (umap,i) ul =
                         ( (List.map (fun y -> (y,i)) ul) @ umap, i+1 ) in
                 let umap,_ = List.fold_left do_one ([],1) ufs
-                in  umap
+                in  umap in
+        let umap = get_umap ufs in
+        let full_collapsed, full_collapsed_names, aliases =
+                get_collapsed_types stable ufs umap
         in  { equiv_classes=ufs
-            ; union_map=get_umap ufs
+            ; union_map=umap
+            ; full_collapsed=full_collapsed
+            ; full_collapsed_names=full_collapsed_names
+            ; aliases=aliases
             }
 
         

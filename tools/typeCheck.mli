@@ -60,6 +60,9 @@ val type_check_outputs_only :  unification_result -> (* unification result so fa
 type consequence_result = 
         { equiv_classes : (string * bool) list list
         ; union_map : ((string * bool) * int) list
+        ; full_collapsed : (int * ((string * bool) list)) list
+        ; full_collapsed_names : (string * bool) list
+        ; aliases : ((string * bool) * (string * bool)) list
         }
 
 val consequences : unification_result ->

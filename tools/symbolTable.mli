@@ -67,6 +67,10 @@ val is_abstract : symbol_table -> string -> bool
 
 val strip_position3 : ParserTypes.decl_formal -> string * string * string
 
+exception DeclarationLookup of string
+
+val get_decls : symbol_table -> string * bool -> ParserTypes.decl_formal list
+
 (** modules *)
 
 type module_inst_data =

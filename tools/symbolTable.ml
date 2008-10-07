@@ -132,6 +132,16 @@ let is_abstract symtable name =
 	let x = lookup_node_symbol symtable name
 	in  x.nodeabstract
 
+exception DeclarationLookup of string
+
+let get_decls stable (name,isin) =
+	try let nd = lookup_node_symbol_from_function stable name
+	    in  if isin then nd.nodeinputs 
+	    	else (match nd.nodeoutputs with
+			None -> raise (DeclarationLookup ("node "^name^" is abstract and cannot be used for code generation"))
+			| (Some x) -> x)
+	with Not_found -> raise (DeclarationLookup ("could not resolve node "^name))
+
 (* deprecated
 * so called typedefs *
 
