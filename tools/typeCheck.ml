@@ -59,8 +59,60 @@ type consequence_result =
         ; full_collapsed : (int * ((string * bool) list)) list
         ; full_collapsed_names : (string * bool) list
         ; aliases : ((string * bool) * (string * bool)) list
+        ; subset_order : (int * int) list
+                (** (a,b) in this list means that the
+                        union_map^{-1} will indicate
+                    that a is a subset of b 
+                    not reflexive,trans,anti-symmetric closed
+                  *)
         }
 
+let get_subset_order stable full_collapsed =
+        let on_each (i,ul) = 
+                let h = List.hd ul in
+                let decls = SymbolTable.get_decls stable h
+                in  (i,decls) in
+        let decl_compare decl1 decl2 =
+                compare (strip_position decl1.name
+                        ,strip_position decl1.ctype
+                        ,strip_position decl1.ctypemod)
+                        (strip_position decl2.name
+                        ,strip_position decl2.ctype
+                        ,strip_position decl2.ctypemod) in
+        let rec list_compare l1 l2 =
+                match l1, l2 with
+                        (h1::t1,h2::t2) ->
+                                let r = decl_compare h1 h2
+                                in  if r = 0 then list_compare t1 t2
+                                    else r
+                        | _ -> 0 in
+        let decls_compare (_,l1) (_,l2) =
+                let r = compare (List.length l1) (List.length l2) 
+                in  if r = 0 then list_compare l1 l2
+                    else r in
+        let ll_sorted = List.sort decls_compare (List.map on_each full_collapsed) in
+        let rec is_subset decls1 decls2 =
+                match decls1,decls2 with
+                        ([],_) -> true
+                        | (_,[]) -> false
+                        | (h1::t1,h2::t2) ->
+                                let cr = decl_compare h1 h2
+                                in  if cr = 0 then is_subset t1 t2
+                                    else if cr < 0 then false
+                                    else is_subset decls1 t2 in
+        let find_a_subset (i,decls) sofarlist =
+                try let j,decls = List.find (fun (j,sdecls) -> is_subset sdecls decls) sofarlist
+                    in  Some (j,i)
+                with Not_found -> None in
+        let ffun (subset_relation, sofar) (i,decls) =
+                ((match find_a_subset (i,decls) sofar with
+                        None -> subset_relation
+                        |(Some (a,b)) -> (a,b)::subset_relation)
+                ,(i,decls)::sofar) in
+        let subset_rel,_ = List.fold_left ffun ([],[]) ll_sorted
+        in  subset_rel
+                        
+                
 
 let get_collapsed_types stable ufs umap =
 	let is_equal x1 x2 = 
@@ -125,12 +177,14 @@ let consequences ulist stable =
                 in  umap in
         let umap = get_umap ufs in
         let full_collapsed, full_collapsed_names, aliases =
-                get_collapsed_types stable ufs umap
+                get_collapsed_types stable ufs umap in
+        let subset_order = get_subset_order stable full_collapsed
         in  { equiv_classes=ufs
             ; union_map=umap
             ; full_collapsed=full_collapsed
             ; full_collapsed_names=full_collapsed_names
             ; aliases=aliases
+            ; subset_order=subset_order
             }
 
         

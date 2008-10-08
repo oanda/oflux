@@ -62,42 +62,6 @@ let get_decls stable (name,isin) =
 			| (Some x) -> x)
 	with Not_found -> raise (CppGenFailure ("could not resolve node "^name))
 
-(*
-let get_collapsed_types stable conseq_res =
-	let is_equal x1 x2 = 
-		try let l = List.combine (get_decls stable x1) 
-				(get_decls stable x2) 
-		    in  List.for_all 
-				(fun (df1,df2) ->
-					(((strip_position df1.ctypemod) = (strip_position df2.ctypemod))
-					&&
-					((strip_position df1.ctype) = (strip_position df2.ctype))
-					&&
-					((strip_position df1.name) = (strip_position df2.name))))
-				l
-		with (Invalid_argument _) -> false
-		in
-	let do_one' ul =
-		let rec d_o ll u =
-			match ll with
-				(((hh::_) as h)::t) -> 
-					if is_equal hh u then
-						(u::h)::t
-					else h::(d_o t u)
-				| _ -> [u]::ll
-		in List.fold_left d_o [] ul in
-	let get_aliases ll =
-		match ll with
-			[] -> []
-			| (h::t) -> List.map (fun x -> (x,h)) t in
-	let do_one (full_collapsed_i,full_collapsed_ns,aliases) ul =
-		let i = TypeCheck.get_union_from_equiv conseq_res ul 
-		in  match do_one' ul with
-			[singlel] -> ((i,ul)::full_collapsed_i, ul @ full_collapsed_ns, aliases)
-			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl))
-	in  TypeCheck.consequences_equiv_fold do_one ([],[],[]) conseq_res
-*)
-
 
 let emit_structs conseq_res symbol_table code =
 	let struct_decl nclss =
@@ -192,8 +156,7 @@ let emit_unions conseq_res symtable code =
 		let cname = cstyle_name (break_namespaced_name fl_n)
 		in  (fl_n^iostr^" _"^cname^iostr^";") in
 	let e_union code ul =
-		let i = 
-                        TypeCheck.get_union_from_equiv conseq_res ul
+		let i = TypeCheck.get_union_from_equiv conseq_res ul
 		in  if avoid_union i then code
 		    else 
 			let nn,nn_isinp = List.hd ul in
@@ -812,11 +775,7 @@ let emit_cpp modulenameopt br =
 	let is_concrete n = Flow.is_concrete stable fm n in
 	(*let _ = let ff n _ () = Debug.dprint_string (n^" guard sym(5)\n")
 		in  SymbolTable.fold_guards ff stable () in*)
-	(*let collapsed_types_i, collapsed_types_n, aliased_types = 
-		get_collapsed_types stable conseq_res in*)
-	let h_code,ignoreis = emit_structs conseq_res
-		(*(collapsed_types_i,collapsed_types_n, aliased_types)*)
-		stable h_code in
+	let h_code,ignoreis = emit_structs conseq_res stable h_code in
 	let h_code = emit_atomic_key_structs stable h_code in
 	let node_atom_aliases = gather_atom_aliases stable in
 	let h_code = emit_node_atomic_structs true stable node_atom_aliases h_code in
@@ -827,7 +786,7 @@ let emit_cpp modulenameopt br =
 			conseq_res stable h_code in
 	let h_code = emit_cond_func_decl stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
-	let h_code = emit_unions (*collapsed_types_i umap uffs*) conseq_res stable h_code in
+	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
 	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
 	let h_code = CodePrettyPrinter.add_code h_code "#endif // _OFLUX_GENERATED" in

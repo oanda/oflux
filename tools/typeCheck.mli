@@ -6,6 +6,8 @@
 
 type unification_result
 
+exception Failure of string * ParserTypes.position
+
 (* basic operations *)
 
 val empty : unification_result (* initial value for an empty program *)
@@ -63,6 +65,12 @@ type consequence_result =
         ; full_collapsed : (int * ((string * bool) list)) list
         ; full_collapsed_names : (string * bool) list
         ; aliases : ((string * bool) * (string * bool)) list
+        ; subset_order : (int * int) list
+                (** (a,b) in this list means that the
+                        union_map^{-1} will indicate
+                    that a is a subset of b 
+                    not reflexive,trans,anti-symmetric closed
+                  *)
         }
 
 val consequences : unification_result ->

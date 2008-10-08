@@ -30,6 +30,10 @@ let main () =
 			^" "^(pos_to_string p)^"\n"); Some 4)
 		    | (GenerateCPP1.CppGenFailure s) ->
 			(print_string (" Error : C++ code gen - "^s); Some 5)
+		    | (SymbolTable.DeclarationLookup s) ->
+			(print_string (" Error : Symbol table lookup - "^s); Some 5)
+		    | (TypeCheck.Failure (s,p)) ->
+			(print_string (" Error : "^(pos_to_string p)^"Type checking - "^s); Some 5)
 		    | (Flatten.FlattenFailure (s,p)) ->
 			(print_string (" Error : module flattening - "^s^" "
 				^(pos_to_string p)^"\n");Some 6)
