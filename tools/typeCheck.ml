@@ -58,7 +58,8 @@ type consequence_result =
         ; union_map : ((string * bool) * int) list
         ; full_collapsed : (int * ((string * bool) list)) list
         ; full_collapsed_names : (string * bool) list
-        ; aliases : ((string * bool) * (string * bool)) list
+        ; aliases : ((string * bool) * (string * bool)) list 
+                (** (X,Y) implies X is Y *)
         ; subset_order : (int * int) list
                 (** (a,b) in this list means that the
                         union_map^{-1} will indicate

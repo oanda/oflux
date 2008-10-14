@@ -54,14 +54,7 @@ let rec expand_namespace_decl_end code nsn_broken =
 		| (nsh::nst) ->
 			List.fold_left add_code code [ "}"; "   //namespace" ]
 
-let get_decls stable (name,isin) =
-	try let nd = SymbolTable.lookup_node_symbol_from_function stable name
-	    in  if isin then nd.nodeinputs 
-	    	else (match nd.nodeoutputs with
-			None -> raise (CppGenFailure ("node "^name^" is abstract and cannot be used for code generation"))
-			| (Some x) -> x)
-	with Not_found -> raise (CppGenFailure ("could not resolve node "^name))
-
+let get_decls stable (name,isin) = SymbolTable.get_decls stable (name,isin)
 
 let emit_structs conseq_res symbol_table code =
 	let struct_decl nclss =
@@ -184,6 +177,142 @@ let emit_unions conseq_res symtable code =
 			in
 	let code = TypeCheck.consequences_equiv_fold e_union code conseq_res
 	in  code
+
+let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
+        (*let collapsed_types_i = conseq_res.TypeCheck.full_collapsed in
+        let aliased_types = conseq_res.TypeCheck.aliases in
+	let avoid ll i = 
+		try let _ = List.find (fun (ii,_) -> i=ii) ll
+		    in true
+		with Not_found -> false in
+	let avoid_n x = avoid aliased_types x in*)
+        let compatible_type d1 d2 =
+                (strip_position d1.ctypemod
+                ,strip_position d1.ctype)
+                = 
+                (strip_position d2.ctypemod
+                ,strip_position d2.ctype)
+                in
+        let decl_compare d1 d2 = 
+                compare (strip_position d1.ctypemod
+                        ,strip_position d1.ctype
+                        ,strip_position d1.name)
+                        (strip_position d2.ctypemod
+                        ,strip_position d2.ctype
+                        ,strip_position d2.name) in
+        let assignment_for_decl d1 d2 =
+                ("to->"^(strip_position d1.name)^" = "
+                ^"from->"^(strip_position d2.name)^";") in
+        let decl_mem x l = List.exists (fun d -> 0 = (decl_compare d x)) l in
+        let rec matchtypes assignments t_decls f_decls =
+                match t_decls,f_decls with
+                        ([],_) -> Some assignments
+                        | (_,[]) -> None
+                        | (ht::tt,hf::tf) ->
+                                if ht = hf then 
+                                        matchtypes ((assignment_for_decl ht hf)::assignments) tt tf
+                                else if (not (decl_mem ht tf)) && (compatible_type ht hf) then
+                                        matchtypes ((assignment_for_decl ht hf)::assignments) tt tf
+                                else (let cr = decl_compare ht hf
+                                     in if cr < 0 then (* ht < hf *)
+                                            None
+                                        else (* ht > hf *)
+                                            matchtypes assignments t_decls tf)
+                in
+        let get_copy_code t_name f_name =
+                let get_decls' y = List.sort decl_compare (get_decls symtable y) in 
+                let t_decls = get_decls' t_name in
+                let f_decls = get_decls' f_name 
+                in  if (List.length t_decls) > (List.length f_decls) then None
+                    else matchtypes [] t_decls f_decls
+                in
+        (*let code_template code (t_name,f_name) =
+                let as_name (x,isin) = x^(if isin then "_in" else "_out")
+                in  match get_copy_code t_name f_name with
+                        None -> code
+                        | (Some copy_code) -> 
+                                let t_name' = nspace^(as_name t_name) in
+                                let f_name' = nspace^(as_name f_name)
+                                in  List.fold_left add_code code
+                                        ([ "template<>"
+                                        ; ("inline void copy_to<"^t_name'^", "
+                                                ^f_name'^">("^t_name'^" * to, const "
+                                                ^f_name'^" * from)")
+                                        ; "{" ]
+                                        @ copy_code @
+                                        [ "}"
+                                        ; "" ])
+                in *)
+        let equivc = List.map List.hd conseq_res.TypeCheck.equiv_classes in
+        let cross_no_equal ll1 ll2 =
+                let rec mfun ll x = 
+                        match ll with 
+                                (h::t) -> if x = h then mfun t x else (h,x)::(mfun t x)
+                                | [] -> []
+                in  List.concat (List.map (mfun ll1) ll2) in
+        let code_assignopt_fun' code (a,b) = code_assignopt_fun code (get_copy_code a b,a,b) in
+        let code = List.fold_left code_assignopt_fun' code (cross_no_equal equivc equivc)
+        in  code
+        
+
+let emit_copy_to_functions modulenameopt _ conseq_res symtable code =
+        let code = List.fold_left add_code code
+                        [ "namespace oflux {  "
+                        ; ""
+                        ; "#ifndef OFLUX_COPY_TO_GENERAL"
+                        ; "template<typename T,typename F>"
+                        ; "inline void copy_to(T *to, const F * from)"
+                        ; "{"
+                        ; "enum { copy_to_code_failure_bug = 0 } _an_enum;"
+                        ; "oflux::CompileTimeAssert<copy_to_code_failure_bug> cta;"
+                        ; "}"
+                        ; "#endif // OFLUX_COPY_TO_GENERAL"
+                        ; "" ] in
+	let nspace =
+		match modulenameopt with
+			None -> ""
+			| (Some nn) -> nn^"::"
+		in
+        let code_template code (assign_opt,t_name,f_name) =
+                let as_name (x,isin) = x^(if isin then "_in" else "_out")
+                in  match assign_opt with
+                        None -> code
+                        | (Some copy_code) -> 
+                                let t_name' = nspace^(as_name t_name) in
+                                let f_name' = nspace^(as_name f_name)
+                                in  List.fold_left add_code code
+                                        ([ "template<>"
+                                        ; ("inline void copy_to<"^t_name'^", "
+                                                ^f_name'^">("^t_name'^" * to, const "
+                                                ^f_name'^" * from)")
+                                        ; "{" ]
+                                        @ copy_code @
+                                        [ "}"
+                                        ; "" ])
+                in
+        let code = generic_cross_equiv_weak_unify code code_template symtable conseq_res
+	in  List.fold_left add_code code [ ""; "};"; "   //namespace" ]
+
+let emit_io_conversion_functions conseq_res symtable code =
+        let code = add_code code "oflux::IOConverterMap __ioconverter_map[] = {" in
+        let code_table_entry code (assign_opt,t_name,f_name) =
+                let as_name (x,isin) = x^(if isin then "_in" else "_out")
+                in  match assign_opt with
+                        None -> code
+                        | (Some _) -> 
+                                let t_u_n = TypeCheck.get_union_from_strio conseq_res t_name in
+                                let f_u_n = TypeCheck.get_union_from_strio conseq_res f_name in
+                                let tstr = as_name t_name in
+                                let fstr = as_name f_name in
+                                let t_u_n_str = string_of_int t_u_n in
+                                let f_u_n_str = string_of_int f_u_n 
+                                in  add_code code ("{ "^f_u_n_str^", "^t_u_n_str^", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" > }, ")
+                in
+        let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res
+        in  List.fold_left add_code code [ "{ 0, 0, NULL }  " ; "};" ]
+        
+
+        
 
 let emit_atomic_key_structs symtable code =
 	let e_member df = ((strip_position df.ctypemod)
@@ -667,7 +796,7 @@ let emit_test_main code =
 		; "#ifdef HASINIT"
 		; "init(argc-1,&(argv[1]));"
 		; "#endif //HASINIT"
-		; "FlowFunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map);"
+		; "FlowFunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
 		; ", 1 // initial threads (ignored really)"
@@ -789,6 +918,7 @@ let emit_cpp modulenameopt br =
 	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
 	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
+        let h_code = emit_copy_to_functions modulenameopt ignoreis conseq_res stable h_code in
 	let h_code = CodePrettyPrinter.add_code h_code "#endif // _OFLUX_GENERATED" in
 	let cpp_code = CodePrettyPrinter.empty_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code
@@ -797,6 +927,7 @@ let emit_cpp modulenameopt br =
 		; "#include \"OFluxAtomic.h\""
 		; "#include \"OFluxAtomicHolder.h\""
 		; "#include \"OFluxRunTime.h\""
+		; "#include \"OFluxIOConversion.h\""
 		; "#include \"OFluxLogging.h\""
 		; "#include <iostream>"
 		; ""
@@ -823,7 +954,8 @@ let emit_cpp modulenameopt br =
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
 		let cpp_code = emit_guard_trans_map (false,false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
-				[ "{ NULL,0,0,NULL, NULL}  "; "};" ]
+				[ "{ NULL,0,0,NULL, NULL}  "; "};" ] in
+                let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
 	let cpp_code = emit_atom_fill stable node_atom_aliases cpp_code in

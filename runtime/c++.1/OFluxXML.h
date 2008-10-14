@@ -33,18 +33,25 @@ private:
  */
 class AddTarget {
 public:
-	AddTarget(FlowCase *fc, const char * name)
+	AddTarget(
+                        FlowCase *fc, 
+                        const char * name,
+                        int node_output_unionnumber)
 		: _fc(fc)
 		, _name(name)
+                , _node_output_unionnumber(node_output_unionnumber)
+                , _target_input_unionnumber(0)
 		{}
 	/**
 	 * @brief links the flow node found in parsed flow to a case
 	 * @param f  the fully parsed flow
 	 **/
-	void execute(Flow * f);
+	void execute(Flow * f,FlowFunctionMaps * fmaps);
 private:
 	FlowCase *  _fc;
-	std::string _name;
+	std::string _name; //target
+        int         _node_output_unionnumber;
+        int         _target_input_unionnumber;
 };
 
 /**
@@ -99,10 +106,10 @@ public:
 	 **/
 	Flow * flow() { return _flow; }
 	FlowCase * flow_case() { return _flow_case; }
-	void new_flow_case(const char * targetnodename) 
+	void new_flow_case(const char * targetnodename, int node_output_unionnumber) 
 	{ 
 		_flow_case = new FlowCase(NULL); 
-		AddTarget at(_flow_case,targetnodename);
+		AddTarget at(_flow_case,targetnodename,node_output_unionnumber);
 		_add_targets.push_back(at);
 	}
 	void add_flow_case() { _flow_successor->add(_flow_case); _flow_case = NULL; }
@@ -133,10 +140,18 @@ public:
 	void new_flow_node(const char * name, CreateNodeFn createfn, 
 			bool is_error_handler, 
 			bool is_src,
-			bool is_detached) 
+			bool is_detached,
+                        int input_unionnumber,
+                        int output_unionnumber) 
 	{ 
-		_flow_node = new FlowNode(name,createfn,
-				is_error_handler,is_src,is_detached); 
+		_flow_node = new FlowNode(
+                                name,
+                                createfn,
+				is_error_handler,
+                                is_src,
+                                is_detached,
+                                input_unionnumber,
+                                output_unionnumber); 
 		_flow_successor_list = &(_flow_node->successor_list());
 	}
 	void add_flow_node() 

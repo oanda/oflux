@@ -8,7 +8,7 @@ open Flow
  general structure is as follows:
   <flow name=...>
    <guard name=... magicnumber=.../>
-   <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false]> <!-- name of the node -->
+   <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionnumber=... outputunionnumber=...> <!-- name of the node -->
     <guardref name=... wtype=...>
       <argument argno=.../>
       <argument argno=.../>
@@ -37,6 +37,8 @@ let xml_name_str = "name"
 let xml_function_str = "function"
 let xml_argno_str = "argno"
 let xml_unionnumber_str = "unionnumber"
+let xml_inputunionnumber_str = "inputunionnumber"
+let xml_outputunionnumber_str = "outputunionnumber"
 let xml_wtype_str = "wtype"
 let xml_detached_str = "detached"
 let xml_isnegated_str = "isnegated"
@@ -100,13 +102,15 @@ let successorlist successors =
 		,[]
 		,successors)
 
-let node el_name el_function el_source el_iserrorhandler el_detached guardrefs errorhandler_opt successorlist =
+let node el_name el_function el_source el_iserrorhandler el_detached el_inputunionnumber el_outputunionnumber guardrefs errorhandler_opt successorlist =
 	Element(xml_node_str
 		,[ xml_name_str,el_name
 		 ; xml_function_str,el_function
 		 ; xml_source_str,el_source
 		 ; xml_iserrhandler_str,el_iserrorhandler
 		 ; xml_detached_str,el_detached
+		 ; xml_inputunionnumber_str, el_inputunionnumber
+		 ; xml_outputunionnumber_str, el_outputunionnumber
 		 ]
 		,match errorhandler_opt with
 			None -> guardrefs @ [successorlist]
@@ -287,6 +291,8 @@ let emit_xml programname br conseq_res =
 		in  node n f (if is_src then "true" else "false")
 			(if is_eh then "true" else "false")
 			(if is_dt then "true" else "false")
+                        (find_union_number (n,true))
+                        (find_union_number (n,false))
 			(List.map do_gr nd.SymbolTable.nodeguardrefs)
 			(let sfun _ _ _ eh = 
                                 (match gen_eh eh with

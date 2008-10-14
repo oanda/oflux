@@ -8,11 +8,18 @@ namespace oflux {
 
 #define XML_READER_MAX_LINE 300
 
-void AddTarget::execute(Flow * f)
+void AddTarget::execute(Flow * f, FlowFunctionMaps * fmaps)
 {
 	FlowNode *fsrc = f->get(_name);
 	assert(fsrc);
 	_fc->setTargetNode(fsrc);
+        _target_input_unionnumber = fsrc->inputUnionNumber();
+        FlatIOConversionFun fiocf = fmaps->lookup_io_conversion(_node_output_unionnumber,
+                _target_input_unionnumber);
+        if(fiocf) {
+                assert(_fc->ioConverter() == NULL);
+                _fc->setIOConverter(new FlowIOConverter(fiocf));
+        }
 }
 
 void SetErrorHandler::execute(Flow * f)
@@ -65,7 +72,7 @@ void XMLReader::read(const char * filename)
 void XMLReader::finalize()
 {
 	for(int i = 0; i < (int)_add_targets.size(); i++) {
-		_add_targets[i].execute(_flow);
+		_add_targets[i].execute(_flow,fmaps());
 	}
 	for(int i = 0; i < (int)_set_error_handlers.size(); i++) {
 		_set_error_handlers[i].execute(_flow);
@@ -82,6 +89,8 @@ void XMLReader::startHandler(void *data, const char *el, const char **attr)
 	const char * el_isnegated = NULL;
 	const char * el_iserrhandler = NULL;
 	const char * el_unionnumber = NULL;
+	const char * el_inputunionnumber = NULL;
+	const char * el_outputunionnumber = NULL;
 	const char * el_detached = NULL;
 	const char * el_magicnumber = NULL;
 	const char * el_wtype = NULL;
@@ -103,6 +112,10 @@ void XMLReader::startHandler(void *data, const char *el, const char **attr)
 			el_detached = attr[i+1];
 		} else if(strcmp(attr[i],"unionnumber") == 0) {
 			el_unionnumber = attr[i+1];
+		} else if(strcmp(attr[i],"inputunionnumber") == 0) {
+			el_inputunionnumber = attr[i+1];
+		} else if(strcmp(attr[i],"outputunionnumber") == 0) {
+			el_outputunionnumber = attr[i+1];
 		} else if(strcmp(attr[i],"magicnumber") == 0) {
 			el_magicnumber = attr[i+1];
 		} else if(strcmp(attr[i],"wtype") == 0) {
@@ -117,6 +130,8 @@ void XMLReader::startHandler(void *data, const char *el, const char **attr)
 	bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
 	int argno = (el_argno ? atoi(el_argno) : 0);
 	int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
+	int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
+	int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
 	int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
 	int wtype = (el_wtype ? atoi(el_wtype) : 0);
 	if(strcmp(el,"argument") == 0) {
@@ -146,7 +161,7 @@ void XMLReader::startHandler(void *data, const char *el, const char **attr)
 		// has attributes: nodetarget
 		// has children: condition
 		
-		pthis->new_flow_case(el_nodetarget);
+		pthis->new_flow_case(el_nodetarget,outputunionnumber);
 	} else if(strcmp(el,"successor") == 0) {
 		// has no attributes
 		// has children: case
@@ -161,11 +176,11 @@ void XMLReader::startHandler(void *data, const char *el, const char **attr)
 
 		pthis->setErrorHandler(el_name);
 	} else if(strcmp(el,"node") == 0) {
-		// has attributes: name, source
+		// has attributes: name, source, inputunionnumber, outputunionnumber
 		// has children: errorhandler, guardref(s), successorlist 
 		CreateNodeFn createfn = pthis->fmaps()->lookup_node_function(el_function);
 		assert(createfn != NULL);
-		pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached);
+		pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached,inputunionnumber,outputunionnumber);
 	}
 }
 

@@ -5,7 +5,7 @@
 
 namespace oflux {
 
-/** @filename OFluxLogging.h
+/** @file OFluxLogging.h
  *  @author Mark Pichora
  *  This logging module allows you to punt the logging in the runtime
  *    to specified streams
