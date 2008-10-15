@@ -136,7 +136,7 @@ public:
 		{
 			const char * name = _flow_guard_reference->getName().c_str();
 			GuardTransFn guardfn = fmaps()->lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_args);
-			assert(guardfn != NULL);
+			// assert(guardfn != NULL); // allowed now
 			_flow_guard_reference->setGuardFn(guardfn);
 			_flow_node->addGuard(_flow_guard_reference);
 			_flow_guard_reference = NULL;
