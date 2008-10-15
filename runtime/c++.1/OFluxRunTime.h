@@ -36,6 +36,8 @@ struct RunTimeConfiguration {
 	int thread_collection_sample_period;
 	const char * flow_filename;
 	FlowFunctionMaps * flow_maps;
+    const char * plugin_xml_dir;    // plugin xml directory
+    const char * plugin_lib_dir;    // plugin lib directory
 };
 
 class RunTimeThread;
@@ -60,7 +62,7 @@ public:
 
 	RunTime(const RunTimeConfiguration & rtc);
 	void start();
-	void load_flow(const char * filename = "");
+	void load_flow(const char * filename = "", const char * plugindir = "");
 	void soft_load_flow() { _load_flow_next = true; }
 	void soft_kill() { _running = false; }
 

@@ -175,7 +175,8 @@ FlowNode::FlowNode(const char * name,
 	CreateNodeFn createfn,
 	bool is_error_handler,
 	bool is_source,
-	bool is_detached)
+	bool is_detached,
+    bool is_virtual)
 	: _instances(0)
 	, _executions(0)
 	, _name(name)
@@ -183,6 +184,7 @@ FlowNode::FlowNode(const char * name,
 	, _is_error_handler(is_error_handler)
 	, _is_source(is_source)
 	, _is_detached(is_detached)
+	, _is_virtual(is_virtual)
 	, _error_handler(NULL)
 { 
 }
@@ -204,6 +206,7 @@ void FlowNode::log_snapshot()
 		_name.c_str(),
 		(_is_source ? 's' : '-'),
 		(_is_detached ? 'd' : '-'),
+		(_is_virtual ? 'd' : '-'),
 		(_is_error_handler ? 'e' : '-'),
 		_instances,
 		_executions,
@@ -216,10 +219,26 @@ void FlowNode::log_snapshot()
 		_name.c_str(),
 		(_is_source ? 's' : '-'),
 		(_is_detached ? 'd' : '-'),
+		(_is_virtual ? 'd' : '-'),
 		(_is_error_handler ? 'e' : '-'),
 		_instances,
 		_executions);
 #endif
+}
+
+FlowPlugin::FlowPlugin(const char * externalNodeName,
+            const char * conditionName,
+            const char * beginNodeName)
+: _external_node_name(externalNodeName),
+  _condition_name(conditionName),
+ _begin_node_name(beginNodeName)
+{
+}
+
+
+
+void FlowPlugin::getEndNodes(std::vector<FlowNode *> & endNodes)
+{
 }
 
 Flow::Flow()
