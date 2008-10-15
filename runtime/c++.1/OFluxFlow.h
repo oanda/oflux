@@ -265,6 +265,7 @@ public:
 	FlowSuccessorList();
 	~FlowSuccessorList();
 	void add(FlowSuccessor * fs);
+    bool empty();
 	inline void get_successors(std::vector<FlowNode *> & successor_nodes, const void * a)
 	{
 		for(int i = 0;i < (int) _successorlist.size(); i++) {
@@ -356,25 +357,29 @@ public:
 
     inline std::string externalNodeName() { return _external_node_name; }
     inline std::string conditionName() { return _condition_name; }
+    inline std::string & beginNodeName() { return _begin_node_name; }
 
     inline FlowCondition * condition() { return _condition; }
     inline void condition(FlowCondition * condition) { _condition = condition; }
 
-    inline std::string & beginNodeName() { return _begin_node_name; }
-    inline void beginNodeName(std::string & name) { _begin_node_name = name; }
+    void getEndNodes(std::vector<FlowNode *> & endNodes) { endNodes = _end_nodes; }
+    std::vector<FlowNode *> & getAllNodes() { return _nodes; }
 
-    void getEndNodes(std::vector<FlowNode *> & endNodes);
-    std::vector<FlowNode *> & allNodes() { return _allNodes; }
-
-    void add(FlowNode * node) { _allNodes.push_back(node); }
+    void add(FlowNode * node);
 
 private:
-    std::string                 _external_node_name;
-    std::string                 _condition_name;
-    std::string                 _begin_node_name;
+    std::string    _external_node_name;
+    std::string    _condition_name;
+    std::string    _begin_node_name;
 
-    FlowCondition *             _condition;
-    std::vector<FlowNode *>     _allNodes;
+    FlowCondition *                     _condition;
+    std::vector<FlowNode *>             _nodes;
+    std::vector<FlowNode *>             _end_nodes;
+	std::vector<FlowGuardReference *>   _guard_refs;
+    //
+    // TODO: support internal guards in plugin
+    // 
+	//std::map<std::string, FlowGuard *> _guards;
 };
 
 class FlowNodeCounterIncrementer {
@@ -398,7 +403,6 @@ protected:
  */
 class Flow {
 public:
-	Flow();
 	~Flow();
 
 	/**

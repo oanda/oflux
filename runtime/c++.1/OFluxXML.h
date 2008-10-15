@@ -8,7 +8,7 @@
  */
 
 #include "OFluxFlow.h"
-//#include "boost/shared_ptr.hpp"
+#include "boost/shared_ptr.hpp"
 #include <string>
 #include <expat.h>
 
@@ -168,7 +168,7 @@ protected:
 	 */
     void readdir(const char * plugindir);
     void readfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
-    void loadfile(const char * filename);
+    void loadplugin(const char * filename);
 
 	void finalize();
 private:

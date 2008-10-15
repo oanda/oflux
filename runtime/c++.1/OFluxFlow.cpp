@@ -2,6 +2,7 @@
 #include "OFluxLogging.h"
 #include <stdlib.h>
 #include <cassert>
+#include <iostream>
 
 /**
  * @filename OFluxFLow.cpp
@@ -171,6 +172,11 @@ void FlowSuccessorList::add(FlowSuccessor * fs)
 	_successorlist.push_back(fs); 
 }
 
+bool FlowSuccessorList::empty()
+{
+    return _successorlist.empty();
+}
+
 FlowNode::FlowNode(const char * name,
 	CreateNodeFn createfn,
 	bool is_error_handler,
@@ -229,20 +235,26 @@ void FlowNode::log_snapshot()
 FlowPlugin::FlowPlugin(const char * externalNodeName,
             const char * conditionName,
             const char * beginNodeName)
-: _external_node_name(externalNodeName),
-  _condition_name(conditionName),
- _begin_node_name(beginNodeName)
+:   _external_node_name(externalNodeName),
+    _condition_name(conditionName),
+    _begin_node_name(beginNodeName),
+    _condition(NULL)
 {
+    std::cout << "FlowPlugin()" 
+        << "\n\texternal node: " << externalNodeName 
+        << "\n\tcondition: " << conditionName 
+        << "\n\tbegin node: " << beginNodeName
+        << std::endl;
 }
 
-
-
-void FlowPlugin::getEndNodes(std::vector<FlowNode *> & endNodes)
+void FlowPlugin::add(FlowNode * node)
 {
-}
-
-Flow::Flow()
-{
+    std::cout << "FlowPlugin::add node " << node->getName() << std::endl;
+    _nodes.push_back(node);
+    if(node->successor_list().empty()) {
+        _end_nodes.push_back(node);
+        std::cout << "FlowPlugin::add end node " << node->getName() << std::endl;
+    }
 }
 
 Flow::~Flow() 

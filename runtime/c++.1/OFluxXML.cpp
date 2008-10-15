@@ -1,5 +1,6 @@
 #include "OFluxXML.h"
 #include "OFluxFlow.h"
+#include "OFluxPlugin.h"
 #include <fstream>
 #include <expat.h>
 #include <cassert>
@@ -273,7 +274,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 	int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
 
 	if(strcmp(el,"load") == 0) {
-        pthis->loadfile(el_file);
+        pthis->loadplugin(el_file);
     } else if(strcmp(el,"plugin") == 0) {
         pthis->new_flow_plugin(el_external_node, el_plugin_condition, el_begin_node);
     } else if(strcmp(el,"condition") == 0) { 
@@ -324,10 +325,21 @@ void XMLReader::commentHandler(void *data, const char *comment)
 	// not used
 }
 
-void XMLReader::loadfile(const char * filename)
+void XMLReader::loadplugin(const char * filename)
 {
-    //_pluing_fmaps = new FlowFunctionMaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map);
+    boost::shared_ptr<Plugin> plugin(new Plugin(filename));
+    plugin->load();
 
+    if(_plugin_fmaps) {
+        delete _plugin_fmaps;
+    }
+
+    _plugin_fmaps = new FlowFunctionMaps(
+        reinterpret_cast<ConditionalMap*>(plugin->getSymbol("_conditional_map")),
+        reinterpret_cast<ModularCreateMap*>(plugin->getSymbol("_master_create_map")),
+        reinterpret_cast<GuardTransMap*>(plugin->getSymbol("_theGuardTrans_map")),
+        reinterpret_cast<AtomicMapMap*>(plugin->getSymbol("_atomic_map_map"))
+                                        );
 }
 
 void XMLReader::new_flow_case(const char * targetnodename) 
@@ -349,8 +361,8 @@ void XMLReader::new_flow_case(const char * targetnodename)
             _add_targets.push_back(at);
 
             // load all nodes defined in plugin
-            std::vector<FlowNode *>::iterator node_itr = plugin->allNodes().begin();
-            for(; node_itr != plugin->allNodes().end(); ++node_itr) {
+            std::vector<FlowNode *>::iterator node_itr = plugin->getAllNodes().begin();
+            for(; node_itr != plugin->getAllNodes().end(); ++node_itr) {
                 _flow->add( *node_itr );
             }
         }
@@ -365,30 +377,23 @@ void XMLReader::new_flow_case(const char * targetnodename)
 
 void XMLReader::add_flow_node() 
 { 
-    if(_flow_node->getIsVirtual() )
-    {
-        // if the currently pointed node is virtual, find its end nodes
+    // if virtual node, set its end nodes' successor_list properly
+    if(_flow_node->getIsVirtual()) {
         const char * node_name = _flow_node->getName();
         PluginMap::iterator plugin_itr = _plugins.find(node_name);
-        if(plugin_itr != _plugins.end())
-        {
-            PluginMap::iterator lastPlugin = _plugins.upper_bound(node_name);
-            for( ; plugin_itr != lastPlugin; ++plugin_itr) {
-                FlowPlugin * plugin = plugin_itr->second;
+        assert(plugin_itr != _plugins.end());
+        PluginMap::iterator lastPlugin = _plugins.upper_bound(node_name);
+        for( ; plugin_itr != lastPlugin; ++plugin_itr) {
+            FlowPlugin * plugin = plugin_itr->second;
 
-                std::vector<FlowNode *> endNodes;
-                plugin->getEndNodes(endNodes);
-                std::vector<FlowNode *>::iterator node_itr = endNodes.begin();
-                for(; node_itr != endNodes.end(); ++node_itr) {
-                    (*node_itr)->successor_list(_flow_node->successor_list());
-                }
+            std::vector<FlowNode *> endNodes;
+            plugin->getEndNodes(endNodes);
+            std::vector<FlowNode *>::iterator node_itr = endNodes.begin();
+            for(; node_itr != endNodes.end(); ++node_itr) {
+                (*node_itr)->successor_list(_flow_node->successor_list());
             }
         }
-
-        // TODO: if virtual node has a default action, add it to flow
-    }
-    else
-    {
+    } else {
         _flow->add(_flow_node);
     }
 
