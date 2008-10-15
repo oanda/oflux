@@ -50,8 +50,9 @@ COMPILED_HEADERS = $(addprefix $(BINDIR)/,$(addsuffix .cmi,$(basename $(HEADERS)
 COMPILED_MAIN = $(BINDIR)/main.cmi $(BINDIR)/main.$(OBJECTEXT)
 
 XMLLIGHTLIB=xml-light/bin/xml-light.$(LIBRARYEXT)
+XMLLIGHTBIN=xml-light/bin
 
-INCLUDEOPTS= -I $(BINDIR) -I xml-light/bin
+INCLUDEOPTS= -I $(BINDIR) -I $(XMLLIGHTBIN)
 
 OFLUXLIB=$(BINDIR)/oflux.$(LIBRARYEXT)
 OFLUXTOPLEVEL=$(BINDIR)/ofluxcli
@@ -72,6 +73,7 @@ $(OFLUX): $(OFLUXLIB) $(XMLLIGHTLIB) $(COMPILED_MAIN)
 
 
 $(XMLLIGHTLIB):
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	make -wC xml-light bin/xml-light.$(LIBRARYEXT)
 
 $(OFLUXLIB): $(COMPILED_HEADERS) $(COMPILED_CODE)
@@ -114,6 +116,7 @@ $(BINDIR)/.depend.bin: $(BINDIR)/.depend
 
 $(BINDIR)/.depend:
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	@[ -d $(XMLLIGHTBIN) ] || mkdir -p $(XMLLIGHTBIN)
 	ocamldep $(INCLUDEOPTS) *.mli *.ml > $(BINDIR)/.depend
 
 clean:
