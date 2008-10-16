@@ -3,6 +3,7 @@
 val emit_cpp : 
 		string option -> (** name of the module if generating for one*)
 		Flow.built_flow -> (** flattened flow *)
+                (string * string) list -> (** uses model *)
 			CodePrettyPrinter.code 
 			* CodePrettyPrinter.code 
 			* TypeCheck.consequence_result

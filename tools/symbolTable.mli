@@ -98,3 +98,4 @@ val fold_module_instances : (string -> module_inst_data -> 'b -> 'b) ->
 
 val add_program : symbol_table -> ParserTypes.program -> symbol_table
 
+val get_module_uses_model : symbol_table -> (string * string) list

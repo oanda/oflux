@@ -16,8 +16,9 @@ let concat a b = a @ b
 let type_check_general (siot,iot) unified symtable sfl_n fl_n srcpos =
 	let iot_to_str iot = if iot then "input" else "output"
 	in  match Unify.unify' (siot,iot) symtable sfl_n fl_n with
-		Unify.Success -> ((sfl_n,siot),(fl_n,iot))::unified
+		(Unify.Success Unify.Strong) -> ((sfl_n,siot),(fl_n,iot))::unified
 				(* true for input *)
+		| (Unify.Success Unify.Weak) -> unified
 		| (Unify.Fail (i,reason)) ->
 			raise (if i < 0 then Failure (reason,srcpos) 
 				else Failure (("Node "^(iot_to_str iot)^" "^fl_n^" and "^(iot_to_str siot)^" "
@@ -29,9 +30,8 @@ let type_check unified symtable sfl_n fl_n srcpos =
 	type_check_general (true,false) unified symtable sfl_n fl_n srcpos
 
 let type_check_concur unified symtable n1 n2 p1 =
-        let unified = type_check_general (true,true) unified
-                symtable n1 n2 p1
-        in  type_check_general (false,false) unified symtable n1 n2 p1
+        let unified = type_check_general (true,true) unified symtable n2 n1 p1
+        in  type_check_general (false,false) unified symtable n2 n1 p1
 
 let type_check_inputs_only unified symtable n1 n2 p1 =
         type_check_general (true,true) unified symtable n1 n2 p1
@@ -139,9 +139,13 @@ let get_collapsed_types stable ufs umap =
 				| _ -> [u]::ll
 		in List.fold_left d_o [] ul in
 	let get_aliases ll =
+                let alias h y = 
+                        let as_string (s,io) = s^(if io then "_in" else "_out") in
+                        let _ = Debug.dprint_string ("get_aliases: "^(as_string y)^" := "^(as_string h)^"\n")
+                        in (y,h) in
 		match ll with
 			[] -> []
-			| (h::t) -> List.map (fun x -> (x,h)) t in
+			| (h::t) -> List.map (alias h) t in
 	let do_one (full_collapsed_i,full_collapsed_ns,aliases) ul =
 		let i = List.assoc (List.hd ul) umap
 		in  match do_one' ul with

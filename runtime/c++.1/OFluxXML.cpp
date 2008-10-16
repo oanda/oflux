@@ -17,7 +17,7 @@ void AddTarget::execute(Flow * f, FlowFunctionMaps * fmaps)
         FlatIOConversionFun fiocf = fmaps->lookup_io_conversion(_node_output_unionnumber,
                 _target_input_unionnumber);
         if(fiocf) {
-                assert(_fc->ioConverter() == NULL);
+                assert(_fc->ioConverter() == &FlowIOConverter::standard_converter);
                 _fc->setIOConverter(new FlowIOConverter(fiocf));
         }
 }
@@ -161,7 +161,7 @@ void XMLReader::startHandler(void *data, const char *el, const char **attr)
 		// has attributes: nodetarget
 		// has children: condition
 		
-		pthis->new_flow_case(el_nodetarget,outputunionnumber);
+		pthis->new_flow_case(el_nodetarget,pthis->flow_node()->outputUnionNumber());
 	} else if(strcmp(el,"successor") == 0) {
 		// has no attributes
 		// has children: case

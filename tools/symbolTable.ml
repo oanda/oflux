@@ -214,17 +214,17 @@ let fold_module_instances f symtable w =
 			| _ -> w
 	in  StringMap.fold smf symtable w
 
-(* basic type unification *)
-
-type unify_result =
-	Success
-	| Fail of int * string 
-		(* ith, reason *)
-
 let strip_position3 df = 
 	( strip_position df.ctypemod
 	, strip_position df.ctype
 	, strip_position df.name) 
+
+(* basic type unification *)
+(*
+type unify_result =
+	Success
+	| Fail of int * string 
+		(* ith, reason *)
 
 let unify_single (ctm1,t1,_) (ctm2,t2,_) =
 	match (t1 = t2), ctm1, ctm2 with
@@ -259,6 +259,22 @@ let unify' (io1,io2) symtable node1 node2 =
 		Fail (-1,"node not found in symbol table")
 
 let unify symtable node1 node2 = unify' (true,false) symtable node1 node2
+*)
 
 
+let get_module_uses_model symtable =
+        (** reflective transitive closure of the USES relation 
+                i.e A USES B means (A,B) is in the result
+        *)
+        let find_inst depth _ midata res =
+                (List.map (fun x -> x,midata.modulesource) depth)
+                @ res in
+        let rec find_def mname mdef (depth,result) =
+                let depth = mname::depth in
+                let result = (mname,mname)::result in
+                let result = fold_module_instances (find_inst depth) mdef.modulesymbols result 
+                in  fold_module_definitions find_def 
+                        mdef.modulesymbols (depth,result) in  
+        let _,result = fold_module_definitions find_def symtable ([],[])
+        in result
 

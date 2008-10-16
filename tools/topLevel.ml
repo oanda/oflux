@@ -122,14 +122,14 @@ let semantic_analysis p mod_defs =
 	in  builtflow
 	
 (*PASS 3*)
-let generate fn br =
+let generate fn br um =
 	let debug = !Debug.debug in
 	let _ = Debug.dprint_string "FINAL FMAP\n"; Flow.pp_flow_map debug br.Flow.fmap in
-	let h_code,cpp_code,conseq_res = GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br in
-	let xml = match CmdLine.get_module_name() with
-                None -> GenerateXML.emit_xml fn br conseq_res
-                | _ -> raise (SemanticFailure ("no xml for modules",noposition))
-	in  xml,cpp_code,h_code
+	let h_code,cpp_code,conseq_res = GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br um in
+	let xmlopt = match CmdLine.get_module_name() with
+                None -> Some (GenerateXML.emit_xml fn br conseq_res)
+                | _ -> None
+	in  xmlopt,cpp_code,h_code
 
 
 
@@ -145,7 +145,7 @@ let print_result _ (xml,h_code,cpp_code) =
 	print_string (CodePrettyPrinter.to_string cpp_code)
 
 type oflux_result =
-	{ xml : Xml.xml
+	{ xmlopt : Xml.xml option
 	; h_code : CodePrettyPrinter.code
 	; cpp_code : CodePrettyPrinter.code
 	; dot_output : Dot.dot
@@ -193,8 +193,11 @@ let write_result fn of_result =
 	    else
 		begin
 		(let xml_timer = Debug.timer "write .xml" in
+                 let xml = match of_result.xmlopt with
+                                None -> raise (SemanticFailure ("no xml result",ParserTypes.noposition))
+                                | (Some xml) -> xml in
                  let xml_outchan = open_out xml_file
-		 in output_string xml_outchan (Xml.to_string_fmt of_result.xml);
+		 in output_string xml_outchan (Xml.to_string_fmt xml);
                     close_out xml_outchan;
                     xml_timer ());
                 (let dot_flat_timer = Debug.timer "write -flat.dot" in
@@ -209,6 +212,16 @@ let write_result fn of_result =
 	    end in
         let _ = write_timer () 
         in  result
+
+let get_uses_model program =
+        let stable = SymbolTable.add_program SymbolTable.empty_symbol_table program in  
+        let module_uses_model = SymbolTable.get_module_uses_model stable in
+        let _ = 
+                let pp_use (a,b) = Debug.dprint_string (a^" uses "^b^"\n")
+                in  if (List.length module_uses_model) = 0 then
+                        Debug.dprint_string "no modules found\n"
+                    else List.iter pp_use module_uses_model
+        in  module_uses_model
 
 let xmain do_result fn = 
         let parse_timer = Debug.timer "parser" in
@@ -225,10 +238,13 @@ let xmain do_result fn =
                         let sem_an_timer = Debug.timer "semantic analysis" in
 			let br = semantic_analysis pres_flat pres.mod_def_list in
                         let _ = sem_an_timer () in
+                        let uses_model_timer = Debug.timer "uses model" in
+                        let uses_model = get_uses_model pres in
+                        let _ = uses_model_timer () in
 			let debug = ! Debug.debug in
 			let _ = Flow.pp_flow_map debug br.Flow.fmap in
                         let generate_timer = Debug.timer "generate" in
-			let xml,cpp_code,h_code = generate fn br in
+			let xmlopt,cpp_code,h_code = generate fn br uses_model in
                         let _ = generate_timer () in
                         let dot_timer = Debug.timer "dot" in
 			let dot_flat_output = 
@@ -248,7 +264,7 @@ let xmain do_result fn =
 			let h_filename = "OFluxGenerate"^suff_string^".h" in
 			let cpp_filename = "OFluxGenerate"^suff_string^".cpp" 
 			in  do_result fn 
-				{ xml = xml
+				{ xmlopt = xmlopt
 				; h_code = h_code
 				; cpp_code = cpp_code
 				; dot_output = dot_output

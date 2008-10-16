@@ -4,8 +4,10 @@
 val unify_single : string * string * string ->
 		string * string * string -> string option
 
+type success_type = Weak | Strong
+
 type unify_result =
-	 Success
+	Success of success_type
         | Fail of int * string (** ith and reason *)
 
 val unify_type_in_out : ParserTypes.decl_formal list ->

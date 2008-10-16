@@ -226,24 +226,17 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
                 in  if (List.length t_decls) > (List.length f_decls) then None
                     else matchtypes [] t_decls f_decls
                 in
-        (*let code_template code (t_name,f_name) =
-                let as_name (x,isin) = x^(if isin then "_in" else "_out")
-                in  match get_copy_code t_name f_name with
-                        None -> code
-                        | (Some copy_code) -> 
-                                let t_name' = nspace^(as_name t_name) in
-                                let f_name' = nspace^(as_name f_name)
-                                in  List.fold_left add_code code
-                                        ([ "template<>"
-                                        ; ("inline void copy_to<"^t_name'^", "
-                                                ^f_name'^">("^t_name'^" * to, const "
-                                                ^f_name'^" * from)")
-                                        ; "{" ]
-                                        @ copy_code @
-                                        [ "}"
-                                        ; "" ])
-                in *)
-        let equivc = List.map List.hd conseq_res.TypeCheck.equiv_classes in
+        let primary_name ec =
+                try List.find (fun (a,b) -> has_namespaced_name a) ec
+                with Not_found -> List.hd ec
+                (*let as_string (s,io) = s^(if io then "_in" else "_out") in
+                let h = List.hd ec in
+                let r = try List.assoc h conseq_res.TypeCheck.aliases
+                        with Not_found -> h in  
+                let _ = Debug.dprint_string ("primary_name: "^(as_string h)^" -> "^(as_string r)^"\n")
+                in  r*)
+                in
+        let equivc = List.map primary_name conseq_res.TypeCheck.equiv_classes in
         let cross_no_equal ll1 ll2 =
                 let rec mfun ll x = 
                         match ll with 
@@ -255,11 +248,16 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
         in  code
         
 
-let emit_copy_to_functions modulenameopt _ conseq_res symtable code =
+let emit_copy_to_functions modulenameopt _ conseq_res symtable uses_model code =
+        (*let is_module =
+                match modulenameopt with
+                        None -> false
+                        | _ -> true in*)
         let code = List.fold_left add_code code
                         [ "namespace oflux {  "
                         ; ""
                         ; "#ifndef OFLUX_COPY_TO_GENERAL"
+                        ; "#define OFLUX_COPY_TO_GENERAL"
                         ; "template<typename T,typename F>"
                         ; "inline void copy_to(T *to, const F * from)"
                         ; "{"
@@ -273,14 +271,26 @@ let emit_copy_to_functions modulenameopt _ conseq_res symtable code =
 			None -> ""
 			| (Some nn) -> nn^"::"
 		in
+        let bidi_uses x y = (List.mem (x,y) uses_model) 
+                        || (List.mem (y,x) uses_model) in
         let code_template code (assign_opt,t_name,f_name) =
-                let as_name (x,isin) = x^(if isin then "_in" else "_out")
-                in  match assign_opt with
-                        None -> code
-                        | (Some copy_code) -> 
-                                let t_name' = nspace^(as_name t_name) in
-                                let f_name' = nspace^(as_name f_name)
-                                in  List.fold_left add_code code
+                let as_name (x,isin) = 
+                        let xtmp = x^(if isin then "_in" else "_out")
+                        in  match break_namespaced_name xtmp with
+                                (mn::_::_) -> xtmp,Some mn
+                                | _ -> (nspace^xtmp),None in
+                let t_name',t_nspace = as_name t_name in
+                let f_name',f_nspace = as_name f_name in
+                let is_already_taken_care_of =
+                        match t_nspace,f_nspace with
+                                (Some tn,Some fn) -> bidi_uses tn fn
+                                | _ -> false
+                in  match is_already_taken_care_of, assign_opt with
+                        (true,_) -> code
+                        | (_,None) -> code
+                        | (_,Some []) -> code
+                        | (_,Some copy_code) -> 
+                                List.fold_left add_code code
                                         ([ "template<>"
                                         ; ("inline void copy_to<"^t_name'^", "
                                                 ^f_name'^">("^t_name'^" * to, const "
@@ -299,6 +309,7 @@ let emit_io_conversion_functions conseq_res symtable code =
                 let as_name (x,isin) = x^(if isin then "_in" else "_out")
                 in  match assign_opt with
                         None -> code
+                        | (Some []) -> code
                         | (Some _) -> 
                                 let t_u_n = TypeCheck.get_union_from_strio conseq_res t_name in
                                 let f_u_n = TypeCheck.get_union_from_strio conseq_res f_name in
@@ -796,7 +807,7 @@ let emit_test_main code =
 		; "#ifdef HASINIT"
 		; "init(argc-1,&(argv[1]));"
 		; "#endif //HASINIT"
-		; "FlowFunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
+		; "static FlowFunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
 		; ", 1 // initial threads (ignored really)"
@@ -831,7 +842,7 @@ let get_module_file_suffix modulenameopt =
 		else ""
 	in  const_ns
 
-let emit_cpp modulenameopt br =
+let emit_cpp modulenameopt br um =
 	let stable = br.Flow.symtable in
         let conseq_res = TypeCheck.consequences br.Flow.ulist stable in
 	let fm = br.Flow.fmap in
@@ -918,7 +929,7 @@ let emit_cpp modulenameopt br =
 	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
 	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
-        let h_code = emit_copy_to_functions modulenameopt ignoreis conseq_res stable h_code in
+        let h_code = emit_copy_to_functions modulenameopt ignoreis conseq_res stable um h_code in
 	let h_code = CodePrettyPrinter.add_code h_code "#endif // _OFLUX_GENERATED" in
 	let cpp_code = CodePrettyPrinter.empty_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code

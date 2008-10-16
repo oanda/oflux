@@ -157,6 +157,9 @@ FlowIOConverter FlowIOConverter::standard_converter(create_trivial_io_conversion
 FlowCase::~FlowCase() 
 { 
 	delete_vector_contents<FlowCondition>(_conditions); 
+        if(_io_converter != NULL && _io_converter != &FlowIOConverter::standard_converter) {
+                delete _io_converter;
+        }
 }
 
 void FlowCase::add(FlowCondition *fc) 
