@@ -339,7 +339,11 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					// allow atomics to be passed to succ
 				if(null_if_unblocked) {
 					// could wait, but rather enqueue
-					successor_events.push_back(ev_succ);
+					//successor_events.push_back(ev_succ);
+					null_if_unblocked->wait(ev_succ,wtype);
+                                        _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                                ev_succ->flow_node()->getName(),
+                                                wtype);
 				} else { // priority to unblocked events
 					successor_events_priority.push_back(ev_succ);
 				}
@@ -379,7 +383,11 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 						// allow atomics to be passed to succ
 					if(null_if_unblocked) {
 						// could wait, but rather enqueue
-						successor_events.push_back(ev_succ);
+						//successor_events.push_back(ev_succ);
+                                                null_if_unblocked->wait(ev_succ,wtype);
+                                                _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                                        ev_succ->flow_node()->getName(),
+                                                        wtype);
 					} else { // priority to unblocked events
 						successor_events_priority.push_back(ev_succ);
 					}
