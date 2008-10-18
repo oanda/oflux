@@ -2,7 +2,6 @@
 #include "OFluxLogging.h"
 #include <stdlib.h>
 #include <cassert>
-#include <iostream>
 
 /**
  * @filename OFluxFLow.cpp
@@ -240,20 +239,20 @@ FlowPlugin::FlowPlugin(const char * externalNodeName,
     _begin_node_name(beginNodeName),
     _condition(NULL)
 {
-    std::cout << "FlowPlugin()" 
-        << "\n\texternal node: " << externalNodeName 
-        << "\n\tcondition: " << conditionName 
-        << "\n\tbegin node: " << beginNodeName
-        << std::endl;
 }
 
 void FlowPlugin::add(FlowNode * node)
 {
-    std::cout << "FlowPlugin::add node " << node->getName() << std::endl;
     _nodes.push_back(node);
-    if(node->successor_list().empty()) {
-        _end_nodes.push_back(node);
-        std::cout << "FlowPlugin::add end node " << node->getName() << std::endl;
+}
+
+void FlowPlugin::getEndNodes(std::vector<FlowNode *> & endNodes)
+{
+    std::vector<FlowNode *>::iterator itr = _nodes.begin();
+    for( ; itr != _nodes.end(); ++itr) {
+        if((*itr)->successor_list().empty()) {
+            endNodes.push_back(*itr);
+        }
     }
 }
 

@@ -362,7 +362,7 @@ public:
     inline FlowCondition * condition() { return _condition; }
     inline void condition(FlowCondition * condition) { _condition = condition; }
 
-    void getEndNodes(std::vector<FlowNode *> & endNodes) { endNodes = _end_nodes; }
+    void getEndNodes(std::vector<FlowNode *> & endNodes);
     std::vector<FlowNode *> & getAllNodes() { return _nodes; }
 
     void add(FlowNode * node);
@@ -374,7 +374,6 @@ private:
 
     FlowCondition *                     _condition;
     std::vector<FlowNode *>             _nodes;
-    std::vector<FlowNode *>             _end_nodes;
 	std::vector<FlowGuardReference *>   _guard_refs;
     //
     // TODO: support internal guards in plugin

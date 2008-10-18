@@ -118,7 +118,7 @@ public:
     }
 
 	FlowCase * flow_case() { return _flow_case; }
-	void new_flow_case(const char * targetnodename);
+	void new_flow_case(const char * targetnodename, bool is_virtual);
 	void add_flow_case() { _flow_successor->add(_flow_case); _flow_case = NULL; }
 	void new_flow_successor() { _flow_successor = new FlowSuccessor(); }
 	void add_flow_successor() { _flow_successor_list->add(_flow_successor); _flow_successor = NULL; }
