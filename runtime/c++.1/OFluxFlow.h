@@ -321,14 +321,17 @@ public:
 		bool is_source,
 		bool is_detached,
                 int input_unionnumber,
-                int output_unionnumber);
+                int output_unionnumber,
+                bool is_virtual = false);
 	~FlowNode();
 	void setErrorHandler(FlowNode *fn);
 	FlowSuccessorList & successor_list() { return _successor_list; }
+        void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; } // uhm - why?
 	inline const char * getName() { return &(_name[0]); }
 	inline bool getIsSource() { return _is_source; }
 	inline bool getIsErrorHandler() { return _is_error_handler; }
 	inline bool getIsDetached() { return _is_detached; }
+	inline bool getIsVirtual() { return _is_virtual; }
 	inline CreateNodeFn & getCreateFn() { return _createfn; }
 	inline void get_successors(std::vector<FlowCase *> & successor_nodes, 
 			const void * a,
@@ -370,10 +373,41 @@ private:
 	std::vector<FlowGuardReference *> _guard_refs;
         int                               _input_unionnumber;
         int                               _output_unionnumber;
+	bool                              _is_virtual;
 #ifdef PROFILING
 	TimerStats                        _real_timer_stats;
 	TimerStats                        _oflux_timer_stats;
 #endif
+};
+
+class FlowPlugin {
+public:
+    FlowPlugin(const char * externalNodeName,
+            const char * conditionName,
+            const char * beginNodeName);
+    ~FlowPlugin();
+
+    inline std::string externalNodeName() { return _external_node_name; }
+    inline std::string conditionName() { return _condition_name; }
+
+    inline FlowCondition * condition() { return _condition; }
+    inline void condition(FlowCondition * condition) { _condition = condition; }
+
+    inline std::string & beginNodeName() { return _begin_node_name; }
+    inline void beginNodeName(std::string & name) { _begin_node_name = name; }
+
+    void getEndNodes(std::vector<FlowNode *> & endNodes);
+    std::vector<FlowNode *> & allNodes() { return _allNodes; }
+
+    void add(FlowNode * node) { _allNodes.push_back(node); }
+
+private:
+    std::string                 _external_node_name;
+    std::string                 _condition_name;
+    std::string                 _begin_node_name;
+
+    FlowCondition *             _condition;
+    std::vector<FlowNode *>     _allNodes;
 };
 
 class FlowNodeCounterIncrementer {

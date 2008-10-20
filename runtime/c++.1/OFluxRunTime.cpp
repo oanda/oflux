@@ -44,13 +44,16 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 	((f)(this));
 }
 
-void RunTime::load_flow(const char * flname)
+void RunTime::load_flow(const char * flname, const char * plugindir)
 {
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
+	if(*plugindir == '\0') {
+		plugindir = _rtc.plugin_xml_dir;
+	}
 	// read XML file
-	XMLReader reader(_rtc.flow_filename, _rtc.flow_maps);
+	XMLReader reader(flname, _rtc.flow_maps, plugindir);
 	Flow * flow = reader.flow();
 	// push the sources (first time)
 	std::vector<FlowNode *> & sources = flow->sources();

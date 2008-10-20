@@ -218,7 +218,10 @@ public:
  * (this is a factory function)
  * @param pred_node_ptr  pointer to predecessor event
  * @param fn  flow node
+<<<<<<< HEAD:xsplatform/oflux/runtime/c++.1/OFluxEvent.h
  * @param im_io_convert  a converter for the input to this event
+=======
+>>>>>>> grace_master:xsplatform/oflux/runtime/c++.1/OFluxEvent.h
  *
  * @return smart pointer to the new event (heap allocated)
  **/
@@ -246,7 +249,10 @@ boost::shared_ptr<EventBase> create_source(FlowNode *fn)
  * (this is a factory function)
  * @param pred_node_ptr  predecessor event
  * @param fn  flow node
+<<<<<<< HEAD:xsplatform/oflux/runtime/c++.1/OFluxEvent.h
  * @param im_io_convert  a converter for the input to this event
+=======
+>>>>>>> grace_master:xsplatform/oflux/runtime/c++.1/OFluxEvent.h
  *
  * @return smart pointer to the new error event (heap allocated)
  **/

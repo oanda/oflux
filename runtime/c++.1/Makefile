@@ -45,6 +45,7 @@ LIBS=
 else
 LIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
+LIBS += -lboost_filesystem
 CPPOPTS= -g -MMD -MF "$(BINDIR)/.$(notdir $*).d" #-DOFLUX_RT_DEBUG
 ifeq ($(ARCH),Linux)
 CPPOPTS += -DLINUX
@@ -75,12 +76,12 @@ endif
 
 $(BINDIR)/%.o : %.cpp 
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	$(CXX) -c -ftemplate-depth-20 -Wall -D_REENTRANT $(CPPOPTS) $(INCS) $< -o $@
+	$(CXX) -c -Wall -D_REENTRANT $(CPPOPTS) $(INCS) $< -o $@
 	$(if $(DTRACE),cd ./$(BINDIR); $(DTRACE) -G -s ../ofluxprobe.d $(notdir $@);)
 
 $(BINDIR)/%.pic.o : %.cpp
 	@[ -d $(dir $@ ) ] || mkdir -p $(dir $@)
-	$(CXX) -c -ftemplate-depth-20 -Wall -D_REENTRANT -fPIC $(CPPOPTS) $(INCS) $< -o $@
+	$(CXX) -c -Wall -D_REENTRANT -fPIC $(CPPOPTS) $(INCS) $< -o $@
 	$(if $(DTRACE),cd ./$(BINDIR); $(DTRACE) -G -s ../ofluxprobe.d $(notdir $@);)
 
 $(OFILES): $(AUTOS)

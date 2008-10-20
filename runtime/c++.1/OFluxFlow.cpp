@@ -4,11 +4,18 @@
 #include <cassert>
 
 /**
+<<<<<<< HEAD:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
  * @file OFluxFLow.cpp
+=======
+ * @filename OFluxFLow.cpp
+>>>>>>> grace_master:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
  * @author Mark Pichora
  * Flow implementation
+<<<<<<< HEAD:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
  *   A flow is the resident data structure that captures the flow of the 
  *   program (it is read from an XML input to the oflux runtime)
+=======
+>>>>>>> grace_master:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
  */
 
 namespace oflux {
@@ -201,7 +208,8 @@ FlowNode::FlowNode(const char * name,
                 bool is_source,
                 bool is_detached,
                 int input_unionnumber,
-                int output_unionnumber)
+                int output_unionnumber,
+                bool is_virtual)
 	: _instances(0)
 	, _executions(0)
 	, _name(name)
@@ -212,6 +220,7 @@ FlowNode::FlowNode(const char * name,
 	, _this_case(this,NULL)
         , _input_unionnumber(input_unionnumber)
         , _output_unionnumber(output_unionnumber)
+	, _is_virtual(is_virtual)
 { 
 }
 
@@ -232,6 +241,7 @@ void FlowNode::log_snapshot()
 		_name.c_str(),
 		(_is_source ? 's' : '-'),
 		(_is_detached ? 'd' : '-'),
+		(_is_virtual ? 'v' : '-'),
 		(_is_error_handler ? 'e' : '-'),
 		_instances,
 		_executions,
@@ -244,10 +254,26 @@ void FlowNode::log_snapshot()
 		_name.c_str(),
 		(_is_source ? 's' : '-'),
 		(_is_detached ? 'd' : '-'),
+		(_is_virtual ? 'v' : '-'),
 		(_is_error_handler ? 'e' : '-'),
 		_instances,
 		_executions);
 #endif
+}
+
+FlowPlugin::FlowPlugin(const char * externalNodeName,
+            const char * conditionName,
+            const char * beginNodeName)
+: _external_node_name(externalNodeName),
+  _condition_name(conditionName),
+ _begin_node_name(beginNodeName)
+{
+}
+
+
+
+void FlowPlugin::getEndNodes(std::vector<FlowNode *> & endNodes)
+{
 }
 
 Flow::Flow()
