@@ -8,7 +8,7 @@
  */
 
 #include "OFluxFlow.h"
-//#include "boost/shared_ptr.hpp"
+#include "boost/shared_ptr.hpp"
 #include <string>
 #include <expat.h>
 
@@ -126,7 +126,7 @@ public:
         }
 
 	FlowCase * flow_case() { return _flow_case; }
-	void new_flow_case(const char * targetnodename, int node_output_unionnumber);
+	void new_flow_case(const char * targetnodename, int node_output_unionnumber, bool is_virtual = false);
 	void add_flow_case() { _flow_successor->add(_flow_case); _flow_case = NULL; }
 	void new_flow_successor() { _flow_successor = new FlowSuccessor(); }
 	void add_flow_successor() { _flow_successor_list->add(_flow_successor); _flow_successor = NULL; }
@@ -201,7 +201,7 @@ private:
 	int                          _flow_guard_ref_unionnumber;
 	std::vector<int>             _flow_guard_ref_args;
 	std::vector<AddTarget>       _add_targets;
-	std::vector<SetErrorHandler> _set_error_handlers;
+        std::vector<SetErrorHandler> _set_error_handlers;
 
         typedef std::multimap<std::string, FlowPlugin *> PluginMap;
         PluginMap _plugins;

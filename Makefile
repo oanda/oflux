@@ -14,6 +14,7 @@ EXAMPLES= \
 	splaytest1 \
 	initial1 \
 	poolguard \
+	plugin \
 	ioconversion
 
 ################################################################

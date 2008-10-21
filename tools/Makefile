@@ -121,6 +121,7 @@ $(BINDIR)/.depend.bin: $(BINDIR)/.depend
 
 $(BINDIR)/.depend:
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+#	@[ -d $(XMLLIGHTBIN) ] || mkdir -p $(XMLLIGHTBIN)
 	ocamldep $(INCLUDEOPTS) *.mli *.ml > $(BINDIR)/.depend
 
 clean:

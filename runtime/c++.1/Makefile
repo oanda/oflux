@@ -19,7 +19,8 @@ OFILES= \
 	$(BINDIR)/OFluxEvent.o \
 	$(BINDIR)/OFluxRunTimeAbstract.o \
 	$(BINDIR)/OFluxRunTime.o \
-	$(BINDIR)/OFluxXML.o
+	$(BINDIR)/OFluxXML.o \
+	$(BINDIR)/OFluxPlugin.o
 
 SHIMOFILES= $(BINDIR)/OFluxRunTimeAbstract.pic.o $(BINDIR)/OFluxIOShim.pic.o
 

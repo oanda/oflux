@@ -202,6 +202,11 @@ void FlowSuccessorList::add(FlowSuccessor * fs)
 	_successorlist.push_back(fs); 
 }
 
+bool FlowSuccessorList::empty()
+{
+    return _successorlist.empty();
+}
+
 FlowNode::FlowNode(const char * name,
                 CreateNodeFn createfn,
                 bool is_error_handler,
@@ -264,20 +269,26 @@ void FlowNode::log_snapshot()
 FlowPlugin::FlowPlugin(const char * externalNodeName,
             const char * conditionName,
             const char * beginNodeName)
-: _external_node_name(externalNodeName),
-  _condition_name(conditionName),
- _begin_node_name(beginNodeName)
+:   _external_node_name(externalNodeName),
+    _condition_name(conditionName),
+    _begin_node_name(beginNodeName),
+    _condition(NULL)
 {
 }
 
-
+void FlowPlugin::add(FlowNode * node)
+{
+    _nodes.push_back(node);
+}
 
 void FlowPlugin::getEndNodes(std::vector<FlowNode *> & endNodes)
 {
-}
-
-Flow::Flow()
-{
+    std::vector<FlowNode *>::iterator itr = _nodes.begin();
+    for( ; itr != _nodes.end(); ++itr) {
+        if((*itr)->successor_list().empty()) {
+            endNodes.push_back(*itr);
+        }
+    }
 }
 
 Flow::~Flow() 
