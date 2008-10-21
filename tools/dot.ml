@@ -307,16 +307,24 @@ let generate_program pname p =
                         in  match break_dotted_name h with
                                 (hmi::(_::_)) -> add_mod_inst_node hmi h None
                                 | _ -> for_node "" false h "black" None in
-                let rec edge_succ ll =
+                let rec seq_edge_succ ll =
                         match ll with
                             (h1::h2::t) ->
                                 begin
-                                for_edge (strip h1) (strip h2) "black" None None;
-                                edge_succ (h2::t);
+                                for_edge (strip h1) (strip h2) c None None;
+                                seq_edge_succ (h2::t);
                                 emit_h h1
                                 end
                             | [h] -> emit_h h
                             | _ -> ()
+                        in
+                let concur_edge_succ n ll =
+                        let on_each h =
+                                begin
+                                for_edge n (strip h) c None None;
+                                emit_h h
+                                end
+                        in  List.iter on_each ll
                 in  
                     begin
                     (match break_dotted_name n with
@@ -324,10 +332,11 @@ let generate_program pname p =
                         | _ -> for_node "" false n c None);
                     (match ex.successors with
                         (h::t) ->
-                            begin
-                            for_edge n (strip h) c (Some cb) None;
-                            edge_succ ex.successors
-                            end
+                            (match ex.etype with
+                                Choice -> 
+                                        (for_edge n (strip h) c (Some cb) None;
+                                        seq_edge_succ)
+                                | Concurrent -> concur_edge_succ n) ex.successors
                         | _ -> ())
                     end in
         let on_term t =
