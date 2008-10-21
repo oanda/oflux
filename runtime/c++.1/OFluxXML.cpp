@@ -258,9 +258,6 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
     // condition attributes
 	const char * el_name = NULL;
 	const char * el_argno = NULL;
-	const char * el_unionnumber = NULL;
-	const char * el_inputunionnumber = NULL;
-	const char * el_outputunionnumber = NULL;
 	const char * el_isnegated = NULL;
 	const char * el_unionnumber = NULL;
 	const char * el_inputunionnumber = NULL;
@@ -335,7 +332,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 	int wtype = (el_wtype ? atoi(el_wtype) : 0);
 
 	if(strcmp(el,"load") == 0) {
-                pthis->loadfile(el_file);
+                pthis->loadplugin(el_file);
         } else if(strcmp(el,"plugin") == 0) {
                 pthis->new_flow_plugin(el_external_node, el_plugin_condition, el_begin_node);
         } else if(strcmp(el,"condition") == 0) { 

@@ -185,7 +185,7 @@ protected:
 	 */
         void readdir(const char * plugindir);
         void readfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
-        void loadfile(const char * filename);
+        void loadplugin(const char * filename);
 
 	void finalize();
 private:
