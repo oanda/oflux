@@ -122,6 +122,7 @@ void AtomicsHolder::release( std::vector<boost::shared_ptr<EventBase> > & releas
 			int pre_sz = released_events.size();
 #endif // HAS_DTRACE
 			a->release(released_events);
+                        ha->atomic(NULL);
 #ifdef HAS_DTRACE
 			int post_sz = released_events.size();
 #endif // HAS_DTRACE

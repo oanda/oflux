@@ -61,6 +61,7 @@ public:
 	friend class UnlockRunTime;
 
 	RunTime(const RunTimeConfiguration & rtc);
+        ~RunTime();
 	void start();
 	void load_flow(const char * filename = "", const char * plugindir = "");
 	void soft_load_flow() { _load_flow_next = true; }
@@ -101,8 +102,8 @@ private:
 	const RunTimeConfiguration & _rtc;
 	RunTimeThreadList   _thread_list;
 protected:
-	Queue               _queue;
 	std::deque<Flow *>  _active_flows;
+	Queue               _queue;
 	bool                _running;
 	int                 _thread_count;
 	int                 _detached_count;

@@ -68,7 +68,13 @@ public:
 	 * @brief obtain the size of the waiting list
 	 * @return the number of events in the waiting list
 	 */
-	virtual int waiter_count()  = 0;
+	virtual int waiter_count() = 0;
+
+        /**
+         * @brief let go of this object -- a shorter release when you know
+         *    there are no events using it
+         */
+        virtual void relinquish() = 0;
 
 	static boost::shared_ptr<EventBase> _null_static;
 };
@@ -84,6 +90,7 @@ public:
 	virtual void ** data() { return &_data_ptr; }
 	virtual int held() const { return _held; }
 	virtual int waiter_count() { return _waiters.size(); }
+        virtual void relinquish() {}
 
 	struct AtomicQueueEntry {
 		AtomicQueueEntry(boost::shared_ptr<EventBase> & ev,
@@ -239,9 +246,8 @@ public:
         friend class AtomicPooled;
         AtomicPool () 
                 : _ap_list(NULL)
-                , _alloc_count(0)
                 {}
-        virtual ~AtomicPool() {}
+        virtual ~AtomicPool();
 	void * get_data();
 	void put_data(void *);
         boost::shared_ptr<EventBase> get_waiter();
@@ -256,7 +262,6 @@ private:
 	std::deque<boost::shared_ptr<EventBase> > _q;
 	std::deque<void *> _dq;
         AtomicPooled * _ap_list;
-        int _alloc_count;
 };
 
 class AtomicPooled : public Atomic { // implements AtomicScaffold
@@ -287,6 +292,14 @@ public:
 		{ _pool.put_waiter(ev); }
 	virtual void * new_key() { return NULL; }
 	virtual void delete_key(void *) {}
+        virtual void relinquish() 
+                {
+                        if(_data) {
+                                _pool.put_data(_data);
+                                _data = NULL;
+                        }
+                        _pool.put(this);
+                }
 public:
         AtomicPooled * next() { return _next; }
         void next(AtomicPooled * ap) { _next = ap; }

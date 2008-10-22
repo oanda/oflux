@@ -15,6 +15,7 @@ void * AtomicPool::get_data()
 }
 void AtomicPool::put_data(void * p)
 {
+        assert(p);
         _dq.push_back(p);
 }
 
@@ -34,20 +35,39 @@ void AtomicPool::put_waiter(boost::shared_ptr<EventBase> & ev)
 const void * AtomicPool::get(Atomic * & a_out,const void * key) 
 {
         static int _to_use;
+        //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
         if(_ap_list) {
                 a_out = _ap_list;
                 _ap_list = _ap_list->next();
+                reinterpret_cast<AtomicPooled *>(a_out)->next(NULL);
         } else {
                 a_out = new AtomicPooled(*this,NULL);
         }
+        //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
         assert(*(a_out->data()) == NULL);
+        //assert(a_out != _ap_list);
         return &_to_use;
 }
+
 void AtomicPool::put(AtomicPooled * ap)
 {
+        //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
+        //assert(ap != _ap_list);
         assert(*(ap->data()) == NULL);
         ap->next(_ap_list);
         _ap_list = ap;
+        //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
+}
+
+AtomicPool::~AtomicPool()
+{
+        AtomicPooled * next;
+        AtomicPooled * on = _ap_list;
+        while(on) {
+                next = on->next();
+                delete on;
+                on = next;
+        }
 }
 
 };

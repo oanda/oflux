@@ -902,6 +902,7 @@ let emit_cpp modulenameopt br um =
 		; "extern oflux::ConditionalMap __conditional_map[];"
 		; if is_module then "" else "extern oflux::AtomicMapMap __atomic_map_map[];"
 		; if is_module then "" else "extern oflux::GuardTransMap __theGuardTransMap[];"
+		; if is_module then "" else "extern oflux::IOConverterMap __ioconverter_map[];"
 		; "}"
 		; "    //namespace"
 		; ""

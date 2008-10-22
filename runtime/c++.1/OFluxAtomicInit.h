@@ -1,21 +1,27 @@
 #ifndef ATOMIC_INIT_H
 #define ATOMIC_INIT_H
 
+#include <vector>
+
 namespace oflux {
 
 class AtomicMapAbstract;
+
+class Atomic;
 
 class GuardInserter {
 public:
 	GuardInserter(AtomicMapAbstract *ama)
 		: _ama(ama)
 		{}
+        ~GuardInserter();
 	/**
 	 * @brief insert values into a guard
 	 */
 	bool insert(const void * key, void * value);
 private:
-	AtomicMapAbstract * _ama;
+	AtomicMapAbstract *   _ama;
+        std::vector<Atomic *> _to_release;
 };
 
 

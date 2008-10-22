@@ -44,6 +44,19 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 	((f)(this));
 }
 
+RunTime::~RunTime()
+{
+        {
+                Queue::Element e;
+                while(_queue.pop(e)) {} // empty the event queue
+        }
+        while(_active_flows.size() > 0) {
+                Flow * back = _active_flows.back();
+                _active_flows.pop_back();
+                delete back;
+        }
+}
+
 void RunTime::load_flow(const char * flname, const char * plugindir)
 {
 	if(*flname == '\0') {
@@ -86,6 +99,11 @@ void RunTime::start()
 	_thread_count++;
 	RunTime::thread_data_key.set(rtt);
 	rtt->start();
+        while(_thread_count> 0) {
+                AutoLock al(&_manager_lock);
+        }
+        remove(rtt);
+        delete rtt;
 }
 
 void RunTime::remove(RunTimeThread * rtt)
@@ -145,7 +163,7 @@ bool RunTime::canDetachMore() const
 
 int RunTime::wake_another_thread()
 {
-	if(_waiting_in_pool.count() == 0 && canThreadMore()) {
+	if(_running && _waiting_in_pool.count() == 0 && canThreadMore()) {
 		RunTimeThread * rtt = new RunTimeThread(this);
 		_thread_count++;
 		_thread_list.insert_front(rtt);
@@ -247,7 +265,9 @@ void RunTimeThread::start()
 	}
 	_rt->remove(this);
 	oflux_log_info("runtime thread %d is exiting\n", _tid);
-	_rt->wake_another_thread();
+	if(_rt->_thread_count > 0) {
+                _rt->wake_another_thread();
+        }
 }
 
 void RunTimeThread::log_snapshot()

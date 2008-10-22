@@ -34,6 +34,8 @@ public:
 		, _key(NULL)
 		, _haveit(false)
 		{}
+        ~HeldAtomic()
+                { relinquish(); }
 	/**
 	 * @brief init is a pseudo constructor used to tell us which guard
 	 * @param fg the FlowGuardReference indicates the guard instance
@@ -83,6 +85,7 @@ public:
 		{
 			assert(ha._atom);
 			assert(ha._haveit);
+                        relinquish();
 			_atom = ha._atom;
 			ha._atom = NULL;
 			_haveit = ha._haveit;
@@ -93,7 +96,10 @@ public:
 	 * @param node_in a void ptr to the input node data structure
 	 */
 	inline void build(const void * node_in)
-		{ _key = _flow_guard->get(_atom,node_in); }
+		{ 
+                        assert(_atom == NULL );
+                        _key = _flow_guard->get(_atom,node_in); 
+                }
 	/**
 	 * @brief attempt to acquire the atomic (will succeed if no other has it)
 	 * @return true if the atomic is now held
@@ -110,6 +116,14 @@ public:
 	 * @brief the underlying atomic object (not necessarily held)
 	 */
 	inline Atomic * atomic() { return _atom; }
+	inline void atomic(Atomic * a) { _atom = a; }
+	inline void relinquish()
+                {
+                        if(_atom != NULL) {
+                                _atom->relinquish();
+                        }
+                        _atom = NULL;
+                }
 	inline int wtype() const { return _flow_guard->wtype(); }
 private:
 	Atomic *             _atom;
