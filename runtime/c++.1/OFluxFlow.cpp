@@ -4,9 +4,18 @@
 #include <cassert>
 
 /**
+<<<<<<< HEAD:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
+ * @file OFluxFLow.cpp
+=======
  * @filename OFluxFLow.cpp
+>>>>>>> grace_master:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
  * @author Mark Pichora
  * Flow implementation
+<<<<<<< HEAD:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
+ *   A flow is the resident data structure that captures the flow of the 
+ *   program (it is read from an XML input to the oflux runtime)
+=======
+>>>>>>> grace_master:xsplatform/oflux/runtime/c++.1/OFluxFlow.cpp
  */
 
 namespace oflux {
@@ -14,11 +23,13 @@ namespace oflux {
 FlowFunctionMaps::FlowFunctionMaps(ConditionalMap cond_map[],
 		                        ModularCreateMap create_map[],
 					GuardTransMap guard_map[],
-					AtomicMapMap atom_map_map[])
+					AtomicMapMap atom_map_map[],
+                                        IOConverterMap ioconverter_map[])
 	: _cond_map(cond_map)
 	, _create_map(create_map)
 	, _guard_trans_map(guard_map)
 	, _atom_map_map(atom_map_map)
+        , _ioconverter_map(ioconverter_map)
 {}
 
 // linear searches are fast enough -- its just for XML converstion...
@@ -104,6 +115,20 @@ AtomicMapAbstract * FlowFunctionMaps::lookup_atomic_map(const char * guardname)
 	return res;
 }
 
+FlatIOConversionFun FlowFunctionMaps::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
+{
+        FlatIOConversionFun res = NULL;
+        IOConverterMap * ptr = _ioconverter_map;
+        while(ptr->from > 0) {
+                if(ptr->from == from_unionnumber && ptr->to == to_unionnumber) {
+                        res = ptr->conversion_fun;
+                        break;
+                }
+                ptr++;
+        }
+        return res;
+}
+
 FlowCondition::FlowCondition(ConditionFn condfn, bool is_negated)
 	: _condfn(condfn)
 	, _is_negated(is_negated)
@@ -128,14 +153,20 @@ void delete_map_contents(std::map<K,O *> & mo)
 	}
 }
 
-FlowCase::FlowCase(FlowNode *targetnode)
+FlowCase::FlowCase(FlowNode *targetnode, FlowIOConverter *converter)
 	: _targetnode(targetnode)
+        , _io_converter(converter ? converter : &FlowIOConverter::standard_converter)
 {
 }
+
+FlowIOConverter FlowIOConverter::standard_converter(create_trivial_io_conversion<const void>);
 
 FlowCase::~FlowCase() 
 { 
 	delete_vector_contents<FlowCondition>(_conditions); 
+        if(_io_converter != NULL && _io_converter != &FlowIOConverter::standard_converter) {
+                delete _io_converter;
+        }
 }
 
 void FlowCase::add(FlowCondition *fc) 
@@ -177,11 +208,13 @@ bool FlowSuccessorList::empty()
 }
 
 FlowNode::FlowNode(const char * name,
-	CreateNodeFn createfn,
-	bool is_error_handler,
-	bool is_source,
-	bool is_detached,
-    bool is_virtual)
+                CreateNodeFn createfn,
+                bool is_error_handler,
+                bool is_source,
+                bool is_detached,
+                int input_unionnumber,
+                int output_unionnumber,
+                bool is_virtual)
 	: _instances(0)
 	, _executions(0)
 	, _name(name)
@@ -189,8 +222,10 @@ FlowNode::FlowNode(const char * name,
 	, _is_error_handler(is_error_handler)
 	, _is_source(is_source)
 	, _is_detached(is_detached)
+	, _this_case(this,NULL)
+        , _input_unionnumber(input_unionnumber)
+        , _output_unionnumber(output_unionnumber)
 	, _is_virtual(is_virtual)
-	, _error_handler(NULL)
 { 
 }
 
@@ -201,7 +236,7 @@ FlowNode::~FlowNode()
 
 void FlowNode::setErrorHandler(FlowNode *fn)
 {
-	_error_handler = fn;
+	_error_handler_case.setTargetNode(fn);
 }
 
 void FlowNode::log_snapshot()
@@ -211,7 +246,7 @@ void FlowNode::log_snapshot()
 		_name.c_str(),
 		(_is_source ? 's' : '-'),
 		(_is_detached ? 'd' : '-'),
-		(_is_virtual ? 'd' : '-'),
+		(_is_virtual ? 'v' : '-'),
 		(_is_error_handler ? 'e' : '-'),
 		_instances,
 		_executions,
@@ -224,7 +259,7 @@ void FlowNode::log_snapshot()
 		_name.c_str(),
 		(_is_source ? 's' : '-'),
 		(_is_detached ? 'd' : '-'),
-		(_is_virtual ? 'd' : '-'),
+		(_is_virtual ? 'v' : '-'),
 		(_is_error_handler ? 'e' : '-'),
 		_instances,
 		_executions);

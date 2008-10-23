@@ -29,12 +29,10 @@ exception Failure of string * ParserTypes.position
 
 val empty_flow_map : flowmap
 
-type unified_list = ((string * bool) * (string * bool)) list
-
 type built_flow = 
 		{ sources : string list
 		; fmap : flowmap
-		; ulist : ((string * bool) * (string * bool)) list
+		; ulist : TypeCheck.unification_result
 		; symtable : SymbolTable.symbol_table
 		; errhandlers : string list
 		; modules : string list

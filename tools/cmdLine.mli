@@ -15,3 +15,6 @@ val help_text : string
 val get_avoid_dot_ios : unit -> bool
 
 val get_timing_on : unit -> bool
+
+val get_weak_unify : unit -> bool
+

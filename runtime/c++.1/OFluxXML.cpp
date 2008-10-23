@@ -13,11 +13,18 @@ namespace fs = boost::filesystem;
 
 #define XML_READER_MAX_LINE 300
 
-void AddTarget::execute(Flow * f)
+void AddTarget::execute(Flow * f, FlowFunctionMaps * fmaps)
 {
 	FlowNode *fsrc = f->get(_name);
 	assert(fsrc);
 	_fc->setTargetNode(fsrc);
+        _target_input_unionnumber = fsrc->inputUnionNumber();
+        FlatIOConversionFun fiocf = fmaps->lookup_io_conversion(_node_output_unionnumber,
+                _target_input_unionnumber);
+        if(fiocf) {
+                assert(_fc->ioConverter() == &FlowIOConverter::standard_converter);
+                _fc->setIOConverter(new FlowIOConverter(fiocf));
+        }
 }
 
 void SetErrorHandler::execute(Flow * f)
@@ -52,6 +59,7 @@ void XMLReader::read(const char * filename, const char * pluginxmldir)
 void XMLReader::readfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler)
 {
 	std::ifstream in(filename);
+
 	if ( !in ) {
 		throw XMLReaderException("Cannot open XML config file.");
 	}
@@ -60,7 +68,7 @@ void XMLReader::readfile(const char * filename, XML_StartElementHandler startHan
 	if ( !p ) {
 		throw XMLReaderException("Cannot create the XML parser!");
 	}
-    XML_SetUserData(p, this);
+        XML_SetUserData(p, this);
 	XML_SetElementHandler(p, startHandler, endHandler);
 	XML_SetCharacterDataHandler(p, XMLReader::dataHandler);
 	XML_SetCommentHandler(p, XMLReader::commentHandler);
@@ -75,8 +83,7 @@ void XMLReader::readfile(const char * filename, XML_StartElementHandler startHan
 			throw XMLReaderException("Error in parsing XML file");
 		}
 	}
-
-    in.close();
+        in.close();
 	XML_ParserFree(p);
 }
 
@@ -96,7 +103,7 @@ void XMLReader::readdir(const char * pluginxmldir)
 void XMLReader::finalize()
 {
 	for(int i = 0; i < (int)_add_targets.size(); i++) {
-		_add_targets[i].execute(_flow);
+		_add_targets[i].execute(_flow,fmaps());
 	}
 	for(int i = 0; i < (int)_set_error_handlers.size(); i++) {
 		_set_error_handlers[i].execute(_flow);
@@ -113,6 +120,8 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
 	const char * el_isnegated = NULL;
 	const char * el_iserrhandler = NULL;
 	const char * el_unionnumber = NULL;
+	const char * el_inputunionnumber = NULL;
+	const char * el_outputunionnumber = NULL;
 	const char * el_detached = NULL;
 	const char * el_virtual = NULL;
 	const char * el_magicnumber = NULL;
@@ -137,6 +146,10 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
 			el_virtual = attr[i+1];
 		} else if(strcmp(attr[i],"unionnumber") == 0) {
 			el_unionnumber = attr[i+1];
+		} else if(strcmp(attr[i],"inputunionnumber") == 0) {
+			el_inputunionnumber = attr[i+1];
+		} else if(strcmp(attr[i],"outputunionnumber") == 0) {
+			el_outputunionnumber = attr[i+1];
 		} else if(strcmp(attr[i],"magicnumber") == 0) {
 			el_magicnumber = attr[i+1];
 		} else if(strcmp(attr[i],"wtype") == 0) {
@@ -152,6 +165,8 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
 	bool is_virtual = (el_virtual ? strcmp(el_virtual,"true")==0 : false);
 	int argno = (el_argno ? atoi(el_argno) : 0);
 	int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
+	int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
+	int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
 	int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
 	int wtype = (el_wtype ? atoi(el_wtype) : 0);
 	if(strcmp(el,"argument") == 0) {
@@ -181,7 +196,7 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
 		// has attributes: nodetarget
 		// has children: condition
 		
-		pthis->new_flow_case(el_nodetarget, is_virtual);
+		pthis->new_flow_case(el_nodetarget,pthis->flow_node()->outputUnionNumber(), is_virtual);
 	} else if(strcmp(el,"successor") == 0) {
 		// has no attributes
 		// has children: case
@@ -196,11 +211,11 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
 
 		pthis->setErrorHandler(el_name);
 	} else if(strcmp(el,"node") == 0) {
-		// has attributes: name, source
+		// has attributes: name, source, inputunionnumber, outputunionnumber
 		// has children: errorhandler, guardref(s), successorlist 
-        CreateNodeFn createfn = pthis->fmaps()->lookup_node_function(el_function);
-        assert(createfn != NULL);
-        pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, is_virtual);
+		CreateNodeFn createfn = pthis->fmaps()->lookup_node_function(el_function);
+		assert(createfn != NULL);
+		pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber, is_virtual);
 	}
 }
 
@@ -245,6 +260,8 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 	const char * el_argno = NULL;
 	const char * el_isnegated = NULL;
 	const char * el_unionnumber = NULL;
+	const char * el_inputunionnumber = NULL;
+	const char * el_outputunionnumber = NULL;
 
     // node attributes
 	const char * el_function = NULL;
@@ -277,8 +294,12 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 		} else if(strcmp(attr[i],"isnegated") == 0) {
 			el_isnegated = attr[i+1];
 		} else if(strcmp(attr[i],"unionnumber") == 0) {
-            // node attributes
 			el_unionnumber = attr[i+1];
+        } else if(strcmp(attr[i],"inputunionnumber") == 0) {
+            el_inputunionnumber = attr[i+1];
+        } else if(strcmp(attr[i],"outputunionnumber") == 0) {
+            el_outputunionnumber = attr[i+1];
+            // node attributes
 		} else if(strcmp(attr[i],"function") == 0) {
 			el_function = attr[i+1];
 		} else if(strcmp(attr[i],"source") == 0) {
@@ -305,6 +326,8 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 
 	int argno = (el_argno ? atoi(el_argno) : 0);
 	int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
+	int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
+	int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
 	int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
 	int wtype = (el_wtype ? atoi(el_wtype) : 0);
 
@@ -334,7 +357,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 		// has children: errorhandler, guardref(s), successorlist 
         CreateNodeFn createfn;// = pthis->plugin_fmaps()->lookup_node_function(el_function);
         //assert(createfn != NULL);
-        pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, false);
+        pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber, false);
     } else if(strcmp(el,"successorlist") == 0) { 
         // has no attribute
         // has children: successor
@@ -347,7 +370,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 		// has attributes: nodetarget
 		// has children: condition
         // no virtual nodetarget allowed in a plugin
-		pthis->new_flow_case(el_nodetarget);
+		pthis->new_flow_case(el_nodetarget, pthis->flow_node()->outputUnionNumber());
     }
 }
 
@@ -394,15 +417,16 @@ void XMLReader::loadplugin(const char * filename)
         reinterpret_cast<ConditionalMap*>(plugin->getSymbol("_conditional_map")),
         reinterpret_cast<ModularCreateMap*>(plugin->getSymbol("_master_create_map")),
         reinterpret_cast<GuardTransMap*>(plugin->getSymbol("_theGuardTrans_map")),
-        reinterpret_cast<AtomicMapMap*>(plugin->getSymbol("_atomic_map_map"))
+        reinterpret_cast<AtomicMapMap*>(plugin->getSymbol("_atomic_map_map")),
+        reinterpret_cast<IOConverterMap*>(plugin->getSymbol("_ioconverter_map"))
                                         );
 }
 
-void XMLReader::new_flow_case(const char * targetnodename, bool is_virtual) 
+void XMLReader::new_flow_case(const char * targetnodename, int node_output_unionnumber, bool is_virtual) 
 { 
     _flow_case = new FlowCase(NULL); 
     if(!is_virtual) {
-        AddTarget at(_flow_case,targetnodename);
+        AddTarget at(_flow_case,targetnodename, node_output_unionnumber);
         _add_targets.push_back(at);
     } else {
         PluginMap::iterator plugin_itr = _plugins.find(targetnodename);
@@ -416,7 +440,7 @@ void XMLReader::new_flow_case(const char * targetnodename, bool is_virtual)
             // add plugin condition into flow case
             _flow_case->add(plugin->condition());
 
-            AddTarget at(_flow_case, plugin->beginNodeName().c_str());
+            AddTarget at(_flow_case, plugin->beginNodeName().c_str(), node_output_unionnumber);
             _add_targets.push_back(at);
 
             // add all nodes defined in plugin

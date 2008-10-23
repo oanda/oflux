@@ -12,6 +12,7 @@
 #include "OFluxCondition.h"
 #include "OFluxAtomic.h"
 #include "OFluxProfiling.h"
+#include "OFluxIOConversion.h"
 #include <cassert>
 #include <vector>
 #include <map>
@@ -33,7 +34,8 @@ public:
 	FlowFunctionMaps(ConditionalMap cond_map[],
 			ModularCreateMap create_map[],
 			GuardTransMap guard_map[],
-			AtomicMapMap atom_map[]);
+			AtomicMapMap atom_map[],
+                        IOConverterMap ioconverter_map[]);
 
 	/**
 	 * @brief lookup a create factory function from a table given the event name
@@ -67,11 +69,17 @@ public:
 	 * @return the atomic map object
 	 */
 	AtomicMapAbstract * lookup_atomic_map(const char * guardname);
+        /**
+         * @brief lookup the conversion from one type union to another
+         * @return a generic function that can create an object that does the job
+         */
+        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
 private:
 	ConditionalMap *   _cond_map;
 	ModularCreateMap * _create_map;
 	GuardTransMap *    _guard_trans_map;
 	AtomicMapMap *     _atom_map_map;
+        IOConverterMap *   _ioconverter_map;
 };
 
 /**
@@ -202,6 +210,21 @@ private:
 
 class FlowNode;
 
+class FlowIOConverter {
+public:
+        static FlowIOConverter standard_converter; 
+
+        FlowIOConverter(FlatIOConversionFun conversionfun)
+                : _io_conversion(conversionfun)
+                {}
+        inline const void * convert(const void * out) const 
+        {
+                return _io_conversion ? (*_io_conversion)(out) : NULL;
+        }
+private:
+        FlatIOConversionFun _io_conversion;
+};
+
 /**
  * @class FlowCase
  * @brief given a set of conditions, each case has a node target
@@ -210,7 +233,7 @@ class FlowNode;
  */
 class FlowCase {
 public:
-	FlowCase(FlowNode *targetnode=NULL);
+	FlowCase(FlowNode *targetnode=NULL, FlowIOConverter * converter=NULL);
 	~FlowCase();
 	void add(FlowCondition *fc);
 	inline bool satisfied(const void * a)
@@ -222,9 +245,12 @@ public:
 		return res;
 	}
 	inline FlowNode * targetNode() { return _targetnode; }
+        inline FlowIOConverter * ioConverter() { return _io_converter; }
 	inline void setTargetNode(FlowNode * fn) { _targetnode = fn; }
+	inline void setIOConverter(FlowIOConverter * fioc) { _io_converter = fioc; }
 private:
 	FlowNode *                   _targetnode;
+        FlowIOConverter *            _io_converter;
 	std::vector<FlowCondition *> _conditions;
 };
 
@@ -239,13 +265,13 @@ public:
 	FlowSuccessor();
 	~FlowSuccessor();
 	void add(FlowCase * fc);
-	inline FlowNode * get_successor(const void * a) 
+	inline FlowCase * get_successor(const void * a) 
 	{
-		FlowNode * res = NULL;
+		FlowCase * res = NULL;
 		for(int i = 0; i < (int) _cases.size() && res == NULL; i++) {
 			FlowCase * flowcase = _cases[i];
 			if(flowcase->satisfied(a)) {
-				res = flowcase->targetNode();
+				res = flowcase;
 			}
 		}
 		//assert(res);
@@ -266,10 +292,10 @@ public:
 	~FlowSuccessorList();
 	void add(FlowSuccessor * fs);
     bool empty();
-	inline void get_successors(std::vector<FlowNode *> & successor_nodes, const void * a)
+	inline void get_successors(std::vector<FlowCase *> & successor_nodes, const void * a)
 	{
 		for(int i = 0;i < (int) _successorlist.size(); i++) {
-			FlowNode * s = _successorlist[i]->get_successor(a);
+			FlowCase * s = _successorlist[i]->get_successor(a);
 			if(s) {
                                 successor_nodes.push_back(s);
                         }
@@ -295,26 +321,28 @@ public:
 		bool is_error_handler,
 		bool is_source,
 		bool is_detached,
-        bool is_virtual = false);
+                int input_unionnumber,
+                int output_unionnumber,
+                bool is_virtual = false);
 	~FlowNode();
 	void setErrorHandler(FlowNode *fn);
 	FlowSuccessorList & successor_list() { return _successor_list; }
-    void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; }
+        void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; } // uhm - why?
 	inline const char * getName() { return &(_name[0]); }
 	inline bool getIsSource() { return _is_source; }
 	inline bool getIsErrorHandler() { return _is_error_handler; }
 	inline bool getIsDetached() { return _is_detached; }
 	inline bool getIsVirtual() { return _is_virtual; }
 	inline CreateNodeFn & getCreateFn() { return _createfn; }
-	inline void get_successors(std::vector<FlowNode *> & successor_nodes, 
+	inline void get_successors(std::vector<FlowCase *> & successor_nodes, 
 			const void * a,
 			int return_code)
 	{
 		if(return_code != 0) {
-			if(_error_handler != NULL) {
-				successor_nodes.push_back(_error_handler);
+			if(_error_handler_case.targetNode() != NULL) {
+				successor_nodes.push_back(&_error_handler_case);
 			} else if(_is_source) {
-				successor_nodes.push_back(this);
+				successor_nodes.push_back(&_this_case);
 			}
 		} else {
 			_successor_list.get_successors(successor_nodes,a);
@@ -329,6 +357,8 @@ public:
 #endif
 	inline int instances() { return _instances; }
 	inline void turn_off_source() { _is_source = false; }
+        inline int inputUnionNumber() { return _input_unionnumber; }
+        inline int outputUnionNumber() { return _output_unionnumber; }
 protected:
 	int                               _instances; // count active events
 	int                               _executions; // count active events
@@ -338,10 +368,13 @@ private:
 	bool                              _is_error_handler;
 	bool                              _is_source;
 	bool                              _is_detached;
-	bool                              _is_virtual;
 	FlowSuccessorList                 _successor_list;
-	FlowNode *                        _error_handler;
+	FlowCase                          _error_handler_case;
+	FlowCase                          _this_case;
 	std::vector<FlowGuardReference *> _guard_refs;
+        int                               _input_unionnumber;
+        int                               _output_unionnumber;
+	bool                              _is_virtual;
 #ifdef PROFILING
 	TimerStats                        _real_timer_stats;
 	TimerStats                        _oflux_timer_stats;

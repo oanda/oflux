@@ -4,7 +4,7 @@ exception XMLConversion of string * ParserTypes.position
 
 val emit_xml : string ->
 		Flow.built_flow ->
-		((string * bool) * int) list ->
+		TypeCheck.consequence_result ->
 			Xml.xml
 
 val write_xml : Xml.xml -> string -> unit

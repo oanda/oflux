@@ -2,7 +2,7 @@
 #define _OFLUX_THREADS
 
 /**
- * @filename OFluxThreads.h
+ * @file OFluxThreads.h
  * @author Mark Pichora
  * @brief capture the common API for what ever thread libraries are supported
  */

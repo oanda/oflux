@@ -324,15 +324,16 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 		std::vector<boost::shared_ptr<EventBase> > successor_events_priority;
 		//ev->successors(successor_events,return_code);
 		if(return_code) { // error encountered
-			std::vector<FlowNode *> fsuccessors;
+			std::vector<FlowCase *> fsuccessors;
 			void * ev_output = ev->output_type().next();
 			ev->flow_node()->get_successors(fsuccessors, 
 					ev_output, return_code);
 			for(int i = 0; i < (int) fsuccessors.size(); i++) {
-				FlowNode * fn = fsuccessors[i];
+				FlowNode * fn = fsuccessors[i]->targetNode();
+                                FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
 				CreateNodeFn createfn = fn->getCreateFn();
 				boost::shared_ptr<EventBase> ev_succ = 
-					(*createfn)(ev->get_predecessor(),ev->input_type(),fn);
+					(*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn);
 				ev_succ->error_code(return_code);
 				Atomic * null_if_unblocked = ev_succ->acquire(
 					wtype /*output*/,
@@ -341,13 +342,17 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					// allow atomics to be passed to succ
 				if(null_if_unblocked) {
 					// could wait, but rather enqueue
-					successor_events.push_back(ev_succ);
+					//successor_events.push_back(ev_succ);
+					null_if_unblocked->wait(ev_succ,wtype);
+                                        _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                                ev_succ->flow_node()->getName(),
+                                                wtype);
 				} else { // priority to unblocked events
 					successor_events_priority.push_back(ev_succ);
 				}
 			}
 		} else { // no error encountered
-			std::vector<FlowNode *> fsuccessors;
+			std::vector<FlowCase *> fsuccessors;
 			OutputWalker ev_ow = ev->output_type();
 			void * ev_output = NULL;
 			bool saw_source = false;
@@ -356,7 +361,8 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 				ev->flow_node()->get_successors(fsuccessors, 
 						ev_output, return_code);
 				for(int i = 0; i < (int) fsuccessors.size(); i++) {
-					FlowNode * fn = fsuccessors[i];
+					FlowNode * fn = fsuccessors[i]->targetNode();
+                                        FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
 					bool is_source = fn->getIsSource();
 					if(is_source && saw_source) {
 						continue;
@@ -368,7 +374,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					boost::shared_ptr<EventBase> ev_succ = 
 						( is_source
 						? (*createfn)(EventBase::no_event,NULL,fn)
-						: (*createfn)(ev,ev_output,fn)
+						: (*createfn)(ev,iocon->convert(ev_output),fn)
 						);
 					ev_succ->error_code(return_code);
 					Atomic * null_if_unblocked = ev_succ->acquire(
@@ -380,7 +386,11 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 						// allow atomics to be passed to succ
 					if(null_if_unblocked) {
 						// could wait, but rather enqueue
-						successor_events.push_back(ev_succ);
+						//successor_events.push_back(ev_succ);
+                                                null_if_unblocked->wait(ev_succ,wtype);
+                                                _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                                        ev_succ->flow_node()->getName(),
+                                                        wtype);
 					} else { // priority to unblocked events
 						successor_events_priority.push_back(ev_succ);
 					}

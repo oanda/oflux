@@ -132,6 +132,16 @@ let is_abstract symtable name =
 	let x = lookup_node_symbol symtable name
 	in  x.nodeabstract
 
+exception DeclarationLookup of string
+
+let get_decls stable (name,isin) =
+	try let nd = lookup_node_symbol_from_function stable name
+	    in  if isin then nd.nodeinputs 
+	    	else (match nd.nodeoutputs with
+			None -> raise (DeclarationLookup ("node "^name^" is abstract and cannot be used for code generation"))
+			| (Some x) -> x)
+	with Not_found -> raise (DeclarationLookup ("could not resolve node "^name))
+
 (* deprecated
 * so called typedefs *
 
@@ -204,51 +214,27 @@ let fold_module_instances f symtable w =
 			| _ -> w
 	in  StringMap.fold smf symtable w
 
-(* basic type unification *)
-
-type unify_result =
-	Success
-	| Fail of int * string 
-		(* ith, reason *)
-
 let strip_position3 df = 
 	( strip_position df.ctypemod
 	, strip_position df.ctype
 	, strip_position df.name) 
 
-let unify_single (ctm1,t1,_) (ctm2,t2,_) =
-	match (t1 = t2), ctm1, ctm2 with
-		(false,_,_) -> Some "mismatched types"
-		| (_,"const","") -> None
-		| (_,"","const") -> Some ("cannot drop const")
-		| _ -> 
-			if ctm1 = ctm2 then None
-			else Some ("mismatched type modifiers")
-
-let unify_type_in_out (tl_in: decl_formal list) (tl_out: decl_formal list) =
-	let rec unify_type_in_out' i tl_in tl_out =
-		match tl_in, tl_out with
-			([],[]) -> Success
-			| (tinh::tintl,touh::toutl) ->
-				(match unify_single
-						(strip_position3 tinh) 
-						(strip_position3 touh) with
-					None -> unify_type_in_out' (i+1) tintl toutl
-					| (Some reason) -> Fail (i,reason))
-			| _ -> Fail (i,"one more argument between unified parameter lists")
-	in  unify_type_in_out' 0 tl_in tl_out
-					
-let unify' (io1,io2) symtable node1 node2 =
-	let pick io x = if io then Some x.nodeinputs else x.nodeoutputs
-	in  try let nd1 = lookup_node_symbol symtable node1 in
-		let nd2 = lookup_node_symbol symtable node2
-		in  match pick io1 nd1, pick io2 nd2 with
-			(Some as1, Some as2) -> unify_type_in_out as1 as2
-			| _ -> Success (* weak *)
-	    with Not_found->
-		Fail (-1,"node not found in symbol table")
-
-let unify symtable node1 node2 = unify' (true,false) symtable node1 node2
+(* basic type unification *)
 
 
+let get_module_uses_model symtable =
+        (** reflective transitive closure of the USES relation 
+                i.e A USES B means (A,B) is in the result
+        *)
+        let find_inst depth _ midata res =
+                (List.map (fun x -> x,midata.modulesource) depth)
+                @ res in
+        let rec find_def mname mdef (depth,result) =
+                let depth = mname::depth in
+                let result = (mname,mname)::result in
+                let result = fold_module_instances (find_inst depth) mdef.modulesymbols result 
+                in  fold_module_definitions find_def 
+                        mdef.modulesymbols (depth,result) in  
+        let _,result = fold_module_definitions find_def symtable ([],[])
+        in result
 

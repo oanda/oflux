@@ -94,7 +94,7 @@ class FlowNode;
 
 typedef bool (*ConditionFn)(const void *);
 
-typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,void *, FlowNode *);
+typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, FlowNode *);
 
 typedef void (*GuardTransFn)(void *, const void *);
 
@@ -130,6 +130,15 @@ struct AtomicMapMap {
 	const char * guardname;
 	AtomicMapAbstract * amap;
 };
+
+typedef void * (*FlatIOConversionFun)(const void *);
+
+struct IOConverterMap {
+        int from;
+        int to;
+        FlatIOConversionFun conversion_fun;
+};
+
 
 time_t fast_time(time_t * tloc); // fast time (from Paul)
 

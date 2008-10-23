@@ -2,7 +2,7 @@
 #define _OFLUX_RUNTIME_ABSTRACT
 
 /**
- * @filename OFluxRunTimeAbstract.h
+ * @file OFluxRunTimeAbstract.h
  * @author Mark Pichora
  * This contains the minimum that the SHIM needs to access the run time.
  */

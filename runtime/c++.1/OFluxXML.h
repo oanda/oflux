@@ -34,18 +34,25 @@ private:
  */
 class AddTarget {
 public:
-	AddTarget(FlowCase *fc, const char * name)
+	AddTarget(
+                        FlowCase *fc, 
+                        const char * name,
+                        int node_output_unionnumber)
 		: _fc(fc)
 		, _name(name)
+                , _node_output_unionnumber(node_output_unionnumber)
+                , _target_input_unionnumber(0)
 		{}
 	/**
 	 * @brief links the flow node found in parsed flow to a case
 	 * @param f  the fully parsed flow
 	 **/
-	void execute(Flow * f);
+	void execute(Flow * f,FlowFunctionMaps * fmaps);
 private:
 	FlowCase *  _fc;
-	std::string _name;
+	std::string _name; //target
+        int         _node_output_unionnumber;
+        int         _target_input_unionnumber;
 };
 
 /**
@@ -78,6 +85,7 @@ private:
  */
 class XMLReader {
 public:
+	XMLReader(const char * filename, FlowFunctionMaps *fmaps);
 	XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir);
 
 	/**
@@ -104,21 +112,21 @@ public:
 	 **/
 	Flow * flow() { return _flow; }
 	FlowPlugin * flow_plugin() { return _flow_plugin; }
-    void new_flow_plugin(const char * external_node, const char * condition, const char * begin_node) 
-    {
-        _flow_plugin = new FlowPlugin(external_node, condition, begin_node);
-        _plugins.insert(std::make_pair(external_node, _flow_plugin));
-    }
-    void add_flow_plugin() { _flow_plugin = NULL; }
-    void add_plugin_node() 
-    {
-        _flow_plugin->add(_flow_node);
-        _flow_node = NULL;
-        _flow_successor_list = NULL;
-    }
+        void new_flow_plugin(const char * external_node, const char * condition, const char * begin_node) 
+        {
+                _flow_plugin = new FlowPlugin(external_node, condition, begin_node);
+                _plugins.insert(std::make_pair(external_node, _flow_plugin));
+        }
+        void add_flow_plugin() { _flow_plugin = NULL; }
+        void add_plugin_node() 
+        {
+                _flow_plugin->add(_flow_node);
+                _flow_node = NULL;
+                _flow_successor_list = NULL;
+        }
 
 	FlowCase * flow_case() { return _flow_case; }
-	void new_flow_case(const char * targetnodename, bool is_virtual = false);
+	void new_flow_case(const char * targetnodename, int node_output_unionnumber, bool is_virtual = false);
 	void add_flow_case() { _flow_successor->add(_flow_case); _flow_case = NULL; }
 	void new_flow_successor() { _flow_successor = new FlowSuccessor(); }
 	void add_flow_successor() { _flow_successor_list->add(_flow_successor); _flow_successor = NULL; }
@@ -136,7 +144,7 @@ public:
 		{
 			const char * name = _flow_guard_reference->getName().c_str();
 			GuardTransFn guardfn = fmaps()->lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_args);
-			// assert(guardfn != NULL); // allowed now
+			//assert(guardfn != NULL); now allowed
 			_flow_guard_reference->setGuardFn(guardfn);
 			_flow_node->addGuard(_flow_guard_reference);
 			_flow_guard_reference = NULL;
@@ -148,10 +156,19 @@ public:
 			bool is_error_handler, 
 			bool is_src,
 			bool is_detached,
-            bool is_virtual) 
+                        int input_unionnumber,
+                        int output_unionnumber, 
+                        bool is_virtual) 
 	{ 
-		_flow_node = new FlowNode(name,createfn,
-				is_error_handler,is_src,is_detached, is_virtual); 
+		_flow_node = new FlowNode(
+                                name,
+                                createfn,
+				is_error_handler,
+                                is_src,
+                                is_detached,
+                                input_unionnumber,
+                                output_unionnumber,
+                                is_virtual); 
 		_flow_successor_list = &(_flow_node->successor_list());
 	}
 	void add_flow_node();
@@ -175,7 +192,7 @@ private:
 	FlowFunctionMaps *           _fmaps;
 	FlowFunctionMaps *           _plugin_fmaps;
 	Flow *                       _flow;
-    FlowPlugin *                 _flow_plugin;
+        FlowPlugin *                 _flow_plugin;
 	FlowNode *                   _flow_node;
 	FlowSuccessorList *          _flow_successor_list;
 	FlowSuccessor *              _flow_successor;
@@ -186,8 +203,8 @@ private:
 	std::vector<AddTarget>       _add_targets;
 	std::vector<SetErrorHandler> _set_error_handlers;
 
-    typedef std::multimap<std::string, FlowPlugin *> PluginMap;
-    PluginMap _plugins;
+        typedef std::multimap<std::string, FlowPlugin *> PluginMap;
+        PluginMap _plugins;
 };
 
 };
