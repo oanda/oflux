@@ -2,6 +2,7 @@
 #include "OFluxFlow.h"
 #include "OFluxPlugin.h"
 #include <fstream>
+#include <iostream>
 #include <expat.h>
 #include <cassert>
 #include "boost/filesystem.hpp"
@@ -37,7 +38,7 @@ XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char 
 
 void XMLReader::read(const char * filename, const char * pluginxmldir)
 {
-    // read plugins first, to build plugin sub-graph for virtual node
+    // read plugins first, to build plugin sub-graphs for virtual nodes
     if(pluginxmldir != '\0')
     {
         readdir(pluginxmldir);
@@ -231,20 +232,35 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 {
 	XMLReader * pthis = static_cast<XMLReader *> (data);
 
+    // load attribute
 	const char * el_file = NULL;
+
+    // plugin attributes
 	const char * el_external_node = NULL;
 	const char * el_plugin_condition = NULL;
 	const char * el_begin_node = NULL;
+
+    // condition attributes
 	const char * el_name = NULL;
 	const char * el_argno = NULL;
-	const char * el_unionnumber = NULL;
 	const char * el_isnegated = NULL;
+	const char * el_unionnumber = NULL;
+
+    // node attributes
 	const char * el_function = NULL;
+	const char * el_source = NULL;
 	const char * el_iserrhandler = NULL;
 	const char * el_detached = NULL;
-	const char * el_source = NULL;
+
+    // case attribute
+	const char * el_nodetarget = NULL;
+
+    // guard attributes
+	const char * el_magicnumber = NULL;
+	const char * el_wtype = NULL;
 
 	for(int i = 0; attr[i]; i += 2) {
+        // plugin attributes
         if(strcmp(attr[i],"file") == 0) {
 			el_file = attr[i+1];
         } else if(strcmp(attr[i],"externalnode") == 0) {
@@ -253,29 +269,52 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 			el_plugin_condition = attr[i+1];
         } else if(strcmp(attr[i],"beginnode") == 0) {
 			el_begin_node = attr[i+1];
+            // condition attributes
         } else if(strcmp(attr[i],"name") == 0) {
 			el_name = attr[i+1];
 		} else if(strcmp(attr[i],"argno") == 0) {
 			el_argno = attr[i+1];
-		} else if(strcmp(attr[i],"unionnumber") == 0) {
-			el_unionnumber = attr[i+1];
 		} else if(strcmp(attr[i],"isnegated") == 0) {
 			el_isnegated = attr[i+1];
+		} else if(strcmp(attr[i],"unionnumber") == 0) {
+            // node attributes
+			el_unionnumber = attr[i+1];
+		} else if(strcmp(attr[i],"function") == 0) {
+			el_function = attr[i+1];
 		} else if(strcmp(attr[i],"source") == 0) {
 			el_source = attr[i+1];
+		} else if(strcmp(attr[i],"iserrhandler") == 0) {
+			el_iserrhandler = attr[i+1];
+		} else if(strcmp(attr[i],"detached") == 0) {
+            // case attribute
+			el_detached = attr[i+1];
+		} else if(strcmp(attr[i],"nodetarget") == 0) {
+			el_nodetarget = attr[i+1];
+            // guard attributes
+		} else if(strcmp(attr[i],"magicnumber") == 0) {
+			el_magicnumber = attr[i+1];
+		} else if(strcmp(attr[i],"wtype") == 0) {
+			el_wtype = attr[i+1];
         }
     }
 
-	bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
 	bool is_negated = (el_isnegated ? strcmp(el_isnegated,"true")==0 : false);
+	bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
 	bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
 	bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
+
 	int argno = (el_argno ? atoi(el_argno) : 0);
 	int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
+	int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
+	int wtype = (el_wtype ? atoi(el_wtype) : 0);
 
 	if(strcmp(el,"load") == 0) {
+        // has attribute: file
+        // has children: plugin
         pthis->loadplugin(el_file);
     } else if(strcmp(el,"plugin") == 0) {
+        // has attribute: externalnode, condition, beginnode
+        // has children: condition, node
         pthis->new_flow_plugin(el_external_node, el_plugin_condition, el_begin_node);
     } else if(strcmp(el,"condition") == 0) { 
 		// has attributes: name, argno, isnegated
@@ -285,17 +324,30 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
 		FlowCondition * fc = new FlowCondition(condfn,is_negated);
         if(el_name == pthis->flow_plugin()->conditionName()) {
             pthis->flow_plugin()->condition(fc);
+            std::cout << "plugin condition " << el_name << std::endl;
         } else {
             pthis->flow_case()->add(fc);
+            std::cout << "case condition " << el_name << std::endl;
         }
     } else if(strcmp(el,"node") == 0) { 
-		// has attributes: name, source
+		// has attributes: name, function, source, iserrhandler, detached
 		// has children: errorhandler, guardref(s), successorlist 
         CreateNodeFn createfn;// = pthis->plugin_fmaps()->lookup_node_function(el_function);
         //assert(createfn != NULL);
         pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, false);
     } else if(strcmp(el,"successorlist") == 0) { 
-		pthis->new_flow_successor_list();
+        // has no attribute
+        // has children: successor
+        pthis->new_flow_successor_list(); // essentially do nothing
+    } else if(strcmp(el,"successor") == 0) { 
+        // has no attribute
+        // has children: case
+        pthis->new_flow_successor(); 
+	} else if(strcmp(el,"case") == 0) {
+		// has attributes: nodetarget
+		// has children: condition
+        // no virtual nodetarget allowed in a plugin
+		pthis->new_flow_case(el_nodetarget);
     }
 }
 
@@ -311,7 +363,11 @@ void XMLReader::endPluginHandler(void *data, const char *el)
     } else if(strcmp(el,"node") == 0) { 
         pthis->add_plugin_node();
     } else if(strcmp(el,"successorlist") == 0) { 
-        // do nothing
+        pthis->add_flow_successor_list(); // do nothing essentially
+    } else if(strcmp(el,"successor") == 0) { 
+        pthis->add_flow_successor();
+    } else if(strcmp(el,"case") == 0) { 
+        pthis->add_flow_case();
     }
 }
 
@@ -349,7 +405,6 @@ void XMLReader::new_flow_case(const char * targetnodename, bool is_virtual)
         AddTarget at(_flow_case,targetnodename);
         _add_targets.push_back(at);
     } else {
-        // if target node is virtual, get its plugin implementations 
         PluginMap::iterator plugin_itr = _plugins.find(targetnodename);
         assert(plugin_itr != _plugins.end());
 
@@ -364,7 +419,7 @@ void XMLReader::new_flow_case(const char * targetnodename, bool is_virtual)
             AddTarget at(_flow_case, plugin->beginNodeName().c_str());
             _add_targets.push_back(at);
 
-            // load all nodes defined in plugin
+            // add all nodes defined in plugin
             std::vector<FlowNode *>::iterator node_itr = plugin->getAllNodes().begin();
             for(; node_itr != plugin->getAllNodes().end(); ++node_itr) {
                 _flow->add( *node_itr );
@@ -381,11 +436,11 @@ void XMLReader::add_flow_node()
     if(!_flow_node->getIsVirtual()) {
         _flow->add(_flow_node);
     } else {
-        // if virtual node, set its end nodes' successor_list properly
         const char * node_name = _flow_node->getName();
         PluginMap::iterator plugin_itr = _plugins.find(node_name);
         assert(plugin_itr != _plugins.end());
 
+        // set each end node's successor_list with the virtual node's successor_list 
         PluginMap::iterator lastPlugin = _plugins.upper_bound(node_name);
         for( ; plugin_itr != lastPlugin; ++plugin_itr) {
             FlowPlugin * plugin = plugin_itr->second;
