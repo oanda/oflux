@@ -1,30 +1,30 @@
-#ifndef _OFLUX_PLUGIN
-#define _OFLUX_PLUGIN
+#ifndef _OFLUX_LIBRARY
+#define _OFLUX_LIBRARY
 
 #include <string>
 #include <dlfcn.h>
 
 namespace oflux {
 
-class Plugin
+class Library
 {
 public:
-    Plugin( const std::string & path );
-    ~Plugin();
+    Library( const std::string & path );
+    ~Library();
     
     bool load( int mode = RTLD_NOW ); 
     void * getSymbol( const std::string & path );
 
 private:
-    Plugin();
-    Plugin( const Plugin & );
+    Library();
+    Library( const Library & );
     bool validatePath();
 
     std::string path_;
     void * handle_;
 
-}; // class Plugin
+}; // class Library
 
 } // namespace oflux 
 
-#endif // _OFLUX_PLUGIN
+#endif // _OFLUX_LIBRARY

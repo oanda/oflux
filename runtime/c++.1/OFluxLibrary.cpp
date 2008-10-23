@@ -1,16 +1,16 @@
-#include "OFluxPlugin.h"
+#include "OFluxLibrary.h"
 #include "boost/filesystem.hpp"
 
 namespace fs = boost::filesystem;
 
 namespace oflux {
 
-Plugin::Plugin( const std::string & path )
+Library::Library( const std::string & path )
     : path_( path ), handle_( NULL )
 {
 }
 
-Plugin::~Plugin()
+Library::~Library()
 {
     if( handle_ )
     {
@@ -19,7 +19,7 @@ Plugin::~Plugin()
     }
 }
 
-bool Plugin::load( int mode )
+bool Library::load( int mode )
 {
     if( ! validatePath() )
         return false;
@@ -31,7 +31,7 @@ bool Plugin::load( int mode )
     return true;
 }
 
-void * Plugin::getSymbol( const std::string & path )
+void * Library::getSymbol( const std::string & path )
 {
     if( ! handle_ )
         return NULL;
@@ -41,7 +41,7 @@ void * Plugin::getSymbol( const std::string & path )
 
 // private functions
 
-bool Plugin::validatePath()
+bool Library::validatePath()
 {    
     if( path_.empty() )
         return false;
