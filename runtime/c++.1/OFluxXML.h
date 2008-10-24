@@ -111,19 +111,9 @@ public:
 	 * @return smart pointer to the (heap allocated) result flow
 	 **/
 	Flow * flow() { return _flow; }
-	FlowPlugin * flow_plugin() { return _flow_plugin; }
-        void new_flow_plugin(const char * external_node, const char * condition, const char * begin_node) 
-        {
-                _flow_plugin = new FlowPlugin(external_node, condition, begin_node);
-                _plugins.insert(std::make_pair(external_node, _flow_plugin));
-        }
-        void add_flow_plugin() { _flow_plugin = NULL; }
-        void add_plugin_node() 
-        {
-                _flow_plugin->add(_flow_node);
-                _flow_node = NULL;
-                _flow_successor_list = NULL;
-        }
+	Plugin * plugin() { return _plugin; }
+	FlowFunctionMaps * fmaps() { return _fmaps; }
+	FlowFunctionMaps * plugin_fmaps() { return _plugin_fmaps; }
 
 	FlowCase * flow_case() { return _flow_case; }
 	void new_flow_case(const char * targetnodename, int node_output_unionnumber, bool is_virtual = false);
@@ -153,9 +143,9 @@ public:
 		{ _flow_guard_ref_args.push_back(an); }
 	FlowNode * flow_node() { return _flow_node; }
 	void new_flow_node(const char * name, CreateNodeFn createfn, 
-			bool is_error_handler, 
-			bool is_src,
-			bool is_detached,
+                        bool is_error_handler, 
+                        bool is_src,
+                        bool is_detached,
                         int input_unionnumber,
                         int output_unionnumber, 
                         bool is_virtual) 
@@ -177,8 +167,37 @@ public:
 		SetErrorHandler seh(_flow_node,err_node_name);
 		_set_error_handlers.push_back(seh);
 	}
-	FlowFunctionMaps * fmaps() { return _fmaps; }
-	FlowFunctionMaps * plugin_fmaps() { return _plugin_fmaps; }
+
+    void new_plugin(const char * external_node, const char * condition, const char * begin_node) 
+    {
+        _plugin = new Plugin(external_node, condition, begin_node);
+        _plugins.insert(std::make_pair(external_node, _plugin));
+    }
+    void add_plugin() { _plugin = NULL; }
+    void add_plugin_node() 
+    {
+        _plugin->add(_flow_node);
+        _flow_node = NULL;
+        _flow_successor_list = NULL;
+    }
+	void new_plugin_guard(const char * name, int magicnumber, AtomicMapAbstract * amap)
+		{ _plugin->addGuard(new FlowGuard(amap,name,magicnumber)); }
+	void new_plugin_guard_reference(FlowGuard * fg, int unionnumber, int wtype)
+		{ 
+			_flow_guard_reference = new FlowGuardReference(fg,wtype); 
+			_flow_guard_ref_unionnumber = unionnumber;
+			_flow_guard_ref_args.clear();
+		}
+	void complete_plugin_guard_reference()
+		{
+			const char * name = _flow_guard_reference->getName().c_str();
+			GuardTransFn guardfn = plugin_fmaps()->lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_args);
+			//assert(guardfn != NULL); now allowed
+			_flow_guard_reference->setGuardFn(guardfn);
+			_flow_node->addGuard(_flow_guard_reference);
+			_flow_guard_reference = NULL;
+		}
+
 protected:
 	/**
 	 * @brief just connect the forward flow node references stored up
@@ -192,7 +211,7 @@ private:
 	FlowFunctionMaps *           _fmaps;
 	FlowFunctionMaps *           _plugin_fmaps;
 	Flow *                       _flow;
-        FlowPlugin *                 _flow_plugin;
+    Plugin *                     _plugin;
 	FlowNode *                   _flow_node;
 	FlowSuccessorList *          _flow_successor_list;
 	FlowSuccessor *              _flow_successor;
@@ -203,8 +222,8 @@ private:
 	std::vector<AddTarget>       _add_targets;
 	std::vector<SetErrorHandler> _set_error_handlers;
 
-        typedef std::multimap<std::string, FlowPlugin *> PluginMap;
-        PluginMap _plugins;
+    typedef std::multimap<std::string, Plugin *> PluginMap;
+    PluginMap _plugins;
 };
 
 };

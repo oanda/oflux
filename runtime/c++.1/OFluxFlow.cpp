@@ -266,31 +266,6 @@ void FlowNode::log_snapshot()
 #endif
 }
 
-FlowPlugin::FlowPlugin(const char * externalNodeName,
-            const char * conditionName,
-            const char * beginNodeName)
-:   _external_node_name(externalNodeName),
-    _condition_name(conditionName),
-    _begin_node_name(beginNodeName),
-    _condition(NULL)
-{
-}
-
-void FlowPlugin::add(FlowNode * node)
-{
-    _nodes.push_back(node);
-}
-
-void FlowPlugin::getEndNodes(std::vector<FlowNode *> & endNodes)
-{
-    std::vector<FlowNode *>::iterator itr = _nodes.begin();
-    for( ; itr != _nodes.end(); ++itr) {
-        if((*itr)->successor_list().empty()) {
-            endNodes.push_back(*itr);
-        }
-    }
-}
-
 Flow::~Flow() 
 { 
 	delete_map_contents<std::string,FlowNode>(_nodes); 
@@ -310,6 +285,31 @@ void Flow::log_snapshot()
 std::vector<FlowNode *> & Flow::sources()
 {
 	return _sources;
+}
+
+Plugin::Plugin(const char * externalNodeName,
+            const char * conditionName,
+            const char * beginNodeName)
+:   _external_node_name(externalNodeName),
+    _condition_name(conditionName),
+    _begin_node_name(beginNodeName),
+    _condition(NULL)
+{
+}
+
+void Plugin::add(FlowNode * node)
+{
+    _nodes.push_back(node);
+}
+
+void Plugin::getEndNodes(std::vector<FlowNode *> & endNodes)
+{
+    std::vector<FlowNode *>::iterator itr = _nodes.begin();
+    for( ; itr != _nodes.end(); ++itr) {
+        if((*itr)->successor_list().empty()) {
+            endNodes.push_back(*itr);
+        }
+    }
 }
 
 }; // namespace

@@ -381,39 +381,6 @@ private:
 #endif
 };
 
-class FlowPlugin {
-public:
-    FlowPlugin(const char * externalNodeName,
-            const char * conditionName,
-            const char * beginNodeName);
-    ~FlowPlugin();
-
-    inline std::string externalNodeName() { return _external_node_name; }
-    inline std::string conditionName() { return _condition_name; }
-    inline std::string & beginNodeName() { return _begin_node_name; }
-
-    inline FlowCondition * condition() { return _condition; }
-    inline void condition(FlowCondition * condition) { _condition = condition; }
-
-    void getEndNodes(std::vector<FlowNode *> & endNodes);
-    std::vector<FlowNode *> & getAllNodes() { return _nodes; }
-
-    void add(FlowNode * node);
-
-private:
-    std::string    _external_node_name;
-    std::string    _condition_name;
-    std::string    _begin_node_name;
-
-    FlowCondition *                     _condition;
-    std::vector<FlowNode *>             _nodes;
-	std::vector<FlowGuardReference *>   _guard_refs;
-    //
-    // TODO: support internal guards in plugin
-    // 
-	//std::map<std::string, FlowGuard *> _guards;
-};
-
 class FlowNodeCounterIncrementer {
 public:
 	FlowNodeCounterIncrementer(FlowNode * flow_node)
@@ -504,8 +471,51 @@ private:
 	std::map<std::string, FlowGuard *> _guards;
 };
 
-}; // namespace
+class Plugin {
+public:
+    Plugin(const char * externalNodeName,
+            const char * conditionName,
+            const char * beginNodeName);
+    ~Plugin();
 
+    inline std::string externalNodeName() { return _external_node_name; }
+    inline std::string conditionName() { return _condition_name; }
+    inline std::string & beginNodeName() { return _begin_node_name; }
+
+    inline FlowCondition * condition() { return _condition; }
+    inline void condition(FlowCondition * condition) { _condition = condition; }
+
+    void getEndNodes(std::vector<FlowNode *> & endNodes);
+    std::vector<FlowNode *> & getAllNodes() { return _nodes; }
+
+    void add(FlowNode * node);
+	void addGuard(FlowGuard *fg) 
+	{
+		_guards[fg->getName()] = fg;
+	}
+	FlowGuard * getGuard(const std::string & name)
+	{
+		std::map<std::string, FlowGuard *>::iterator itr = 
+			_guards.find(name);
+		return (itr == _guards.end() ? NULL : (*itr).second);
+	}
+
+private:
+    std::string    _external_node_name;
+    std::string    _condition_name;
+    std::string    _begin_node_name;
+
+    FlowCondition *                     _condition;
+    std::vector<FlowNode *>             _nodes;
+	std::map<std::string, FlowGuard *>  _guards;
+	std::vector<FlowGuardReference *>   _guard_refs;
+    //
+    // TODO: support internal guards in plugin
+    // 
+	//std::map<std::string, FlowGuard *> _guards;
+};
+
+}; // namespace
 
 #endif // _OFLUX_FLOW
 
