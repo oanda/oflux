@@ -31,55 +31,55 @@ namespace oflux {
  */
 class FlowFunctionMaps { // data that is compiled in
 public:
-	FlowFunctionMaps(ConditionalMap cond_map[],
-			ModularCreateMap create_map[],
-			GuardTransMap guard_map[],
-			AtomicMapMap atom_map[],
+    FlowFunctionMaps(ConditionalMap cond_map[],
+            ModularCreateMap create_map[],
+            GuardTransMap guard_map[],
+            AtomicMapMap atom_map[],
                         IOConverterMap ioconverter_map[]);
 
-	/**
-	 * @brief lookup a create factory function from a table given the event name
-	 * @param n name of the node  
-	 * @return a function pointer usable to create a new event (smart pointered)
-	 **/
-	CreateNodeFn lookup_node_function(const char * n);
+    /**
+     * @brief lookup a create factory function from a table given the event name
+     * @param n name of the node  
+     * @return a function pointer usable to create a new event (smart pointered)
+     **/
+    CreateNodeFn lookup_node_function(const char * n);
 
-	/**
-	 * @brief lookup a conditional function usable on a particular input
-	 * @param n  name of the conditional
-	 * @param argno  the number of the field in the object
-	 * @param unionnumber  OFluxUnionX number
-	 * @return 
-	 **/
-	ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
-	/**
-	 * @brief lookup a guard translator function
-	 * @remark these functions can translate an input structure to a guard key structure
-	 * @param guardname name of the guard
-	 * @param union_number union number (indicates the input structure)
-	 * @param argnos a vector of unique argument numbers used to pick off the fields
-	 * @return the compiled function (pointer to it)
-	 */
-	GuardTransFn lookup_guard_translator(const char * guardname,
-		int union_number, std::vector<int> & argnos);
+    /**
+     * @brief lookup a conditional function usable on a particular input
+     * @param n  name of the conditional
+     * @param argno  the number of the field in the object
+     * @param unionnumber  OFluxUnionX number
+     * @return 
+     **/
+    ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
+    /**
+     * @brief lookup a guard translator function
+     * @remark these functions can translate an input structure to a guard key structure
+     * @param guardname name of the guard
+     * @param union_number union number (indicates the input structure)
+     * @param argnos a vector of unique argument numbers used to pick off the fields
+     * @return the compiled function (pointer to it)
+     */
+    GuardTransFn lookup_guard_translator(const char * guardname, int union_number, std::vector<int> & argnos);
 
-	/**
-	 * @brief lookup the atomic map object for the given guard 
-	 * @param guardname the guard name
-	 * @return the atomic map object
-	 */
-	AtomicMapAbstract * lookup_atomic_map(const char * guardname);
-        /**
-         * @brief lookup the conversion from one type union to another
-         * @return a generic function that can create an object that does the job
-         */
-        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+    /**
+     * @brief lookup the atomic map object for the given guard 
+     * @param guardname the guard name
+     * @return the atomic map object
+     */
+    AtomicMapAbstract * lookup_atomic_map(const char * guardname);
+
+    /**
+     * @brief lookup the conversion from one type union to another
+     * @return a generic function that can create an object that does the job
+     */
+    FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
 private:
-	ConditionalMap *   _cond_map;
-	ModularCreateMap * _create_map;
-	GuardTransMap *    _guard_trans_map;
-	AtomicMapMap *     _atom_map_map;
-        IOConverterMap *   _ioconverter_map;
+    ConditionalMap *   _cond_map;
+    ModularCreateMap * _create_map;
+    GuardTransMap *    _guard_trans_map;
+    AtomicMapMap *     _atom_map_map;
+    IOConverterMap *   _ioconverter_map;
 };
 
 /**
@@ -88,12 +88,12 @@ private:
  */
 class FlowCondition {
 public:
-	FlowCondition(ConditionFn condfn, bool is_negated);
-	inline bool satisfied(const void * a) 
-		{ return ((*_condfn)(a) ? !_is_negated : _is_negated); }
+    FlowCondition(ConditionFn condfn, bool is_negated);
+    inline bool satisfied(const void * a) 
+        { return ((*_condfn)(a) ? !_is_negated : _is_negated); }
 private:
-	ConditionFn _condfn;
-	bool        _is_negated;
+    ConditionFn _condfn;
+    bool        _is_negated;
 };
 
 class Atomic;
@@ -104,53 +104,53 @@ class Atomic;
  */
 class FlowGuard {
 public:
-	FlowGuard(AtomicMapAbstract * amap, const char * n, int magic)
-		: _amap(amap)
-		, _name(n)
-		, _magic_number(magic)
-		{}
-	/**
-	 * @brief acquire the atomic value if possible -- otherwise should wait
-	 * @param av_returned output argument the Atomic for this key
-	 * @param key value used to dereference the atomic map
-	 * @returns key that was permanently allocated on the heap
-	 */
-	inline const void * get(Atomic * & av_returned,
-			const void * key)
-	{ 
-		return _amap->get(av_returned,key);
-	}
+    FlowGuard(AtomicMapAbstract * amap, const char * n, int magic)
+        : _amap(amap)
+        , _name(n)
+        , _magic_number(magic)
+        {}
+    /**
+     * @brief acquire the atomic value if possible -- otherwise should wait
+     * @param av_returned output argument the Atomic for this key
+     * @param key value used to dereference the atomic map
+     * @returns key that was permanently allocated on the heap
+     */
+    inline const void * get(Atomic * & av_returned,
+            const void * key)
+    { 
+        return _amap->get(av_returned,key);
+    }
 
-	/**
+    /**
          * @brief a comparator function for keys (punts to underlying atomic map)
          * @return -1 if <, 0 if ==, +1 if >
          */
-	inline int compare_keys(const void *k1, const void * k2) const 
-		{ return _amap->compare(k1,k2); }
-	/**
-	 * @brief allocate a new key and return a void pointer to it
-	 * @return the key pointer
-	 */
-	inline void * new_key() { return _amap->new_key(); }
-	/**
-	 * @brief delete the allocated key
-	 * @param k the key pointer to reclaim
-	 */
-	inline void delete_key(void * k) { _amap->delete_key(k); }
-	/**
-	 * @brief return the name of the guard
-	 * @return name of the guard
-	 */
-	inline const std::string & getName() { return _name; }
-	/**
-	 * @brief the magic number is the index of the guard declaration
-	 * @return magic number 
-	 */
-	inline int magic_number() const { return _magic_number; }
+    inline int compare_keys(const void *k1, const void * k2) const 
+        { return _amap->compare(k1,k2); }
+    /**
+     * @brief allocate a new key and return a void pointer to it
+     * @return the key pointer
+     */
+    inline void * new_key() { return _amap->new_key(); }
+    /**
+     * @brief delete the allocated key
+     * @param k the key pointer to reclaim
+     */
+    inline void delete_key(void * k) { _amap->delete_key(k); }
+    /**
+     * @brief return the name of the guard
+     * @return name of the guard
+     */
+    inline const std::string & getName() { return _name; }
+    /**
+     * @brief the magic number is the index of the guard declaration
+     * @return magic number 
+     */
+    inline int magic_number() const { return _magic_number; }
 private:
-	AtomicMapAbstract * _amap;
-	std::string	    _name;
-	int                 _magic_number;
+    AtomicMapAbstract * _amap;
+    std::string        _name;
+    int                 _magic_number;
 };
 
 /**
@@ -159,53 +159,53 @@ private:
  */
 class FlowGuardReference {
 public:
-	FlowGuardReference(FlowGuard * fg, int wtype)
-		: _guardfn(NULL)
-		, _flow_guard(fg)
-		, _local_key(fg->new_key())
-		, _wtype(wtype)
-		{}
-	~FlowGuardReference()
-	{
-		if(_local_key) {
-			_flow_guard->delete_key(_local_key);
-		}
-	}
-	/**
-	 * @brief set the guard translator function for this guard instance
-	 */
-	inline void setGuardFn(GuardTransFn guardfn) { _guardfn = guardfn; }
-	/**
-	 * @brief used to dereference the atomic map to get the atomic and persistent key
-	 * @param a_out output atomic pointer
-	 * @param node_in the node input structure (used to generate a key)
-	 */
-	inline const void * get(Atomic * & a_out,const void * node_in)
-	{ 
-		if(_guardfn) (*_guardfn)(_local_key, node_in);
-		return _flow_guard->get(a_out,_local_key);
-	}
-	/**
-	 * @brief compare keys (pointers to void)
-	 */
-	inline int compare_keys(const void * k1, const void * k2)
-	{
-		return _flow_guard->compare_keys(k1,k2);
-	}
-	/**
-	 * @brief return the magic number of the guard
-	 */
-	inline int magic_number() const { return _flow_guard->magic_number(); }
-	/** 
-	 * @brief return the name of the guard
-	 */
-	inline const std::string & getName() { return _flow_guard->getName(); }
-	inline int wtype() const { return _wtype; }
+    FlowGuardReference(FlowGuard * fg, int wtype)
+        : _guardfn(NULL)
+        , _flow_guard(fg)
+        , _local_key(fg->new_key())
+        , _wtype(wtype)
+        {}
+    ~FlowGuardReference()
+    {
+        if(_local_key) {
+            _flow_guard->delete_key(_local_key);
+        }
+    }
+    /**
+     * @brief set the guard translator function for this guard instance
+     */
+    inline void setGuardFn(GuardTransFn guardfn) { _guardfn = guardfn; }
+    /**
+     * @brief used to dereference the atomic map to get the atomic and persistent key
+     * @param a_out output atomic pointer
+     * @param node_in the node input structure (used to generate a key)
+     */
+    inline const void * get(Atomic * & a_out,const void * node_in)
+    { 
+        if(_guardfn) (*_guardfn)(_local_key, node_in);
+        return _flow_guard->get(a_out,_local_key);
+    }
+    /**
+     * @brief compare keys (pointers to void)
+     */
+    inline int compare_keys(const void * k1, const void * k2)
+    {
+        return _flow_guard->compare_keys(k1,k2);
+    }
+    /**
+     * @brief return the magic number of the guard
+     */
+    inline int magic_number() const { return _flow_guard->magic_number(); }
+    /** 
+     * @brief return the name of the guard
+     */
+    inline const std::string & getName() { return _flow_guard->getName(); }
+    inline int wtype() const { return _wtype; }
 private:
-	GuardTransFn _guardfn;
-	FlowGuard *  _flow_guard;
-	void *       _local_key; // not reentrant here
-	int          _wtype;
+    GuardTransFn _guardfn;
+    FlowGuard *  _flow_guard;
+    void *       _local_key; // not reentrant here
+    int          _wtype;
 };
 
 class FlowNode;
@@ -233,25 +233,25 @@ private:
  */
 class FlowCase {
 public:
-	FlowCase(FlowNode *targetnode=NULL, FlowIOConverter * converter=NULL);
-	~FlowCase();
-	void add(FlowCondition *fc);
-	inline bool satisfied(const void * a)
-	{
-		bool res = true;
-		for(int i = 0; i <(int)_conditions.size() && res; i++) {
-			res = res && _conditions[i]->satisfied(a);
-		}
-		return res;
-	}
-	inline FlowNode * targetNode() { return _targetnode; }
-        inline FlowIOConverter * ioConverter() { return _io_converter; }
-	inline void setTargetNode(FlowNode * fn) { _targetnode = fn; }
-	inline void setIOConverter(FlowIOConverter * fioc) { _io_converter = fioc; }
+    FlowCase(FlowNode *targetnode=NULL, FlowIOConverter * converter=NULL);
+    ~FlowCase();
+    void add(FlowCondition *fc);
+    inline bool satisfied(const void * a)
+    {
+        bool res = true;
+        for(int i = 0; i <(int)_conditions.size() && res; i++) {
+            res = res && _conditions[i]->satisfied(a);
+        }
+        return res;
+    }
+    inline FlowNode * targetNode() { return _targetnode; }
+    inline FlowIOConverter * ioConverter() { return _io_converter; }
+    inline void setTargetNode(FlowNode * fn) { _targetnode = fn; }
+    inline void setIOConverter(FlowIOConverter * fioc) { _io_converter = fioc; }
 private:
-	FlowNode *                   _targetnode;
-        FlowIOConverter *            _io_converter;
-	std::vector<FlowCondition *> _conditions;
+    FlowNode *                   _targetnode;
+    FlowIOConverter *            _io_converter;
+    std::vector<FlowCondition *> _conditions;
 };
 
 /**
@@ -262,23 +262,23 @@ private:
  */
 class FlowSuccessor {
 public:
-	FlowSuccessor();
-	~FlowSuccessor();
-	void add(FlowCase * fc);
-	inline FlowCase * get_successor(const void * a) 
-	{
-		FlowCase * res = NULL;
-		for(int i = 0; i < (int) _cases.size() && res == NULL; i++) {
-			FlowCase * flowcase = _cases[i];
-			if(flowcase->satisfied(a)) {
-				res = flowcase;
-			}
-		}
-		//assert(res);
-		return res;
-	}
+    FlowSuccessor();
+    ~FlowSuccessor();
+    void add(FlowCase * fc);
+    inline FlowCase * get_successor(const void * a) 
+    {
+        FlowCase * res = NULL;
+        for(int i = 0; i < (int) _cases.size() && res == NULL; i++) {
+            FlowCase * flowcase = _cases[i];
+            if(flowcase->satisfied(a)) {
+                res = flowcase;
+            }
+        }
+        //assert(res);
+        return res;
+    }
 private:
-	std::vector<FlowCase *> _cases;
+    std::vector<FlowCase *> _cases;
 };
 
 /**
@@ -288,21 +288,21 @@ private:
  */
 class FlowSuccessorList {
 public:
-	FlowSuccessorList();
-	~FlowSuccessorList();
-	void add(FlowSuccessor * fs);
+    FlowSuccessorList();
+    ~FlowSuccessorList();
+    void add(FlowSuccessor * fs);
     bool empty();
-	inline void get_successors(std::vector<FlowCase *> & successor_nodes, const void * a)
-	{
-		for(int i = 0;i < (int) _successorlist.size(); i++) {
-			FlowCase * s = _successorlist[i]->get_successor(a);
-			if(s) {
-                                successor_nodes.push_back(s);
-                        }
-		}
-	}
+    inline void get_successors(std::vector<FlowCase *> & successor_nodes, const void * a)
+    {
+        for(int i = 0;i < (int) _successorlist.size(); i++) {
+            FlowCase * s = _successorlist[i]->get_successor(a);
+            if(s) {
+                successor_nodes.push_back(s);
+            }
+        }
+    }
 private:
-	std::vector<FlowSuccessor *> _successorlist;
+    std::vector<FlowSuccessor *> _successorlist;
 };
 
 
@@ -315,85 +315,85 @@ private:
  */
 class FlowNode {
 public:
-	friend class FlowNodeCounterIncrementer;
-	FlowNode(const char * name,
-		CreateNodeFn createfn,
-		bool is_error_handler,
-		bool is_source,
-		bool is_detached,
-                int input_unionnumber,
-                int output_unionnumber,
-                bool is_virtual = false);
-	~FlowNode();
-	void setErrorHandler(FlowNode *fn);
-	FlowSuccessorList & successor_list() { return _successor_list; }
+    friend class FlowNodeCounterIncrementer;
+    FlowNode(const char * name,
+        CreateNodeFn createfn,
+        bool is_error_handler,
+        bool is_source,
+        bool is_detached,
+        int input_unionnumber,
+        int output_unionnumber,
+        bool is_virtual = false);
+    ~FlowNode();
+    void setErrorHandler(FlowNode *fn);
+    FlowSuccessorList & successor_list() { return _successor_list; }
         void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; } // uhm - why?
-	inline const char * getName() { return &(_name[0]); }
-	inline bool getIsSource() { return _is_source; }
-	inline bool getIsErrorHandler() { return _is_error_handler; }
-	inline bool getIsDetached() { return _is_detached; }
-	inline bool getIsVirtual() { return _is_virtual; }
-	inline CreateNodeFn & getCreateFn() { return _createfn; }
-	inline void get_successors(std::vector<FlowCase *> & successor_nodes, 
-			const void * a,
-			int return_code)
-	{
-		if(return_code != 0) {
-			if(_error_handler_case.targetNode() != NULL) {
-				successor_nodes.push_back(&_error_handler_case);
-			} else if(_is_source) {
-				successor_nodes.push_back(&_this_case);
-			}
-		} else {
-			_successor_list.get_successors(successor_nodes,a);
-		}
-	}
-	inline std::vector<FlowGuardReference *> & guards() { return _guard_refs; }
-	void addGuard(FlowGuardReference * fgr) { _guard_refs.push_back(fgr); }
-	void log_snapshot();
+    inline const char * getName() { return &(_name[0]); }
+    inline bool getIsSource() { return _is_source; }
+    inline bool getIsErrorHandler() { return _is_error_handler; }
+    inline bool getIsDetached() { return _is_detached; }
+    inline bool getIsVirtual() { return _is_virtual; }
+    inline CreateNodeFn & getCreateFn() { return _createfn; }
+    inline void get_successors(std::vector<FlowCase *> & successor_nodes, 
+            const void * a,
+            int return_code)
+    {
+        if(return_code != 0) {
+            if(_error_handler_case.targetNode() != NULL) {
+                successor_nodes.push_back(&_error_handler_case);
+            } else if(_is_source) {
+                successor_nodes.push_back(&_this_case);
+            }
+        } else {
+            _successor_list.get_successors(successor_nodes,a);
+        }
+    }
+    inline std::vector<FlowGuardReference *> & guards() { return _guard_refs; }
+    void addGuard(FlowGuardReference * fgr) { _guard_refs.push_back(fgr); }
+    void log_snapshot();
 #ifdef PROFILING
-	inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
-	inline TimerStats * oflux_timer_stats() { return &_oflux_timer_stats; }
+    inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
+    inline TimerStats * oflux_timer_stats() { return &_oflux_timer_stats; }
 #endif
-	inline int instances() { return _instances; }
-	inline void turn_off_source() { _is_source = false; }
-        inline int inputUnionNumber() { return _input_unionnumber; }
-        inline int outputUnionNumber() { return _output_unionnumber; }
+    inline int instances() { return _instances; }
+    inline void turn_off_source() { _is_source = false; }
+    inline int inputUnionNumber() { return _input_unionnumber; }
+    inline int outputUnionNumber() { return _output_unionnumber; }
 protected:
-	int                               _instances; // count active events
-	int                               _executions; // count active events
+    int                               _instances; // count active events
+    int                               _executions; // count active events
 private:
-	std::string                       _name;
-	CreateNodeFn                      _createfn;
-	bool                              _is_error_handler;
-	bool                              _is_source;
-	bool                              _is_detached;
-	FlowSuccessorList                 _successor_list;
-	FlowCase                          _error_handler_case;
-	FlowCase                          _this_case;
-	std::vector<FlowGuardReference *> _guard_refs;
-        int                               _input_unionnumber;
-        int                               _output_unionnumber;
-	bool                              _is_virtual;
+    std::string                       _name;
+    CreateNodeFn                      _createfn;
+    bool                              _is_error_handler;
+    bool                              _is_source;
+    bool                              _is_detached;
+    FlowSuccessorList                 _successor_list;
+    FlowCase                          _error_handler_case;
+    FlowCase                          _this_case;
+    std::vector<FlowGuardReference *> _guard_refs;
+    int                               _input_unionnumber;
+    int                               _output_unionnumber;
+    bool                              _is_virtual;
 #ifdef PROFILING
-	TimerStats                        _real_timer_stats;
-	TimerStats                        _oflux_timer_stats;
+    TimerStats                        _real_timer_stats;
+    TimerStats                        _oflux_timer_stats;
 #endif
 };
 
 class FlowNodeCounterIncrementer {
 public:
-	FlowNodeCounterIncrementer(FlowNode * flow_node)
-		: _flow_node(flow_node)
-		{ 
-			_flow_node->_instances++; 
-			_flow_node->_executions++; 
-		}
-	~FlowNodeCounterIncrementer()
-		{ _flow_node->_instances--; }
-	inline FlowNode * flow_node() { return _flow_node; }
+    FlowNodeCounterIncrementer(FlowNode * flow_node)
+        : _flow_node(flow_node)
+        { 
+            _flow_node->_instances++; 
+            _flow_node->_executions++; 
+        }
+    ~FlowNodeCounterIncrementer()
+        { _flow_node->_instances--; }
+    inline FlowNode * flow_node() { return _flow_node; }
 protected:
-	FlowNode * _flow_node;
+    FlowNode * _flow_node;
 };
 
 /**
@@ -402,73 +402,73 @@ protected:
  */
 class Flow {
 public:
-	~Flow();
+    ~Flow();
 
-	/**
-	 * @brief get a vector of sources in the flow
-	 * @return a vector of sources
-	 **/
-	std::vector<FlowNode *> & sources();
+    /**
+     * @brief get a vector of sources in the flow
+     * @return a vector of sources
+     **/
+    std::vector<FlowNode *> & sources();
 
-	/**
-	 * @brief add a flow node
-	 * @param fn FlowNode to add to the flow
-	 **/
-	void add(FlowNode *fn)
-	{
-		std::pair<std::string,FlowNode *> pr(fn->getName(),fn);
-		_nodes.insert(pr);
-		if(fn->getIsSource()) {
-			_sources.push_back(fn);
-		}
-	}
+    /**
+     * @brief add a flow node
+     * @param fn FlowNode to add to the flow
+     **/
+    void add(FlowNode *fn)
+    {
+        std::pair<std::string,FlowNode *> pr(fn->getName(),fn);
+        _nodes.insert(pr);
+        if(fn->getIsSource()) {
+            _sources.push_back(fn);
+        }
+    }
 
-	/**
-	 * @brief obtain a flow node by name
-	 * @param name given a name of a flow node
-	 * @return the flow node of that name (NULL for not found)
-	 **/
-	FlowNode * get(const std::string & name)
-	{
-		std::map<std::string, FlowNode *>::iterator itr = 
-			_nodes.find(name);
-		return (itr == _nodes.end() ? NULL : (*itr).second);
-	}
+    /**
+     * @brief obtain a flow node by name
+     * @param name given a name of a flow node
+     * @return the flow node of that name (NULL for not found)
+     **/
+    FlowNode * get(const std::string & name)
+    {
+        std::map<std::string, FlowNode *>::iterator itr = 
+            _nodes.find(name);
+        return (itr == _nodes.end() ? NULL : (*itr).second);
+    }
 
-	FlowGuard * getGuard(const std::string & name)
-	{
-		std::map<std::string, FlowGuard *>::iterator itr = 
-			_guards.find(name);
-		return (itr == _guards.end() ? NULL : (*itr).second);
-	}
+    FlowGuard * getGuard(const std::string & name)
+    {
+        std::map<std::string, FlowGuard *>::iterator itr = 
+            _guards.find(name);
+        return (itr == _guards.end() ? NULL : (*itr).second);
+    }
 
-	void addGuard(FlowGuard *fg) 
-	{
-		_guards[fg->getName()] = fg;
-	}
-	void log_snapshot();
-	void turn_off_sources()
-	{
-		for(int i = 0; i < (int)_sources.size(); i++) {
-			_sources[i]->turn_off_source();
-		}
-		_sources.clear();
-	}
-	bool has_instances() 
-	{
-		bool res = false;
-		std::map<std::string, FlowNode *>::iterator mitr = 
-			_nodes.begin();
-		while(mitr != _nodes.end() && !res) {
-			res = res || ((*mitr).second->instances() > 0);
-			mitr++;
-		}
-		return res;
-	}
+    void addGuard(FlowGuard *fg) 
+    {
+        _guards[fg->getName()] = fg;
+    }
+    void log_snapshot();
+    void turn_off_sources()
+    {
+        for(int i = 0; i < (int)_sources.size(); i++) {
+            _sources[i]->turn_off_source();
+        }
+        _sources.clear();
+    }
+    bool has_instances() 
+    {
+        bool res = false;
+        std::map<std::string, FlowNode *>::iterator mitr = 
+            _nodes.begin();
+        while(mitr != _nodes.end() && !res) {
+            res = res || ((*mitr).second->instances() > 0);
+            mitr++;
+        }
+        return res;
+    }
 private:
-	std::map<std::string, FlowNode *>  _nodes;
-	std::vector<FlowNode *>            _sources;
-	std::map<std::string, FlowGuard *> _guards;
+    std::map<std::string, FlowNode *>  _nodes;
+    std::vector<FlowNode *>            _sources;
+    std::map<std::string, FlowGuard *> _guards;
 };
 
 class Plugin {
@@ -489,16 +489,15 @@ public:
     std::vector<FlowNode *> & getAllNodes() { return _nodes; }
 
     void add(FlowNode * node);
-	void addGuard(FlowGuard *fg) 
-	{
-		_guards[fg->getName()] = fg;
-	}
-	FlowGuard * getGuard(const std::string & name)
-	{
-		std::map<std::string, FlowGuard *>::iterator itr = 
-			_guards.find(name);
-		return (itr == _guards.end() ? NULL : (*itr).second);
-	}
+    void addGuard(FlowGuard *fg) 
+    {
+        _guards[fg->getName()] = fg;
+    }
+    FlowGuard * getGuard(const std::string & name)
+    {
+        std::map<std::string, FlowGuard *>::iterator itr = _guards.find(name);
+        return (itr == _guards.end() ? NULL : (*itr).second);
+    }
 
 private:
     std::string    _external_node_name;
@@ -507,12 +506,12 @@ private:
 
     FlowCondition *                     _condition;
     std::vector<FlowNode *>             _nodes;
-	std::map<std::string, FlowGuard *>  _guards;
-	std::vector<FlowGuardReference *>   _guard_refs;
+    std::map<std::string, FlowGuard *>  _guards;
+    std::vector<FlowGuardReference *>   _guard_refs;
     //
     // TODO: support internal guards in plugin
     // 
-	//std::map<std::string, FlowGuard *> _guards;
+    //std::map<std::string, FlowGuard *> _guards;
 };
 
 }; // namespace
