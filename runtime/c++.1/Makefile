@@ -20,7 +20,7 @@ OFILES= \
 	$(BINDIR)/OFluxRunTimeAbstract.o \
 	$(BINDIR)/OFluxRunTime.o \
 	$(BINDIR)/OFluxXML.o \
-	$(BINDIR)/OFluxPlugin.o
+	$(BINDIR)/OFluxLibrary.o
 
 SHIMOFILES= $(BINDIR)/OFluxRunTimeAbstract.pic.o $(BINDIR)/OFluxIOShim.pic.o
 

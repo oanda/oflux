@@ -39,7 +39,7 @@ $(OFLUX):
 	make -wC tools depend all
 
 $(OFLUXRUNTIMES):
-	$(foreach rtd,$(RUNTIMESWITHDIRS),make -wC $(rtd);)
+	$(foreach rtd,$(RUNTIMESWITHDIRS),make -wC $(rtd); touch $(rtd)/bin/liboflux.a;)
 
 .PHONY : examples
 examples: $(OFLUX) $(OFLUXRUNTIMES)
