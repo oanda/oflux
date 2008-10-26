@@ -208,6 +208,28 @@ private:
     int          _wtype;
 };
 
+class ExternalGuardReference {
+public:
+    ExternalGuardReference(
+            const char * name,
+            int unionnumber,
+            int wtype)
+        : _name(name),
+          _unionnumber(unionnumber),
+          _wtype(wtype)
+    {}
+    const char * name() { return _name; }
+    int unionnumber() { return _unionnumber; }
+    int wtype() { return _wtype; }
+    GuardTransFn & guardfn() { return _guardfn; }
+    void setGuardFn(GuardTransFn guardfn) { _guardfn = guardfn; }
+private:
+    const char *    _name;
+    int             _unionnumber;
+    int             _wtype;
+    GuardTransFn    _guardfn;
+};
+
 class FlowNode;
 
 class FlowIOConverter {
@@ -327,7 +349,10 @@ public:
     ~FlowNode();
     void setErrorHandler(FlowNode *fn);
     FlowSuccessorList & successor_list() { return _successor_list; }
-        void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; } // uhm - why?
+    // set successor_list
+    // this can be useful when merging plugin's nodes into kernal flow
+    // the empty successor_list of a plugin's end nodes should be replaced by its virtual node's successor_list, in order to form a correct flow
+    void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; }
     inline const char * getName() { return &(_name[0]); }
     inline bool getIsSource() { return _is_source; }
     inline bool getIsErrorHandler() { return _is_error_handler; }
@@ -349,7 +374,11 @@ public:
         }
     }
     inline std::vector<FlowGuardReference *> & guards() { return _guard_refs; }
-    void addGuard(FlowGuardReference * fgr) { _guard_refs.push_back(fgr); }
+    inline void addGuard(FlowGuardReference * fgr) { _guard_refs.push_back(fgr); }
+
+    inline std::vector<ExternalGuardReference *> & extGuards() { return _ext_guard_refs; }
+    inline void addExtGuard(ExternalGuardReference * guardref) { _ext_guard_refs.push_back(guardref); }
+
     void log_snapshot();
 #ifdef PROFILING
     inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
@@ -372,6 +401,7 @@ private:
     FlowCase                          _error_handler_case;
     FlowCase                          _this_case;
     std::vector<FlowGuardReference *> _guard_refs;
+    std::vector<ExternalGuardReference *> _ext_guard_refs;
     int                               _input_unionnumber;
     int                               _output_unionnumber;
     bool                              _is_virtual;
@@ -507,11 +537,6 @@ private:
     FlowCondition *                     _condition;
     std::vector<FlowNode *>             _nodes;
     std::map<std::string, FlowGuard *>  _guards;
-    std::vector<FlowGuardReference *>   _guard_refs;
-    //
-    // TODO: support internal guards in plugin
-    // 
-    //std::map<std::string, FlowGuard *> _guards;
 };
 
 }; // namespace

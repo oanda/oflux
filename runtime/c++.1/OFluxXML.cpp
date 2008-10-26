@@ -267,7 +267,6 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
     // guard attributes
     const char * el_magicnumber = NULL;
     const char * el_wtype = NULL;
-    const char * el_external = NULL;
 
     for(int i = 0; attr[i]; i += 2) {
         // plugin attributes
@@ -309,8 +308,6 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
             el_magicnumber = attr[i+1];
         } else if(strcmp(attr[i],"wtype") == 0) {
             el_wtype = attr[i+1];
-        } else if(strcmp(attr[i],"external") == 0) {
-            el_external = attr[i+1];
         }
     }
 
@@ -318,7 +315,6 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
     bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
     bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
     bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
-    bool is_external = (el_external ? strcmp(el_external,"true")==0 : false);
 
     int argno = (el_argno ? atoi(el_argno) : 0);
     int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
@@ -336,9 +332,9 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         // has children: condition, node
         pthis->new_plugin(el_external_node, el_plugin_condition, el_begin_node);
     } else if(strcmp(el,"condition") == 0) { 
+        /* UNCOMMENT when plugin_maps exists
         // has attributes: name, argno, isnegated
         // has no children
-        /* UNCOMMENT when plugin_maps exists
         ConditionFn condfn = pthis->plugin_fmaps()->lookup_conditional(el_name,argno,unionnumber);
         assert(condfn != NULL);
         FlowCondition * fc = new FlowCondition(condfn,is_negated);
@@ -349,24 +345,26 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         }
         */
     } else if(strcmp(el,"guard") == 0) {
+        /* UNCOMMENT when plugin_maps exists
         // has attributes: name, magicnumber
         // has no children
-        /* UNCOMMENT when plugin_maps exists
         AtomicMapAbstract * amap = pthis->plugin_fmaps()->lookup_atomic_map(el_name);
         assert(amap);
         pthis->new_plugin_guard(el_name, magicnumber, amap);
         */
     } else if(strcmp(el,"guardref") == 0) {
+        /* UNCOMMENT when plugin_maps exists
         // has attributes: name, unionnumber, wtype
         // has children: argument(s)
+        FlowGuard * fg = pthis->plugin()->getGuard(el_name);
+        assert(fg);
+        pthis->new_plugin_guard_reference(fg, unionnumber, wtype);
+        */
+    } else if(strcmp(el,"extguardref") == 0) {
         /* UNCOMMENT when plugin_maps exists
-        if(is_external) {
-            // TODO: support external guardref 
-        } else {
-            FlowGuard * fg = pthis->plugin()->getGuard(el_name);
-            assert(fg);
-            pthis->new_plugin_guard_reference(fg, unionnumber, wtype);
-        }
+        // has attributes: name, unionnumber, wtype
+        // has children: argument(s)
+        pthis->new_plugin_ext_guard_reference(el_name, unionnumber, wtype);
         */
     } else if(strcmp(el,"argument") == 0) {
         // has attributes: argno
@@ -408,6 +406,8 @@ void XMLReader::endPluginHandler(void *data, const char *el)
     } else if(strcmp(el,"guardref") == 0) {
         // UNCOMMENT when plugin_maps exists
         //pthis->complete_plugin_guard_reference();
+    } else if(strcmp(el,"extguardref") == 0) {
+        //pthis->complete_plugin_ext_guard_reference();
     } else if(strcmp(el,"argument") == 0) {
         // do nothing
     } else if(strcmp(el,"node") == 0) { 
@@ -462,22 +462,27 @@ void XMLReader::new_flow_case(const char * targetnodename, int node_output_union
 
         PluginMap::iterator lastPlugin = _plugins.upper_bound(targetnodename);
         for( ; plugin_itr != lastPlugin; ++plugin_itr) {
-
             Plugin * plugin = plugin_itr->second;
-
-            // add plugin condition into flow case
             _flow_case->add(plugin->condition());
-
             AddTarget at(_flow_case, plugin->beginNodeName().c_str(), node_output_unionnumber);
             _add_targets.push_back(at);
-
-            // add all nodes defined in plugin
+            // add all nodes defined in plugin into flow
             std::vector<FlowNode *>::iterator node_itr = plugin->getAllNodes().begin();
             for(; node_itr != plugin->getAllNodes().end(); ++node_itr) {
+                // resolve external guard reference
+                std::vector<ExternalGuardReference *>::iterator ext_guard_itr = (*node_itr)->extGuards().begin();
+                for( ; ext_guard_itr != (*node_itr)->extGuards().end(); ++ext_guard_itr)
+                {
+                    FlowGuard * guard = _flow->getGuard((*ext_guard_itr)->name());
+                    assert(guard);
+                    FlowGuardReference * guardref = new FlowGuardReference(guard, (*ext_guard_itr)->wtype());
+                    guardref->setGuardFn((*ext_guard_itr)->guardfn());
+                    (*node_itr)->addGuard(guardref);
+                }
+
                 _flow->add( *node_itr );
             }
         }
-
         // TODO: if there is a default action for virtual node, add a condition here
         //_flow_case->add( new OFluxCondition() );
     }

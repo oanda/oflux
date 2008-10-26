@@ -196,6 +196,18 @@ public:
         _flow_node->addGuard(_flow_guard_reference);
         _flow_guard_reference = NULL;
     }
+    void new_plugin_ext_guard_reference(const char * name, int unionnumber, int wtype)
+    { 
+        _external_guard_reference = new ExternalGuardReference(name, unionnumber, wtype);
+        _flow_guard_ref_args.clear();
+    }
+    void complete_plugin_ext_guard_reference()
+    {
+        GuardTransFn guardfn = plugin_fmaps()->lookup_guard_translator(_external_guard_reference->name(), _external_guard_reference->unionnumber(), _flow_guard_ref_args);
+        _external_guard_reference->setGuardFn(guardfn); 
+        _flow_node->addExtGuard(_external_guard_reference);
+        _external_guard_reference = NULL;
+    }
 
 protected:
     /**
@@ -216,13 +228,14 @@ private:
     FlowSuccessor *              _flow_successor;
     FlowCase *                   _flow_case;
     FlowGuardReference *         _flow_guard_reference;
+    ExternalGuardReference *     _external_guard_reference;
     int                          _flow_guard_ref_unionnumber;
     std::vector<int>             _flow_guard_ref_args;
     std::vector<AddTarget>       _add_targets;
     std::vector<SetErrorHandler> _set_error_handlers;
 
     typedef std::multimap<std::string, Plugin *> PluginMap;
-    PluginMap _plugins;
+    PluginMap                     _plugins;
 };
 
 };
