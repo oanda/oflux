@@ -25,6 +25,20 @@ let unify_atoms pos a1 a2 =
             ; if match_dt a1.outputtype a2.outputtype then ()
               else raise (FlattenFailure ("could not unify guard types (output type)", pos))
 
+let unify_nodes pos n1 n2 =
+        let check dl1 dl2 =
+                match Unify.unify_type_in_out dl1 dl2 with
+                        (Unify.Success Unify.Strong) -> ()
+                        | (Unify.Success Unify.Weak) -> 
+                                raise (FlattenFailure ("could not unify guard types (they unify only weakly)", pos))
+                        | (Unify.Fail (i,reason)) ->
+                                raise (FlattenFailure ("could not unify guard types (argument"^(string_of_int i)^" "^reason^")", pos)) in  
+        let _ = check n1.inputs n2.inputs 
+        in  match n1.outputs, n2.outputs with
+                (Some o1,Some o2) -> check o1 o2
+                | _ -> ()
+        
+
 let proper_name_space mp =
         if 0 = String.length mp then true
         else try (String.rindex mp ':') = ((String.length mp)-1)
@@ -40,6 +54,7 @@ let add_atom_decl ip mp pr =
                         { dctypemod = ("",noposition,noposition)
                         ; dctype = (mp^"ModuleConfig *",noposition,noposition) }
                 ; atomtype = "readwrite"
+                ; externalatom=false
                 } 
         in      { cond_decl_list = pr.cond_decl_list
                 ; atom_decl_list = ad::pr.atom_decl_list
@@ -49,6 +64,7 @@ let add_atom_decl ip mp pr =
                 ; err_list = pr.err_list
                 ; mod_def_list = pr.mod_def_list
                 ; mod_inst_list = pr.mod_inst_list
+                ; plugin_list = pr.plugin_list
                 ; terminate_list = pr.terminate_list
                 }
 
@@ -57,6 +73,7 @@ let add_self_guardrefs pr =
                 let _,p1,p2 = nd.nodename in
                 { detached = nd.detached
                 ; abstract = nd.abstract
+                ; externalnode = nd.externalnode
                 ; nodename = nd.nodename
                 ; nodefunction = nd.nodefunction
                 ; inputs = nd.inputs
@@ -78,22 +95,79 @@ let add_self_guardrefs pr =
                 ; err_list = pr.err_list
                 ; mod_def_list = pr.mod_def_list
                 ; mod_inst_list = pr.mod_inst_list
+                ; plugin_list = pr.plugin_list
                 ; terminate_list = pr.terminate_list
                 }
 
 let program_append pr1 pr2 =
+        let is_ext_node n = n.externalnode in
+        let is_ext_atom n = n.externalatom in
+        let ext_nodes1,nodes1 = List.partition is_ext_node pr1.node_decl_list in
+        let ext_nodes2,nodes2 = List.partition is_ext_node pr2.node_decl_list in
+        let ext_atoms1,atoms1 = List.partition is_ext_atom pr1.atom_decl_list in
+        let ext_atoms2,atoms2 = List.partition is_ext_atom pr2.atom_decl_list in
+        let check_ext_node nodes extnode =
+                let ename,pos,_ = extnode.nodename in
+                try let _ = List.find (fun n-> (strip_position n.nodename) = ename) nodes 
+                    in ()
+                with Not_found -> raise (FlattenFailure ("external node reference "^ename^" not found",pos)) in
+        let check_ext_atom atoms extatom =
+                let ename,pos,_ = extatom.atomname in
+                try let _ = List.find (fun n-> (strip_position n.atomname) = ename) atoms
+                in  ()
+                with Not_found -> raise (FlattenFailure ("external guard reference "^ename^" not found",pos)) in
+        let _ = List.iter (check_ext_node nodes1) ext_nodes2 in
+        let _ = List.iter (check_ext_node nodes2) ext_nodes1 in
+        let _ = List.iter (check_ext_atom atoms1) ext_atoms2 in
+        let _ = List.iter (check_ext_atom atoms2) ext_atoms1
+        in
         { cond_decl_list = pr1.cond_decl_list @ pr2.cond_decl_list
-        ; atom_decl_list = pr1.atom_decl_list @ pr2.atom_decl_list
-        ; node_decl_list = pr1.node_decl_list @ pr2.node_decl_list
+        ; atom_decl_list = atoms1 @ atoms2
+        ; node_decl_list = nodes1 @ nodes2
         ; mainfun_list = pr1.mainfun_list @ pr2.mainfun_list
         ; expr_list = pr1.expr_list @ pr2.expr_list
         ; err_list = pr1.err_list @ pr2.err_list
         ; mod_def_list = pr1.mod_def_list @ pr2.mod_def_list
         ; mod_inst_list = pr1.mod_inst_list @ pr2.mod_inst_list
+        ; plugin_list = pr1.plugin_list @ pr2.plugin_list
         ; terminate_list = pr1.terminate_list @ pr2.terminate_list
         }
 
+let remove_reductions prog =
+        let ampers,otherwise = List.partition (fun exp -> (strip_position exp.exprname).[0] = '&') prog.expr_list in
+        let toexprname e = 
+                let en,pos,_ = e.exprname in
+                let len = String.length en
+                in  String.sub en 1 (len-1), pos in
+        let put_in ll ampexpr =
+                let ename,pos = toexprname ampexpr in
+                try let expr,remainder = 
+                        match List.partition (fun e -> (strip_position e.exprname) = ename) ll with 
+                                ([x],y) -> x,y
+                                | _ -> raise Not_found in
+                    let newexpr =
+                        { exprname=expr.exprname
+                        ; condbinding=expr.condbinding
+                        ; successors=ampexpr.successors @ expr.successors
+                        ; etype=expr.etype
+                        }
+                    in  newexpr::remainder
+                with Not_found -> raise (FlattenFailure("reduction statement here has no original expression or it is not unique",pos))
+        in  { cond_decl_list=prog.cond_decl_list
+            ; atom_decl_list=prog.atom_decl_list
+            ; node_decl_list=prog.node_decl_list
+            ; mainfun_list=prog.mainfun_list
+            ; expr_list=List.fold_left put_in otherwise ampers
+            ; err_list=prog.err_list
+            ; mod_def_list=prog.mod_def_list
+            ; mod_inst_list=prog.mod_inst_list
+            ; plugin_list=prog.plugin_list
+            ; terminate_list=prog.terminate_list
+            }
+
+
 let context_for_module pr mn =
+        let pr = remove_reductions pr in
         let md = List.find (fun md -> (strip_position md.modulename) = mn) pr.mod_def_list in
         let prm = md.programdef
         in      { cond_decl_list = prm.cond_decl_list
@@ -104,6 +178,7 @@ let context_for_module pr mn =
                 ; err_list = prm.err_list
                 ; mod_def_list = pr.mod_def_list @ prm.mod_def_list
                 ; mod_inst_list = prm.mod_inst_list
+                ; plugin_list = prm.plugin_list
                 ; terminate_list = prm.terminate_list
                 }
 
@@ -144,6 +219,7 @@ let apply_guardref_subst gsubst pr =
                 { detached = nd.detached
                 ; abstract = nd.abstract
                 ; nodename = nd.nodename
+                ; externalnode = nd.externalnode
                 ; nodefunction = nd.nodefunction
                 ; inputs = nd.inputs
                 ; guardrefs = subst_guardrefs gsubst nd.guardrefs
@@ -157,6 +233,7 @@ let apply_guardref_subst gsubst pr =
             ; err_list = pr.err_list
             ; mod_def_list = pr.mod_def_list
             ; mod_inst_list = pr.mod_inst_list
+            ; plugin_list = pr.plugin_list
             ; terminate_list = pr.terminate_list
             }
 
@@ -168,16 +245,19 @@ let get_new_subst ip ipn old_subst guardaliases =
                 in  ipn^x,y
         in  (List.map onga guardaliases) @ old_subst
                 
+let prefix_sp pre (s,p1,p2) = (pre^s,p1,p2)
+
+let prefix pre s = pre^s
 
 let flatten prog =
 	(** instantiate modules  etc *)
-	let prefix_sp pre (s,p1,p2) = (pre^s,p1,p2) in
-	let prefix pre s = pre^s in
+        let prog = remove_reductions prog in
 	let for_cond_decl pre_mi pre_md cd =
-		{ condname = prefix_sp pre_mi cd.condname
+		{ externalcond = cd.externalcond
+                ; condname = prefix_sp pre_mi cd.condname
 		; condfunction = prefix pre_md cd.condfunction
-		; condinputs = cd.condinputs }
-		in
+		; condinputs = cd.condinputs 
+                } in
 	(*let for_data_type _ pre_md dt =
 		{ dctypemod = dt.dctypemod
 		; dctype = prefix_sp pre_md dt.dctype }
@@ -186,24 +266,26 @@ let flatten prog =
 		{ atomname = prefix_sp pre_mi ad.atomname
 		; atominputs = ad.atominputs
 		; outputtype = (*for_data_type pre_mi pre_md*) ad.outputtype
-		; atomtype = ad.atomtype }
-		in
+		; atomtype = ad.atomtype 
+                ; externalatom = ad.externalatom
+                } in
 	let for_guard_ref pre_mi pre_md gr =
 		{ guardname = prefix_sp pre_mi gr.guardname
 		; arguments = gr.arguments
 		; modifiers = gr.modifiers
-		; localgname = gr.localgname } 
-		in
+		; localgname = gr.localgname 
+                } in
 	let for_node_decl pre_mi pre_md nd =
 		{ detached = nd.detached
 		; abstract = nd.abstract
+                ; externalnode = nd.externalnode
 		; nodename = prefix_sp pre_mi nd.nodename
 		; nodefunction = prefix pre_md nd.nodefunction
 		; inputs = nd.inputs
 		; guardrefs = List.map 
 			(for_guard_ref pre_mi pre_md) nd.guardrefs
-		; outputs = nd.outputs }
-		in
+		; outputs = nd.outputs 
+                } in
 	let for_mainfun pre_mi pre_md mf =
 		{ sourcename = prefix_sp pre_mi mf.sourcename
 		; sourcefunction = prefix pre_md mf.sourcefunction
@@ -240,6 +322,7 @@ let flatten prog =
 		; err_list = List.map (for_err pre_mi pre_md) pr.err_list
 		; mod_def_list = []
 		; mod_inst_list = []
+                ; plugin_list = []
                 ; terminate_list = List.map (prefix_sp pre_mi) pr.terminate_list
 		}
 		in
@@ -305,6 +388,7 @@ let rec break_namespaced_name nsn =
 	with Not_found -> [nsn]
 
 let flatten_module module_name pr =
+        let pr = remove_reductions pr in
 	let add_mods modl pr =
 		{ cond_decl_list = pr.cond_decl_list
 		; atom_decl_list = pr.atom_decl_list
@@ -314,6 +398,7 @@ let flatten_module module_name pr =
 		; err_list = pr.err_list
 		; mod_def_list = pr.mod_def_list @ (List.map (fun (_,x) -> x) modl)
 		; mod_inst_list = pr.mod_inst_list
+                ; plugin_list = pr.plugin_list
                 ; terminate_list = pr.terminate_list
 		} in
 	let nsnbl = break_namespaced_name module_name in
@@ -333,4 +418,112 @@ let flatten_module module_name pr =
                 in
 	let pr = flt "" "" [] pr (List.rev nsnbl)
         in  flatten pr
+
+let flatten_plugin plugin_name prog = (** returns before program, after program *)
+        let prog = remove_reductions prog in
+        let pre = plugin_name^"." in
+        let pref = plugin_name^"::" in
+        let for_ref is_en node_str_pos =
+                if is_en (strip_position node_str_pos) then node_str_pos
+                else prefix_sp pre node_str_pos in
+        let for_cond_decl cd =
+                let isext = cd.externalcond
+                in
+                { externalcond = cd.externalcond
+                ; condname = for_ref (fun _ -> isext) cd.condname
+                ; condfunction = (if isext then "" else pref)^cd.condfunction
+                ; condinputs = cd.condinputs
+                } in
+        let for_atom_decl ad =
+                let isext = ad.externalatom 
+                in
+                { atomname = if isext then ad.atomname else prefix_sp pre ad.atomname
+                ; atominputs = ad.atominputs
+                ; outputtype = ad.outputtype
+                ; atomtype = ad.atomtype
+                ; externalatom = ad.externalatom
+                } in
+        let for_node_decl is_ea nd =
+                let for_guardref gr =
+                        { guardname = for_ref is_ea gr.guardname
+                        ; arguments = gr.arguments
+                        ; modifiers = gr.modifiers
+                        ; localgname = gr.localgname
+                        } in
+                let isext = nd.externalnode
+                in
+                { detached = nd.detached
+                ; abstract = nd.abstract
+                ; externalnode = nd.externalnode
+                ; nodename = if isext then nd.nodename else prefix_sp pre nd.nodename
+                ; nodefunction = (if isext then "" else pref)^nd.nodefunction
+                ; inputs = nd.inputs
+                ; guardrefs = List.map for_guardref nd.guardrefs
+                ; outputs = nd.outputs
+                } in
+        let for_mainfun is_en mainfn =
+                let isext = is_en (strip_position mainfn.sourcename) in
+                let onsucc spopt =
+                        match spopt with
+                                None -> None 
+                                | (Some sp) -> Some (for_ref is_en sp)
+                in
+                { sourcename = for_ref is_en mainfn.sourcename
+		; sourcefunction = (if isext then "" else pref)^mainfn.sourcefunction
+		; successor = onsucc mainfn.successor
+                ; runonce = mainfn.runonce
+                } in
+        let for_expr is_en is_ec expr =
+                let for_comma_item ci =
+                        match ci with
+                                Star -> Star
+                                | (Ident sp) -> Ident (for_ref is_ec sp)
+                in
+                { exprname = for_ref is_en expr.exprname
+                ; condbinding = List.map for_comma_item expr.condbinding
+                ; successors = List.map (for_ref is_en ) expr.successors
+                ; etype = expr.etype
+                } in
+        let for_err is_en err =
+                { onnodes = List.map (for_ref is_en ) err.onnodes
+                ; handler = for_ref is_en err.handler
+                } in
+        let for_mod_inst minst =
+                { modsourcename = minst.modsourcename
+                ; modinstname = for_ref (fun _ -> true) minst.modinstname
+                ; guardaliases = minst.guardaliases
+                } in
+        let for_terminate = for_ref in
+	let for_program pr =
+                let ext_nodes = List.map (fun n -> strip_position n.nodename) (List.filter (fun n -> n.externalnode) pr.node_decl_list) in
+                let ext_atoms = List.map (fun a -> strip_position a.atomname) (List.filter (fun a -> a.externalatom) pr.atom_decl_list) in
+                let ext_conds = List.map (fun c -> strip_position c.condname) (List.filter (fun c -> c.externalcond) pr.cond_decl_list) in
+                let is_ext_node n = List.mem n ext_nodes in
+                let is_ext_atom a = List.mem a ext_atoms in
+                let is_ext_cond c = List.mem c ext_conds
+                in
+		{ cond_decl_list = List.map for_cond_decl pr.cond_decl_list
+		; atom_decl_list = List.map for_atom_decl pr.atom_decl_list
+		; node_decl_list = List.map (for_node_decl is_ext_atom) pr.node_decl_list
+		; mainfun_list = List.map (for_mainfun is_ext_node) pr.mainfun_list
+		; expr_list = List.map (for_expr is_ext_node is_ext_cond) pr.expr_list
+		; err_list = List.map (for_err is_ext_node) pr.err_list
+		; mod_def_list = []
+		; mod_inst_list = List.map for_mod_inst pr.mod_inst_list
+                ; plugin_list = []
+                ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
+		}
+		in
+        let append_but n prog pd =
+                if (strip_position pd.pluginname) = n then prog
+                else let local_prog = remove_reductions pd.pluginprogramdef in
+                     let local_prog = for_program local_prog
+                     in program_append local_prog prog in
+        let append_all_but n prog pdl =
+                List.fold_left (append_but n) prog pdl in
+        let flt_with = flatten (append_all_but "" prog prog.plugin_list) in
+        let flt_without = flatten (append_all_but plugin_name prog prog.plugin_list)
+        in  flt_without, flt_with
+        
+        
 

@@ -17,6 +17,7 @@ type node_data =
 		; where: position 
 		; nodedetached: bool 
                 ; nodeabstract: bool
+                ; nodeexternal: bool
                 }
 
 type conditional_data = 
@@ -24,8 +25,10 @@ type conditional_data =
 		; cfunction: string
 		}
 
-type guard_data = { garguments: decl_formal list
+type guard_data = 
+                { garguments: decl_formal list
 		; gtype: string
+                ; gexternal: bool
 		; return: data_type 
 		; magicnumber: int }
 
@@ -73,6 +76,7 @@ let add_guard symtable g =
 		{ garguments=g.atominputs
 		; return=g.outputtype
 		; gtype=g.atomtype
+                ; gexternal=g.externalatom
 		; magicnumber = mn}) symtable in
 	let _ = next_magic_no := mn+1
 	in  res
@@ -101,6 +105,7 @@ let add_node_symbol symtable n =
 		; where=pos
 		; nodedetached=n.detached 
                 ; nodeabstract=(n.abstract || n.outputs = None)
+                ; nodeexternal=n.externalnode
                 }) symtable
 
 let lookup_node_symbol symtable name =
@@ -131,6 +136,11 @@ let is_detached symtable name =
 let is_abstract symtable name =
 	let x = lookup_node_symbol symtable name
 	in  x.nodeabstract
+
+let is_external symtable name =
+	let x = lookup_node_symbol symtable name
+	in  x.nodeexternal
+
 
 exception DeclarationLookup of string
 

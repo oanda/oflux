@@ -110,6 +110,55 @@ let flowmap_fold f fm a =
 	let f' s a b = f s (!a) b
 	in  FlowMap.fold f' fm a
 
+let flowmap_diff fma fmb =
+        let to_list fm = 
+                let f s fl ll = (s,! fl)::ll
+                in  FlowMap.fold f fm [] in
+        let lla = to_list fma in
+        let llb = to_list fmb in
+        let name_of_rr f = get_name (! ! f) in
+        let compare_flow f1 f2 =
+                match f1,f2 with
+                        (Source (n11,n12,f11,f12), Source (n21,n22,f21,f22)) ->
+                                compare (n11,n12,name_of_rr f11,name_of_rr f12)
+                                        (n21,n22,name_of_rr f21,name_of_rr f22)
+                        | (CNode (n11,n12,f11,f12), CNode (n21,n22,f21,f22)) ->
+                                compare (n11,n12,name_of_rr f11,name_of_rr f12)
+                                        (n21,n22,name_of_rr f21,name_of_rr f22)
+                        | (ConExpr (n1,frrl1),ConExpr (n2,frrl2)) ->
+                                let on_list frrl = List.sort compare (List.map name_of_rr frrl)
+                                in  compare (n1,on_list frrl1) (n2,on_list frrl2)
+                        | (ChExpr (n1,sofrrl1),ChExpr (n2,sofrrl2)) ->
+                                let on_item (sol,frr) = (sol,name_of_rr frr) in
+                                let on_list sofrrl = List.map on_item sofrrl
+                                in  compare (n1,on_list sofrrl1)
+                                            (n2,on_list sofrrl2)
+                        | (NullNode,NullNode) -> 0
+                        | (NullNode,_) -> 0-1
+                        | (_,NullNode) -> 1
+                        | (Source _,_) -> 0-1
+                        | (_,Source _) -> 1
+                        | (CNode _,_) -> 0-1
+                        | (_,CNode _) -> 1
+                        | (ChExpr _,_) -> 0-1
+                        | (_,ChExpr _) -> 1 in
+        let rec merge lla llb =
+                match lla,llb with
+                        ((han,haf)::ta,(hbn,hbf)::tb) ->
+                                let c = compare han hbn
+                                in  if c < 0 then 
+                                        (Some haf,None)::(merge ta llb)
+                                    else if c > 0 then
+                                        (None,Some hbf)::(merge lla tb)
+                                    else 
+                                        let cf = compare_flow haf hbf
+                                        in  if cf = 0 then merge ta tb
+                                            else (Some haf,Some hbf)::(merge ta tb)
+                        | ([],(_,hf)::t) -> (None,Some hf)::(merge [] t)
+                        | ((_,hf)::t,[]) -> (Some hf,None)::(merge t [])
+                        | _ -> []
+        in  merge lla llb
+
 let flowmap_find n fm = !(FlowMap.find n fm)
 	
 let rec find_error_handlers fmap froml =
@@ -255,7 +304,7 @@ let add_conditionals symtable expr = (* returns a new symtable *)
 					     let sty = SymbolTable.strip_position3 ty
 					     in unify spos sty ty'; (argno+1,symtable)
 					with Not_found ->
-						(argno+1,SymbolTable.add_conditional symtable { condname=cond; condfunction=s; condinputs=[ty] }))
+						(argno+1,SymbolTable.add_conditional symtable { externalcond=false; condname=cond; condfunction=s; condinputs=[ty] }))
 				| (_,Star) -> (argno+1, symtable)
 			in
 		let _, symtable = List.fold_left a_c (1,symtable) onl
@@ -444,6 +493,7 @@ type built_flow =
 		; modules : string list
                 ; terminates : string list
                 ; runoncesources : string list
+                ; consequences : TypeCheck.consequence_result
 		}
 
 let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
@@ -515,5 +565,6 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
 	    ; modules = List.map (fun md -> strip_position md.modulename) mod_defs
             ; terminates = terms
             ; runoncesources = run_once_sources
+            ; consequences = TypeCheck.consequences ulist symboltable
 	    }
 

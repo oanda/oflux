@@ -19,6 +19,12 @@ val flowmap_fold : (string -> flow -> 'b -> 'b) -> flowmap -> 'b -> 'b
 
 val flowmap_find : string -> flowmap -> flow
 
+val flowmap_diff : 
+        flowmap -> (** flowmap A *)
+        flowmap -> (** flowmap B *)
+        (flow option * flow option) list (**stuff in A-B sorta*)
+        
+
 val pp_flow_map : bool -> flowmap -> unit
 
 val is_concrete : SymbolTable.symbol_table -> flowmap -> string -> bool
@@ -38,6 +44,7 @@ type built_flow =
 		; modules : string list
                 ; terminates : string list
                 ; runoncesources : string list
+                ; consequences : TypeCheck.consequence_result
 		}
 
 val build_flow_map : 

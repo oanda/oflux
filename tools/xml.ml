@@ -46,3 +46,50 @@ let to_string_fmt xmlinp = (* returns a string *)
             Buffer.contents buff
             end
 
+let diff ordered_tags diff_handler same_handler xml1 xml2 =
+        let sort_attrib = false in (** could expose as an argument *)
+        let attrib_compare (x,_) (y,_) = compare x y in
+        let node_compare (Element(n1,a1,_)) (Element (n2,a2,_)) =
+                let opt_sort_attrib a = if sort_attrib then List.sort attrib_compare a else a in
+                let as1 = opt_sort_attrib a1 in
+                let as2 = opt_sort_attrib a2 
+                in  compare (n1,as1) (n2,as2) in
+        let rec diff' (((Element (n1,a1,xl1)) as xml1),((Element (n2,a2,xl2)) as xml2)) =
+                let is_ordered = List.mem n1 ordered_tags in
+                let somesubdiff,res = 
+                        if (node_compare xml1 xml2) = 0 && (List.length xl1)=(List.length xl2) then
+                                let sort_opt xl = if is_ordered then xl else List.sort node_compare xl in
+                                let xls1,xls2 = (sort_opt xl1),(sort_opt xl2) in
+                                let comb = List.combine xls1 xls2 in
+                                let resl = List.map diff' comb in
+                                let on_each (tf,xmlsame) = if tf then xmlsame else same_handler xmlsame in
+                                let somesubdiff = List.exists (fun (tf,_) -> tf) resl
+                                in  if somesubdiff then
+                                        true, Element (n1,a1, List.map on_each resl)
+                                    else false, xml1 (* same, so return first one *)
+                        else true, diff_handler xml1 xml2
+                in  somesubdiff,res in
+        let notsame,res = diff' (xml1,xml2)
+        in  if notsame then res else same_handler res
+                                
+                    
+let get_tag (Element (n,_,_)) = n
+
+let get_attributes (Element (_,a,_)) = a
+
+let get_contents (Element (_,_,c)) = c       
+
+let rec opt_map ff ll =
+        match ll with
+                (h::t) -> 
+                        (match ff h with
+                                None -> opt_map ff t
+                                | (Some r) -> r::(opt_map ff t))
+                | _ -> []
+
+let rec filter filtfun xml =
+        if filtfun xml then
+                Some (Element (get_tag xml, get_attributes xml, opt_map (filter filtfun) (get_contents xml)))
+        else None
+
+let filter_list filtfun xmll = opt_map (filter filtfun) xmll

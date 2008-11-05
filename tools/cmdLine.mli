@@ -8,6 +8,8 @@ val get_root_filename : unit -> string option
 
 val get_module_name : unit -> string option
 
+val get_plugin_name : unit -> string option
+
 val get_uribase_path : unit -> string
 
 val help_text : string
@@ -18,3 +20,4 @@ val get_timing_on : unit -> bool
 
 val get_weak_unify : unit -> bool
 
+val get_abstract_termination : unit -> bool

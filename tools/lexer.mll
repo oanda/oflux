@@ -117,6 +117,7 @@ rule token = parse
 	| '!' { updatePosInTok lexbuf (fun x -> EXCLAMATION x) }
 	| '>' { updatePosInTok lexbuf (fun x -> GREATERTHAN x) }
 	| '<' { updatePosInTok lexbuf (fun x -> LESSTHAN x) }
+	| "&=" { updatePosInTok lexbuf (fun x -> AMPERSANDEQUALS x) }
 	| '&' { updatePosInTok lexbuf (fun x -> AMPERSAND x) }
 	| "..." { updatePosInTok lexbuf (fun x -> ELLIPSIS x) }
 	| "as" { updatePosInTok lexbuf (fun x -> AS x) }
@@ -141,6 +142,8 @@ rule token = parse
 	| "abstract" { updatePosInTok lexbuf (fun x -> ABSTRACT x) }
 	| "instance" { updatePosInTok lexbuf (fun x -> INSTANCE x) }
 	| "module" { updatePosInTok lexbuf (fun x -> MODULE x) }
+	| "plugin" { updatePosInTok lexbuf (fun x -> PLUGIN x) }
+	| "external" { updatePosInTok lexbuf (fun x -> EXTERNAL x) }
 	| "begin" { updatePosInTok lexbuf (fun x -> BEGIN x) }
 	| "end" { updatePosInTok lexbuf (fun x -> END x) }
 	| "read" { updatePosInTok lexbuf (fun x -> READ x) }

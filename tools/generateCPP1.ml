@@ -17,6 +17,19 @@ let string_replace (from_c,to_c) str =
 		with Not_found -> str 
 	in  s_r s
 
+let string_has_prefix str poss_prefix =
+        let len = String.length poss_prefix
+        in  if (String.length str) >= len then (String.sub str 0 len) = poss_prefix else false
+
+let remove_prefix prefix =
+        let prefix_len = String.length prefix in
+        let remove n =
+                let len = String.length n
+                in  if string_has_prefix n prefix then
+                        String.sub n prefix_len (len-prefix_len)
+                    else n
+        in remove
+
 let clean_dots str = string_replace ('.','_') str
 
 let get_umap ufs =
@@ -100,11 +113,11 @@ let emit_structs conseq_res symbol_table code =
 	let emit_type_def_alias code ((n,_) as is,what) =
 		if has_namespaced_name n then
 			code
-		else add_code code ("typedef "^(tos what)^" "^(tos is)^";") in
+		else add_code code ("typedef "^(tos what)^" "^(tos is)^"; // emit_type_def_alias (1)") in
 	let emit_type_def_union (code,ignoreis) (i,ul) =
 	    try let nsnio = List.find (fun (x,_) -> has_namespaced_name x) ul in
 		let tosnsnio = tos nsnio in
-		let typedeffun s = ("typedef "^tosnsnio^" "^s^";") in
+		let typedeffun s = ("typedef "^tosnsnio^" "^s^"; // emit_type_def_union (1)") in
 		let typedeflist =
 			List.map (fun y -> typedeffun (tos y))
 				(List.filter (fun (yn,_) -> not (has_namespaced_name yn)) ul) in
@@ -113,7 +126,7 @@ let emit_structs conseq_res symbol_table code =
 	    with Not_found ->
 		let one_typedef u = 
 			("typedef OFluxUnion"^(string_of_int i)
-			^" "^(tos u)^";") in
+			^" "^(tos u)^"; // emit_type_def_union (2)") in
 		let un,uisin = List.hd ul in
 		let rec e_two i decl =
 			match decl with
@@ -139,6 +152,94 @@ let emit_structs conseq_res symbol_table code =
 		   , ignoreis in
 	let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
 	in  List.fold_left emit_type_def_union (code,[]) conseq_res.TypeCheck.full_collapsed
+
+let emit_plugin_structs pluginname conseq_res symbol_table code =
+        let plugin_double_colon = pluginname^"::" in
+        let remove_plugin_double_colon = remove_prefix plugin_double_colon in
+	let struct_decl nclss =
+		(nclss^" : public oflux::BaseOutputStruct<"
+		    ^nclss^"> ") in
+	let tos (n,isin) = 
+                let n = remove_plugin_double_colon n
+                in  if isin then n^"_in" else n^"_out" in
+	let avoids = conseq_res.TypeCheck.full_collapsed_names 
+                @ (List.map (fun (x,_) -> x) conseq_res.TypeCheck.aliases) in
+	let avoid_struct ((n,_) as x) = (List.exists (fun y -> x=y) avoids)
+		|| (has_dot n)
+		in
+	let rec e_one i ll =
+		match ll with
+			(df::tl) ->
+				let tm = strip_position df.ctypemod in
+				let t = strip_position df.ctype in
+				let a = strip_position df.name in
+				let a = if String.length a = 0 then
+						"arg"^(string_of_int i)
+					else a
+				in  (tm^" "^t^" "^a^";")::(e_one (i+1) tl)
+			| _ -> []
+			in
+	let e_s n nd code =
+                let inpl = nd.nodeinputs in
+                let code =
+                        if avoid_struct (n,true) then code
+                        else    List.fold_left add_code code
+                                ( [ "struct "^(struct_decl (n^"_in"))^" {"
+                                  ]
+                                @ (e_one 1 inpl)
+                                @ [ "};"; "" ] )
+                in  match nd.nodeoutputs with
+		    None -> code
+		    | (Some outl) ->
+			if avoid_struct (n,false) then code
+			else List.fold_left add_code code
+					( [ "struct "^(struct_decl (n^"_out"))^" {" ]
+					@ (e_one 1 outl)
+					@ [ "};"; "" ] )
+		in
+	let code = SymbolTable.fold_nodes e_s symbol_table code in
+	let emit_type_def_alias code ((n,_) as is,what) =
+		if string_has_prefix n pluginname then
+			add_code code ("typedef "^(tos what)^" "^(tos is)^"; // emit_type_def_alias (2)")
+		else code in
+	let emit_type_def_union (code,ignoreis) (i,ul) =
+	    try let nsnio = List.find (fun (x,_) -> not (string_has_prefix x pluginname)) ul in
+		let tosnsnio = tos nsnio in
+		let typedeffun s = ("typedef "^tosnsnio^" "^s^"; // emit_type_def_union (3)") in
+		let typedeflist =
+			List.map (fun y -> typedeffun (tos y))
+				(List.filter (fun (yn,_) -> (string_has_prefix yn pluginname)) ul) in
+		let typedeflist = (typedeffun ("OFluxUnion"^(string_of_int i)))::typedeflist
+		in  (List.fold_left add_code code typedeflist,i::ignoreis)
+	    with Not_found ->
+		let one_typedef u = 
+			("typedef OFluxUnion"^(string_of_int i)
+			^" "^(tos u)^"; // emit_type_def_union (4)") in
+		let un,uisin = List.hd ul in
+		let rec e_two i decl =
+			match decl with
+				(df::tl) ->
+					let tm = strip_position df.ctypemod in
+					let t = strip_position df.ctype in
+					let a = strip_position df.name 
+					in  ("inline "^tm^" "^t^" const & argn"
+						^(string_of_int i)^"() const {"
+						^" return "^a^"; }  ")
+						::(e_two (i+1) tl)
+				| _ -> [] in
+		let decl = get_decls symbol_table (un,uisin)
+		in  List.fold_left add_code code 
+			( [ "struct "
+			    ^(struct_decl ("OFluxUnion"^(string_of_int i)))
+			    ^" {" ]
+			@ (e_one 1 decl)
+			@ (e_two 1 decl)
+			@ [ "};"; "" ]
+			@ (List.map one_typedef ul)
+			@ [ "" ] ) 
+		   , ignoreis in
+        let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
+        in  List.fold_left emit_type_def_union (code,[]) conseq_res.TypeCheck.full_collapsed
 
 let emit_unions conseq_res symtable code =
         let collt_i = conseq_res.TypeCheck.full_collapsed in
@@ -248,7 +349,7 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
         in  code
         
 
-let emit_copy_to_functions modulenameopt _ conseq_res symtable uses_model code =
+let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable uses_model code =
         (*let is_module =
                 match modulenameopt with
                         None -> false
@@ -262,29 +363,39 @@ let emit_copy_to_functions modulenameopt _ conseq_res symtable uses_model code =
                         ; "inline void copy_to(T *to, const F * from)"
                         ; "{"
                         ; "enum { copy_to_code_failure_bug = 0 } _an_enum;"
-                        ; "oflux::CompileTimeAssert<copy_to_code_failure_bug> cta;"
+                        ; "CompileTimeAssert<copy_to_code_failure_bug> cta;"
                         ; "}"
                         ; "#endif // OFLUX_COPY_TO_GENERAL"
                         ; "" ] in
 	let nspace =
-		match modulenameopt with
-			None -> ""
-			| (Some nn) -> nn^"::"
+		match modulenameopt,pluginopt with
+			(Some nn,_) -> nn^"::"
+			| _ -> ""
 		in
         let bidi_uses x y = (List.mem (x,y) uses_model) 
                         || (List.mem (y,x) uses_model) in
+        let is_ignorable x = List.mem (TypeCheck.get_union_from_strio conseq_res x) ignoreis in
         let code_template code (assign_opt,t_name,f_name) =
                 let as_name (x,isin) = 
                         let xtmp = x^(if isin then "_in" else "_out")
-                        in  match break_namespaced_name xtmp with
-                                (mn::_::_) -> xtmp,Some mn
+                        in  match pluginopt,break_namespaced_name xtmp with
+                                (None,mn::_::_) -> xtmp,Some mn
+                                | (Some pn,mn::_::_) -> 
+                                        if pn = mn then (nspace^xtmp),None
+                                        else xtmp,Some mn
                                 | _ -> (nspace^xtmp),None in
                 let t_name',t_nspace = as_name t_name in
                 let f_name',f_nspace = as_name f_name in
                 let is_already_taken_care_of =
-                        match t_nspace,f_nspace with
+                        (match t_nspace,f_nspace with
                                 (Some tn,Some fn) -> bidi_uses tn fn
-                                | _ -> false
+                                | _ -> false)
+                        ||
+                        ((is_ignorable t_name) 
+                                && (is_ignorable f_name)
+                                && (match pluginopt with
+                                        None -> false
+                                        | _ -> true))
                 in  match is_already_taken_care_of, assign_opt with
                         (true,_) -> code
                         | (_,None) -> code
@@ -374,7 +485,7 @@ let gather_atom_aliases symtable =
 	in  al
 	
 
-let emit_node_atomic_structs readonly symtable aliases code =
+let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 	let ro_prefix = if readonly then "const " else "" in
 	let lookup_return_type n =
 		let gd = SymbolTable.lookup_guard_symbol symtable n in
@@ -385,6 +496,10 @@ let emit_node_atomic_structs readonly symtable aliases code =
 		match ll with
 			(h::tl) -> (pref_hd^h)::(List.map (fun x-> pref_tl^x) tl)
 			| _ -> [] in
+        let remove_plugin_prefix =
+                match pluginopt with
+                        None -> (fun n -> n)
+                        | (Some pn) -> (fun n -> remove_prefix (pn^".") n) in
 	let nt_of_gr gr = 
 		let name_canon,_,_ = gr.guardname in
 		let namep = match gr.localgname with 
@@ -395,7 +510,7 @@ let emit_node_atomic_structs readonly symtable aliases code =
 				(ParserTypes.Read::_) -> true
 				| _ -> false in
 		let name,pos,_ = namep
-		in  try (name, lookup_return_type name_canon, is_ro) 
+		in  try (remove_plugin_prefix name, lookup_return_type name_canon, is_ro) 
 		    with Not_found -> raise (CppGenFailure ("can't find guard "^name^" at "^"l:"^(string_of_int pos.lineno)^" c:"^(string_of_int pos.characterno)))
 		in
 	let inits nl = List.map (fun n -> "_"^n^"(NULL)") nl in
@@ -406,10 +521,15 @@ let emit_node_atomic_structs readonly symtable aliases code =
 		in rop^t^(if iro then " " else " & ")^n^"() "
 			^rop^" { return *_"^n^"; }  " in
 	let accessors ntl = List.map accessor ntl in
+        let omit_emit n =
+                match pluginopt with
+                        None -> has_dot n
+                        | (Some pn) -> not (string_has_prefix n (pn^".")) in
 	let e_one n nd code =
-	    if has_dot n then code
+	    if omit_emit n then code
 	    else
 		let nf = nd.functionname in 
+                let n = remove_plugin_prefix n in
 		try let nn = List.assoc nf aliases
 		    in  List.fold_left add_code code
 			[ "typedef "^nn^"_atoms "^n^"_atoms;"
@@ -435,7 +555,7 @@ let emit_node_atomic_structs readonly symtable aliases code =
 				@ [ "};" ] )
 	in  SymbolTable.fold_nodes e_one symtable code
 
-let emit_atom_fill symtable aliases code =
+let emit_atom_fill pluginopt symtable aliases code =
 	let lookup_return_type n =
 		let gd = SymbolTable.lookup_guard_symbol symtable n in
 		let rt = gd.return
@@ -448,17 +568,26 @@ let emit_atom_fill symtable aliases code =
 				| Some ln -> ln in
 		let name = strip_position namep
 		in  (name, lookup_return_type name_canon) in
+        let trim_dot =
+                match pluginopt with
+                        None -> (fun x -> x)
+                        | (Some pn) -> (remove_prefix (pn^"."))
+                        in
 	let code_for_one (cl,i) (n,t) =
-		(("_"^n^" = reinterpret_cast<"^t^" *> (ah->get("
+		(("_"^(trim_dot n)^" = reinterpret_cast<"^t^" *> (ah->get("
 		^(string_of_int i)^",false)->atomic()->data());")::cl), i+1 in
+        let omit_emit n =
+                match pluginopt with
+                        None -> has_dot n
+                        | (Some pn) -> not (string_has_prefix n (pn^".")) in
 	let e_one n nd code =
-		try if has_dot n then code 
-		    else let _ = List.assoc n aliases
+		try if omit_emit n then code 
+		    else let _ = List.assoc nd.functionname aliases
 		        in code
 		with Not_found ->
 			let ntl = List.map nt_of_gr nd.nodeguardrefs in
 			let code = List.fold_left add_code code
-				[ "void "^n^"_atoms::fill(oflux::AtomicsHolder * ah)"
+				[ "void "^(trim_dot n)^"_atoms::fill(oflux::AtomicsHolder * ah)"
 				; "{"
 				] in
 			let codelist, _ = List.fold_left code_for_one ([],0) ntl in
@@ -480,7 +609,7 @@ let emit_atom_map_decl symtable code =
 		]
 	
 
-let emit_atom_map_map symtable code =
+let emit_atom_map_map plugin_opt symtable code =
 	let e_one n gd code =
                 let clean_n = clean_dots n in
                 List.fold_left add_code code
@@ -503,8 +632,12 @@ let emit_atom_map_map symtable code =
                                 ^"_map_ptr = &"^clean_n^"_map;" ])
 		in
 	let e_two n gd codelist =
+                let omit_emit =
+                        match plugin_opt with
+                                None -> false
+                                | (Some pn) -> not (string_has_prefix n (pn^".")) in
 		let clean_n = clean_dots n
-		in  ("{ \""^n^"\", &"^clean_n^"_map }, ")::codelist in
+		in  if omit_emit then codelist else ("{ \""^n^"\", &"^clean_n^"_map }, ")::codelist in
 	let code = SymbolTable.fold_guards e_one symtable code in
 	let codelist = SymbolTable.fold_guards e_two symtable []
 	in  List.fold_left add_code code 
@@ -591,38 +724,61 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
         in  code
 
 
-let emit_node_func_decl is_concrete errorhandlers symtable code =
+let emit_node_func_decl plugin_opt is_concrete errorhandlers symtable code =
 	let is_eh n = List.mem n errorhandlers in
+        let emit_for n =
+                (is_concrete n) &&
+                (match plugin_opt with
+                        None -> (not (has_dot n))
+                        | (Some pn) -> string_has_prefix n (pn^"."))
+                in
+        let trim_dc,trim_dot =
+                match plugin_opt with
+                        None -> (fun x -> x), (fun x -> x)
+                        | (Some pn) -> (remove_prefix (pn^"::")),(remove_prefix (pn^"."))
+                        in
 	let e_one n _ code =
 		let nd = SymbolTable.lookup_node_symbol symtable n
-		in
-		if (is_concrete n) && (not (has_dot n)) then
+		in  if emit_for n then
+                        let nt = trim_dot n in
+                        let fnt = trim_dc nd.functionname
+                        in 
 			add_code code
-			("int "^nd.functionname^"(const "^n^"_in *, "^n
-			^"_out *, "^n^"_atoms *"
+			("int "^fnt^"(const "^nt^"_in *, "^nt
+			^"_out *, "^nt^"_atoms *"
 			^(if is_eh n then ", int" else "")
 			^");")
 		else code
 	in  SymbolTable.fold_nodes e_one symtable code
 
-let emit_cond_func_decl symtable code =
+let emit_cond_func_decl plugin_opt symtable code =
+        let omit_emit_for n =
+                match plugin_opt with
+                        None -> (has_dot n) || ((List.length(break_namespaced_name n)) != 1) 
+                        | (Some pn) -> not (string_has_prefix n (pn^"."))
+                in
+        let trim_dot =
+                match plugin_opt with
+                        None -> (fun x -> x)
+                        | (Some pn) -> (remove_prefix (pn^"."))
+                        in
 	let e_one n cond code =
 		match cond.SymbolTable.arguments with
 			[d] ->
-			    if (has_dot n) || ((List.length(break_namespaced_name n)) != 1) then code
+			    if omit_emit_for n then code
 			    else
 				let tm = d.ctypemod in
 				let t = d.ctype in
 				let arg = d.name
 				in
 				add_code code
-				("bool "^n^"("^(strip_position tm)
+				("bool "^(trim_dot n)^"("^(strip_position tm)
 				^" "^(strip_position t)
 				^" "^(strip_position arg)^");")
 			| _ -> raise (CppGenFailure ("emit_cond_func_decl -internal"))
 	in SymbolTable.fold_conditionals e_one symtable code
 
-let emit_create_map is_concrete symtable conseq_res ehs code =
+let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
 	let is_eh f = List.mem f ehs in
 	let lookup_union_number (n,isin) =
 		try TypeCheck.get_union_from_strio conseq_res (n,isin)
@@ -631,7 +787,11 @@ let emit_create_map is_concrete symtable conseq_res ehs code =
 		in
         let is_abstract n = SymbolTable.is_abstract symtable n in
 	let e_one n _ code =
-		if has_dot n then code else 
+                let ignore_emit = 
+                        match plugin_opt with
+                                None -> has_dot n
+                                | (Some pn) -> not (string_has_prefix n (pn^"."))
+		in  if ignore_emit then code else 
 			let nd = SymbolTable.lookup_node_symbol symtable n in
 			let nf = nd.functionname
 			in if (is_concrete n) && not (is_abstract n) then
@@ -842,9 +1002,138 @@ let get_module_file_suffix modulenameopt =
 		else ""
 	in  const_ns
 
+let emit_plugin_cpp pluginname brbef braft um =
+	let stable = braft.Flow.symtable in
+        let conseq_res = braft.Flow.consequences in
+	let fm = braft.Flow.fmap in
+	let ehs = braft.Flow.errhandlers in
+	let h_code = CodePrettyPrinter.empty_code in
+        let ns_broken = break_namespaced_name pluginname in
+	let def_const_ns_fun csofar str = csofar^(String.capitalize str)^"__" in
+	let def_const_ns = List.fold_left def_const_ns_fun "" ns_broken in
+	let def_const_ns = 
+		if String.length def_const_ns > 0 
+		then "_"^def_const_ns
+		else ""
+		in
+	let file_suffix = get_module_file_suffix (Some pluginname) in
+	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
+		[ "#ifndef _OFLUX_GENERATED"^def_const_ns
+		; "#define _OFLUX_GENERATED"^def_const_ns
+		; "#include \"mImpl"^file_suffix^".h\""
+		] in
+	let modules = braft.Flow.modules in
+	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
+		(List.map (fun m -> "#include \"OFluxGenerate_"^m^".h\"") modules) in
+	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
+		[ "#include \"OFluxGenerate.h\" // get the standard stuff from the pre-built header"
+		; ""
+		; ""
+		; "// ---------- OFlux generated header (do not edit by hand) ------------"
+		] in
+	let namespaceheader code = expand_namespace_decl_start code ns_broken in
+	let namespacefooter code = expand_namespace_decl_end code ns_broken in
+        let ffunmapname = "oflux::FlowFunctionMaps * flowfunctionmaps_"^file_suffix^"()" in
+        let h_code = List.fold_left CodePrettyPrinter.add_code h_code
+                [ ""
+                ; "namespace oflux {"
+                ; "class FlowFunctionMaps;"
+                ; "}"
+                ; "extern \"C\" {"
+                ; ffunmapname^";"
+                ; "}"
+                ; "" 
+                ] in
+	let h_code = namespaceheader h_code in
+	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
+		[ ""
+		; "namespace ofluximpl {"
+                ; "extern oflux::CreateMap * __create_map_ptr;" 
+		; "extern oflux::CreateMap __create_map[];"
+		; "extern oflux::ConditionalMap __conditional_map[];"
+		; "extern oflux::AtomicMapMap __atomic_map_map[];"
+		; "extern oflux::GuardTransMap __theGuardTransMap[];"
+		; "extern oflux::IOConverterMap __ioconverter_map[];"
+		; "}"
+		; "    //namespace"
+		; ""
+		] in
+	let is_concrete n = Flow.is_concrete stable fm n in
+	let h_code,ignoreis = emit_plugin_structs pluginname conseq_res stable h_code in
+	let h_code = emit_atomic_key_structs stable h_code in
+	let node_atom_aliases = gather_atom_aliases stable in
+	let h_code = emit_node_atomic_structs (Some pluginname) true stable node_atom_aliases h_code in
+	let h_code = CodePrettyPrinter.add_cr h_code in
+	let h_code = emit_node_func_decl (Some pluginname) is_concrete ehs stable h_code in
+	let h_code = emit_cond_func_decl (Some pluginname) stable h_code in
+	let h_code = CodePrettyPrinter.add_cr h_code in
+	let h_code = emit_unions conseq_res stable h_code in
+	let h_code = namespacefooter h_code in
+	let h_code = emit_converts (Some pluginname) ignoreis conseq_res h_code in
+        let h_code = emit_copy_to_functions (Some pluginname) None ignoreis conseq_res stable um h_code in
+	let h_code = CodePrettyPrinter.add_code h_code "#endif // _OFLUX_GENERATED" in
+	let cpp_code = CodePrettyPrinter.empty_code in
+	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code
+		[ "#include \"OFluxGenerate"^file_suffix^".h\""
+		; "#include \"OFluxFlow.h\""
+		; "#include \"OFluxAtomic.h\""
+		; "#include \"OFluxAtomicHolder.h\""
+		; "#include \"OFluxRunTime.h\""
+		; "#include \"OFluxIOConversion.h\""
+		; "#include \"OFluxLogging.h\""
+		; "#include <iostream>"
+		; ""
+		; "// ---------- OFlux generated header (do not edit by hand) ------------"
+		; ""
+		] in
+	let cpp_code = namespaceheader cpp_code in
+	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
+	let cpp_code = emit_create_map (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = emit_cond_map conseq_res stable cpp_code in
+	let cpp_code = 
+		let cpp_code = emit_atom_map_map (Some pluginname) stable cpp_code in
+		let cpp_code = emit_guard_trans_map (true,true,false,false)  conseq_res stable cpp_code in
+		let max_guard_size = calc_max_guard_size stable in
+		let cpp_code = add_code cpp_code
+				("const int _argument_arr[]["
+				^(string_of_int (max_guard_size+1))
+				^"] = {") in
+		let cpp_code = emit_guard_trans_map (false,false,true,false) conseq_res stable cpp_code in
+		let cpp_code = List.fold_left add_code cpp_code [ "{ 0 }  "; "};" ] in
+		let cpp_code = add_code cpp_code
+				"oflux::GuardTransMap __theGuardTransMap[] = {" in
+		let cpp_code = emit_guard_trans_map (false,false,false,true)  conseq_res stable cpp_code in
+		let cpp_code = List.fold_left add_code cpp_code 
+				[ "{ NULL,0,0,NULL, NULL}  "; "};" ] in
+                let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
+		in  cpp_code in
+	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
+	let cpp_code = emit_atom_fill (Some pluginname) stable node_atom_aliases cpp_code in
+	let cpp_code = namespacefooter cpp_code in
+        let cpp_code = List.fold_left add_code cpp_code
+		[ ""
+                ; "extern \"C\" {"
+                ; ffunmapname^" {"
+                ; "static oflux::ModularCreateMap mcm[] = {"
+                ; "{ \""^pluginname^"\", "^pluginname^"::ofluximpl::__create_map_ptr },  "
+                ; "{ NULL, NULL }  "
+                ; "};"
+                ; "static oflux::FlowFunctionMaps ffm("
+                ; "       "^pluginname^"::ofluximpl::__conditional_map"
+                ; "     , mcm"
+                ; "     , "^pluginname^"::ofluximpl::__theGuardTransMap"
+                ; "     , "^pluginname^"::ofluximpl::__atomic_map_map"
+                ; "     , "^pluginname^"::ofluximpl::__ioconverter_map );"
+                ; "return &ffm;"
+                ; "}"
+                ; "}"
+                ]
+	in  h_code, cpp_code
+
+
 let emit_cpp modulenameopt br um =
 	let stable = br.Flow.symtable in
-        let conseq_res = TypeCheck.consequences br.Flow.ulist stable in
+        let conseq_res = br.Flow.consequences in
 	let fm = br.Flow.fmap in
 	let ehs = br.Flow.errhandlers in
 	let h_code = CodePrettyPrinter.empty_code in
@@ -867,15 +1156,18 @@ let emit_cpp modulenameopt br um =
 		; "#include \"mImpl"^file_suffix^".h\""
 		] in
 	let modules = br.Flow.modules in
+        let module_filt m = 
+                match modulenameopt with
+                        None -> true
+                        |(Some mm) -> not (m = mm) in
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
-		(List.map (fun m -> "#include \"OFluxGenerate_"^m^".h\"") modules) in
+		(List.map (fun m -> "#include \"OFluxGenerate_"^m^".h\"") 
+                (List.filter module_filt modules)) in
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
 		[ "#include \"OFlux.h\""
 		; "#include \"OFluxEvent.h\""
 		; "#include \"OFluxCondition.h\""
-		] in
-	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
-		[ ""
+		; ""
 		; ""
 		; "// ---------- OFlux generated header (do not edit by hand) ------------"
 		] in
@@ -919,18 +1211,18 @@ let emit_cpp modulenameopt br um =
 	let h_code,ignoreis = emit_structs conseq_res stable h_code in
 	let h_code = emit_atomic_key_structs stable h_code in
 	let node_atom_aliases = gather_atom_aliases stable in
-	let h_code = emit_node_atomic_structs true stable node_atom_aliases h_code in
+	let h_code = emit_node_atomic_structs None true stable node_atom_aliases h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
-	let h_code = emit_node_func_decl is_concrete ehs stable h_code in
+	let h_code = emit_node_func_decl None is_concrete ehs stable h_code in
 	let h_code = if is_module then h_code 
 		     else emit_guard_trans_map (true,false,false,false) 
 			conseq_res stable h_code in
-	let h_code = emit_cond_func_decl stable h_code in
+	let h_code = emit_cond_func_decl None stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
 	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
 	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
-        let h_code = emit_copy_to_functions modulenameopt ignoreis conseq_res stable um h_code in
+        let h_code = emit_copy_to_functions None modulenameopt ignoreis conseq_res stable um h_code in
 	let h_code = CodePrettyPrinter.add_code h_code "#endif // _OFLUX_GENERATED" in
 	let cpp_code = CodePrettyPrinter.empty_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code
@@ -948,12 +1240,12 @@ let emit_cpp modulenameopt br um =
 		] in
 	let cpp_code = namespaceheader cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
-	let cpp_code = emit_create_map is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = emit_create_map None is_concrete stable conseq_res ehs cpp_code in
 	let cpp_code = if is_module then cpp_code else emit_master_create_map modules cpp_code in
 	let cpp_code = emit_cond_map conseq_res stable cpp_code in
 	let cpp_code = if is_module then cpp_code
 		else
-		let cpp_code = emit_atom_map_map stable cpp_code in
+		let cpp_code = emit_atom_map_map None stable cpp_code in
 		let cpp_code = emit_guard_trans_map (true,true,false,false)  conseq_res stable cpp_code in
 		let max_guard_size = calc_max_guard_size stable in
 		let cpp_code = add_code cpp_code
@@ -970,11 +1262,11 @@ let emit_cpp modulenameopt br um =
                 let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
-	let cpp_code = emit_atom_fill stable node_atom_aliases cpp_code in
+	let cpp_code = emit_atom_fill None stable node_atom_aliases cpp_code in
 	let cpp_code = namespacefooter cpp_code in
 	let cpp_code = 
 		match modulenameopt with
 			None -> emit_test_main cpp_code 
 			| _ -> cpp_code
-	in  h_code, cpp_code, conseq_res
+	in  h_code, cpp_code
 

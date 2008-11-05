@@ -19,6 +19,7 @@ let star (ident,p1,p2) (t1,t2) = (ident^"*",p1,t2)
 %token <ParserTypes.position*ParserTypes.position> PLUS, QUESTION, DOUBLECOLON;
 %token <ParserTypes.position*ParserTypes.position> ELLIPSIS;
 %token <ParserTypes.position*ParserTypes.position> LESSTHAN, GREATERTHAN, AMPERSAND;
+%token <ParserTypes.position*ParserTypes.position> AMPERSANDEQUALS;
 %token <int*ParserTypes.position*ParserTypes.position> NUMBER;
 %token <string*ParserTypes.position*ParserTypes.position> IDENTIFIER;
 %token <ParserTypes.position*ParserTypes.position> BOOL, CONST, GUARD;
@@ -27,6 +28,7 @@ let star (ident,p1,p2) (t1,t2) = (ident^"*",p1,t2)
 %token <ParserTypes.position*ParserTypes.position> HANDLE, ERROR, AS, WHERE;
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
 %token <ParserTypes.position*ParserTypes.position> MODULE BEGIN END;
+%token <ParserTypes.position*ParserTypes.position> PLUGIN EXTERNAL;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE;
 %token <string> INCLUDE;
 %left PLUS 
@@ -44,7 +46,7 @@ top_level_program:
 
 program:
 	code_list 
-		{ let sl,el,erl,mil,cl,al,nl,mdl,tl = $1 
+		{ let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $1 
 		  in { cond_decl_list=cl 
 		     ; atom_decl_list=al
 		     ; node_decl_list=nl
@@ -53,6 +55,7 @@ program:
 		     ; err_list=erl
 		     ; mod_def_list=mdl
 		     ; mod_inst_list=mil
+                     ; plugin_list=pl
                      ; terminate_list=tl
 		     } }
 ;
@@ -62,43 +65,47 @@ program:
 code_list:
 	main_fn code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,tl = $2
-	  in  ($1::sl,el,erl,mil,cl,al,nl,mdl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
+	  in  ($1::sl,el,erl,mil,cl,al,nl,mdl,pl,tl) }
 	| expr_part code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,tl = $2
-	  in  (sl,$1::el,erl,mil,cl,al,nl,mdl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
+	  in  (sl,$1::el,erl,mil,cl,al,nl,mdl,pl,tl) }
 	| err_def code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,tl = $2
-	  in  (sl,el,$1::erl,mil,cl,al,nl,mdl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
+	  in  (sl,el,$1::erl,mil,cl,al,nl,mdl,pl,tl) }
 	| mod_inst code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,tl = $2
-	  in  (sl,el,erl,$1::mil,cl,al,nl,mdl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
+	  in  (sl,el,erl,$1::mil,cl,al,nl,mdl,pl,tl) }
 	| node_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,tl = $2 
-          in sl,el,erl,mil,cl,al,$1::nl,mdl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
+          in sl,el,erl,mil,cl,al,$1::nl,mdl,pl,tl }
 	| atom_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,tl = $2 
-	  in sl,el,erl,mil,cl,$1::al,nl,mdl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
+	  in sl,el,erl,mil,cl,$1::al,nl,mdl,pl,tl }
 	| cond_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,tl = $2 
-	  in sl,el,erl,mil,$1::cl,al,nl,mdl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
+	  in sl,el,erl,mil,$1::cl,al,nl,mdl,pl,tl }
 	| mod_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,tl = $2 
-	  in sl,el,erl,mil,cl,al,nl,$1::mdl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
+	  in sl,el,erl,mil,cl,al,nl,$1::mdl,pl,tl }
+	| plugin_decl code_list
+	{ trace_thing "code_list";
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
+	  in sl,el,erl,mil,cl,al,nl,mdl,$1::pl,tl }
 	| term_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,tl = $2 
-	  in sl,el,erl,mil,cl,al,nl,mdl,$1::tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$1::tl }
 	| /*epsilon*/
 	{ trace_thing "code_list";
-          [],[],[],[],[],[],[],[],[] }
+          [],[],[],[],[],[],[],[],[],[] }
 
 /*** modules ***/
 
@@ -128,6 +135,11 @@ mod_decl:
 	MODULE namespaced_ident BEGIN program END
 	{ trace_thing "mod_decl"; { modulename=$2; programdef=$4 } }
 
+/*** plugins ***/
+
+plugin_decl:
+        PLUGIN namespaced_ident BEGIN program END
+        { trace_thing "plugin_def"; { pluginname=$2; pluginprogramdef=$4 } }
 
 
 /*** namespaced identifier ***/
@@ -190,9 +202,9 @@ decl_list:
 /*** Conditions ***/
 
 cond_decl:
-	CONDITION namespaced_ident simple_arg_list ARROW BOOL SEMI
+	external_opt CONDITION namespaced_ident simple_arg_list ARROW BOOL SEMI
 	{ trace_thing "cond_decl"; 
-	  { condname=$2; condfunction=strip_position $2; condinputs=$3 } }
+	  { externalcond=$1; condname=$3; condfunction=strip_position $3; condinputs=$4 } }
 
 /*** Atomics ***/
 
@@ -207,9 +219,16 @@ atom_type:
 	{ "pool" }
 
 atom_decl:
-	atom_type namespaced_ident simple_arg_list ARROW data_type SEMI
+	external_opt atom_type namespaced_ident simple_arg_list ARROW data_type SEMI
 	{ trace_thing "atom_decl"; 
-	  { atomname=$2; atominputs=$3; outputtype=$5; atomtype = $1 } }
+	  { externalatom=$1; atomname=$3; atominputs=$4; outputtype=$6; atomtype = $2 } }
+
+external_opt:
+        EXTERNAL
+        { true } 
+        | /* epsilon */
+        { false }
+        
 
 /*** Nodes ***/
 
@@ -220,24 +239,28 @@ node_target_arg_list:
 	{ Some $1 }
 
 node_decl:
-	NODE node_mod_list namespaced_ident arg_list ARROW node_target_arg_list SEMI
+	external_opt NODE node_mod_list namespaced_ident arg_list ARROW node_target_arg_list SEMI
 	{ trace_thing "node_decl"; 
 	  let filt_type item =
 		match item with
 			Typed i -> true
 			| _ -> false in
-	  let ins, grefs = List.partition filt_type $4 in
+	  let ins, grefs = List.partition filt_type $5 in
 	  let filttyped x =(match x with Typed i -> i | _ -> raise Not_found) in
 	  let filtguardref x =(match x with GuardRef i -> i | _ -> raise Not_found) in
 	  let ins = List.map filttyped ins in
 	  let grefs = List.map filtguardref grefs in
-	  let is_abs = (List.mem "abstract" $2) ||
-	  	(match $6 with None -> true | _ -> false)
+	  let is_abs = (List.mem "abstract" $3) ||
+	  	(match $7 with None -> true | _ -> false)
 	  in
-	  { detached=List.mem "detached" $2; 
-	    abstract=is_abs;
-	    nodename=$3; nodefunction=(strip_position $3);
-	    inputs=ins; guardrefs=grefs; outputs= $6 } 
+	  { detached=List.mem "detached" $3
+          ; abstract=is_abs
+          ; externalnode=$1
+          ; nodename=$4
+          ; nodefunction=(strip_position $4)
+          ; inputs=ins
+          ; guardrefs=grefs
+          ; outputs= $7 } 
 	}
 ;
 
@@ -403,15 +426,6 @@ as_named_opt:
 	{ None }
 
 /*** Expressions ***/
-	
-/*
-expr_list:
-	expr_list expr_part
-	{ trace_thing "expr_list"; $1 @ [ $2 ] }
-	| 
-	{ trace_thing "expr_list"; [ ] }
-;
-*/
 
 expr_part:
 	assn SEMI
@@ -425,6 +439,9 @@ assn:
 	{ { exprname=$1; condbinding=$4; successors=$7; etype=Choice } }
         | IDENTIFIER EQUALS namespaced_ident AMPERSAND par_ident_list
         { { exprname=$1; condbinding=[]; successors=$3::$5; etype=Concurrent } }
+        | IDENTIFIER AMPERSANDEQUALS namespaced_ident
+        { let id,p1,p2 = $1
+          in { exprname=("&"^id,p1,p2); condbinding=[]; successors=[$3]; etype=Concurrent } }
 ;
 
 par_ident_list:

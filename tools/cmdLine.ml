@@ -9,9 +9,13 @@ let include_path = ref []
 
 let module_name = ref None
 
+let plugin_name = ref None
+
 let root_filename = ref None
 
 let noios = ref false
+
+let abstract_termination = ref false
 
 let get_timing_on () = !Debug.timing_on
 
@@ -22,8 +26,10 @@ let set_weak_unify tf = (weak_unify_on := tf)
 let get_weak_unify () = !weak_unify_on
 
 let help_text =
-	 "usage: oflux [-d] [-t] [-duribase path] [-dnoios] [-a modulename] [-I incpath] file.flux\n"
+	 "usage: oflux [-d] [-t] [-duribase path] [-dnoios] [-a modulename | -p pluginname] -absterm [-I incpath] file.flux\n"
 	^" -a  for compiling module code\n"
+	^" -p  for compiling plugin code\n"
+        ^" -absterm for terminating hanging abstract nodes\n"
 	^" -I  for adding an include path (useful for locating modules elsewhere\n"
 	^" -d  throws out debugging information (verbose)\n"
         ^" -duribase lets you specify the URI base path for generated DOT docs\n"
@@ -43,9 +49,11 @@ let parse_argv () =
 			    ("-I",[ipath]) -> 
 				    (include_path := ipath::(!include_path); [])
 			    | ("-a",[modname]) -> (module_name := (Some modname); [])
+			    | ("-p",[plgname]) -> (plugin_name := (Some plgname); [])
 			    | ("-duribase",[dub]) -> (uribase_path := dub; [])
 			    | ("-d",[]) -> (Debug.debug := true; [])
 			    | ("-t",[]) -> (Debug.timing_on := true; [])
+			    | ("-absterm",[]) -> (abstract_termination := true; [])
 			    | ("-dnoios",[]) -> (noios := true; [])
 			    | ("-us",[]) -> (set_weak_unify false; [])
 			    | _ -> arg::stk)
@@ -57,8 +65,12 @@ let get_include_path () = !include_path
 
 let get_module_name () = !module_name
 
+let get_plugin_name () = !plugin_name
+
 let get_root_filename () = !root_filename
 
 let get_uribase_path () = !uribase_path
 
 let get_avoid_dot_ios () = !noios
+
+let get_abstract_termination () = !abstract_termination

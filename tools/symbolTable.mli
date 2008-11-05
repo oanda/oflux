@@ -26,6 +26,7 @@ val fold_conditionals : (string -> conditional_data -> 'b -> 'b) ->
 
 type guard_data = { garguments: ParserTypes.decl_formal list
 		; gtype: string
+                ; gexternal: bool
 		; return: ParserTypes.data_type 
 		; magicnumber: int (* used for priority - text order in prog *)
 		}
@@ -48,6 +49,7 @@ type node_data =
 		; where: ParserTypes.position 
 		; nodedetached: bool 
                 ; nodeabstract: bool
+                ; nodeexternal: bool
                 }
 
 val add_node_symbol : symbol_table -> ParserTypes.node_decl -> symbol_table
@@ -64,6 +66,7 @@ val fold_nodes : (string -> node_data -> 'b -> 'b) ->
 
 val is_detached : symbol_table -> string -> bool
 val is_abstract : symbol_table -> string -> bool
+val is_external : symbol_table -> string -> bool
 
 val strip_position3 : ParserTypes.decl_formal -> string * string * string
 

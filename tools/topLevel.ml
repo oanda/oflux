@@ -122,12 +122,22 @@ let semantic_analysis p mod_defs =
 	in  builtflow
 	
 (*PASS 3*)
-let generate fn br um =
+let generate fn br br_aft_opt um =
 	let debug = !Debug.debug in
 	let _ = Debug.dprint_string "FINAL FMAP\n"; Flow.pp_flow_map debug br.Flow.fmap in
-	let h_code,cpp_code,conseq_res = GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br um in
-	let xmlopt = match CmdLine.get_module_name() with
-                None -> Some (GenerateXML.emit_xml fn br conseq_res)
+	let h_code,cpp_code = 
+                match br_aft_opt with
+                        None ->
+                                GenerateCPP1.emit_cpp (CmdLine.get_module_name()) br um
+                        | (Some br_aft) ->
+                                let pname = 
+                                        match CmdLine.get_plugin_name() with
+                                                None -> "APlugin"
+                                                |(Some pn) -> pn
+                                in  GenerateCPP1.emit_plugin_cpp pname br br_aft um in 
+	let xmlopt = match CmdLine.get_module_name(),br_aft_opt with
+                (None,None) -> Some (GenerateXML.emit_program_xml fn br)
+                | (None,(Some br_aft)) -> Some (GenerateXML.emit_plugin_xml fn br br_aft)
                 | _ -> None
 	in  xmlopt,cpp_code,h_code
 
@@ -230,13 +240,28 @@ let xmain do_result fn =
 		| (Some pres) ->
                         let _ = parse_timer () in
                         let flatten_timer = Debug.timer "flatten" in
-			let pres_flat = (match CmdLine.get_module_name() with
-					None ->  Flatten.flatten pres 
-					| (Some mn) -> Flatten.flatten_module mn pres)
+			let pres_flat, pres_flat_after_opt = 
+                                (match (CmdLine.get_module_name()), (CmdLine.get_plugin_name()) with
+					(None,None) ->  
+                                                (Flatten.flatten pres
+                                                ,None)
+					| (Some mn,_) -> 
+                                                (Flatten.flatten_module mn pres
+                                                ,None)
+					| (_,Some pn) -> 
+                                                let bef,aft = Flatten.flatten_plugin pn pres
+                                                in bef, Some aft)
 				in
                         let _ = flatten_timer () in
                         let sem_an_timer = Debug.timer "semantic analysis" in
-			let br = semantic_analysis pres_flat pres.mod_def_list in
+			let br,br_after_opt = 
+                                match pres_flat_after_opt with
+                                        None ->
+                                                let br = semantic_analysis pres_flat pres.mod_def_list 
+                                                in  br,None
+                                        | (Some pres_flat_after) ->  
+                                                ( semantic_analysis pres_flat pres.mod_def_list
+                                                , Some (semantic_analysis pres_flat_after pres.mod_def_list)) in
                         let _ = sem_an_timer () in
                         let uses_model_timer = Debug.timer "uses model" in
                         let uses_model = get_uses_model pres in
@@ -244,7 +269,7 @@ let xmain do_result fn =
 			let debug = ! Debug.debug in
 			let _ = Flow.pp_flow_map debug br.Flow.fmap in
                         let generate_timer = Debug.timer "generate" in
-			let xmlopt,cpp_code,h_code = generate fn br uses_model in
+			let xmlopt,cpp_code,h_code = generate fn br br_after_opt uses_model in
                         let _ = generate_timer () in
                         let dot_timer = Debug.timer "dot" in
 			let dot_flat_output = 
@@ -261,6 +286,10 @@ let xmain do_result fn =
                         let _ = dot_timer () in
 			let suff_string = GenerateCPP1.get_module_file_suffix
 				(CmdLine.get_module_name()) in
+                        let suff_string = if suff_string = "" then
+                                GenerateCPP1.get_module_file_suffix
+                                        (CmdLine.get_plugin_name())
+                                else suff_string in
 			let h_filename = "OFluxGenerate"^suff_string^".h" in
 			let cpp_filename = "OFluxGenerate"^suff_string^".cpp" 
 			in  do_result fn 

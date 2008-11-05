@@ -5,7 +5,7 @@ open Xml
 open Flow
 
 (**
- general structure is as follows:
+ general program structure is as follows:
   <flow name=...>
    <guard name=... magicnumber=.../>
    <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionnumber=... outputunionnumber=...> <!-- name of the node -->
@@ -15,7 +15,7 @@ open Flow
     </guardref>
     <errorhandler name=.../>
     <successorlist> <!-- a list of concurrent branches -- all are taken -->
-      <successor> <!-- a list of choices -->
+      <successor name=...> <!-- a list of choices -->
        <case nodetarget=...> <!-- name of the node -->
 		<!-- all must be satisfied to goto the node target -->
         <condition name=... argno=... isnegated=[true|false] unionnumber=.../>
@@ -26,6 +26,43 @@ open Flow
     </successorlist>
    </node>
   </flow>
+
+  general plugin structure is as follows:
+  <plugin name=something.so>
+   <guard .../>
+   <node name=... external=[true|false] ...>  
+     <!-- if external ="false" then this is a completely new node -- no merge ---->
+     <!-- ... as before -->
+   </node>
+   <!-- for example: -->
+   <node name=... external="true" ...>
+     <!-- when external="true", then we are editting an existing node in the flow -->
+     <successorlist>
+      <successor name=...> 
+        <add> <!-- new cases are prepended to the list for this successor -->
+          <case ...> <!-- ... --> </case>
+          <case ...> <!-- ... --> </case>
+        </add>
+      </successor>
+     </successorlist>
+   </node>
+   <node name=... external="true" ...>
+     <!-- when external="true", then we are editting an existing node in the flow -->
+     <successorlist>
+       <add>
+         <successor name=...> <!-- new successor is prepended to the successor list -- order not important anyway -->
+           <!-- ... -->
+         </successor>
+       </add>
+     </successorlist>
+   </node>
+  </plugin>
+  
+  Note: you could load
+ 
+   program.xml
+   plugin1.xml
+   plugin2.xml (which plugs into the (program+plugin1 flow) -- so order is critical)
 *)
 
 let xml_condition_str = "condition"
@@ -41,6 +78,7 @@ let xml_inputunionnumber_str = "inputunionnumber"
 let xml_outputunionnumber_str = "outputunionnumber"
 let xml_wtype_str = "wtype"
 let xml_detached_str = "detached"
+let xml_external_str = "external"
 let xml_isnegated_str = "isnegated"
 let xml_iserrhandler_str = "iserrhandler"
 let xml_case_str = "case"
@@ -51,6 +89,8 @@ let xml_node_str = "node"
 let xml_nodetarget_str = "nodetarget"
 let xml_flow_str = "flow"
 let xml_errorhandler_str = "errorhandler"
+let xml_plugin_str = "plugin"
+let xml_add_str = "add"
 
 
 let condition el_name el_argno el_isnegated el_unionnumber = 
@@ -92,9 +132,9 @@ let case el_nodetarget conditions =
 		,[xml_nodetarget_str,el_nodetarget]
 		,conditions)
 
-let successor cases =
+let successor el_name cases =
 	Element (xml_successor_str
-		,[]
+		,[xml_name_str,el_name]
 		,cases)
 
 let successorlist successors =
@@ -102,15 +142,16 @@ let successorlist successors =
 		,[]
 		,successors)
 
-let node el_name el_function el_source el_iserrorhandler el_detached el_inputunionnumber el_outputunionnumber guardrefs errorhandler_opt successorlist =
+let node el_name el_function el_source el_iserrorhandler el_detached el_external el_inputunionnumber el_outputunionnumber guardrefs errorhandler_opt successorlist =
 	Element(xml_node_str
 		,[ xml_name_str,el_name
 		 ; xml_function_str,el_function
 		 ; xml_source_str,el_source
 		 ; xml_iserrhandler_str,el_iserrorhandler
 		 ; xml_detached_str,el_detached
-		 ; xml_inputunionnumber_str, el_inputunionnumber
-		 ; xml_outputunionnumber_str, el_outputunionnumber
+		 ; xml_external_str,el_external
+		 ; xml_inputunionnumber_str,el_inputunionnumber
+		 ; xml_outputunionnumber_str,el_outputunionnumber
 		 ]
 		,match errorhandler_opt with
 			None -> guardrefs @ [successorlist]
@@ -122,9 +163,17 @@ let flow el_name nodes =
 		,[xml_name_str,el_name]
 		,nodes)
 
+let plugin el_name nodes_and_guards =
+        Element(xml_plugin_str
+                ,[xml_name_str,el_name]
+                ,nodes_and_guards)
+
+let add somethings = Element(xml_add_str,[],somethings)
+
 exception XMLConversion of string * ParserTypes.position
 
-let emit_xml programname br conseq_res = 
+let emit_program_xml programname br = 
+        let conseq_res = br.Flow.consequences in
         let unionmap_as_string strio =
                 let u_n = TypeCheck.get_union_from_strio conseq_res strio
                 in  string_of_int u_n in
@@ -133,6 +182,7 @@ let emit_xml programname br conseq_res =
 	let sourcelist = br.Flow.sources in
 	let errhandlers = br.Flow.errhandlers in
 	let is_detached n = SymbolTable.is_detached stable n in
+	let is_external n = SymbolTable.is_external stable n in
 	let is_abstract n = SymbolTable.is_abstract stable n in
 	let is_source n = List.mem n sourcelist in
 	let is_runonce_source n = List.mem n br.Flow.runoncesources in
@@ -140,6 +190,7 @@ let emit_xml programname br conseq_res =
 	let get_node n _ ll = if Flow.is_concrete stable fmap n then n::ll else ll in
 	let get_guard n _ ll = (n::ll) in
 	let guardlist = SymbolTable.fold_guards get_guard stable [] in 
+        let guardlist = List.rev guardlist in
 	let nodelist = Flow.flowmap_fold get_node fmap [] in
         let uniq ll =
                 let lls = List.sort compare ll in       
@@ -212,7 +263,7 @@ let emit_xml programname br conseq_res =
 	let rec gen_succ' ccond fl = 
 		let sfun n _ _ _ = 
 			let u_n = find_union_number (n,true) in
-                        let ist = is_terminate n in
+                        let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
                         let _ = if (not ist) && (is_abstract n) then 
                                         raise (XMLConversion ("the node "^n^" is abstract, but it is not defined", ParserTypes.noposition))
                                 else ()
@@ -239,11 +290,6 @@ let emit_xml programname br conseq_res =
                                 let condneg = and_canon_condition condneg negccond'
                                 in  condneg, ((gen_succ' ccondlocal flr)::sofar) in
 			let _,part_res = List.fold_left onfold (condunit,[]) solfl in
-                                (*List.map 
-				(fun (sol,flr) ->
-					let ccond' = canon_case sol
-					in  gen_succ' (and_canon_condition ccond ccond') flr) solfl
-                                in*)
 			let tmp = List.fold_left (prod (fun a -> (fun b -> b @ a))) [[]] part_res 
                         in  tmp in
                 let coefun _ fll = 
@@ -253,7 +299,12 @@ let emit_xml programname br conseq_res =
 		in  Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in
 	let gen_succ ccond fl =
-		List.map successor (gen_succ' ccond fl) in
+                let foldfun (resl,i) s =
+                        (if s = [] then resl else ((successor (string_of_int i) s)::resl))
+                        , i+1 in
+                let resl,_ = List.fold_left foldfun ([],0) 
+                        (List.rev (gen_succ' ccond fl))
+                in resl in
 	let is_error_handler n = List.mem n errhandlers in
 	let number_inputs (i,ll) df = (i+1,(ParserTypes.strip_position df.ParserTypes.name,i)::ll) in
 	let one_arg get_argno sp =
@@ -261,6 +312,7 @@ let emit_xml programname br conseq_res =
 		in  argument (string_of_int argno) in 
 	let emit_one n =
 		let is_dt = is_detached n in
+		let is_ext = is_external n in
 		let is_src = is_source n in
 		let is_ro_src = is_runonce_source n in
 		let nd = SymbolTable.lookup_node_symbol stable n in
@@ -288,9 +340,11 @@ let emit_xml programname br conseq_res =
 		let coefun _ _ = Flow.null_flow in
 		let nfun _ = Flow.null_flow in
 		let succ = Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
-		in  node n f (if is_src then "true" else "false")
+		in  node n f 
+                        (if is_src then "true" else "false")
 			(if is_eh then "true" else "false")
 			(if is_dt then "true" else "false")
+			(if is_ext then "true" else "false")
                         (find_union_number (n,true))
                         (find_union_number (n,false))
 			(List.map do_gr nd.SymbolTable.nodeguardrefs)
@@ -305,7 +359,7 @@ let emit_xml programname br conseq_res =
 			let nfun _ = None
 			in  Flow.flow_apply (sfun, chefun, coefun, sfun, nfun) fl)
 			(successorlist ((gen_succ [] succ)
-				@ (if is_src && (not is_ro_src) then [successor [case n []]] else []))) in
+				@ (if is_src && (not is_ro_src) then [successor "erste" [case n []]] else []))) in
 	let guard_ff (ll,i) gname = 
 		let element = guard gname (string_of_int i)
 		in  (element::ll, i+1) in
@@ -321,6 +375,74 @@ let emit_xml programname br conseq_res =
                         in  List.filter (fun n -> not (is_abstract n)) 
                                 nodelist)
 	    in  flow programname (guard_elements @ node_elements)
+
+let emit_plugin_xml fn br_bef br_aft =
+        let get_key xml_node_or_guard = 
+                let name = try List.assoc "name" (Xml.get_attributes xml_node_or_guard)
+                        with Not_found -> ""
+                in  (Xml.get_tag xml_node_or_guard)^name in
+        let xml_bef = emit_program_xml "before" br_bef in
+        let xml_aft = emit_program_xml "after" br_aft in
+        let xml_compare xml1 xml2 = compare (get_key xml1) (get_key xml2) in
+        let xml_sort xl = List.sort xml_compare xl in
+        let xml_aft_contents = Xml.get_contents xml_aft in
+        let xml_before_contents = Xml.get_contents xml_bef in
+        let aft_old,aft_new = 
+                let old_keys = List.map get_key xml_before_contents
+                in  List.partition (fun norg -> List.mem (get_key norg) old_keys) xml_aft_contents in
+        let _ = if not ((List.length aft_old) = (List.length xml_before_contents)) then
+                        raise (XMLConversion ("something <internal> is wrong - please report this - number of nodes changed",ParserTypes.noposition))
+                else () in
+        let ordered_tags = (* tags whose content is ordered *)
+                        [ xml_guardref_str
+                        ; xml_successor_str
+                        ; xml_case_str
+                        ] in
+        let same_val = Element ("samehere",[],[]) in
+        let samehandler _ = same_val in
+        let noposition = ParserTypes.noposition in
+        let rec add_merge accumulated shorter longer =
+                let equal x1 x2 =
+                        ((Xml.get_tag x1) = (Xml.get_tag x2))
+                        &&
+                        ((Xml.get_attributes x1) = (Xml.get_attributes x2))
+                        in
+                let cond_add acc ll =
+                        match acc with
+                                [] -> ll
+                                | _ -> (add (List.rev acc))::ll 
+                in match shorter,longer with 
+                        (sh::st,lh::lt) -> 
+                                if equal sh lh then 
+                                        cond_add accumulated (lh::(add_merge [] st lt))
+                                else add_merge (lh::accumulated) shorter lt
+                        | ([],_) -> cond_add ((List.rev longer) @ accumulated) []
+                        | (_,[]) -> raise (XMLConversion ("something <internal> is wrong - add_merge failed",noposition))
+                in
+        let diffhandler befxml aftxml =
+                let beftag = Xml.get_tag befxml in
+                let befattribs = Xml.get_attributes befxml in
+                let afttag = Xml.get_tag aftxml in
+                let aftattribs = Xml.get_attributes aftxml in
+                let sort_opt ll = if List.mem beftag ordered_tags then ll
+                                else xml_sort ll in
+                let _ = if not ((beftag=afttag) && (aftattribs = befattribs)) then
+                                raise (XMLConversion ("plugin caused XML tag difference ["^beftag^"/"^afttag^"]",noposition))
+                        else ()
+                in  if (beftag = xml_successorlist_str) || (beftag = xml_successor_str) then
+                        Element (beftag,befattribs,
+                                add_merge [] 
+                                        (sort_opt (Xml.get_contents befxml))
+                                        (sort_opt (Xml.get_contents aftxml)))
+                    else raise (XMLConversion ("plugin caused an unexpected tag to have a difference ["^beftag^"]",noposition))
+                in
+        let make_external xml_node =
+                let on_attrib (k,v) = if k = "external" then (k,"true") else (k,v)
+                in  Element (Xml.get_tag xml_node, List.map on_attrib (Xml.get_attributes xml_node), Xml.get_contents xml_node) in
+        let simple_diff (nbef,naft) = Xml.diff ordered_tags diffhandler samehandler nbef naft in
+        let before_changes = Xml.filter_list (fun x -> not (x=same_val))
+                (List.map simple_diff (List.combine xml_before_contents aft_old)) 
+        in  plugin fn (aft_new @ (List.map make_external before_changes))
 
 let write_xml xml filename =
 	let xml_str = Xml.to_string_fmt xml in  

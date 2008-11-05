@@ -46,6 +46,7 @@ type general_formal =
 type node_decl = 
 	{ detached: bool
 	; abstract: bool
+        ; externalnode: bool
 	; nodename: string positioned 
 	; nodefunction: string
 	; inputs: decl_formal list 
@@ -54,7 +55,8 @@ type node_decl =
 	}
 
 type cond_decl =
-	{ condname: string positioned
+	{ externalcond: bool
+        ; condname: string positioned
 	; condfunction: string
 	; condinputs: decl_formal list
 	}
@@ -64,6 +66,7 @@ type atom_decl =
 	; atominputs: decl_formal list
 	; outputtype: data_type
 	; atomtype: string
+        ; externalatom: bool
 	}
 
 type ident = string positioned 
@@ -99,12 +102,17 @@ type program =
 	; err_list: err list
 	; mod_def_list: mod_def list
 	; mod_inst_list: mod_inst list
+        ; plugin_list: plugin_def list
         ; terminate_list: string positioned list
 	}
 and mod_def = 
 	{ modulename : string positioned 
 	; programdef : program
 	}
+and plugin_def =
+        { pluginname : string positioned
+        ; pluginprogramdef : program
+        }
 
 let trace_thing _ = ()
 
