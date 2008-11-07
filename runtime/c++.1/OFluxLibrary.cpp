@@ -1,5 +1,7 @@
 #include "OFluxLibrary.h"
 #include "boost/filesystem.hpp"
+#include "OFlux.h"
+#include "OFluxLogging.h"
 
 namespace fs = boost::filesystem;
 
@@ -23,20 +25,28 @@ bool Library::load( int mode )
 {
     if( ! validatePath() )
         return false;
-
+    ::dlerror();
     _handle = ::dlopen( _path.c_str(), mode );
-    if( ! _handle )
+    if( ! _handle ) {
+        oflux_log_error("Library::load() dlerror: %s\n", ::dlerror());
         return false;
+    }
 
     return true;
 }
 
 void * Library::getSymbol( const std::string & name )
 {
-    if( ! _handle )
+    if( ! _handle ) {
         return NULL;
-
-    return ::dlsym( _handle, name.c_str() );
+    }
+    oflux_log_info("Library::getSymbol() attempt load of: %s\n", name.c_str());
+    ::dlerror();
+    void * res = ::dlsym( _handle, name.c_str() );
+    if(!res) {
+        oflux_log_error("Library::getSymbol() dlerror: %s\n", ::dlerror());
+    }
+    return res;
 }
 
 // private functions

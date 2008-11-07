@@ -793,11 +793,14 @@ let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
                                 | (Some pn) -> not (string_has_prefix n (pn^"."))
 		in  if ignore_emit then code else 
 			let nd = SymbolTable.lookup_node_symbol symtable n in
-			let nf = nd.functionname
+                        let nf = nd.functionname in
+			let nfind = (match plugin_opt with
+                                        None -> nf
+                                        | (Some pn) -> remove_prefix (pn^"::") nf)
 			in if (is_concrete n) && not (is_abstract n) then
 				let u_no_in = lookup_union_number (nf,true) in
 				let u_no_out = lookup_union_number (nf,false) 
-				in  add_code code ("{ \""^nf
+				in  add_code code ("{ \""^nfind
 					^"\", &oflux::create"
 					^(if is_eh n then "_error" else "")
 					^"<OFluxUnion"^(string_of_int u_no_in)^", "
@@ -977,8 +980,8 @@ let emit_test_main code =
 		; ", 1000 // thread collection sample period (every N node execs)"
 		; ", argv[1] // XML file"
 		; ", &ffmaps"
-		; ", \"xml\""
-		; ", \"bin\""
+		; ", NULL"
+		; ", NULL"
 		; "};"
 		; "RunTime rt(rtc);"
 		; "theRT = &rt;"
@@ -1117,7 +1120,7 @@ let emit_plugin_cpp pluginname brbef braft um =
                 ; "extern \"C\" {"
                 ; ffunmapname^" {"
                 ; "static oflux::ModularCreateMap mcm[] = {"
-                ; "{ \""^pluginname^"\", "^pluginname^"::ofluximpl::__create_map_ptr },  "
+                ; "{ \""^pluginname^"::\", "^pluginname^"::ofluximpl::__create_map_ptr },  "
                 ; "{ NULL, NULL }  "
                 ; "};"
                 ; "static oflux::FlowFunctionMaps ffm("

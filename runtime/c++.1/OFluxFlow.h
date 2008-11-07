@@ -246,6 +246,7 @@ public:
         inline void setTargetNode(FlowNode * fn) { _targetnode = fn; }
         inline void setIOConverter(FlowIOConverter * fioc) { _io_converter = fioc; }
         void pretty_print(int depth);
+        inline bool isDefault() { return _conditions.size() == 0; }
 private:
         FlowNode *                   _targetnode;
         FlowIOConverter *            _io_converter;
@@ -357,7 +358,7 @@ public:
         inline std::vector<FlowGuardReference *> & guards() { return _guard_refs; }
         inline void addGuard(FlowGuardReference * fgr) { _guard_refs.push_back(fgr); }
         void log_snapshot();
-        void pretty_print(int depth);
+        void pretty_print(int depth, char context);
 #ifdef PROFILING
         inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
         inline TimerStats * oflux_timer_stats() { return &_oflux_timer_stats; }

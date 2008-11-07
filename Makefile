@@ -2,7 +2,7 @@
 #
 
 OFLUX= tools/bin/oflux
-RUNTIMES= c++.1 c++.2
+RUNTIMES= c++.1 #c++.2
 EXAMPLES= \
 	webserver \
 	sleeppipe \

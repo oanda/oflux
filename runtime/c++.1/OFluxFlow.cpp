@@ -182,7 +182,8 @@ void FlowCase::add(FlowCondition *fc)
 
 void FlowCase::pretty_print(int depth)
 {
-        _targetnode->pretty_print(depth+1);
+        _targetnode->pretty_print(depth,
+                (_conditions.size() == 0 ? 'D' : 'C'));
 }
 
 FlowSuccessor::FlowSuccessor(const char * name)
@@ -197,7 +198,14 @@ FlowSuccessor::~FlowSuccessor()
 
 void FlowSuccessor::add(FlowCase * fc) 
 { 
-        _cases.push_back(fc); 
+        int sz = _cases.size();
+        FlowCase * last = (sz > 0 ? _cases.back() : NULL);
+        if(last != NULL && last->isDefault()) {
+                _cases[sz-1] = fc;
+                _cases.push_back(last);
+        } else {
+                _cases.push_back(fc); 
+        }
 }
 
 void FlowSuccessor::pretty_print(int depth)
@@ -207,6 +215,7 @@ void FlowSuccessor::pretty_print(int depth)
         for(int i=0; i < (int) _cases.size(); i++) {
                 _cases[i]->pretty_print(depth+1);
         }
+        oflux_log_info("%s..%s\n", create_indention(depth+1).c_str(),_name.c_str());
 }
 
 FlowSuccessorList::FlowSuccessorList()
@@ -231,6 +240,7 @@ void FlowSuccessorList::pretty_print(int depth)
                 itr->second->pretty_print(depth+1);
                 ++itr;
         }
+        oflux_log_info("%s.\n", create_indention(depth+1).c_str());
 }
 
 FlowNode::FlowNode(const char * name,
@@ -288,9 +298,9 @@ void FlowNode::log_snapshot()
 #endif
 }
 
-void FlowNode::pretty_print(int depth)
+void FlowNode::pretty_print(int depth, char context)
 {
-        oflux_log_info("%s%s\n", create_indention(depth).c_str(), _name.c_str());
+        oflux_log_info("%s%c %s\n", create_indention(depth).c_str(),context, _name.c_str());
         // if a source node is some node's successor(depth>0 && is_source), do not re-print its sucessor list
         if((depth == 0 ) || (!_is_source)) {
                 _successor_list.pretty_print(depth+1);
@@ -316,7 +326,7 @@ void Flow::log_snapshot()
 void Flow::pretty_print()
 {
         for(int i=0; i < (int) _sources.size(); i++) {
-                _sources[i]->pretty_print(0);
+                _sources[i]->pretty_print(0,'S');
         }
         /*
         std::map<std::string, FlowNode *>::iterator mitr = _nodes.begin();

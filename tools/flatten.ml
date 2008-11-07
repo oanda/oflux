@@ -426,6 +426,9 @@ let flatten_plugin plugin_name prog = (** returns before program, after program 
         let for_ref is_en node_str_pos =
                 if is_en (strip_position node_str_pos) then node_str_pos
                 else prefix_sp pre node_str_pos in
+        let for_cond_ref is_ec cond_str_pos =
+                if is_ec (strip_position cond_str_pos) then cond_str_pos
+                else prefix_sp pref cond_str_pos in
         let for_cond_decl cd =
                 let isext = cd.externalcond
                 in
@@ -477,7 +480,8 @@ let flatten_plugin plugin_name prog = (** returns before program, after program 
                 let for_comma_item ci =
                         match ci with
                                 Star -> Star
-                                | (Ident sp) -> Ident (for_ref is_ec sp)
+                                | (Ident sp) -> 
+                                        Ident (for_cond_ref is_ec sp)
                 in
                 { exprname = for_ref is_en expr.exprname
                 ; condbinding = List.map for_comma_item expr.condbinding
