@@ -8,7 +8,6 @@
  */
 
 #include "OFluxFlow.h"
-#include "boost/shared_ptr.hpp"
 #include <string>
 #include <expat.h>
 
@@ -21,8 +20,8 @@ namespace oflux {
 class XMLReaderException {
 public:
         XMLReaderException(const char * mesg)
-                : _mesg(mesg)
-                {}
+        		: _mesg(mesg)
+        {}
 private:
         std::string _mesg;
 };
@@ -34,24 +33,28 @@ private:
  */
 class AddTarget {
 public:
-        AddTarget( FlowCase *fc, 
-                const char * name,
-                int node_output_unionnumber)
-                : _fc(fc)
-                , _name(name)
-                , _node_output_unionnumber(node_output_unionnumber)
-                , _target_input_unionnumber(0)
-                {}
+        AddTarget(
+            FlowCase *fc, 
+            const char * name,
+            int node_output_unionnumber,
+            FlowFunctionMaps * fmaps)
+        : _fc(fc)
+        , _name(name)
+        , _node_output_unionnumber(node_output_unionnumber)
+        , _target_input_unionnumber(0)
+        , _fmaps(fmaps)
+        {}
         /**
          * @brief links the flow node found in parsed flow to a case
          * @param f  the fully parsed flow
          **/
-        void execute(Flow * f,FlowFunctionMaps * fmaps);
+        void execute(Flow * f);
 private:
-        FlowCase *  _fc;
-        std::string _name; //target
-        int         _node_output_unionnumber;
-        int         _target_input_unionnumber;
+        FlowCase *          _fc;
+        std::string         _name; //target
+        int                 _node_output_unionnumber;
+        int                 _target_input_unionnumber;
+        FlowFunctionMaps *  _fmaps;
 };
 
 /**
@@ -65,7 +68,7 @@ public:
         SetErrorHandler(FlowNode *fn, const char * name)
                 : _fn(fn)
                 , _name(name)
-                {}
+        {}
         /**
          * @brief links the error flow node found in parsed flow to a node
          * @param f  the fully parsed flow
@@ -85,7 +88,7 @@ private:
 class XMLReader {
 public:
         XMLReader(const char * filename, FlowFunctionMaps *fmaps);
-        XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir);
+        XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir);
 
         /**
          * @brief read a file
@@ -93,7 +96,7 @@ public:
          * @param filename  is the file that is being read
          *
          **/
-        void read(const char * filename, const char * pluginxmldir);
+        void read(const char * filename, const char * pluginxmldir, const char * pluginlibdir);
 
         static void startMainHandler(void *data, const char *el, const char **attr);
         static void endMainHandler(void *data, const char *el);
@@ -110,15 +113,40 @@ public:
          * @return smart pointer to the (heap allocated) result flow
          **/
         Flow * flow() { return _flow; }
-        FlowPlugin * plugin() { return _flow_plugin; }
         FlowFunctionMaps * fmaps() { return _fmaps; }
         FlowFunctionMaps * plugin_fmaps() { return _plugin_fmaps; }
-
         FlowCase * flow_case() { return _flow_case; }
-        void new_flow_case(const char * targetnodename, int node_output_unionnumber, bool is_virtual = false);
-        void add_flow_case() { _flow_successor->add(_flow_case); _flow_case = NULL; }
-        void new_flow_successor() { _flow_successor = new FlowSuccessor(); }
-        void add_flow_successor() { _flow_successor_list->add(_flow_successor); _flow_successor = NULL; }
+        void new_flow_case(const char * targetnodename, int node_output_unionnumber, FlowFunctionMaps * fmaps)
+        { 
+                _flow_case = new FlowCase(NULL); 
+                AddTarget at(_flow_case,targetnodename, node_output_unionnumber, fmaps);
+                _add_targets.push_back(at);
+        }
+        void add_flow_case() 
+        { 
+                _flow_successor->add(_flow_case); 
+                _flow_case = NULL; 
+        }
+        void new_flow_successor(const char * name) 
+        { 
+                if(_is_external_node) {
+                        _flow_successor = _flow_successor_list->get_successor(name); 
+                } 
+                if(_flow_successor) {
+                        _is_existing_successor = true;
+                } else {
+                        _flow_successor = new FlowSuccessor(name); 
+                }
+        }
+        void add_flow_successor() 
+        { 
+                if(_is_existing_successor) {
+                        _is_existing_successor = false;
+                } else {
+                        _flow_successor_list->add(_flow_successor); 
+                }
+                _flow_successor = NULL; 
+        }
         void new_flow_successor_list() { }
         void add_flow_successor_list() { }
         void new_flow_guard(const char * name, int magicnumber, AtomicMapAbstract * amap)
@@ -145,100 +173,72 @@ public:
                         bool is_src,
                         bool is_detached,
                         int input_unionnumber,
-                        int output_unionnumber, 
-                        bool is_virtual) 
+                        int output_unionnumber) 
         {
                 _flow_node = new FlowNode(
-                                name,
-                                createfn,
-                                is_error_handler,
-                                is_src,
-                                is_detached,
-                                input_unionnumber,
-                                output_unionnumber,
-                                is_virtual); 
+                                        name,
+                                        createfn,
+                                        is_error_handler,
+                                        is_src,
+                                        is_detached,
+                                        input_unionnumber,
+                                        output_unionnumber);
                 _flow_successor_list = &(_flow_node->successor_list());
         }
-        void add_flow_node();
+        void add_flow_node()
+        { 
+                if(_is_external_node) {
+                        _is_external_node = false;
+                } else {
+                        _flow->add(_flow_node);
+                }
+                _flow_node = NULL;
+                _flow_successor_list = NULL;
+        }
+        bool find_flow_node(const char * name)
+        {
+                _flow_node = _flow->get(name);
+                if(_flow_node) {
+                        _flow_successor_list = &(_flow_node->successor_list());
+                        return true;
+                }
+                return false;
+        }
+        void new_plugin(const char * filename);
+        void add_plugin();
         void setErrorHandler(const char * err_node_name)
         {
                 SetErrorHandler seh(_flow_node,err_node_name);
                 _set_error_handlers.push_back(seh);
         }
-
-        void new_plugin(const char * external_node, const char * condition, const char * begin_node) 
-        {
-                _flow_plugin = new FlowPlugin(external_node, condition, begin_node);
-                _plugins.insert(std::make_pair(external_node, _flow_plugin));
-        }
-        void add_plugin() { _flow_plugin = NULL; }
-        void add_plugin_node() 
-        {
-                _flow_plugin->add(_flow_node);
-                _flow_node = NULL;
-                _flow_successor_list = NULL;
-        }
-        void new_plugin_guard(const char * name, int magicnumber, AtomicMapAbstract * amap)
-        { _flow_plugin->addGuard(new FlowGuard(amap,name,magicnumber)); }
-        void new_plugin_guard_reference(FlowGuard * fg, int unionnumber, int wtype)
-        { 
-                _flow_guard_reference = new FlowGuardReference(fg,wtype); 
-                _flow_guard_ref_unionnumber = unionnumber;
-                _flow_guard_ref_args.clear();
-        }
-        void complete_plugin_guard_reference()
-        {
-                const char * name = _flow_guard_reference->getName().c_str();
-                GuardTransFn guardfn = plugin_fmaps()->lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_args);
-                //assert(guardfn != NULL); now allowed
-                _flow_guard_reference->setGuardFn(guardfn);
-                _flow_node->addGuard(_flow_guard_reference);
-                _flow_guard_reference = NULL;
-        }
-        void new_plugin_ext_guard_reference(const char * name, int unionnumber, int wtype)
-        { 
-                _external_guard_reference = new ExternalGuardReference(name, unionnumber, wtype);
-                _flow_guard_ref_args.clear();
-        }
-        void complete_plugin_ext_guard_reference()
-        {
-                GuardTransFn guardfn = plugin_fmaps()->lookup_guard_translator(_external_guard_reference->name(), _external_guard_reference->unionnumber(), _flow_guard_ref_args);
-                _external_guard_reference->setGuardFn(guardfn); 
-                _flow_node->addExtGuard(_external_guard_reference);
-                _external_guard_reference = NULL;
-        }
-
+        bool isExternalNode() { return _is_external_node; }
+        void setIsExternalNode(bool is_external_node) { _is_external_node = is_external_node; }
 protected:
-	/**
-	 * @brief just connect the forward flow node references stored up
-	 */
+        /**
+         * @brief just connect the forward flow node references stored up
+         */
         void readdir(const char * plugindir);
         void readfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
-        void loadplugin(const char * filename);
 
         void finalize();
 private:
-	FlowFunctionMaps *           _fmaps;
-	FlowFunctionMaps *           _plugin_fmaps;
-	Flow *                       _flow;
-        FlowPlugin *                 _flow_plugin;
-	FlowNode *                   _flow_node;
-	FlowSuccessorList *          _flow_successor_list;
-	FlowSuccessor *              _flow_successor;
-	FlowCase *                   _flow_case;
-	FlowGuardReference *         _flow_guard_reference;
-	int                          _flow_guard_ref_unionnumber;
-	std::vector<int>             _flow_guard_ref_args;
-	std::vector<AddTarget>       _add_targets;
+        FlowFunctionMaps *           _fmaps;
+        FlowFunctionMaps *           _plugin_fmaps;
+        Flow *                       _flow;
+        FlowNode *                   _flow_node;
+        FlowSuccessorList *          _flow_successor_list;
+        FlowSuccessor *              _flow_successor;
+        FlowCase *                   _flow_case;
+        FlowGuardReference *         _flow_guard_reference;
+        int                          _flow_guard_ref_unionnumber;
+        std::vector<int>             _flow_guard_ref_args;
+        std::vector<AddTarget>       _add_targets;
         std::vector<SetErrorHandler> _set_error_handlers;
-
-        typedef std::multimap<std::string, FlowPlugin *> PluginMap;
-        PluginMap                    _plugins;
-        ExternalGuardReference *     _external_guard_reference;
+        bool                         _is_external_node;
+        bool                         _is_existing_successor;
+        const char *                 _plugin_lib_dir;
 };
 
 };
-
-
 
 #endif // _OFLUX_XML

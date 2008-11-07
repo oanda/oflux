@@ -6,16 +6,16 @@ namespace fs = boost::filesystem;
 namespace oflux {
 
 Library::Library( const std::string & path )
-    : path_( path ), handle_( NULL )
+    : _path( path ), _handle( NULL )
 {
 }
 
 Library::~Library()
 {
-    if( handle_ )
+    if( _handle )
     {
-        ::dlclose( handle_ );
-        handle_ = NULL;
+        ::dlclose( _handle );
+        _handle = NULL;
     }
 }
 
@@ -24,29 +24,29 @@ bool Library::load( int mode )
     if( ! validatePath() )
         return false;
 
-    handle_ = ::dlopen( path_.c_str(), mode );
-    if( ! handle_ )
+    _handle = ::dlopen( _path.c_str(), mode );
+    if( ! _handle )
         return false;
 
     return true;
 }
 
-void * Library::getSymbol( const std::string & path )
+void * Library::getSymbol( const std::string & name )
 {
-    if( ! handle_ )
+    if( ! _handle )
         return NULL;
 
-    return ::dlsym( handle_, path.c_str() );
+    return ::dlsym( _handle, name.c_str() );
 }
 
 // private functions
 
 bool Library::validatePath()
 {    
-    if( path_.empty() )
+    if( _path.empty() )
         return false;
 
-    fs::path path( path_ );
+    fs::path path( _path );
 
     if( ! fs::exists( path ) )
         return false;

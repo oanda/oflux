@@ -13,15 +13,15 @@ public:
     ~Library();
     
     bool load( int mode = RTLD_NOW ); 
-    void * getSymbol( const std::string & path );
+    void * getSymbol( const std::string & name );
 
 private:
     Library();
     Library( const Library & );
     bool validatePath();
 
-    std::string path_;
-    void * handle_;
+    std::string _path;
+    void * _handle;
 
 }; // class Library
 

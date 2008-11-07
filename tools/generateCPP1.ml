@@ -977,6 +977,8 @@ let emit_test_main code =
 		; ", 1000 // thread collection sample period (every N node execs)"
 		; ", argv[1] // XML file"
 		; ", &ffmaps"
+		; ", \"xml\""
+		; ", \"bin\""
 		; "};"
 		; "RunTime rt(rtc);"
 		; "theRT = &rt;"

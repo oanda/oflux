@@ -90,7 +90,7 @@ class FlowCondition {
 public:
         FlowCondition(ConditionFn condfn, bool is_negated);
         inline bool satisfied(const void * a) 
-                { return ((*_condfn)(a) ? !_is_negated : _is_negated); }
+        { return ((*_condfn)(a) ? !_is_negated : _is_negated); }
 private:
         ConditionFn _condfn;
         bool        _is_negated;
@@ -115,18 +115,15 @@ public:
          * @param key value used to dereference the atomic map
          * @returns key that was permanently allocated on the heap
          */
-        inline const void * get(Atomic * & av_returned,
-            const void * key)
-        { 
-                return _amap->get(av_returned,key);
-        }
+        inline const void * get(Atomic * & av_returned, const void * key)
+        { return _amap->get(av_returned,key); }
 
         /**
          * @brief a comparator function for keys (punts to underlying atomic map)
          * @return -1 if <, 0 if ==, +1 if >
          */
         inline int compare_keys(const void *k1, const void * k2) const 
-                { return _amap->compare(k1,k2); }
+        { return _amap->compare(k1,k2); }
         /**
          * @brief allocate a new key and return a void pointer to it
          * @return the key pointer
@@ -149,7 +146,7 @@ public:
         inline int magic_number() const { return _magic_number; }
 private:
         AtomicMapAbstract * _amap;
-        std::string        _name;
+        std::string         _name;
         int                 _magic_number;
 };
 
@@ -160,11 +157,11 @@ private:
 class FlowGuardReference {
 public:
         FlowGuardReference(FlowGuard * fg, int wtype)
-        : _guardfn(NULL)
-        , _flow_guard(fg)
-        , _local_key(fg->new_key())
-        , _wtype(wtype)
-        {}
+                : _guardfn(NULL)
+                , _flow_guard(fg)
+                , _local_key(fg->new_key())
+                , _wtype(wtype)
+                {}
         ~FlowGuardReference()
         {
                 if(_local_key) {
@@ -208,28 +205,6 @@ private:
         int          _wtype;
 };
 
-class ExternalGuardReference {
-public:
-        ExternalGuardReference(
-                const char * name,
-                int unionnumber,
-                int wtype)
-                : _name(name)
-                , _unionnumber(unionnumber)
-                , _wtype(wtype)
-                {}
-        const char * name() { return _name; }
-        int unionnumber() { return _unionnumber; }
-        int wtype() { return _wtype; }
-        GuardTransFn & guardfn() { return _guardfn; }
-        void setGuardFn(GuardTransFn guardfn) { _guardfn = guardfn; }
-private:
-        const char *    _name;
-        int             _unionnumber;
-        int             _wtype;
-        GuardTransFn    _guardfn;
-};
-
 class FlowNode;
 
 class FlowIOConverter {
@@ -237,8 +212,8 @@ public:
         static FlowIOConverter standard_converter; 
 
         FlowIOConverter(FlatIOConversionFun conversionfun)
-                : _io_conversion(conversionfun)
-                {}
+                        : _io_conversion(conversionfun)
+        {}
         inline const void * convert(const void * out) const 
         {
                 return _io_conversion ? (*_io_conversion)(out) : NULL;
@@ -270,6 +245,7 @@ public:
         inline FlowIOConverter * ioConverter() { return _io_converter; }
         inline void setTargetNode(FlowNode * fn) { _targetnode = fn; }
         inline void setIOConverter(FlowIOConverter * fioc) { _io_converter = fioc; }
+        void pretty_print(int depth);
 private:
         FlowNode *                   _targetnode;
         FlowIOConverter *            _io_converter;
@@ -284,8 +260,9 @@ private:
  */
 class FlowSuccessor {
 public:
-        FlowSuccessor();
+        FlowSuccessor(const char * name);
         ~FlowSuccessor();
+        inline const std::string & getName() { return _name; }
         void add(FlowCase * fc);
         inline FlowCase * get_successor(const void * a) 
         {
@@ -298,7 +275,9 @@ public:
                 }
                 return res;
         }
+        void pretty_print(int depth);
 private:
+        std::string             _name;
         std::vector<FlowCase *> _cases;
 };
 
@@ -309,21 +288,30 @@ private:
  */
 class FlowSuccessorList {
 public:
-	FlowSuccessorList();
-	~FlowSuccessorList();
-	void add(FlowSuccessor * fs);
-        bool empty();
-	inline void get_successors(std::vector<FlowCase *> & successor_nodes, const void * a)
-	{
-		for(int i = 0;i < (int) _successorlist.size(); i++) {
-			FlowCase * s = _successorlist[i]->get_successor(a);
-			if(s) {
+        FlowSuccessorList();
+        ~FlowSuccessorList();
+        bool empty() { return _successorlist.empty(); }
+        void add(FlowSuccessor * fs);
+        FlowSuccessor * get_successor(const char * name)
+        {
+                SuccessorList::iterator itr = _successorlist.find(name);
+                return (itr ==  _successorlist.end() ? NULL : (*itr).second);
+        }
+        inline void get_successors(std::vector<FlowCase *> & successor_nodes, const void * a)
+        {
+                SuccessorList::iterator itr = _successorlist.begin();
+                while(itr != _successorlist.end()) { 
+                        FlowCase * s = itr->second->get_successor(a);
+                        if(s) {
                                 successor_nodes.push_back(s);
                         }
-		}
-	}
+                        itr++;
+                }
+        }
+        void pretty_print(int depth);
 private:
-        std::vector<FlowSuccessor *> _successorlist;
+        typedef std::map<std::string, FlowSuccessor *> SuccessorList;
+        SuccessorList _successorlist;
 };
 
 
@@ -343,24 +331,18 @@ public:
                 bool is_source,
                 bool is_detached,
                 int input_unionnumber,
-                int output_unionnumber,
-                bool is_virtual = false);
+                int output_unionnumber);
         ~FlowNode();
         void setErrorHandler(FlowNode *fn);
         FlowSuccessorList & successor_list() { return _successor_list; }
-        // set successor_list
-        // this can be useful when merging plugin's nodes into kernal flow
-        // the empty successor_list of a plugin's end nodes should be replaced by its virtual node's successor_list, in order to form a correct flow
-        void successor_list(FlowSuccessorList & successor_list) { _successor_list = successor_list; }
         inline const char * getName() { return &(_name[0]); }
         inline bool getIsSource() { return _is_source; }
         inline bool getIsErrorHandler() { return _is_error_handler; }
         inline bool getIsDetached() { return _is_detached; }
-        inline bool getIsVirtual() { return _is_virtual; }
         inline CreateNodeFn & getCreateFn() { return _createfn; }
         inline void get_successors(std::vector<FlowCase *> & successor_nodes, 
-                const void * a,
-                int return_code)
+                        const void * a,
+                        int return_code)
         {
                 if(return_code != 0) {
                         if(_error_handler_case.targetNode() != NULL) {
@@ -374,11 +356,8 @@ public:
         }
         inline std::vector<FlowGuardReference *> & guards() { return _guard_refs; }
         inline void addGuard(FlowGuardReference * fgr) { _guard_refs.push_back(fgr); }
-
-        inline std::vector<ExternalGuardReference *> & extGuards() { return _ext_guard_refs; }
-        inline void addExtGuard(ExternalGuardReference * guardref) { _ext_guard_refs.push_back(guardref); }
-
         void log_snapshot();
+        void pretty_print(int depth);
 #ifdef PROFILING
         inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
         inline TimerStats * oflux_timer_stats() { return &_oflux_timer_stats; }
@@ -400,10 +379,8 @@ private:
         FlowCase                          _error_handler_case;
         FlowCase                          _this_case;
         std::vector<FlowGuardReference *> _guard_refs;
-        std::vector<ExternalGuardReference *> _ext_guard_refs;
         int                               _input_unionnumber;
         int                               _output_unionnumber;
-        bool                              _is_virtual;
 #ifdef PROFILING
         TimerStats                        _real_timer_stats;
         TimerStats                        _oflux_timer_stats;
@@ -414,16 +391,18 @@ class FlowNodeCounterIncrementer {
 public:
         FlowNodeCounterIncrementer(FlowNode * flow_node)
                 : _flow_node(flow_node)
-                { 
-                        _flow_node->_instances++; 
-                        _flow_node->_executions++; 
-                }
+        { 
+                _flow_node->_instances++; 
+                _flow_node->_executions++; 
+        }
         ~FlowNodeCounterIncrementer()
-                { _flow_node->_instances--; }
+        { _flow_node->_instances--; }
         inline FlowNode * flow_node() { return _flow_node; }
 protected:
         FlowNode * _flow_node;
 };
+
+class Library;
 
 /**
  * @class Flow
@@ -459,15 +438,13 @@ public:
          **/
         FlowNode * get(const std::string & name)
         {
-                std::map<std::string, FlowNode *>::iterator itr = 
-                        _nodes.find(name);
+                std::map<std::string, FlowNode *>::iterator itr = _nodes.find(name);
                 return (itr == _nodes.end() ? NULL : (*itr).second);
         }
 
         FlowGuard * getGuard(const std::string & name)
         {
-                std::map<std::string, FlowGuard *>::iterator itr = 
-                        _guards.find(name);
+                std::map<std::string, FlowGuard *>::iterator itr = _guards.find(name);
                 return (itr == _guards.end() ? NULL : (*itr).second);
         }
 
@@ -476,6 +453,7 @@ public:
                 _guards[fg->getName()] = fg;
         }
         void log_snapshot();
+        void pretty_print();
         void turn_off_sources()
         {
                 for(int i = 0; i < (int)_sources.size(); i++) {
@@ -492,50 +470,17 @@ public:
                         res = res || ((*mitr).second->instances() > 0);
                         mitr++;
                 }
-        return res;
+                return res;
+        }
+        void addLibrary(Library * lib)
+        {
+                _libraries.push_back(lib);
         }
 private:
         std::map<std::string, FlowNode *>  _nodes;
         std::vector<FlowNode *>            _sources;
         std::map<std::string, FlowGuard *> _guards;
-};
-
-class FlowPlugin {
-public:
-        FlowPlugin(const char * externalNodeName,
-            const char * conditionName,
-            const char * beginNodeName);
-        ~FlowPlugin();
-
-        inline std::string externalNodeName() { return _external_node_name; }
-        inline std::string conditionName() { return _condition_name; }
-        inline std::string & beginNodeName() { return _begin_node_name; }
-
-        inline FlowCondition * condition() { return _condition; }
-        inline void condition(FlowCondition * condition) { _condition = condition; }
-
-        void getEndNodes(std::vector<FlowNode *> & endNodes);
-        std::vector<FlowNode *> & getAllNodes() { return _nodes; }
-
-        void add(FlowNode * node);
-        void addGuard(FlowGuard *fg) 
-        {
-                _guards[fg->getName()] = fg;
-        }
-        FlowGuard * getGuard(const std::string & name)
-        {
-                std::map<std::string, FlowGuard *>::iterator itr = _guards.find(name);
-                return (itr == _guards.end() ? NULL : (*itr).second);
-        }
-
-private:
-        std::string    _external_node_name;
-        std::string    _condition_name;
-        std::string    _begin_node_name;
-
-        FlowCondition *                     _condition;
-        std::vector<FlowNode *>             _nodes;
-        std::map<std::string, FlowGuard *>  _guards;
+        std::vector<Library *>             _libraries;
 };
 
 }; // namespace

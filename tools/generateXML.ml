@@ -441,8 +441,12 @@ let emit_plugin_xml fn br_bef br_aft =
                 in  Element (Xml.get_tag xml_node, List.map on_attrib (Xml.get_attributes xml_node), Xml.get_contents xml_node) in
         let simple_diff (nbef,naft) = Xml.diff ordered_tags diffhandler samehandler nbef naft in
         let before_changes = Xml.filter_list (fun x -> not (x=same_val))
-                (List.map simple_diff (List.combine xml_before_contents aft_old)) 
-        in  plugin fn (aft_new @ (List.map make_external before_changes))
+                (List.map simple_diff (List.combine xml_before_contents aft_old)) in
+        let pn = 
+                let dotindex =  try String.rindex fn '.' 
+                                with Not_found -> String.length fn 
+                in  (String.sub fn 0 dotindex)^".so"
+        in  plugin pn (aft_new @ (List.map make_external before_changes))
 
 let write_xml xml filename =
 	let xml_str = Xml.to_string_fmt xml in  

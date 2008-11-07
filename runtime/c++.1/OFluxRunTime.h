@@ -63,7 +63,9 @@ public:
 	RunTime(const RunTimeConfiguration & rtc);
         ~RunTime();
 	void start();
-	void load_flow(const char * filename = "", const char * plugindir = "");
+	void load_flow(const char * filename = "", 
+                   const char * pluginxmldir = "", 
+                   const char * pluginlibdir = "");
 	void soft_load_flow() { _load_flow_next = true; }
 	void soft_kill() { _running = false; }
 

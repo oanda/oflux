@@ -57,16 +57,19 @@ RunTime::~RunTime()
         }
 }
 
-void RunTime::load_flow(const char * flname, const char * plugindir)
+void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir)
 {
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
-	if(*plugindir == '\0') {
-		plugindir = _rtc.plugin_xml_dir;
+	if(*pluginxmldir == '\0') {
+		pluginxmldir = _rtc.plugin_xml_dir;
+	}
+	if(*pluginlibdir == '\0') {
+		pluginlibdir = _rtc.plugin_lib_dir;
 	}
 	// read XML file
-	XMLReader reader(flname, _rtc.flow_maps, plugindir);
+	XMLReader reader(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir);
 	Flow * flow = reader.flow();
 	// push the sources (first time)
 	std::vector<FlowNode *> & sources = flow->sources();
@@ -350,7 +353,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					ev_output, return_code);
 			for(int i = 0; i < (int) fsuccessors.size(); i++) {
 				FlowNode * fn = fsuccessors[i]->targetNode();
-                                FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
+                FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
 				CreateNodeFn createfn = fn->getCreateFn();
 				boost::shared_ptr<EventBase> ev_succ = 
 					(*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn);
@@ -364,9 +367,9 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					// could wait, but rather enqueue
 					//successor_events.push_back(ev_succ);
 					null_if_unblocked->wait(ev_succ,wtype);
-                                        _GUARD_WAIT(flow_guard_ref->getName().c_str(),
-                                                ev_succ->flow_node()->getName(),
-                                                wtype);
+                    _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                ev_succ->flow_node()->getName(),
+                                wtype);
 				} else { // priority to unblocked events
 					successor_events_priority.push_back(ev_succ);
 				}
@@ -382,7 +385,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 						ev_output, return_code);
 				for(int i = 0; i < (int) fsuccessors.size(); i++) {
 					FlowNode * fn = fsuccessors[i]->targetNode();
-                                        FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
+                    FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
 					bool is_source = fn->getIsSource();
 					if(is_source && saw_source) {
 						continue;
@@ -407,10 +410,10 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					if(null_if_unblocked) {
 						// could wait, but rather enqueue
 						//successor_events.push_back(ev_succ);
-                                                null_if_unblocked->wait(ev_succ,wtype);
-                                                _GUARD_WAIT(flow_guard_ref->getName().c_str(),
-                                                        ev_succ->flow_node()->getName(),
-                                                        wtype);
+                        null_if_unblocked->wait(ev_succ,wtype);
+                        _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                    ev_succ->flow_node()->getName(),
+                                    wtype);
 					} else { // priority to unblocked events
 						successor_events_priority.push_back(ev_succ);
 					}
