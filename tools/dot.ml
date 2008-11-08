@@ -158,7 +158,10 @@ let generate_program pname p =
                 let len = String.length fullname
                 in  String.sub s lenpre (len-lenpre)
                 in
+        let external_nodes = ref [] in
         let for_node context is_source name color style_opt =
+                if (List.mem name (!external_nodes)) then ()
+                else
                 let pres_name = remove_prefix 
                         (if String.length context > 0 then context^"." else "")
                         name in
@@ -218,8 +221,10 @@ let generate_program pname p =
                                         | (Some os) -> format_output_list os
                                         | _ -> raise Not_found) 
                 with Not_found -> "" in
+        let held_edge_strings = ref [] in
         let for_edge from_name to_name color cond_opt style_opt =
-                o_string d ((sanitize_name from_name)^" -> "
+                let edge_string =
+                        ((sanitize_name from_name)^" -> "
                         ^(sanitize_name to_name)^"[color="^color
                         ^(match cond_opt with 
                                 None -> 
@@ -231,7 +236,10 @@ let generate_program pname p =
                         ^(match style_opt with
                                 None -> ""
                                 |(Some c) -> (",style="^c))
-                        ^"];\n") in
+                        ^"];\n") 
+                in  if (List.mem from_name (!external_nodes)) || (List.mem to_name (!external_nodes)) then
+                        held_edge_strings := edge_string::(!held_edge_strings)
+                    else o_string d edge_string in
         let on_mainfun mf =
                 let n = strip mf.sourcename in
                 let c = if mf.runonce then "lightgrey" else "black"
@@ -348,13 +356,41 @@ let generate_program pname p =
                         (h::(_::_)) -> add_mod_inst_node h t None
                         | _ -> ()
                 in
+        let on_plugin pl =
+                let name = strip pl.pluginname in
+                (*let _,mpos,_ = pl.pluginname in*)
+                let p = pl.pluginprogramdef in
+                let ext_nodes = List.map (fun nd -> strip nd.nodename)
+                        (List.filter (fun nd -> nd.externalnode) 
+                                p.node_decl_list) in
+                let _ = external_nodes := ext_nodes @ (!external_nodes) in
+                (*let urlopt = mpos_to_url mpos.file in*)
+                let _ = o_string d ("subgraph cluster"^name^" {\n"
+                                ^"style=filled;\ncolor=lightpink;\n"
+                                ^"label=\""^name^"\";\n"
+                                (*^(match urlopt with 
+                                        None -> ""
+                                        | (Some url) -> ("URL=\""^url^"\";\n"))*)) in
+                let _ = begin
+                        List.iter on_mainfun p.mainfun_list;
+                        List.iter on_err p.err_list;
+                        List.iter on_expr p.expr_list;
+                        List.iter on_term p.terminate_list
+                        end
+                in      begin
+                        o_string d "}\n";
+                        List.iter (o_string d) (!held_edge_strings);
+                        held_edge_strings := []
+                        end
+                in
         let on_program p =
                 begin
                 List.iter on_mainfun p.mainfun_list;
                 List.iter on_err p.err_list;
                 List.iter on_expr p.expr_list;
                 List.iter on_term p.terminate_list;
-                List.iter on_mod_inst p.mod_inst_list
+                List.iter on_mod_inst p.mod_inst_list;
+                List.iter on_plugin p.plugin_list
                 end in
         let _ = begin
                 o_string d ("digraph "^pname^" {\n");
