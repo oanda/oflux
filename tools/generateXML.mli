@@ -7,6 +7,7 @@ val emit_program_xml : string -> (** filename *)
 			Xml.xml
 
 val emit_plugin_xml : string -> (** filename *)
+                string list -> (** list of dependencies (plugins *)
 		Flow.built_flow -> (** before *)
 		Flow.built_flow -> (** after *)
 			Xml.xml

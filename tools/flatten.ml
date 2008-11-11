@@ -145,14 +145,19 @@ let remove_reductions prog =
                         match List.partition (fun e -> (strip_position e.exprname) = ename) ll with 
                                 ([x],y) -> x,y
                                 | _ -> raise Not_found in
+                    let _ = match expr.etype,expr.successors with
+                                (Concurrent, _) -> ()
+                                | (_,[]) -> ()
+                                | (_,[_]) -> ()
+                                | _ -> raise Not_found in
                     let newexpr =
                         { exprname=expr.exprname
                         ; condbinding=expr.condbinding
                         ; successors=ampexpr.successors @ expr.successors
-                        ; etype=expr.etype
+                        ; etype=Concurrent
                         }
                     in  newexpr::remainder
-                with Not_found -> raise (FlattenFailure("reduction statement here has no original expression or it is not unique",pos))
+                with Not_found -> raise (FlattenFailure("reduction statement here has no original expression or it is not unique or its not the right type of expression",pos))
         in  { cond_decl_list=prog.cond_decl_list
             ; atom_decl_list=prog.atom_decl_list
             ; node_decl_list=prog.node_decl_list

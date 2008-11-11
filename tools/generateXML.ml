@@ -91,7 +91,13 @@ let xml_flow_str = "flow"
 let xml_errorhandler_str = "errorhandler"
 let xml_plugin_str = "plugin"
 let xml_add_str = "add"
+let xml_depend_str = "depend"
 
+let depend el_name =
+        Element (xml_depend_str
+                , [ xml_name_str, el_name
+                  ]
+                , [])
 
 let condition el_name el_argno el_isnegated el_unionnumber = 
 	Element (xml_condition_str
@@ -376,7 +382,9 @@ let emit_program_xml programname br =
                                 nodelist)
 	    in  flow programname (guard_elements @ node_elements)
 
-let emit_plugin_xml fn br_bef br_aft =
+
+let emit_plugin_xml fn dependslist br_bef br_aft =
+        let dependsxml = List.map depend dependslist in
         let get_key xml_node_or_guard = 
                 let name = try List.assoc "name" (Xml.get_attributes xml_node_or_guard)
                         with Not_found -> ""
@@ -446,7 +454,7 @@ let emit_plugin_xml fn br_bef br_aft =
                 let dotindex =  try String.rindex fn '.' 
                                 with Not_found -> String.length fn 
                 in  (String.sub fn 0 dotindex)^".so"
-        in  plugin pn (aft_new @ (List.map make_external before_changes))
+        in  plugin pn (dependsxml @ aft_new @ (List.map make_external before_changes))
 
 let write_xml xml filename =
 	let xml_str = Xml.to_string_fmt xml in  
