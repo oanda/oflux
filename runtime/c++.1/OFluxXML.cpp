@@ -3,11 +3,9 @@
 #include "OFluxLogging.h"
 #include <fstream>
 #include <cassert>
-#include "boost/filesystem.hpp"
+#include <dirent.h>
 
 namespace oflux {
-
-namespace fs = boost::filesystem;
 
 #define XML_READER_MAX_LINE 300
 
@@ -49,15 +47,15 @@ XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char 
 
 void XMLReader::read(const char * filename, const char * pluginxmldir, const char * pluginlibdir)
 {
-        readfile(filename, XMLReader::startMainHandler, XMLReader::endMainHandler);
+        readxmlfile(filename, XMLReader::startMainHandler, XMLReader::endMainHandler);
         _plugin_lib_dir = (pluginlibdir != NULL) ? pluginlibdir : ".";
         if(pluginxmldir != NULL) {
-                readdir(pluginxmldir);
+                readxmldir(pluginxmldir);
         }
         finalize();
 }
 
-void XMLReader::readfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler)
+void XMLReader::readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler)
 {
         std::ifstream in(filename);
 
@@ -88,17 +86,20 @@ void XMLReader::readfile(const char * filename, XML_StartElementHandler startHan
         XML_ParserFree(p);
 }
 
-void XMLReader::readdir(const char * pluginxmldir)
+void XMLReader::readxmldir(const char * pluginxmldir)
 {
-        fs::path path( pluginxmldir );
-        fs::directory_iterator itr( path );
-        fs::directory_iterator end_itr; // default construction yields past-the-end
-        for( ; itr != end_itr; ++itr ) {
-                if( fs::is_regular( (*itr).status() ) &&
-                        		fs::extension( (*itr).path() ) == ".xml" ) {
-                        readfile( (*itr).path().string().c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler );
+        DIR * dir = ::opendir(pluginxmldir);
+        assert(dir);
+        struct dirent * dir_entry;
+        while((dir_entry = ::readdir(dir)) != NULL) {
+                std::string filename = dir_entry->d_name;
+                size_t found = filename.find_last_of(".");
+                if(filename.substr(found+1) == "xml" ) {
+                        filename = (std::string) pluginxmldir + "/" + filename;
+                        readxmlfile(filename.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
                 }
         }
+        ::closedir(dir);
 }
 
 void XMLReader::finalize()

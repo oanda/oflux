@@ -9,19 +9,18 @@ namespace oflux {
 class Library
 {
 public:
-    Library( const std::string & path );
-    ~Library();
-    
-    bool load( int mode = RTLD_NOW ); 
-    void * getSymbol( const std::string & name );
+        Library( const std::string & path );
+        ~Library();
+        
+        bool load( int mode = RTLD_NOW ); 
+        void * getSymbol( const std::string & name );
 
 private:
-    Library();
-    Library( const Library & );
-    bool validatePath();
+        Library();
+        Library( const Library & );
 
-    std::string _path;
-    void * _handle;
+        std::string _path;
+        void * _handle;
 
 }; // class Library
 

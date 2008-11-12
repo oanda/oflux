@@ -46,7 +46,6 @@ LIBS=
 else
 LIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
-LIBS += -lboost_filesystem
 CPPOPTS= -g -MMD -MF "$(BINDIR)/.$(notdir $*).d" #-DOFLUX_RT_DEBUG
 ifeq ($(ARCH),Linux)
 CPPOPTS += -DLINUX

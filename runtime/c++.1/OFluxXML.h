@@ -89,7 +89,6 @@ private:
  */
 class XMLReader {
 public:
-        //XMLReader(const char * filename, FlowFunctionMaps *fmaps);
         XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir);
 
         /**
@@ -221,10 +220,11 @@ protected:
         /**
          * @brief just connect the forward flow node references stored up
          */
-        void readdir(const char * plugindir);
-        void readfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
+        void readxmldir(const char * plugindir);
+        void readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
 
         void finalize();
+
 public:
         // functions for accessing the vector of flowmaps
         CreateNodeFn lookup_node_function(const char *n);
