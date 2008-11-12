@@ -7,7 +7,7 @@
 #include <dlfcn.h> // dlsym
 #include <vector>
 #include <sys/poll.h>
-
+#include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <map>
@@ -311,7 +311,11 @@ extern "C" int close(int fd)
 		return ((shim_close)(fd));
 	}
 	
-    is_regular[fd] = false;
+        if(fd < 0) {
+                errno = EBADF;
+                return -1;
+        }
+        is_regular[fd] = false;
 	return ((*shim_close)(fd));
 }
 
