@@ -411,6 +411,7 @@ class Library;
  */
 class Flow {
 public:
+        Flow() {}
         ~Flow();
 
         /**
