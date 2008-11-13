@@ -345,6 +345,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 	// ----------- Successor processing -------------
 		std::vector<boost::shared_ptr<EventBase> > successor_events;
 		std::vector<boost::shared_ptr<EventBase> > successor_events_priority;
+		std::vector<boost::shared_ptr<EventBase> > successor_events_released;
 		//ev->successors(successor_events,return_code);
 		if(return_code) { // error encountered
 			std::vector<FlowCase *> fsuccessors;
@@ -422,7 +423,22 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 		}
 	// ------------ Release held atomics --------------
 		// put the released events as priority on the queue
-		ev->atomics().release(successor_events_priority);
+		ev->atomics().release(successor_events_released);
+                for(int i = 0; i < (int)successor_events_released.size(); i++) {
+                        Atomic * null_if_unblocked = successor_events_released[i]->acquire(
+                                wtype /*output*/,
+                                flow_guard_ref /*output*/,
+                                empty_ah);
+                        if(null_if_unblocked) {
+                                null_if_unblocked->wait(successor_events_released[i],wtype);
+                                _GUARD_WAIT(flow_guard_ref->getName().c_str(),
+                                        ev_succ->flow_node()->getName(),
+                                        wtype);
+                        } else {
+                                successor_events_priority.push_back(successor_events_released[i]);
+                        }
+                }
+
 		_rt->_queue.push_list(successor_events_priority); // no priority
 		_rt->_queue.push_list(successor_events);
 	}
