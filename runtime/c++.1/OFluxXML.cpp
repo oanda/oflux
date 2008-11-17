@@ -131,11 +131,11 @@ ConditionFn XMLReader::lookup_conditional(const char * n, int argno, int unionnu
         return res;
 }
 
-GuardTransFn XMLReader::lookup_guard_translator(const char * guardname, int union_number, std::vector<int> & argnos)
+GuardTransFn XMLReader::lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype)
 {
         GuardTransFn res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_guard_translator(guardname,union_number,argnos);
+                res = _fmaps_vec[i]->lookup_guard_translator(guardname,union_number,hash,wtype);
         }
         return res;
 }
@@ -175,6 +175,7 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
         const char * el_magicnumber = NULL;
         const char * el_wtype = NULL;
         const char * el_function = NULL;
+        const char * el_hash = NULL;
         for(int i = 0; attr[i]; i += 2) {
                 if(strcmp(attr[i],"name") == 0) {
                         el_name = attr[i+1];
@@ -198,6 +199,8 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
                         el_outputunionnumber = attr[i+1];
                 } else if(strcmp(attr[i],"magicnumber") == 0) {
                         el_magicnumber = attr[i+1];
+                } else if(strcmp(attr[i],"hash") == 0) {
+                        el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
                         el_wtype = attr[i+1];
                 } else if(strcmp(attr[i],"function") == 0) {
@@ -214,10 +217,11 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
         int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
         int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
+        long hash = (el_hash ? atol(el_hash) : 0);
         if(strcmp(el,"argument") == 0) {
                 // has attributes: argno
                 // has no children
-                pthis->flow_guard_ref_add_argument(argno);
+                //pthis->flow_guard_ref_add_argument(argno);
         } else if(strcmp(el,"guard") == 0) {
                 // has attributes: name, magic_number
                 // has no children 
@@ -229,7 +233,7 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
                 // has children: argument(s)
                 FlowGuard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, wtype);
+                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype);
         } else if(strcmp(el,"condition") == 0) {
                 // has attributes: name, argno, isnegated
                 // has no children
@@ -311,6 +315,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         // guard attributes
         const char * el_magicnumber = NULL;
         const char * el_wtype = NULL;
+        const char * el_hash = NULL;
 
         for(int i = 0; attr[i]; i += 2) {
                 // node attributes
@@ -360,6 +365,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
         int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
+        long hash = (el_hash ? atol(el_hash) : 0);
 
         bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
 
@@ -378,11 +384,11 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
                 // has children: argument(s)
                 FlowGuard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, wtype);
+                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype);
         } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
                 // has attributes: argno
                 // had no children
-                pthis->flow_guard_ref_add_argument(argno);
+                //pthis->flow_guard_ref_add_argument(argno);
         } else if(strcmp(el,"add") == 0) { 
                 pthis->setAddition(true);
         } else if(strcmp(el,"node") == 0) { 

@@ -152,22 +152,24 @@ public:
         void add_flow_successor_list() { }
         void new_flow_guard(const char * name, int magicnumber, AtomicMapAbstract * amap)
         { _flow->addGuard(new FlowGuard(amap,name,magicnumber)); }
-        void new_flow_guard_reference(FlowGuard * fg, int unionnumber, int wtype)
+        void new_flow_guard_reference(FlowGuard * fg, int unionnumber, long hash, int wtype)
         { 
                 _flow_guard_reference = new FlowGuardReference(fg,wtype); 
                 _flow_guard_ref_unionnumber = unionnumber;
-                _flow_guard_ref_args.clear();
+                _flow_guard_ref_hash = hash;
+                _flow_guard_ref_wtype = wtype;
+                //_flow_guard_ref_args.clear();
         }
         void complete_flow_guard_reference()
         {
                 const char * name = _flow_guard_reference->getName().c_str();
-                GuardTransFn guardfn = lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_args);
+                GuardTransFn guardfn = lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_hash, _flow_guard_ref_wtype);
                 //assert(guardfn != NULL); now allowed
                 _flow_guard_reference->setGuardFn(guardfn);
                 _flow_node->addGuard(_flow_guard_reference);
                 _flow_guard_reference = NULL;
         }
-        void flow_guard_ref_add_argument(int an) { _flow_guard_ref_args.push_back(an); }
+        //void flow_guard_ref_add_argument(int an) { _flow_guard_ref_args.push_back(an); }
         FlowNode * flow_node() { return _flow_node; }
         void new_flow_node(const char * name, CreateNodeFn createfn, 
                         bool is_error_handler, 
@@ -229,7 +231,7 @@ public:
         // functions for accessing the vector of flowmaps
         CreateNodeFn lookup_node_function(const char *n);
         ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
-        GuardTransFn lookup_guard_translator(const char * guardname, int union_number, std::vector<int> & argnos);
+        GuardTransFn lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype);
         AtomicMapAbstract * lookup_atomic_map(const char * guardname);
         FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
         
@@ -242,7 +244,9 @@ private:
         FlowCase *                      _flow_case;
         FlowGuardReference *            _flow_guard_reference;
         int                             _flow_guard_ref_unionnumber;
-        std::vector<int>                _flow_guard_ref_args;
+        long                            _flow_guard_ref_hash;
+        int                             _flow_guard_ref_wtype;
+        //std::vector<int>                _flow_guard_ref_args;
         std::vector<AddTarget>          _add_targets;
         std::vector<SetErrorHandler>    _set_error_handlers;
         bool                            _is_external_node;

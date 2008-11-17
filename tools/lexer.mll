@@ -106,6 +106,7 @@ rule token = parse
 	| '{' { updatePosInTok lexbuf (fun x -> LEFT_CR_BRACE x) }
 	| '}' { updatePosInTok lexbuf (fun x -> RIGHT_CR_BRACE x) }
 	| "->" { updatePosInTok lexbuf (fun x -> PIPE x) }
+	| "-" { updatePosInTok lexbuf (fun x -> MINUS x) }
 	| "::" { updatePosInTok lexbuf (fun x -> DOUBLECOLON x) }
 	| ':' { updatePosInTok lexbuf (fun x -> COLON x) }
 	| ';' { updatePosInTok lexbuf (fun x -> SEMI x) }
@@ -147,6 +148,7 @@ rule token = parse
 	| "begin" { updatePosInTok lexbuf (fun x -> BEGIN x) }
 	| "end" { updatePosInTok lexbuf (fun x -> END x) }
 	| "read" { updatePosInTok lexbuf (fun x -> READ x) }
+	| "if" { updatePosInTok lexbuf (fun x -> IF x) }
 	| "write" { updatePosInTok lexbuf (fun x -> WRITE x) }
 	| "include" { let fstr = incl lexbuf
 			in INCLUDE fstr }

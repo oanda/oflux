@@ -7,6 +7,16 @@ exception Heck of string
 
 let star (ident,p1,p2) (t1,t2) = (ident^"*",p1,t2)
 
+
+type general_formal = 
+	Typed of decl_formal 
+	| GuardRef of 
+                ( string ParserTypes.positioned 
+                * string list list 
+                * ParserTypes.guardmod list 
+                * string ParserTypes.positioned option 
+                * string list )
+
 %}
 %token ENDOFFILE
 %token <ParserTypes.position*ParserTypes.position> ATOMIC;
@@ -17,7 +27,7 @@ let star (ident,p1,p2) (t1,t2) = (ident^"*",p1,t2)
 %token <ParserTypes.position*ParserTypes.position> LEFT_PAREN, RIGHT_PAREN, LEFT_SQ_BRACE, RIGHT_SQ_BRACE;
 %token <ParserTypes.position*ParserTypes.position> TYPEDEF, SOURCE, TERMINATE, INITIAL;
 %token <ParserTypes.position*ParserTypes.position> PLUS, QUESTION, DOUBLECOLON;
-%token <ParserTypes.position*ParserTypes.position> ELLIPSIS;
+%token <ParserTypes.position*ParserTypes.position> MINUS, ELLIPSIS;
 %token <ParserTypes.position*ParserTypes.position> LESSTHAN, GREATERTHAN, AMPERSAND;
 %token <ParserTypes.position*ParserTypes.position> AMPERSANDEQUALS;
 %token <int*ParserTypes.position*ParserTypes.position> NUMBER;
@@ -27,9 +37,9 @@ let star (ident,p1,p2) (t1,t2) = (ident^"*",p1,t2)
 %token <ParserTypes.position*ParserTypes.position> SEQUENCE, POOL, READWRITE;
 %token <ParserTypes.position*ParserTypes.position> HANDLE, ERROR, AS, WHERE;
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
-%token <ParserTypes.position*ParserTypes.position> MODULE BEGIN END;
-%token <ParserTypes.position*ParserTypes.position> PLUGIN EXTERNAL;
-%token <ParserTypes.position*ParserTypes.position> INSTANCE;
+%token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
+%token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
+%token <ParserTypes.position*ParserTypes.position> INSTANCE, IF;
 %token <string> INCLUDE;
 %left PLUS 
 %left STAR
@@ -241,6 +251,28 @@ node_target_arg_list:
 node_decl:
 	external_opt NODE node_mod_list namespaced_ident arg_list ARROW node_target_arg_list SEMI
 	{ trace_thing "node_decl"; 
+          let clean_cpp_uninterpreted args =
+                let strargs = List.map (fun x -> strip_position x.name) args in
+                let rec on_str_list' firstisarg strl = 
+                        match strl with
+                                (h1::h2::tl) ->
+                                        let h2isarg = List.mem h2 strargs
+                                        in  if firstisarg || h2isarg then 
+                                                (if firstisarg 
+                                                 then Arg h1
+                                                 else Context h1)
+                                                ::(on_str_list' h2isarg (h2::tl))
+                                            else on_str_list' false ((h1^h2)::tl)
+                                | [] -> []
+                                | [x] -> [if firstisarg
+                                          then Arg x
+                                          else Context x]
+                        in
+                let on_str_list strl = 
+                        match on_str_list' false (""::strl) with
+                                ((Context "")::tl) -> tl
+                                | res -> res
+                in  on_str_list in
 	  let filt_type item =
 		match item with
 			Typed i -> true
@@ -250,6 +282,13 @@ node_decl:
 	  let filtguardref x =(match x with GuardRef i -> i | _ -> raise Not_found) in
 	  let ins = List.map filttyped ins in
 	  let grefs = List.map filtguardref grefs in
+          let grefs = List.map (fun (guardname,arguments,modifiers,localgname,guardcond) -> 
+                        { guardname = guardname
+                        ; arguments = List.map (clean_cpp_uninterpreted ins) arguments
+                        ; modifiers = modifiers
+                        ; localgname = localgname
+                        ; guardcond = clean_cpp_uninterpreted ins guardcond
+                        }) grefs in
 	  let is_abs = (List.mem "abstract" $3) ||
 	  	(match $7 with None -> true | _ -> false)
 	  in
@@ -403,12 +442,13 @@ typed_or_guardref_item:
 ;
 
 guardref_item:
-	GUARD IDENTIFIER guardref_modifier_opt LEFT_PAREN ident_comma_list RIGHT_PAREN as_named_opt
+	GUARD IDENTIFIER guardref_modifier_opt LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN as_named_opt if_condition_opt
 	{ trace_thing "guardref_item"; 
-	  { guardname=$2; modifiers=$3; arguments=$5; localgname=$7 } }
-	| GUARD IDENTIFIER guardref_modifier_opt LEFT_PAREN RIGHT_PAREN as_named_opt
-	{ trace_thing "guardref_item";
-	  { guardname=$2; modifiers=$3; arguments=[]; localgname=$6 } }
+	  ( (*guardname= *) $2
+          , (*arguments= *) $5
+          , (*modifiers= *) $3
+          , (*localgname= *) $7
+          , (*guardcond= *) $8 ) }
 ;
 
 guardref_modifier_opt:
@@ -424,6 +464,51 @@ as_named_opt:
 	{ Some $2 }
 	| /*epsilon*/
 	{ None }
+
+if_condition_opt:
+        /*epsilon*/
+        { [] }
+        | IF namespaced_ident LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
+        { let s,_,_ = $2
+          in  ((s::"("::(List.concat $4)) @ [")"]) }
+
+/*** C++ stuff ***/
+
+uninterpreted_cpp_code:
+        /*epsilon*/
+        { [] }
+        | uninterpreted_cpp_code_fragment uninterpreted_cpp_code
+        { $1 @ $2 }
+
+uninterpreted_cpp_code_fragment:
+        ident
+        { let s,_,_ = $1 in [s] }
+        | DOUBLECOLON uninterpreted_cpp_code_fragment
+        { "::"::$2 }
+        | LESSTHAN uninterpreted_cpp_code GREATERTHAN
+        { ("< "::$2) @ [" >" ] }
+        | LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
+        { ("("::(List.concat $2)) @ [")"] }
+        | PIPE uninterpreted_cpp_code_fragment
+        { "->"::$2 }
+        | STAR uninterpreted_cpp_code_fragment
+        { "*"::$2 }
+        | PLUS uninterpreted_cpp_code_fragment
+        { "+"::$2 }
+        | MINUS uninterpreted_cpp_code_fragment
+        { "-"::$2 }
+        | QUESTION uninterpreted_cpp_code_fragment
+        { ("?"::$2) }
+        | COLON uninterpreted_cpp_code_fragment
+        { (":"::$2) }
+
+uninterpreted_cpp_code_comma_list:
+        uninterpreted_cpp_code 
+        { match $1 with 
+                [] -> []
+                | _ -> [$1] }
+        | uninterpreted_cpp_code COMMA uninterpreted_cpp_code_comma_list
+        { $1::$3 }
 
 /*** Expressions ***/
 
@@ -460,11 +545,19 @@ ident_list:
 	{ [] }
 ;
 
+/*
 ident_comma_list:
 	ident_comma_list COMMA ident
 	{ $1 @ [ $3 ] }
 	| ident
 	{ [ $1 ] }
+
+ident_comma_list_opt:
+        *epsilon*
+        { [] }
+        | ident_comma_list
+        { $1 }
+*/
 
 ident:
 	IDENTIFIER

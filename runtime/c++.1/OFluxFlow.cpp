@@ -69,26 +69,18 @@ ConditionFn FlowFunctionMaps::lookup_conditional(const char * n, int argno, int 
 }
 
 GuardTransFn FlowFunctionMaps::lookup_guard_translator(const char * guardname,
-                                int union_number, std::vector<int> & argnos)
+                                int union_number, long hash, int wtype)
 {
         GuardTransFn res = NULL;
         GuardTransMap * ptr = _guard_trans_map;
         while(ptr->guardname != NULL) {
                 if(strcmp(guardname, ptr->guardname) == 0
-                                && union_number == ptr->union_number) {
-                        bool allargs = true;
-                        int i = 0;
-                        for(i = 0; i < (int)argnos.size() && allargs; i++) {
-                                if(ptr->argnos[i] == 0) {
-                                        break;
-                                }
-                                allargs = (ptr->argnos[i] == argnos[i]);
-                        }
-                        allargs = allargs && ((int)argnos.size() == i);
-                        if(allargs) {
-                                res = ptr->guardtransfn;
-                                break;
-                        }
+                                && union_number == ptr->union_number
+                                && hash == ptr->hash
+                                && wtype == ptr->wtype
+                                ) {
+                        res = ptr->guardtransfn;
+                        break;
                 }
                 ptr++;
         }

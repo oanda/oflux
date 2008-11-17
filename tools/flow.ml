@@ -192,10 +192,10 @@ let build_map fmap decls =
 let check_guard_refs stable =
 	(* check that the guards arguments are typed properly *)
 	let asdf (sp,df) = 
-		let _, pos, _ = sp 
+		let _, pos, _ = df.name 
 		in      ( strip_position df.ctypemod
 			, strip_position df.ctype
-			, strip_position sp ), pos in
+			, sp ), pos in
 	let e_one n nd () =
 		let map_node_arg_type n = 
 			let df = List.find (fun x -> (strip_position x.name) = n) nd.SymbolTable.nodeinputs 
@@ -211,15 +211,16 @@ let check_guard_refs stable =
 			    with (Invalid_argument _) ->
 			    	raise (Failure ("# guard args wrong for "^gname,gpos))
 			in
-		let ngrs = nd.SymbolTable.nodeguardrefs
-		in  List.iter (fun gr ->
-			List.iter (fun (((_,_,(nn:string)) as trip), pos) -> 
-					(match Unify.unify_single (map_node_arg_type nn) trip with
+		let ngrs = nd.SymbolTable.nodeguardrefs in
+                let on_each matchpair =
+                        match matchpair with 
+                                ((a,b,[Arg nn]), pos) -> 
+					(match Unify.unify_single (map_node_arg_type nn) (a,b,nn) with
 						None -> ()
 						| (Some r) ->
 							raise (Failure ("cannot unify guard argument - "^r,pos)))
-				) (check_gr gr)
-			) ngrs
+                                | _ -> () (*with context no typing*)
+		in  List.iter (fun gr -> List.iter on_each (check_gr gr)) ngrs
 	in  SymbolTable.fold_nodes e_one stable ()
 
 

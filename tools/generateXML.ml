@@ -9,10 +9,7 @@ open Flow
   <flow name=...>
    <guard name=... magicnumber=.../>
    <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionnumber=... outputunionnumber=...> <!-- name of the node -->
-    <guardref name=... wtype=...>
-      <argument argno=.../>
-      <argument argno=.../>
-    </guardref>
+    <guardref name=... wtype=... hash=.../>
     <errorhandler name=.../>
     <successorlist> <!-- a list of concurrent branches -- all are taken -->
       <successor name=...> <!-- a list of choices -->
@@ -92,6 +89,7 @@ let xml_errorhandler_str = "errorhandler"
 let xml_plugin_str = "plugin"
 let xml_add_str = "add"
 let xml_depend_str = "depend"
+let xml_hash_str = "hash"
 
 let depend el_name =
         Element (xml_depend_str
@@ -115,13 +113,14 @@ let guard el_name el_magicnumber =
 		  ]
 		, [])
 
-let guardref el_name el_unionnumber el_wtype arguments =
+let guardref el_name el_unionnumber el_hash el_wtype =
 	Element (xml_guardref_str
 		, [ xml_name_str, el_name
 		  ; xml_unionnumber_str, el_unionnumber
+                  ; xml_hash_str, el_hash
 		  ; xml_wtype_str, el_wtype
 		  ]
-		, arguments)
+		, [])
 
 let argument el_argno =
 	Element (xml_argument_str
@@ -312,10 +311,10 @@ let emit_program_xml programname br =
                         (List.rev (gen_succ' ccond fl))
                 in resl in
 	let is_error_handler n = List.mem n errhandlers in
-	let number_inputs (i,ll) df = (i+1,(ParserTypes.strip_position df.ParserTypes.name,i)::ll) in
+	(*let number_inputs (i,ll) df = (i+1,(ParserTypes.strip_position df.ParserTypes.name,i)::ll) in
 	let one_arg get_argno sp =
 		let argno = get_argno (ParserTypes.strip_position sp)
-		in  argument (string_of_int argno) in 
+		in  argument (string_of_int argno) in *)
 	let emit_one n =
 		let is_dt = is_detached n in
 		let is_ext = is_external n in
@@ -323,21 +322,19 @@ let emit_program_xml programname br =
 		let is_ro_src = is_runonce_source n in
 		let nd = SymbolTable.lookup_node_symbol stable n in
 		let f = nd.SymbolTable.functionname in
-		let _,argmap = List.fold_left number_inputs (1,[]) nd.SymbolTable.nodeinputs in
+		(*let _,argmap = List.fold_left number_inputs (1,[]) nd.SymbolTable.nodeinputs in
 		let get_argno n = 
 			try List.assoc n argmap
-			with Not_found -> raise (XMLConversion (n,ParserTypes.noposition)) in
+			with Not_found -> raise (XMLConversion (n,ParserTypes.noposition)) in*)
 		let do_gr gr = 
-			let _,gr_pos,_ = gr.ParserTypes.guardname in
+			(*let _,gr_pos,_ = gr.ParserTypes.guardname in*)
 			guardref (ParserTypes.strip_position gr.ParserTypes.guardname)
 			(unionmap_as_string (nd.SymbolTable.functionname,true))
+                        (string_of_int (Hashtbl.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond)))
 			(match gr.ParserTypes.modifiers with
 				(ParserTypes.Read::_) -> "1"
 				| (ParserTypes.Write::_) -> "2"
 				| _ -> "0")
-			(try List.map (one_arg get_argno) gr.ParserTypes.arguments
-			with (XMLConversion (n,_)) ->
-				raise (XMLConversion ("guard reference argument "^n^" not found",gr_pos)))
 			in
 		let is_eh = is_error_handler n in 
 		let fl = Flow.flowmap_find n fmap in

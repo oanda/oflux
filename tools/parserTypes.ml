@@ -33,15 +33,17 @@ type decl_formal =
 
 type guardmod = Read | Write
 
+type uninterp_expr =
+        Arg of string
+        | Context of string
+
+
 type guardref = { guardname: string positioned
-                ; arguments: string positioned list
+                ; arguments: uninterp_expr list list
                 ; modifiers: guardmod list
                 ; localgname: string positioned option
+                ; guardcond: uninterp_expr list
                 }
-
-type general_formal = 
-	Typed of decl_formal 
-	| GuardRef of guardref
 
 type node_decl = 
 	{ detached: bool

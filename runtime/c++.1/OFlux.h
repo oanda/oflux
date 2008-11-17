@@ -96,7 +96,7 @@ typedef bool (*ConditionFn)(const void *);
 
 typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, FlowNode *);
 
-typedef void (*GuardTransFn)(void *, const void *);
+typedef bool (*GuardTransFn)(void *, const void *);
 
 class AtomicMapAbstract;
 
@@ -121,8 +121,8 @@ struct ConditionalMap {
 struct GuardTransMap {
 	const char * guardname;
 	const int union_number;
-	const int argnum;
-	const int * argnos;
+        const long hash;
+        const int wtype;
 	GuardTransFn guardtransfn;
 };
 

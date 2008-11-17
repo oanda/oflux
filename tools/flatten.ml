@@ -83,6 +83,7 @@ let add_self_guardrefs pr =
                                   ; arguments = []
                                   ; modifiers = [ Read ]
                                   ; localgname = None
+                                  ; guardcond = []
                                   } ]
                            )
                 ; outputs = nd.outputs
@@ -199,6 +200,7 @@ let subst_guardrefs subst grl =
                             ; arguments = gr.arguments
                             ; modifiers = gr.modifiers
                             ; localgname = newlgn
+                            ; guardcond = gr.guardcond
                             }
                 else gr in
         let list_subst ll gr =
@@ -279,6 +281,7 @@ let flatten prog =
 		; arguments = gr.arguments
 		; modifiers = gr.modifiers
 		; localgname = gr.localgname 
+                ; guardcond = gr.guardcond
                 } in
 	let for_node_decl pre_mi pre_md nd =
 		{ detached = nd.detached
@@ -457,6 +460,7 @@ let flatten_plugin plugin_name prog = (** returns before program, after program 
                         ; arguments = gr.arguments
                         ; modifiers = gr.modifiers
                         ; localgname = gr.localgname
+                        ; guardcond = gr.guardcond
                         } in
                 let isext = nd.externalnode
                 in

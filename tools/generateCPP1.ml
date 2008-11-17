@@ -723,6 +723,76 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
         let code,_ = SymbolTable.fold_guards e_g symtable (code,0)
         in  code
 
+let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
+        let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
+        let e_n nn nd code =
+                let u_n = get_u_n nn in
+                let nf = nd.functionname in
+                let fill_expr uel =
+                        let on_ue ue =
+                                match ue with
+                                        (Arg s) -> ("(reinterpret_cast<const "
+                                                ^nf^"_in *>(in)->"^s^")")
+                                        | (Context s) -> s in
+                        let ffun str ue = 
+                                str^(on_ue ue)
+                        in  List.fold_left ffun "" uel in
+                let assign gn (gdf,ndf_expr) =
+                        "(reinterpret_cast<"^(clean_dots gn)^"_key *>"
+                        ^"(out))->"^(strip_position gdf.name)
+                        ^" = "
+                        ^(fill_expr ndf_expr)^";" in
+                let res_test test_expr =
+                        match test_expr with
+                                [] -> ""
+                                | _ ->
+                                        ("if(!("^(fill_expr test_expr)
+                                        ^")) { return false; }") in
+                let wtype grm = 
+                        match grm with 
+                                (Read::_) -> 1
+                                | (Write::_) -> 2
+                                | _ -> 3 in
+                let e_gr code gr =
+                        let gn = strip_position gr.guardname in
+                        let gd = SymbolTable.lookup_guard_symbol symtable gn in
+                        let gtfunc = "g_trans_"^nn^"_"^gn in
+                        let hash = Hashtbl.hash (gr.arguments, gr.guardcond) in
+                        let proto = "bool "^gtfunc^"( "
+                                ^"void * out, const void *in)"
+                                ^(if with_code then "" else ";") in
+                        let mapline = ("{ \""^gn^"\", "
+                                ^(string_of_int u_n)^", "
+                                ^(string_of_int hash)^", "
+                                ^(string_of_int (wtype gr.modifiers))^", "
+                                ^"&"^gtfunc
+                                ^" },  ") in
+                        let codell = 
+                                let assignon = List.combine gd.garguments gr.arguments 
+                                in  List.map (assign gn) assignon in
+                        let code = if with_proto then
+                                        add_code code proto
+                                else code in
+                        let code = if with_code then 
+                                        List.fold_left add_code code
+                                        ( [ proto
+                                          ; "{"
+                                          ] 
+                                        @ [res_test gr.guardcond]
+                                        @ (codell)
+                                        @ [ "return true;"
+                                          ; "}"
+                                          ; "" ] )
+                                else code in
+                        let code = if with_map then 
+                                        add_code code mapline
+                                else code 
+                        in  code
+                in  List.fold_left e_gr code (nd.nodeguardrefs)
+                in
+        let code = SymbolTable.fold_nodes e_n symtable code
+        in  code
+
 
 let emit_node_func_decl plugin_opt is_concrete errorhandlers symtable code =
 	let is_eh n = List.mem n errorhandlers in
@@ -1071,6 +1141,8 @@ let emit_plugin_cpp pluginname brbef braft um =
 	let h_code = CodePrettyPrinter.add_cr h_code in
 	let h_code = emit_node_func_decl (Some pluginname) is_concrete ehs stable h_code in
 	let h_code = emit_cond_func_decl (Some pluginname) stable h_code in
+	let h_code = emit_guard_trans_map (true,false,false) 
+			conseq_res stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
 	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
@@ -1097,17 +1169,17 @@ let emit_plugin_cpp pluginname brbef braft um =
 	let cpp_code = emit_cond_map conseq_res stable cpp_code in
 	let cpp_code = 
 		let cpp_code = emit_atom_map_map (Some pluginname) stable cpp_code in
-		let cpp_code = emit_guard_trans_map (true,true,false,false)  conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (false,true,false)  conseq_res stable cpp_code in
 		let max_guard_size = calc_max_guard_size stable in
-		let cpp_code = add_code cpp_code
+		(*let cpp_code = add_code cpp_code
 				("const int _argument_arr[]["
 				^(string_of_int (max_guard_size+1))
 				^"] = {") in
 		let cpp_code = emit_guard_trans_map (false,false,true,false) conseq_res stable cpp_code in
-		let cpp_code = List.fold_left add_code cpp_code [ "{ 0 }  "; "};" ] in
+		let cpp_code = List.fold_left add_code cpp_code [ "{ 0 }  "; "};" ] in *)
 		let cpp_code = add_code cpp_code
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
-		let cpp_code = emit_guard_trans_map (false,false,false,true)  conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
 				[ "{ NULL,0,0,NULL, NULL}  "; "};" ] in
                 let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
@@ -1220,7 +1292,7 @@ let emit_cpp modulenameopt br um =
 	let h_code = CodePrettyPrinter.add_cr h_code in
 	let h_code = emit_node_func_decl None is_concrete ehs stable h_code in
 	let h_code = if is_module then h_code 
-		     else emit_guard_trans_map (true,false,false,false) 
+		     else emit_guard_trans_map (true,false,false) 
 			conseq_res stable h_code in
 	let h_code = emit_cond_func_decl None stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
@@ -1251,17 +1323,17 @@ let emit_cpp modulenameopt br um =
 	let cpp_code = if is_module then cpp_code
 		else
 		let cpp_code = emit_atom_map_map None stable cpp_code in
-		let cpp_code = emit_guard_trans_map (true,true,false,false)  conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (false,true,false)  conseq_res stable cpp_code in
 		let max_guard_size = calc_max_guard_size stable in
-		let cpp_code = add_code cpp_code
+		(*let cpp_code = add_code cpp_code
 				("const int _argument_arr[]["
 				^(string_of_int (max_guard_size+1))
 				^"] = {") in
 		let cpp_code = emit_guard_trans_map (false,false,true,false) conseq_res stable cpp_code in
-		let cpp_code = List.fold_left add_code cpp_code [ "{ 0 }  "; "};" ] in
+		let cpp_code = List.fold_left add_code cpp_code [ "{ 0 }  "; "};" ] in *)
 		let cpp_code = add_code cpp_code
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
-		let cpp_code = emit_guard_trans_map (false,false,false,true)  conseq_res stable cpp_code in
+		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
 				[ "{ NULL,0,0,NULL, NULL}  "; "};" ] in
                 let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
