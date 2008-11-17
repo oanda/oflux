@@ -15,7 +15,8 @@ EXAMPLES= \
 	initial1 \
 	poolguard \
 	plugin \
-	ioconversion
+	ioconversion \
+	condguardtest
 
 ################################################################
 #

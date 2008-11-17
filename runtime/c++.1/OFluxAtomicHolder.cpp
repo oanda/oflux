@@ -4,16 +4,6 @@
 #include <stdlib.h>
 
 namespace oflux {
-/*
-HeldAtomic & HeldAtomic::operator=(const HeldAtomic & ha)
-{
-	_haveit = ha.haveit;
-	_atom = ha._atom;
-	_key = ha._key;
-	_flow_guard = ha._flow_guard;
-}
-*/
-
 
 void AtomicsHolder::add(FlowGuardReference * fg)
 {
@@ -91,9 +81,11 @@ int AtomicsHolder::acquire(AtomicsHolder & given_atomics,
 		while(more_given && given_ha->compare(*my_ha) < 0) {
 			more_given = given_aht.next(given_ha);
 		}
-		if(my_ha->haveit()) {
+		if(my_ha->haveit() || my_ha->skipit()) {
 			// nothing to do
-		} else if(more_given && given_ha->compare(*my_ha) == 0 
+		} else if(more_given 
+                                && (!given_ha->skipit())
+                                && given_ha->compare(*my_ha) == 0 
 				&& given_ha->haveit()) {
 			my_ha->takeit(*given_ha);
 			_GUARD_ACQUIRE(my_ha->flow_guard_ref()->getName().c_str(),

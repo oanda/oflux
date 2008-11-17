@@ -99,6 +99,11 @@ rule token = parse
 				   (fun (x1,x2) -> NUMBER
 					 (int_of_string (Lexing.lexeme lexbuf),x1,x2)) }
 	| "=>" { updatePosInTok lexbuf (fun x -> ARROW x) }
+	| "<=" { updatePosInTok lexbuf (fun x -> BACKARROW x) }
+	| "!=" { updatePosInTok lexbuf (fun x -> NOTEQUALS x) }
+	| "==" { updatePosInTok lexbuf (fun x -> ISEQUALS x) }
+	| "&&" { updatePosInTok lexbuf (fun x -> DOUBLEAMPERSAND x) }
+	| "||" { updatePosInTok lexbuf (fun x -> DOUBLEBAR x) }
 	| '(' { updatePosInTok lexbuf (fun x -> LEFT_PAREN x) }
 	| ')' { updatePosInTok lexbuf (fun x -> RIGHT_PAREN x) }
 	| '[' { updatePosInTok lexbuf (fun x -> LEFT_SQ_BRACE x) }

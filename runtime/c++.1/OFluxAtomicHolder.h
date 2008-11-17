@@ -95,10 +95,14 @@ public:
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure
 	 */
-	inline void build(const void * node_in)
+	inline bool build(const void * node_in)
 		{ 
                         assert(_atom == NULL );
                         _key = _flow_guard->get(_atom,node_in); 
+                        //if(_atom == NULL) {
+                                //oflux_log_info("HeldAtomic::build() conditional guard not held %s\n", _flow_guard->getName().c_str());
+                        //}
+                        return _atom != NULL;
                 }
 	/**
 	 * @brief attempt to acquire the atomic (will succeed if no other has it)
@@ -125,6 +129,7 @@ public:
                         _atom = NULL;
                 }
 	inline int wtype() const { return _flow_guard->wtype(); }
+        inline bool skipit() const { return _atom == NULL; }
 private:
 	Atomic *             _atom;
 	FlowGuardReference * _flow_guard;

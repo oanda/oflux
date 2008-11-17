@@ -520,7 +520,10 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 		let rop = if iro then ro_prefix else ""
 		in rop^t^(if iro then " " else " & ")^n^"() "
 			^rop^" { return *_"^n^"; }  " in
+        let possessor (n,t,iro) =
+                "bool have_"^n^"() const { return _"^n^" != NULL; }  " in
 	let accessors ntl = List.map accessor ntl in
+	let possessors ntl = List.map possessor ntl in
         let omit_emit n =
                 match pluginopt with
                         None -> has_dot n
@@ -548,6 +551,7 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 				  ; ""
 				  ]
 				@ (accessors ntl)
+				@ (possessors ntl)
 				@ [ "void fill(oflux::AtomicsHolder * ah);"
 				  ; "private:"
 				  ]
@@ -574,8 +578,13 @@ let emit_atom_fill pluginopt symtable aliases code =
                         | (Some pn) -> (remove_prefix (pn^"."))
                         in
 	let code_for_one (cl,i) (n,t) =
-		(("_"^(trim_dot n)^" = reinterpret_cast<"^t^" *> (ah->get("
-		^(string_of_int i)^",false)->atomic()->data());")::cl), i+1 in
+                let atomic_n = "atomic_"^(trim_dot n)
+                in
+		(("oflux::Atomic * "^atomic_n^" = ah->get("
+		^(string_of_int i)^",false)->atomic();")
+                ::("_"^(trim_dot n)^" = ("^atomic_n^" ? reinterpret_cast<"^t
+                ^" *> ("^atomic_n^"->data()) : NULL);")
+                ::cl), i+1 in
         let omit_emit n =
                 match pluginopt with
                         None -> has_dot n
@@ -726,8 +735,8 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
         let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
         let e_n nn nd code =
-                let u_n = get_u_n nn in
                 let nf = nd.functionname in
+                let u_n = get_u_n nf in
                 let fill_expr uel =
                         let on_ue ue =
                                 match ue with
@@ -747,7 +756,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 [] -> ""
                                 | _ ->
                                         ("if(!("^(fill_expr test_expr)
-                                        ^")) { return false; }") in
+                                        ^")) { return false; }  ") in
                 let wtype grm = 
                         match grm with 
                                 (Read::_) -> 1
@@ -756,7 +765,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                 let e_gr code gr =
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
-                        let gtfunc = "g_trans_"^nn^"_"^gn in
+                        let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn) in
                         let hash = Hashtbl.hash (gr.arguments, gr.guardcond) in
                         let proto = "bool "^gtfunc^"( "
                                 ^"void * out, const void *in)"
@@ -776,12 +785,12 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         let code = if with_code then 
                                         List.fold_left add_code code
                                         ( [ proto
-                                          ; "{"
+                                          ; "{  "
                                           ] 
                                         @ [res_test gr.guardcond]
                                         @ (codell)
                                         @ [ "return true;"
-                                          ; "}"
+                                          ; "}  "
                                           ; "" ] )
                                 else code in
                         let code = if with_map then 
@@ -1170,8 +1179,8 @@ let emit_plugin_cpp pluginname brbef braft um =
 	let cpp_code = 
 		let cpp_code = emit_atom_map_map (Some pluginname) stable cpp_code in
 		let cpp_code = emit_guard_trans_map (false,true,false)  conseq_res stable cpp_code in
-		let max_guard_size = calc_max_guard_size stable in
-		(*let cpp_code = add_code cpp_code
+		(*let max_guard_size = calc_max_guard_size stable in
+		let cpp_code = add_code cpp_code
 				("const int _argument_arr[]["
 				^(string_of_int (max_guard_size+1))
 				^"] = {") in
@@ -1181,7 +1190,7 @@ let emit_plugin_cpp pluginname brbef braft um =
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
 		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
-				[ "{ NULL,0,0,NULL, NULL}  "; "};" ] in
+				[ "{ NULL,0,0,0, NULL}  "; "};" ] in
                 let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
@@ -1324,8 +1333,8 @@ let emit_cpp modulenameopt br um =
 		else
 		let cpp_code = emit_atom_map_map None stable cpp_code in
 		let cpp_code = emit_guard_trans_map (false,true,false)  conseq_res stable cpp_code in
-		let max_guard_size = calc_max_guard_size stable in
-		(*let cpp_code = add_code cpp_code
+		(*let max_guard_size = calc_max_guard_size stable in
+		let cpp_code = add_code cpp_code
 				("const int _argument_arr[]["
 				^(string_of_int (max_guard_size+1))
 				^"] = {") in
@@ -1335,7 +1344,7 @@ let emit_cpp modulenameopt br um =
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
 		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
-				[ "{ NULL,0,0,NULL, NULL}  "; "};" ] in
+				[ "{ NULL,0,0,0, NULL}  "; "};" ] in
                 let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in

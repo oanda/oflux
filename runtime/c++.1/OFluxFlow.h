@@ -179,7 +179,14 @@ public:
          */
         inline const void * get(Atomic * & a_out,const void * node_in)
         { 
-                if(_guardfn) (*_guardfn)(_local_key, node_in);
+                bool ok = true;
+                if(_guardfn) {
+                        ok = (*_guardfn)(_local_key, node_in);
+                }
+                if(!ok) {
+                        a_out = NULL;
+                        return NULL;
+                }
                 return _flow_guard->get(a_out,_local_key);
         }
         /**

@@ -17,6 +17,15 @@ type general_formal =
                 * string ParserTypes.positioned option 
                 * string list )
 
+let rec break_dotted_name nsn =
+        try let ind = String.index nsn '.' in
+            let len = String.length nsn in
+            let hstr = String.sub nsn 0 ind in
+            let tstr = String.sub nsn (ind+1) (len-(ind+1))
+            in  hstr::(break_dotted_name tstr)
+        with Not_found -> [nsn]
+
+
 %}
 %token ENDOFFILE
 %token <ParserTypes.position*ParserTypes.position> ATOMIC;
@@ -40,6 +49,9 @@ type general_formal =
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
 %token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE, IF;
+%token <ParserTypes.position*ParserTypes.position> BACKARROW, NOTEQUALS, ISEQUALS;
+%token <ParserTypes.position*ParserTypes.position> DOUBLEAMPERSAND;
+%token <ParserTypes.position*ParserTypes.position> DOUBLEBAR;
 %token <string> INCLUDE;
 %left PLUS 
 %left STAR
@@ -468,9 +480,8 @@ as_named_opt:
 if_condition_opt:
         /*epsilon*/
         { [] }
-        | IF namespaced_ident LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
-        { let s,_,_ = $2
-          in  ((s::"("::(List.concat $4)) @ [")"]) }
+        | IF uninterpreted_cpp_code
+        { $2 }
 
 /*** C++ stuff ***/
 
@@ -481,12 +492,28 @@ uninterpreted_cpp_code:
         { $1 @ $2 }
 
 uninterpreted_cpp_code_fragment:
-        ident
-        { let s,_,_ = $1 in [s] }
+        NUMBER
+        { let n,_,_ = $1 in [string_of_int n] }
+        | ident
+        { let s,_,_ = $1 in break_dotted_name s }
         | DOUBLECOLON uninterpreted_cpp_code_fragment
         { "::"::$2 }
-        | LESSTHAN uninterpreted_cpp_code GREATERTHAN
-        { ("< "::$2) @ [" >" ] }
+        | LESSTHAN uninterpreted_cpp_code_fragment 
+        { (" < "::$2) }
+        | GREATERTHAN uninterpreted_cpp_code_fragment 
+        { (" > "::$2) }
+        | ARROW uninterpreted_cpp_code_fragment 
+        { (" => "::$2) }
+        | BACKARROW uninterpreted_cpp_code_fragment 
+        { (" <= "::$2) }
+        | ISEQUALS uninterpreted_cpp_code_fragment 
+        { (" == "::$2) }
+        | NOTEQUALS uninterpreted_cpp_code_fragment 
+        { (" != "::$2) }
+        | DOUBLEAMPERSAND uninterpreted_cpp_code_fragment 
+        { (" && "::$2) }
+        | DOUBLEBAR uninterpreted_cpp_code_fragment 
+        { (" || "::$2) }
         | LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
         { ("("::(List.concat $2)) @ [")"] }
         | PIPE uninterpreted_cpp_code_fragment

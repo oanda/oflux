@@ -334,7 +334,7 @@ let emit_program_xml programname br =
 			(match gr.ParserTypes.modifiers with
 				(ParserTypes.Read::_) -> "1"
 				| (ParserTypes.Write::_) -> "2"
-				| _ -> "0")
+				| _ -> "3")
 			in
 		let is_eh = is_error_handler n in 
 		let fl = Flow.flowmap_find n fmap in

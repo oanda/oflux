@@ -348,6 +348,8 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
                 // guard attributes
                 } else if(strcmp(attr[i],"magicnumber") == 0) {
                     	el_magicnumber = attr[i+1];
+                } else if(strcmp(attr[i],"hash") == 0) {
+                    	el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
                     	el_wtype = attr[i+1];
                 }
