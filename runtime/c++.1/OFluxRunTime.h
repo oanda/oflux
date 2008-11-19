@@ -62,12 +62,30 @@ public:
 
 	RunTime(const RunTimeConfiguration & rtc);
         ~RunTime();
+
+        /**
+         * @brief cede control to the runtime (make it go!)
+         */
 	void start();
+        /**
+         * @brief load a particular flow
+         */
 	void load_flow(const char * filename = "", 
                    const char * pluginxmldir = "", 
                    const char * pluginlibdir = "");
+        /**
+         * @brief schedule a new flow load at some point convenient
+         */
 	void soft_load_flow() { _load_flow_next = true; }
+        /**
+         * @brief ask the runtime to shut down -- start() function returns
+         */
 	void soft_kill() { _running = false; }
+
+        /**
+         * @brief the init_...() functions (if they exist are called)
+         */
+        int init_plugins(int argc, char * argv[]);
 
 	/**
 	 * @brief punt to a new thread

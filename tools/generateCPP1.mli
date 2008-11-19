@@ -10,6 +10,7 @@ val emit_plugin_cpp : string -> (** plugin name *)
                 Flow.built_flow -> (** flattened flow pre-plugin *)
                 Flow.built_flow -> (** flattened flow post-plugin *)
                 (string * string) list -> (** uses model *)
+                string list -> (** plugin dependencies list *)
 			CodePrettyPrinter.code (** h code *)
 			* CodePrettyPrinter.code (** cpp code *)
 

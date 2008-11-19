@@ -427,7 +427,8 @@ let flatten_module module_name pr =
 	let pr = flt "" "" [] pr (List.rev nsnbl)
         in  flatten pr
 
-let flatten_plugin plugin_name prog = (** returns before program, after program *)
+let flatten_plugin' plugin_name prog = 
+        (** returns before program, after program *)
         let prog = remove_reductions prog in
         let pre = plugin_name^"." in
         let pref = plugin_name^"::" in
@@ -525,16 +526,22 @@ let flatten_plugin plugin_name prog = (** returns before program, after program 
 		; mod_inst_list = List.map for_mod_inst pr.mod_inst_list
                 ; plugin_list = []
                 ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
-		}
-		in
+		} in
+        let local_prog = remove_reductions prog in
+        let local_prog = for_program local_prog
+        in  local_prog
+
+
+let flatten_plugin plugin_name prog = 
         let append_but n prog pd =
                 if (strip_position pd.pluginname) = n then prog
-                else let local_prog = remove_reductions pd.pluginprogramdef in
-                     let local_prog = for_program local_prog
-                     in program_append local_prog prog in
+                else let pn = strip_position pd.pluginname
+                     in  program_append (flatten_plugin' pn pd.pluginprogramdef) prog in
         let append_all_but n prog pdl =
                 List.fold_left (append_but n) prog pdl in
         let flt_with = flatten (append_all_but "" prog prog.plugin_list) in
+        let _ = List.iter Debug.dprint_string 
+                (List.map (fun x -> " "^(strip_position x.pluginname)^"\n") prog.plugin_list) in
         let flt_without = flatten (append_all_but plugin_name prog prog.plugin_list)
         in  flt_without, flt_with
         

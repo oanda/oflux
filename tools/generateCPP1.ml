@@ -1086,7 +1086,7 @@ let get_module_file_suffix modulenameopt =
 		else ""
 	in  const_ns
 
-let emit_plugin_cpp pluginname brbef braft um =
+let emit_plugin_cpp pluginname brbef braft um deplist =
 	let stable = braft.Flow.symtable in
         let conseq_res = braft.Flow.consequences in
 	let fm = braft.Flow.fmap in
@@ -1101,11 +1101,15 @@ let emit_plugin_cpp pluginname brbef braft um =
 		else ""
 		in
 	let file_suffix = get_module_file_suffix (Some pluginname) in
+        let dep_includes = List.map
+                (fun dep -> "#include \"OFluxGenerate_"^dep^".h\"")
+                deplist in
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
-		[ "#ifndef _OFLUX_GENERATED"^def_const_ns
-		; "#define _OFLUX_GENERATED"^def_const_ns
-		; "#include \"mImpl"^file_suffix^".h\""
-		] in
+		( [ "#ifndef _OFLUX_GENERATED"^def_const_ns
+		  ; "#define _OFLUX_GENERATED"^def_const_ns ]
+                @ dep_includes
+		@ [ "#include \"mImpl"^file_suffix^".h\""
+		] ) in
 	let modules = braft.Flow.modules in
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
 		(List.map (fun m -> "#include \"OFluxGenerate_"^m^".h\"") modules) in

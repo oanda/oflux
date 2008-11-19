@@ -57,6 +57,11 @@ RunTime::~RunTime()
         }
 }
 
+int RunTime::init_plugins(int argc, char * argv[])
+{
+        return flow()->init_libraries(argc,argv);
+}
+
 void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir)
 {
 	if(*flname == '\0') {

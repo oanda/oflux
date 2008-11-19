@@ -40,18 +40,24 @@ XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char 
         , _is_external_node(false)
         , _is_existing_successor(false)
         , _is_add(false)
+        , _library(NULL)
+        , _plugin_lib_dir(pluginlibdir)
+        , _plugin_xml_dir(pluginxmldir)
 { 
         _fmaps_vec.push_back(fmaps);
-        read(filename, pluginxmldir, pluginlibdir);
+        read(filename);
 }
 
-void XMLReader::read(const char * filename, const char * pluginxmldir, const char * pluginlibdir)
+void XMLReader::read(const char * filename)
 {
         readxmlfile(filename, XMLReader::startMainHandler, XMLReader::endMainHandler);
-        _plugin_lib_dir = (pluginlibdir != NULL) ? pluginlibdir : ".";
-        if(pluginxmldir != NULL) {
-                readxmldir(pluginxmldir);
+        if(_plugin_lib_dir == NULL) {
+                _plugin_lib_dir = ".";
         }
+        if(_plugin_xml_dir == NULL) {
+                _plugin_xml_dir = ".";
+        }
+        readxmldir();
         finalize();
 }
 
@@ -86,8 +92,9 @@ void XMLReader::readxmlfile(const char * filename, XML_StartElementHandler start
         XML_ParserFree(p);
 }
 
-void XMLReader::readxmldir(const char * pluginxmldir)
+void XMLReader::readxmldir()
 {
+        const char * pluginxmldir = _plugin_xml_dir;
         DIR * dir = ::opendir(pluginxmldir);
         assert(dir);
         struct dirent * dir_entry;
@@ -96,7 +103,16 @@ void XMLReader::readxmldir(const char * pluginxmldir)
                 size_t found = filename.find_last_of(".");
                 if(filename.substr(found+1) == "xml" ) {
                         filename = (std::string) pluginxmldir + "/" + filename;
-                        readxmlfile(filename.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
+                        bool alreadydone = false;
+                        for(int i = 0; i < (int)_depends_visited.size(); i++) {
+                                if(_depends_visited[i] == filename) {
+                                        alreadydone = true;
+                                        break;
+                                }
+                        }
+                        if(!alreadydone) {
+                                readxmlfile(filename.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
+                        }
                 }
         }
         ::closedir(dir);
@@ -372,9 +388,16 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
 
         if(strcmp(el,"plugin") == 0) {
-                // has attribute: name 
-                // has children: node, guard 
-                pthis->new_plugin(el_name);
+                // has attribute: 
+                // has children: node, guard, library
+        } else if(strcmp(el,"library") == 0) {
+                // has attribute: name
+                // has children: depend
+                pthis->new_library(el_name);
+        } else if(strcmp(el,"depend") == 0) {
+                // has attributes: name
+                // has no children
+                pthis->new_depend(el_name);
         } else if(strcmp(el,"guard") == 0) {
                 // has attributes: name, magicnumber
                 // has no children
@@ -433,7 +456,9 @@ void XMLReader::endPluginHandler(void *data, const char *el)
         XMLReader * pthis = static_cast<XMLReader *> (data);
         bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
         if(strcmp(el,"plugin") == 0) {
-                pthis->add_plugin();
+                // do nothing
+        } else if(strcmp(el,"library") == 0) {
+                pthis->add_library();
         } else if(strcmp(el,"guard") == 0) {
                 // do nothing
         } else if(strcmp(el,"guardref") == 0 && is_ok_to_create) {
@@ -448,7 +473,7 @@ void XMLReader::endPluginHandler(void *data, const char *el)
         } else if(strcmp(el,"successor") == 0) { 
                 pthis->add_flow_successor();
         } else if(strcmp(el,"case") == 0 && is_ok_to_create) { 
-                pthis->add_flow_case();
+                pthis->add_flow_case(pthis->isAddition());
         } else if(strcmp(el,"condition") == 0 && is_ok_to_create) { 
                 // do nothing
         } else if(strcmp(el,"add") == 0) { 
@@ -470,34 +495,46 @@ extern "C" {
 typedef FlowFunctionMaps * FlowFunctionMapFunction ();
 }
 
-void XMLReader::new_plugin(const char * filename)
+void XMLReader::new_depend(const char * dependname)
 {
-        std::string full_path(_plugin_lib_dir);
-        full_path = full_path + "/" + filename;
-        Library * library = new Library(full_path);
-        bool loaded = library->load();
-        std::string flowfunctionmapfunction = "flowfunctionmaps__";
-        flowfunctionmapfunction += filename;
-        size_t dotpos = flowfunctionmapfunction.find_last_of('.');
-        if(dotpos != std::string::npos) {
-                flowfunctionmapfunction.replace(dotpos,3,""); // trim ".so"
+        std::string depxml = _plugin_xml_dir;
+        depxml += "/";
+        depxml += dependname;
+        depxml += ".xml";
+        Library * lib = _library; // preserve on the stack
+        assert(_flow);
+        if(!_flow->haveLibrary(dependname)) {
+                for(int i = 0; i < (int)_depends_visited.size(); i++) {
+                        if(depxml == _depends_visited[i]) {
+                                depxml += " circular dependency -- already loading";
+                                throw XMLReaderException(depxml.c_str());
+                        }
+                }
+                _depends_visited.push_back(depxml);
+                _library = NULL;
+                readxmlfile(depxml.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
         }
-        assert(loaded);
+        _library = lib; // restore
+}
 
-        FlowFunctionMapFunction * ffmpfun = reinterpret_cast<FlowFunctionMapFunction *>(library->getSymbol(flowfunctionmapfunction.c_str()));
+void XMLReader::new_library(const char * filename)
+{
+        _library = new Library(_plugin_lib_dir,filename);
+}
+
+void XMLReader::add_library()
+{
+        bool loaded = _library->load();
+        assert(loaded);
+        std::string flowfunctionmapfunction = "flowfunctionmaps__";
+        _library->addSuffix(flowfunctionmapfunction);
+
+        FlowFunctionMapFunction * ffmpfun = 
+                _library->getSymbol<FlowFunctionMapFunction>(flowfunctionmapfunction.c_str());
         assert(ffmpfun);
         _fmaps_vec.push_back((*ffmpfun)());
         assert(_flow);
-        _flow->addLibrary(library);
-}
-
-void XMLReader::add_plugin()
-{
-        //if(_plugin_fmaps) {
-                // do NOT delete _plugin_fmaps
-                // so that _pluing_fmaps->lookup_io_conversion can be executed in AddTarget::execute() later
-                //_plugin_fmaps = NULL;
-        //}
+        _flow->addLibrary(_library);
 }
 
 };

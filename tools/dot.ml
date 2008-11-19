@@ -128,6 +128,7 @@ let rec break_dotted_name nsn =
 	with Not_found -> [nsn]
 
 let generate_program pname p =
+        let is_plugin pn = List.exists (fun p -> (strip_position p.pluginname) = pn) p.plugin_list in
         let pname = sanitize_name pname in
         let strip x = strip_position x in
         let lookup_module p m =
@@ -222,7 +223,17 @@ let generate_program pname p =
                                         | _ -> raise Not_found) 
                 with Not_found -> "" in
         let held_edge_strings = ref [] in
+        let deplugin_name nsn =
+                let reassemble y x =
+                        if (String.length y) = 0 then x
+                        else y^"."^x
+                in  match break_dotted_name nsn with
+                        (h1::h2::t) -> List.fold_left reassemble ""
+                                (if is_plugin h1 then h2::t else h1::h2::t)
+                        | [n] -> n 
+                        | _ -> "~blech~" in
         let for_edge from_name to_name color cond_opt style_opt =
+                let from_name = deplugin_name from_name in
                 let edge_string =
                         ((sanitize_name from_name)^" -> "
                         ^(sanitize_name to_name)^"[color="^color
@@ -365,8 +376,11 @@ let generate_program pname p =
                                 p.node_decl_list) in
                 let _ = external_nodes := ext_nodes @ (!external_nodes) in
                 (*let urlopt = mpos_to_url mpos.file in*)
+                let col = match CmdLine.get_plugin_name () with
+                                None -> "pink"
+                                | (Some pn) -> if pn = name then "lightgreen" else "lightpink" in
                 let _ = o_string d ("subgraph cluster"^name^" {\n"
-                                ^"style=filled;\ncolor=lightpink;\n"
+                                ^"style=filled;\ncolor="^col^";\n"
                                 ^"label=\""^name^"\";\n"
                                 (*^(match urlopt with 
                                         None -> ""

@@ -25,7 +25,11 @@ open Flow
   </flow>
 
   general plugin structure is as follows:
-  <plugin name=something.so>
+  <plugin>
+   <library name="something.so">
+    <depend name="somethingelse">
+    <!-- can have a bunch of these -->
+   </library>
    <guard .../>
    <node name=... external=[true|false] ...>  
      <!-- if external ="false" then this is a completely new node -- no merge ---->
@@ -87,6 +91,7 @@ let xml_nodetarget_str = "nodetarget"
 let xml_flow_str = "flow"
 let xml_errorhandler_str = "errorhandler"
 let xml_plugin_str = "plugin"
+let xml_library_str = "library"
 let xml_add_str = "add"
 let xml_depend_str = "depend"
 let xml_hash_str = "hash"
@@ -168,10 +173,15 @@ let flow el_name nodes =
 		,[xml_name_str,el_name]
 		,nodes)
 
-let plugin el_name nodes_and_guards =
-        Element(xml_plugin_str
+let library el_name depends =
+        Element(xml_library_str
                 ,[xml_name_str,el_name]
-                ,nodes_and_guards)
+                ,depends)
+
+let plugin library nodes_and_guards =
+        Element(xml_plugin_str
+                ,[]
+                ,library::nodes_and_guards)
 
 let add somethings = Element(xml_add_str,[],somethings)
 
@@ -450,8 +460,9 @@ let emit_plugin_xml fn dependslist br_bef br_aft =
         let pn = 
                 let dotindex =  try String.rindex fn '.' 
                                 with Not_found -> String.length fn 
-                in  (String.sub fn 0 dotindex)^".so"
-        in  plugin pn (dependsxml @ aft_new @ (List.map make_external before_changes))
+                in  "lib"^(String.sub fn 0 dotindex)^".so"
+        in  plugin (library pn dependsxml) 
+                (aft_new @ (List.map make_external before_changes))
 
 let write_xml xml filename =
 	let xml_str = Xml.to_string_fmt xml in  

@@ -13,6 +13,8 @@
 
 namespace oflux {
 
+class Library;
+
 /**
  * @class XMLReaderException
  * @brief exception class for oops-es in parsing etc
@@ -97,7 +99,7 @@ public:
          * @param filename  is the file that is being read
          *
          **/
-        void read(const char * filename, const char * pluginxmldir, const char * pluginlibdir);
+        void read(const char * filename);
 
         static void startMainHandler(void *data, const char *el, const char **attr);
         static void endMainHandler(void *data, const char *el);
@@ -123,9 +125,9 @@ public:
                 AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this);
                 _add_targets.push_back(at);
         }
-        void add_flow_case() 
+        void add_flow_case(bool front=false) 
         { 
-                _flow_successor->add(_flow_case); 
+                _flow_successor->add(_flow_case, front); 
                 _flow_case = NULL; 
         }
         void new_flow_successor(const char * name) 
@@ -207,8 +209,9 @@ public:
                 }
                 return false;
         }
-        void new_plugin(const char * filename);
-        void add_plugin();
+        void new_library(const char * filename);
+        void add_library();
+        void new_depend(const char * depend);
         void setErrorHandler(const char * err_node_name)
         {
                 SetErrorHandler seh(_flow_node,err_node_name);
@@ -222,7 +225,7 @@ protected:
         /**
          * @brief just connect the forward flow node references stored up
          */
-        void readxmldir(const char * plugindir);
+        void readxmldir();
         void readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
 
         void finalize();
@@ -251,8 +254,11 @@ private:
         std::vector<SetErrorHandler>    _set_error_handlers;
         bool                            _is_external_node;
         bool                            _is_existing_successor;
-        const char *                    _plugin_lib_dir;
         bool                            _is_add;
+        Library *                       _library;
+        const char *                    _plugin_lib_dir;
+        const char *                    _plugin_xml_dir;
+        std::vector<std::string>        _depends_visited;
 };
 
 };

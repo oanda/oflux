@@ -92,6 +92,10 @@ extern E theE;
 class EventBase;
 class FlowNode;
 
+extern "C" {
+typedef void InitFunction(int, char **);
+}
+
 typedef bool (*ConditionFn)(const void *);
 
 typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, FlowNode *);

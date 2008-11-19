@@ -15,6 +15,7 @@
 #include "OFluxIOConversion.h"
 #include <cassert>
 #include <vector>
+#include <deque>
 #include <map>
 #include <string>
 #include "boost/shared_ptr.hpp"
@@ -271,22 +272,24 @@ public:
         FlowSuccessor(const char * name);
         ~FlowSuccessor();
         inline const std::string & getName() { return _name; }
-        void add(FlowCase * fc);
+        void add(FlowCase * fc, bool front=false);
         inline FlowCase * get_successor(const void * a) 
         {
                 FlowCase * res = NULL;
-                for(int i = 0; i < (int) _cases.size() && res == NULL; i++) {
-                        FlowCase * flowcase = _cases[i];
+                std::deque<FlowCase *>::iterator itr = _cases.begin();
+                while(itr != _cases.end() && res == NULL) {
+                        FlowCase * flowcase = *itr;
                         if(flowcase->satisfied(a)) {
                                 res = flowcase;
                         }
+                        itr++;
                 }
                 return res;
         }
         void pretty_print(int depth);
 private:
-        std::string             _name;
-        std::vector<FlowCase *> _cases;
+        std::string            _name;
+        std::deque<FlowCase *> _cases;
 };
 
 /**
@@ -485,6 +488,8 @@ public:
         {
                 _libraries.push_back(lib);
         }
+        bool haveLibrary(const char * name);
+        int init_libraries(int argc, char * argv[]);
 private:
         std::map<std::string, FlowNode *>  _nodes;
         std::vector<FlowNode *>            _sources;

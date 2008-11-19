@@ -134,7 +134,7 @@ let generate fn deplist br br_aft_opt um =
                                         match CmdLine.get_plugin_name() with
                                                 None -> "APlugin"
                                                 |(Some pn) -> pn
-                                in  GenerateCPP1.emit_plugin_cpp pname br br_aft um in 
+                                in  GenerateCPP1.emit_plugin_cpp pname br br_aft um deplist in 
 	let xmlopt = match CmdLine.get_module_name(),br_aft_opt with
                 (None,None) -> Some (GenerateXML.emit_program_xml fn br)
                 | (None,(Some br_aft)) -> 
@@ -171,6 +171,11 @@ let write_result fn of_result =
 			None -> false
 			| _ -> true
 		in
+	let is_plugin = 
+		match CmdLine.get_plugin_name () with
+			None -> false
+			| _ -> true
+		in
 	let base_file = 
 		try let ri = String.rindex fn '.'
 		    in  String.sub fn 0 ri
@@ -202,7 +207,6 @@ let write_result fn of_result =
                     dot_timer ());
 	    if is_module then ()
 	    else
-		begin
 		(let xml_timer = Debug.timer "write .xml" in
                  let xml = match of_result.xmlopt with
                                 None -> raise (SemanticFailure ("no xml result",ParserTypes.noposition))
@@ -211,6 +215,8 @@ let write_result fn of_result =
 		 in output_string xml_outchan (Xml.to_string_fmt xml);
                     close_out xml_outchan;
                     xml_timer ());
+	    if is_module || is_plugin then ()
+	    else
                 (let dot_flat_timer = Debug.timer "write -flat.dot" in
                  let dot_flat_outchan = open_out dot_flat_file in
                  let df_out = match  of_result.dot_flat_output with
@@ -218,8 +224,7 @@ let write_result fn of_result =
                                 | None -> raise Not_found
                  in output_string dot_flat_outchan (Dot.to_string df_out); 
                     close_out dot_flat_outchan;
-                    dot_flat_timer ());
-		end
+                    dot_flat_timer ())
 	    end in
         let _ = write_timer () 
         in  result
@@ -277,10 +282,12 @@ let xmain do_result fn =
                         let _ = generate_timer () in
                         let dot_timer = Debug.timer "dot" in
 			let dot_flat_output = 
-                                        match CmdLine.get_module_name () with
-                                                None -> 
+                                        match CmdLine.get_module_name (), CmdLine.get_plugin_name () with
+                                                (_,Some _) -> None 
+                                                | (Some _,_) -> None 
+                                                | (None,None) -> 
                                                         Some (Dot.generate_flow br.Flow.fmap)
-                                                |(Some mn) -> None in
+                                in
                         let dot_output = 
                                 match CmdLine.get_module_name() with
                                         None -> Dot.generate_program fn pres

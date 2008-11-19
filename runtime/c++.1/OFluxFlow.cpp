@@ -128,6 +128,17 @@ void delete_vector_contents(std::vector<O *> & vo)
         }
 }
 
+template<class O>
+void delete_deque_contents(std::deque<O *> & mo)
+{
+        typename std::deque<O *>::iterator itr;
+        itr = mo.begin();
+        while(itr != mo.end()) {
+                delete (*itr);
+                itr++;
+        }
+}
+
 template<typename K, typename O>
 void delete_map_contents(std::map<K,O *> & mo)
 {
@@ -185,11 +196,12 @@ FlowSuccessor::FlowSuccessor(const char * name)
 
 FlowSuccessor::~FlowSuccessor() 
 { 
-        delete_vector_contents<FlowCase>(_cases); 
+        delete_deque_contents<FlowCase>(_cases); 
 }
 
-void FlowSuccessor::add(FlowCase * fc) 
+void FlowSuccessor::add(FlowCase * fc, bool front) 
 { 
+        /*
         int sz = _cases.size();
         FlowCase * last = (sz > 0 ? _cases.back() : NULL);
         if(last != NULL && last->isDefault()) {
@@ -197,6 +209,11 @@ void FlowSuccessor::add(FlowCase * fc)
                 _cases.push_back(last);
         } else {
                 _cases.push_back(fc); 
+        } */
+        if(front) {
+                _cases.push_front(fc);
+        } else {
+                _cases.push_back(fc);
         }
 }
 
@@ -204,8 +221,10 @@ void FlowSuccessor::pretty_print(int depth)
 {
         // do not print successor for now
         //oflux_log_info("%s%s\n", create_indention(depth).c_str(), _name.c_str());
-        for(int i=0; i < (int) _cases.size(); i++) {
-                _cases[i]->pretty_print(depth+1);
+        std::deque<FlowCase *>::iterator itr = _cases.begin();
+        while(itr != _cases.end()) {
+                (*itr)->pretty_print(depth+1);
+                itr++;
         }
         oflux_log_info("%s..%s\n", create_indention(depth+1).c_str(),_name.c_str());
 }
@@ -306,6 +325,18 @@ Flow::~Flow()
         delete_vector_contents<Library>(_libraries);
 }
 
+bool Flow::haveLibrary(const char * name)
+{
+        bool fd = false;
+        for(int i = 0; i <(int)_libraries.size(); i++) {
+                if(_libraries[i]->getName() == name) {
+                        fd = true;
+                        break;
+                }
+        }
+        return fd;
+}
+
 void Flow::log_snapshot()
 {
         std::map<std::string, FlowNode *>::iterator mitr = _nodes.begin();
@@ -332,6 +363,22 @@ void Flow::pretty_print()
 std::vector<FlowNode *> & Flow::sources()
 {
         return _sources;
+}
+
+int Flow::init_libraries(int argc, char * argv[])
+{
+        int number = 0;
+        for(int i = 0; i < (int)_libraries.size(); i++) {
+                std::string initfunction = "init__";
+                _libraries[i]->addSuffix(initfunction);
+                InitFunction * initfunc =
+                        _libraries[i]->getSymbol<InitFunction>(initfunction.c_str(), true); // ignore dlerror -- cause the programmer might not define it
+                if(initfunc) {
+                        (*initfunc)(argc,argv);
+                        number++;
+                }
+        }
+        return number;
 }
 
 }; // namespace

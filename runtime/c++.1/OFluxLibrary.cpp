@@ -4,9 +4,21 @@
 
 namespace oflux {
 
-Library::Library( const std::string & path )
-        : _path( path ), _handle( NULL )
+static void trim_extension(std::string & str)
 {
+        size_t dotpos = str.find_last_of('.');
+        if(dotpos != std::string::npos) {
+                str.replace(dotpos,3,""); // trim ".so" or whatever
+        }
+}
+
+Library::Library( const char * path, const char * filename )
+        : _path( path )
+        , _filename( filename )
+        , _name(filename)
+        , _handle( NULL )
+{
+        trim_extension(_name);
 }
 
 Library::~Library()
@@ -20,8 +32,10 @@ Library::~Library()
 
 bool Library::load( int mode )
 {
+        std::string full_path(_path);
+        full_path = full_path + "/" + _filename;
         ::dlerror();
-        _handle = ::dlopen( _path.c_str(), mode );
+        _handle = ::dlopen( full_path.c_str(), mode );
         if( ! _handle ) {
                 oflux_log_error("Library::load() dlerror: %s\n", ::dlerror());
                 return false;
@@ -30,16 +44,24 @@ bool Library::load( int mode )
         return true;
 }
 
-void * Library::getSymbol( const std::string & name )
+void Library::addSuffix(std::string & str)
+{
+        if(_filename.length() > 3) {
+                str += _filename.c_str() + 3; // drop "lib"
+        }
+        trim_extension(str); // drop the ".so"
+}
+
+void * Library::_getSymbol( const char * name, bool ignoreError )
 {
         if( ! _handle ) {
                 return NULL;
         }
-        oflux_log_info("Library::getSymbol() attempt load of: %s\n", name.c_str());
+        oflux_log_info("Library::_getSymbol() attempt load of: %s\n", name);
         ::dlerror();
-        void * res = ::dlsym( _handle, name.c_str() );
-        if(!res) {
-                oflux_log_error("Library::getSymbol() dlerror: %s\n", ::dlerror());
+        void * res = ::dlsym( _handle, name );
+        if(!res && !ignoreError) {
+                oflux_log_error("Library::_getSymbol() dlerror: %s\n", ::dlerror());
         }
         return res;
 }
