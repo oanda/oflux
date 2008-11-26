@@ -5,6 +5,7 @@
 *.d
 *.o
 *.so
+*vers.ml
 *lexer.ml
 *lexer.mli
 *parser.ml

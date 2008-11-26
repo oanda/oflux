@@ -6,7 +6,7 @@ open Flow
 
 (**
  general program structure is as follows:
-  <flow name=...>
+  <flow name=... ofluxversion=...>
    <guard name=... magicnumber=.../>
    <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionnumber=... outputunionnumber=...> <!-- name of the node -->
     <guardref name=... wtype=... hash=.../>
@@ -25,7 +25,7 @@ open Flow
   </flow>
 
   general plugin structure is as follows:
-  <plugin>
+  <plugin ofluxversion=...>
    <library name="something.so">
     <depend name="somethingelse">
     <!-- can have a bunch of these -->
@@ -66,6 +66,7 @@ open Flow
    plugin2.xml (which plugs into the (program+plugin1 flow) -- so order is critical)
 *)
 
+let xml_ofluxversion_str = "ofluxversion"
 let xml_condition_str = "condition"
 let xml_argument_str = "argument"
 let xml_guard_str = "guard"
@@ -168,19 +169,23 @@ let node el_name el_function el_source el_iserrorhandler el_detached el_external
 			| (Some errorhandler) -> 
 				guardrefs @ [errorhandler;successorlist])
 
+let el_ofluxversion = Vers.vers
+
 let flow el_name nodes =
 	Element(xml_flow_str
-		,[xml_name_str,el_name]
+		,[ xml_name_str,el_name
+                 ; xml_ofluxversion_str,el_ofluxversion
+                 ]
 		,nodes)
 
 let library el_name depends =
         Element(xml_library_str
-                ,[xml_name_str,el_name]
+                ,[ xml_name_str,el_name ]
                 ,depends)
 
 let plugin library nodes_and_guards =
         Element(xml_plugin_str
-                ,[]
+                ,[ xml_ofluxversion_str,el_ofluxversion ]
                 ,library::nodes_and_guards)
 
 let add somethings = Element(xml_add_str,[],somethings)

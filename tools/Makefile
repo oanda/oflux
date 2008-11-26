@@ -3,6 +3,7 @@
 #
 
 CODE= \
+	vers.ml \
 	debug.ml \
 	xml.ml \
 	cmdLine.ml \
@@ -48,6 +49,12 @@ else
   WILLMAKETOPLEVEL=yes
 endif
 
+ifeq ($(shell grep "^\"v" vers.ml | sed s/\"//g), $(shell git describe --tags))
+  VERSDEPEND=
+else
+  VERSDEPEND=FORCE
+endif
+
 BINDIR= bin
 
 COMPILED_CODE = $(addprefix $(BINDIR)/,$(addsuffix .$(OBJECTEXT),$(basename $(CODE))))
@@ -65,21 +72,17 @@ OFLUX=$(BINDIR)/oflux
 
 all: $(XMLLIGHTLIB) $(BINDIR)/.depend.bin $(OFLUXLIB) $(if $(WILLMAKETOPLEVEL),$(OFLUXTOPLEVEL),) $(OFLUX)
 
-#$(OFLUXTOPLEVEL): $(OFLUXLIB) $(XMLLIGHTLIB)
-#	ocamlmktop $(INCLUDEOPTS) unix.$(LIBRARYEXT) $(XMLLIGHTLIB) $(OFLUXLIB) -o $(OFLUXTOPLEVEL)
 $(OFLUXTOPLEVEL): $(OFLUXLIB) 
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	ocamlmktop $(INCLUDEOPTS) unix.$(LIBRARYEXT) $(OFLUXLIB) -o $(OFLUXTOPLEVEL)
 
-#$(OFLUX): $(OFLUXLIB) $(XMLLIGHTLIB) $(COMPILED_MAIN)
-#	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) $(XMLLIGHTLIB) $(OFLUXLIB) $(BINDIR)/main.$(OBJECTEXT) -o $(OFLUX)
 $(OFLUX): $(OFLUXLIB) $(COMPILED_MAIN)
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) $(OFLUXLIB) $(BINDIR)/main.$(OBJECTEXT) -o $(OFLUX)
 
 
-#$(XMLLIGHTLIB):
-#	make -wC xml-light bin/xml-light.$(LIBRARYEXT)
+vers.ml: $(VERSDEPEND)
+	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; echo "\""`git describe --tags`"\""; echo "") > vers.ml
 
 $(OFLUXLIB): $(COMPILED_HEADERS) $(COMPILED_CODE)
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
@@ -125,7 +128,7 @@ $(BINDIR)/.depend:
 	ocamldep $(INCLUDEOPTS) *.mli *.ml > $(BINDIR)/.depend
 
 clean:
-	rm -f $(BINDIR)/* lexer.ml parser.ml parser.mli oflux ofluxcli parser.output $(BINDIR)/.depend* *.cmi *.cmo *.cmx ../doc/oflux-syntax.html ../doc/compiler/*;
+	rm -f $(BINDIR)/* lexer.ml parser.ml parser.mli oflux ofluxcli parser.output $(BINDIR)/.depend* *.cmi *.cmo *.cmx ../doc/oflux-syntax.html ../doc/compiler/* vers.ml;
 #	make -wC xml-light clean
 
 doc:
@@ -134,6 +137,7 @@ doc:
 	ocamldoc -html -I bin -d ../doc/compiler $(HEADERS)
 #	ocamldoc -html -I bin -I xml-light/bin -d ../doc/compiler $(HEADERS)
 
+FORCE:
 
 ifneq ($(MAKECMDGOALS),depend)
  -include $(BINDIR)/.depend.bin
