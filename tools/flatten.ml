@@ -66,6 +66,7 @@ let add_atom_decl ip mp pr =
                 ; mod_inst_list = pr.mod_inst_list
                 ; plugin_list = pr.plugin_list
                 ; terminate_list = pr.terminate_list
+                ; order_decl_list = pr.order_decl_list
                 }
 
 let add_self_guardrefs pr = 
@@ -98,6 +99,7 @@ let add_self_guardrefs pr =
                 ; mod_inst_list = pr.mod_inst_list
                 ; plugin_list = pr.plugin_list
                 ; terminate_list = pr.terminate_list
+                ; order_decl_list = pr.order_decl_list
                 }
 
 let program_append pr1 pr2 =
@@ -132,6 +134,7 @@ let program_append pr1 pr2 =
         ; mod_inst_list = pr1.mod_inst_list @ pr2.mod_inst_list
         ; plugin_list = pr1.plugin_list @ pr2.plugin_list
         ; terminate_list = pr1.terminate_list @ pr2.terminate_list
+        ; order_decl_list = pr1.order_decl_list @ pr2.order_decl_list
         }
 
 let remove_reductions prog =
@@ -169,6 +172,7 @@ let remove_reductions prog =
             ; mod_inst_list=prog.mod_inst_list
             ; plugin_list=prog.plugin_list
             ; terminate_list=prog.terminate_list
+            ; order_decl_list=prog.order_decl_list
             }
 
 
@@ -186,6 +190,7 @@ let context_for_module pr mn =
                 ; mod_inst_list = prm.mod_inst_list
                 ; plugin_list = prm.plugin_list
                 ; terminate_list = prm.terminate_list
+                ; order_decl_list = prm.order_decl_list
                 }
 
 let subst_guardrefs subst grl =
@@ -242,6 +247,7 @@ let apply_guardref_subst gsubst pr =
             ; mod_inst_list = pr.mod_inst_list
             ; plugin_list = pr.plugin_list
             ; terminate_list = pr.terminate_list
+            ; order_decl_list = pr.order_decl_list
             }
 
 
@@ -269,6 +275,8 @@ let flatten prog =
 		{ dctypemod = dt.dctypemod
 		; dctype = prefix_sp pre_md dt.dctype }
 		in*)
+	let for_order_decl pre_mi _ (od1,od2) = 
+                ( prefix_sp pre_mi od1, prefix_sp pre_mi od2) in
 	let for_atom_decl pre_mi pre_md ad =
 		{ atomname = prefix_sp pre_mi ad.atomname
 		; atominputs = ad.atominputs
@@ -332,6 +340,7 @@ let flatten prog =
 		; mod_inst_list = []
                 ; plugin_list = []
                 ; terminate_list = List.map (prefix_sp pre_mi) pr.terminate_list
+                ; order_decl_list = List.map (for_order_decl pre_mi pre_md) pr.order_decl_list
 		}
 		in
 	let add_mod_prefix modprefix md = (modprefix, md) in
@@ -408,6 +417,7 @@ let flatten_module module_name pr =
 		; mod_inst_list = pr.mod_inst_list
                 ; plugin_list = pr.plugin_list
                 ; terminate_list = pr.terminate_list
+                ; order_decl_list = pr.order_decl_list
 		} in
 	let nsnbl = break_namespaced_name module_name in
 	let findfun n md = (strip_position md.modulename) = n in
@@ -446,6 +456,9 @@ let flatten_plugin' plugin_name prog =
                 ; condfunction = (if isext then "" else pref)^cd.condfunction
                 ; condinputs = cd.condinputs
                 } in
+        let for_order_decl is_ea (od1,od2) =
+                ( for_ref is_ea od1
+                , for_ref is_ea od2 ) in
         let for_atom_decl ad =
                 let isext = ad.externalatom 
                 in
@@ -526,6 +539,7 @@ let flatten_plugin' plugin_name prog =
 		; mod_inst_list = List.map for_mod_inst pr.mod_inst_list
                 ; plugin_list = []
                 ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
+                ; order_decl_list = List.map (for_order_decl is_ext_atom) pr.order_decl_list
 		} in
         let local_prog = remove_reductions prog in
         let local_prog = for_program local_prog

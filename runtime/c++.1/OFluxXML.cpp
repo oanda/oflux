@@ -51,6 +51,7 @@ XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char 
 void XMLReader::read(const char * filename)
 {
         readxmlfile(filename, XMLReader::startMainHandler, XMLReader::endMainHandler);
+        _depends_visited.addDependency(filename);
         if(_plugin_lib_dir == NULL) {
                 _plugin_lib_dir = ".";
         }
@@ -103,14 +104,7 @@ void XMLReader::readxmldir()
                 size_t found = filename.find_last_of(".");
                 if(filename.substr(found+1) == "xml" ) {
                         filename = (std::string) pluginxmldir + "/" + filename;
-                        bool alreadydone = false;
-                        for(int i = 0; i < (int)_depends_visited.size(); i++) {
-                                if(_depends_visited[i] == filename) {
-                                        alreadydone = true;
-                                        break;
-                                }
-                        }
-                        if(!alreadydone) {
+                        if(!_depends_visited.isDependency(filename.c_str())) {
                                 readxmlfile(filename.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
                         }
                 }
@@ -188,10 +182,11 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
         const char * el_inputunionnumber = NULL;
         const char * el_outputunionnumber = NULL;
         const char * el_detached = NULL;
-        const char * el_magicnumber = NULL;
         const char * el_wtype = NULL;
         const char * el_function = NULL;
         const char * el_hash = NULL;
+        const char * el_before = NULL;
+        const char * el_after = NULL;
         for(int i = 0; attr[i]; i += 2) {
                 if(strcmp(attr[i],"name") == 0) {
                         el_name = attr[i+1];
@@ -213,8 +208,10 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
                         el_inputunionnumber = attr[i+1];
                 } else if(strcmp(attr[i],"outputunionnumber") == 0) {
                         el_outputunionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"magicnumber") == 0) {
-                        el_magicnumber = attr[i+1];
+                } else if(strcmp(attr[i],"after") == 0) {
+                        el_after = attr[i+1];
+                } else if(strcmp(attr[i],"before") == 0) {
+                        el_before = attr[i+1];
                 } else if(strcmp(attr[i],"hash") == 0) {
                         el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
@@ -231,7 +228,6 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
         int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
         int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
         int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
-        int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
         long hash = (el_hash ? atol(el_hash) : 0);
         if(strcmp(el,"argument") == 0) {
@@ -239,11 +235,15 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
                 // has no children
                 //pthis->flow_guard_ref_add_argument(argno);
         } else if(strcmp(el,"guard") == 0) {
-                // has attributes: name, magic_number
+                // has attributes: name
                 // has no children 
                 AtomicMapAbstract * amap = pthis->lookup_atomic_map(el_name);
                 assert(amap);
-                pthis->new_flow_guard(el_name, magicnumber, amap);
+                pthis->new_flow_guard(el_name, amap);
+        } else if(strcmp(el,"guardprecedence") == 0) {
+                // has attributes: before, after
+                // has no children
+                pthis->new_flow_guardprecedence(el_before, el_after);
         } else if(strcmp(el,"guardref") == 0) {
                 // has attributes: name, unionnumber, wtype
                 // has children: argument(s)
@@ -329,7 +329,8 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         const char * el_nodetarget = NULL;
 
         // guard attributes
-        const char * el_magicnumber = NULL;
+        const char * el_before = NULL;
+        const char * el_after = NULL;
         const char * el_wtype = NULL;
         const char * el_hash = NULL;
 
@@ -362,8 +363,10 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
                 } else if(strcmp(attr[i],"nodetarget") == 0) {
                     	el_nodetarget = attr[i+1];
                 // guard attributes
-                } else if(strcmp(attr[i],"magicnumber") == 0) {
-                    	el_magicnumber = attr[i+1];
+                } else if(strcmp(attr[i],"after") == 0) {
+                    	el_after = attr[i+1];
+                } else if(strcmp(attr[i],"before") == 0) {
+                    	el_before = attr[i+1];
                 } else if(strcmp(attr[i],"hash") == 0) {
                     	el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
@@ -381,7 +384,6 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
         int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
         int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
-        int magicnumber = (el_magicnumber ? atoi(el_magicnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
         long hash = (el_hash ? atol(el_hash) : 0);
 
@@ -399,11 +401,15 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
                 // has no children
                 pthis->new_depend(el_name);
         } else if(strcmp(el,"guard") == 0) {
-                // has attributes: name, magicnumber
+                // has attributes: name
                 // has no children
                 AtomicMapAbstract * amap = pthis->lookup_atomic_map(el_name);
                 assert(amap);
-                pthis->new_flow_guard(el_name, magicnumber, amap);
+                pthis->new_flow_guard(el_name, amap);
+        } else if(strcmp(el,"guardprecedence") == 0) {
+                // has attributes: before, after
+                // has no children
+                pthis->new_flow_guardprecedence(el_before, el_after);
         } else if(strcmp(el,"guardref") == 0 && is_ok_to_create) {
                 // has attributes: name, unionnumber, wtype
                 // has children: argument(s)
@@ -504,13 +510,11 @@ void XMLReader::new_depend(const char * dependname)
         Library * lib = _library; // preserve on the stack
         assert(_flow);
         if(!_flow->haveLibrary(dependname)) {
-                for(int i = 0; i < (int)_depends_visited.size(); i++) {
-                        if(depxml == _depends_visited[i]) {
-                                depxml += " circular dependency -- already loading";
-                                throw XMLReaderException(depxml.c_str());
-                        }
+                if(_depends_visited.isDependency(depxml.c_str())) {
+                        depxml += " circular dependency -- already loading";
+                        throw XMLReaderException(depxml.c_str());
                 }
-                _depends_visited.push_back(depxml);
+                _depends_visited.addDependency(depxml.c_str());
                 _library = NULL;
                 readxmlfile(depxml.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
         }
@@ -535,6 +539,29 @@ void XMLReader::add_library()
         _fmaps_vec.push_back((*ffmpfun)());
         assert(_flow);
         _flow->addLibrary(_library);
+}
+
+void DependencyTracker::addDependency(const char * fl)
+{
+        std::string filename = fl;
+        canonize(filename);
+        _depends_set.insert(filename);
+}
+
+bool DependencyTracker::isDependency(const char * fl)
+{
+        std::string filename = fl;
+        canonize(filename);
+        return _depends_set.find(filename) != _depends_set.end();
+}
+
+void DependencyTracker::canonize(std::string & filename)
+{
+        // just get rid of leading "./"
+        if(filename.length() >= 2 && filename[0] == '.' && filename[1] == '/') {
+                filename.erase(filename.begin());
+                filename.erase(filename.begin());
+        }
 }
 
 };

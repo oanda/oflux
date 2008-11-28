@@ -9,6 +9,8 @@
 
 #include "OFluxFlow.h"
 #include <string>
+#include <vector>
+#include <set>
 #include <expat.h>
 
 namespace oflux {
@@ -83,6 +85,17 @@ private:
         std::string _name;
 };
 
+class DependencyTracker {
+public:
+        DependencyTracker() {}
+        void addDependency(const char * fl);
+        bool isDependency(const char * fl);
+protected:
+        void canonize(std::string & filename); // modify in place
+private:
+        std::set<std::string> _depends_set;
+};
+
 /**
  * @class XMLReader
  * @brief reads an XML flux file given the mappings needed to compile a flow
@@ -152,8 +165,10 @@ public:
         }
         void new_flow_successor_list() { }
         void add_flow_successor_list() { }
-        void new_flow_guard(const char * name, int magicnumber, AtomicMapAbstract * amap)
-        { _flow->addGuard(new FlowGuard(amap,name,magicnumber)); }
+        void new_flow_guard(const char * name, AtomicMapAbstract * amap)
+        { _flow->addGuard(new FlowGuard(amap,name)); }
+        void new_flow_guardprecedence(const char * before, const char * after)
+        { _flow->addGuardPrecedence(before,after); }
         void new_flow_guard_reference(FlowGuard * fg, int unionnumber, long hash, int wtype)
         { 
                 _flow_guard_reference = new FlowGuardReference(fg,wtype); 
@@ -258,7 +273,7 @@ private:
         Library *                       _library;
         const char *                    _plugin_lib_dir;
         const char *                    _plugin_xml_dir;
-        std::vector<std::string>        _depends_visited;
+        DependencyTracker               _depends_visited;
 };
 
 };

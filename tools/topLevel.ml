@@ -118,7 +118,7 @@ let semantic_analysis p mod_defs =
 	let symboltable = SymbolTable.empty_symbol_table in
 	let symboltable = SymbolTable.add_program symboltable p in
 	let builtflow = Flow.build_flow_map symboltable
-		node_decls m_fns exprs errs terms mod_defs
+		node_decls m_fns exprs errs terms mod_defs p.order_decl_list
 	in  builtflow
 	
 (*PASS 3*)

@@ -70,6 +70,7 @@ let xml_ofluxversion_str = "ofluxversion"
 let xml_condition_str = "condition"
 let xml_argument_str = "argument"
 let xml_guard_str = "guard"
+let xml_guardprecedence_str = "guardprecedence"
 let xml_guardref_str = "guardref"
 let xml_magicnumber_str = "magicnumber"
 let xml_name_str = "name"
@@ -96,6 +97,8 @@ let xml_library_str = "library"
 let xml_add_str = "add"
 let xml_depend_str = "depend"
 let xml_hash_str = "hash"
+let xml_before_str = "before"
+let xml_after_str = "after"
 
 let depend el_name =
         Element (xml_depend_str
@@ -112,12 +115,19 @@ let condition el_name el_argno el_isnegated el_unionnumber =
 		  ]
 		, [])
 
-let guard el_name el_magicnumber =
+let guard el_name =
 	Element (xml_guard_str
 		, [ xml_name_str, el_name
-		  ; xml_magicnumber_str, el_magicnumber
+		  (*; xml_magicnumber_str, el_magicnumber*)
 		  ]
 		, [])
+
+let guardprecedence el_before el_after =
+        Element (xml_guardprecedence_str
+                , [ xml_before_str, el_before
+                  ; xml_after_str, el_after
+                  ]
+                , [])
 
 let guardref el_name el_unionnumber el_hash el_wtype =
 	Element (xml_guardref_str
@@ -290,7 +300,7 @@ let emit_program_xml programname br =
 			in  if ist || (is_condition_always_false ccond) then
                                 []
                             else [[case n (gen_cond u_n 1 ccond)]] in
-		let chefun _ solfl =
+		let chefun choice_name solfl =
                         let condunit = List.map (fun x -> []) 
                                 (let sol,_ = List.hd solfl in sol) in
                         let onfold (condneg,sofar) (sol,flr) =
@@ -300,7 +310,7 @@ let emit_program_xml programname br =
                                                 [] -> condunit
                                                 | [x] -> x
                                                 | _ ->
-                                                        raise (XMLConversion ("not - implemented - talk to Mark",ParserTypes.noposition)) in
+                                                        raise (XMLConversion ("not - implemented - talk to Mark "^choice_name,ParserTypes.noposition)) in
                                 let ccondlocal =
                                         List.fold_left and_canon_condition 
                                                 condunit
@@ -379,7 +389,7 @@ let emit_program_xml programname br =
 			(successorlist ((gen_succ [] succ)
 				@ (if is_src && (not is_ro_src) then [successor "erste" [case n []]] else []))) in
 	let guard_ff (ll,i) gname = 
-		let element = guard gname (string_of_int i)
+		let element = guard gname (*(string_of_int i)*)
 		in  (element::ll, i+1) in
         let rec order_node_list onfunl nl =
                 match onfunl with
@@ -388,11 +398,20 @@ let emit_program_xml programname br =
                                 let al,bl = List.partition onfunh nl
                                 in  (order_node_list onfuntl al) @ bl
 	in  let guard_elements, _ = List.fold_left guard_ff ([],1) guardlist in
+            let _ = if CycleFind.detect br.guard_order_pairs then
+                        raise (XMLConversion ("cycle detected in the guard precedence order specified",ParserTypes.noposition))
+                    else () in
+            let guardprecedence_elements = List.map 
+                        (fun (b,a) -> guardprecedence b a)
+                        br.guard_order_pairs in
 	    let node_elements = List.map emit_one 
                         (let nodelist = order_node_list [is_source; is_runonce_source] nodelist
                         in  List.filter (fun n -> not (is_abstract n)) 
                                 nodelist)
-	    in  flow programname (guard_elements @ node_elements)
+	    in  flow programname 
+                        ( guard_elements
+                        @ guardprecedence_elements
+                        @ node_elements)
 
 
 let emit_plugin_xml fn dependslist br_bef br_aft =

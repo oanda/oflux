@@ -13,6 +13,7 @@
 #include "OFluxAtomic.h"
 #include "OFluxProfiling.h"
 #include "OFluxIOConversion.h"
+#include "OFluxOrderable.h"
 #include <cassert>
 #include <vector>
 #include <deque>
@@ -103,12 +104,11 @@ class Atomic;
  * @class FlowGuard
  * @brief holder of a guared (used to implement atomic constraints)
  */
-class FlowGuard {
+class FlowGuard : public MagicNumberable {
 public:
-        FlowGuard(AtomicMapAbstract * amap, const char * n, int magic)
+        FlowGuard(AtomicMapAbstract * amap, const char * n)
                 : _amap(amap)
                 , _name(n)
-                , _magic_number(magic)
                 {}
         /**
          * @brief acquire the atomic value if possible -- otherwise should wait
@@ -140,15 +140,9 @@ public:
          * @return name of the guard
          */
         inline const std::string & getName() { return _name; }
-        /**
-         * @brief the magic number is the index of the guard declaration
-         * @return magic number 
-         */
-        inline int magic_number() const { return _magic_number; }
 private:
         AtomicMapAbstract * _amap;
         std::string         _name;
-        int                 _magic_number;
 };
 
 /**
@@ -413,15 +407,25 @@ protected:
         FlowNode * _flow_node;
 };
 
-class Library;
 
+class Flow;
+
+class GuardMagicSorter : public MagicSorter {
+public:
+        GuardMagicSorter(Flow * f) : _flow(f) {}
+        virtual MagicNumberable * getMagicNumberable(const char * c);
+private:
+        Flow * _flow;
+};
+
+class Library;
 /**
  * @class Flow
  * @brief a flow is a collection of flow nodes (connected internally)
  */
 class Flow {
 public:
-        Flow() {}
+        Flow() : _magic_sorter(this) {}
         ~Flow();
 
         /**
@@ -490,10 +494,14 @@ public:
         }
         bool haveLibrary(const char * name);
         int init_libraries(int argc, char * argv[]);
+        void assignMagicNumbers();
+        inline void addGuardPrecedence(const char * before, const char * after)
+        { _magic_sorter.addInequality(before,after); }
 private:
         std::map<std::string, FlowNode *>  _nodes;
         std::vector<FlowNode *>            _sources;
         std::map<std::string, FlowGuard *> _guards;
+        GuardMagicSorter                   _magic_sorter;
         std::vector<Library *>             _libraries;
 };
 

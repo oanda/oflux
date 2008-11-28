@@ -76,6 +76,7 @@ void RunTime::load_flow(const char * flname, const char * pluginxmldir, const ch
 	// read XML file
 	XMLReader reader(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir);
 	Flow * flow = reader.flow();
+        flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
 	std::vector<FlowNode *> & sources = flow->sources();
 	for(int i = 0; i < (int) sources.size(); i++) {

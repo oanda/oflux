@@ -12,6 +12,7 @@ OFILES= \
 	$(BINDIR)/OFluxLogging.o \
 	$(BINDIR)/OFluxProfiling.o \
 	$(BINDIR)/OFluxQueue.o \
+	$(BINDIR)/OFluxOrderable.o \
 	$(BINDIR)/OFluxFlow.o \
 	$(BINDIR)/OFluxAtomic.o \
 	$(BINDIR)/OFluxAtomicInit.o \

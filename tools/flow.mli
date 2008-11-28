@@ -45,6 +45,7 @@ type built_flow =
                 ; terminates : string list
                 ; runoncesources : string list
                 ; consequences : TypeCheck.consequence_result
+                ; guard_order_pairs : (string * string) list
 		}
 
 val build_flow_map : 
@@ -55,5 +56,6 @@ val build_flow_map :
 	ParserTypes.err list ->
         string list ->
 	ParserTypes.mod_def list -> (** unflattened *)
+	ParserTypes.order_decl list -> 
 		built_flow
 

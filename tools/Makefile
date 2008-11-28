@@ -12,6 +12,7 @@ CODE= \
 	lexer.ml \
 	symbolTable.ml \
 	unify.ml \
+	cycleFind.ml \
 	unionFind.ml \
 	typeCheck.ml \
 	flatten.ml \
@@ -24,6 +25,7 @@ CODE= \
 
 HEADERS= \
 	xml.mli \
+	cycleFind.mli \
 	unionFind.mli \
 	codePrettyPrinter.mli \
 	cmdLine.mli \

@@ -28,7 +28,7 @@ let rec break_dotted_name nsn =
 
 %}
 %token ENDOFFILE
-%token <ParserTypes.position*ParserTypes.position> ATOMIC;
+%token <ParserTypes.position*ParserTypes.position> ATOMIC, PRECEDENCE;
 %token <ParserTypes.position*ParserTypes.position> DETACHED, ABSTRACT;
 %token <ParserTypes.position*ParserTypes.position> ARROW, STAR, EXCLAMATION;
 %token <ParserTypes.position*ParserTypes.position> LEFT_CR_BRACE, RIGHT_CR_BRACE;
@@ -68,7 +68,7 @@ top_level_program:
 
 program:
 	code_list 
-		{ let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $1 
+		{ let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
 		  in { cond_decl_list=cl 
 		     ; atom_decl_list=al
 		     ; node_decl_list=nl
@@ -79,6 +79,7 @@ program:
 		     ; mod_inst_list=mil
                      ; plugin_list=pl
                      ; terminate_list=tl
+                     ; order_decl_list=odl
 		     } }
 ;
 
@@ -87,47 +88,51 @@ program:
 code_list:
 	main_fn code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
-	  in  ($1::sl,el,erl,mil,cl,al,nl,mdl,pl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
+	  in  ($1::sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl) }
 	| expr_part code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
-	  in  (sl,$1::el,erl,mil,cl,al,nl,mdl,pl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
+	  in  (sl,$1::el,erl,mil,cl,al,nl,mdl,pl,tl,odl) }
 	| err_def code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
-	  in  (sl,el,$1::erl,mil,cl,al,nl,mdl,pl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
+	  in  (sl,el,$1::erl,mil,cl,al,nl,mdl,pl,tl,odl) }
 	| mod_inst code_list
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2
-	  in  (sl,el,erl,$1::mil,cl,al,nl,mdl,pl,tl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
+	  in  (sl,el,erl,$1::mil,cl,al,nl,mdl,pl,tl,odl) }
 	| node_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
-          in sl,el,erl,mil,cl,al,$1::nl,mdl,pl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+          in sl,el,erl,mil,cl,al,$1::nl,mdl,pl,tl,odl }
 	| atom_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
-	  in sl,el,erl,mil,cl,$1::al,nl,mdl,pl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+	  in sl,el,erl,mil,cl,$1::al,nl,mdl,pl,tl,odl }
 	| cond_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
-	  in sl,el,erl,mil,$1::cl,al,nl,mdl,pl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+	  in sl,el,erl,mil,$1::cl,al,nl,mdl,pl,tl,odl }
 	| mod_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
-	  in sl,el,erl,mil,cl,al,nl,$1::mdl,pl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+	  in sl,el,erl,mil,cl,al,nl,$1::mdl,pl,tl,odl }
 	| plugin_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
-	  in sl,el,erl,mil,cl,al,nl,mdl,$1::pl,tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+	  in sl,el,erl,mil,cl,al,nl,mdl,$1::pl,tl,odl }
 	| term_decl code_list
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl = $2 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$1::tl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$1::tl,odl }
+	| guard_order_decl code_list
+	{ trace_thing "code_list";
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,tl,$1 @ odl }
 	| /*epsilon*/
 	{ trace_thing "code_list";
-          [],[],[],[],[],[],[],[],[],[] }
+          [],[],[],[],[],[],[],[],[],[],[] }
 
 /*** modules ***/
 
@@ -250,6 +255,21 @@ external_opt:
         { true } 
         | /* epsilon */
         { false }
+
+
+guard_order_decl:
+        PRECEDENCE guard_order_list SEMI
+        { $2 }
+
+guard_order_list:
+        ident LESSTHAN ident
+        { [($1,$3)] }
+        | ident LESSTHAN guard_order_list
+        { let rhs = match $3 with 
+                        ((l,_)::_) -> l
+                        | _ -> raise Not_found
+          in  ($1,rhs)::$3 }
+
         
 
 /*** Nodes ***/

@@ -495,9 +495,10 @@ type built_flow =
                 ; terminates : string list
                 ; runoncesources : string list
                 ; consequences : TypeCheck.consequence_result
+                ; guard_order_pairs : (string * string) list
 		}
 
-let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
+let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs order_decls =
         let is_not_term n = not (List.mem n terms) in
 	let verify_ss (projfun,ntype) symboltable n = 
 		let nd = SymbolTable.lookup_node_symbol symboltable n
@@ -567,5 +568,6 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs =
             ; terminates = terms
             ; runoncesources = run_once_sources
             ; consequences = TypeCheck.consequences ulist symboltable
+            ; guard_order_pairs = List.map (fun (b,a) -> (strip_position b, strip_position a)) order_decls
 	    }
 

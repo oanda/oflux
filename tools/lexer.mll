@@ -154,6 +154,7 @@ rule token = parse
 	| "end" { updatePosInTok lexbuf (fun x -> END x) }
 	| "read" { updatePosInTok lexbuf (fun x -> READ x) }
 	| "if" { updatePosInTok lexbuf (fun x -> IF x) }
+	| "precedence" { updatePosInTok lexbuf (fun x -> PRECEDENCE x) }
 	| "write" { updatePosInTok lexbuf (fun x -> WRITE x) }
 	| "include" { let fstr = incl lexbuf
 			in INCLUDE fstr }

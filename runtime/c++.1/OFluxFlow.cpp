@@ -381,4 +381,22 @@ int Flow::init_libraries(int argc, char * argv[])
         return number;
 }
 
+void Flow::assignMagicNumbers() 
+{ 
+        _magic_sorter.numberAll(); 
+        std::map<std::string,FlowGuard *>::iterator itr = _guards.begin();
+        while(itr != _guards.end()) {
+                oflux_log_info("flow assigned guard %s magic no %d\n", (*itr).second->getName().c_str(), (*itr).second->magic_number());
+                itr++;
+        }
+}
+
+
+MagicNumberable * GuardMagicSorter::getMagicNumberable(const char * c)
+{ 
+        std::string cs(c); 
+        return _flow->getGuard(cs); 
+}
+
+
 }; // namespace

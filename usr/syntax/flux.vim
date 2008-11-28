@@ -10,7 +10,7 @@ endif
 so $VIMRUNTIME/syntax/cpp.vim
 
 " Flux extentions
-syn keyword fluxStatement as where terminate handle begin end plugin if 
+syn keyword fluxStatement as where terminate handle begin end plugin if precedence
 syn keyword fluxType guard readwrite sequence pool condition node source error atomic instance module exclusive initial plugin
 syn keyword fluxModifier detached abstract read write external
 syn keyword fluxInclude include

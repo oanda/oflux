@@ -95,6 +95,8 @@ type mod_inst =
         ; guardaliases : (string positioned * string positioned) list
 	}
 
+type order_decl = string positioned * string positioned
+
 type program = 
 	{ cond_decl_list: cond_decl list 
 	; atom_decl_list: atom_decl list
@@ -106,6 +108,7 @@ type program =
 	; mod_inst_list: mod_inst list
         ; plugin_list: plugin_def list
         ; terminate_list: string positioned list
+        ; order_decl_list: order_decl list
 	}
 and mod_def = 
 	{ modulename : string positioned 
