@@ -355,6 +355,7 @@ public:
 		while(mitr != _map.end()) {
 			delete (*mitr).first;
 			delete (*mitr).second;
+                        mitr++;
 		}
 	}
 	virtual const void *get(Atomic * &atomic, const void * key)
