@@ -36,7 +36,7 @@ INCS = \
 
 # Used by libofshim 
 %.so: 
-	$(CXX) $(CPPFLAGS) -shared -o $@ $(COMMONOBJS) $<
+	$(CXX) $(CPPFLAGS) -shared -o $@ $<
 
 %.pic.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c -fPIC $(CXXFLAGS) $< -o $@
