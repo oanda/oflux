@@ -32,7 +32,7 @@ INCS = \
 -include $(SRCDIR)/Mk/$(RELEASE).mk
 
 # Include any specific settings for this architecture (eg. Linux, Sparc, etc)
--include $(SRCDIR)/Mk/$(_Arch).mk
+-include $(SRCDIR)/Mk/$(_ARCH).mk
 
 # Used by libofshim 
 %.so: 
