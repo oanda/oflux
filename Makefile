@@ -1,58 +1,71 @@
-# top level make file for this project
-#
+$(warning Make v:$(MAKE_VERSION) Starting xs-libraries main makefile, goal:$(MAKECMDGOALS))
 
-OFLUX= tools/bin/oflux
-RUNTIMES= c++.1 #c++.2
-EXAMPLES= \
-	webserver \
-	sleeppipe \
-	acctcache \
-	guardtest1 \
-	guardtest2 \
-	moduletest1 \
-	concur1 \
-	splaytest1 \
-	initial1 \
-	poolguard \
-	plugin \
-	ioconversion \
-	condguardtest
+ifeq (,$(filter _%,$(notdir $(CURDIR))))
+include Mk/target.mk
+else
+#----- Begin Boilerplate
 
-################################################################
-#
-EXAMPLESWITHDIRS= $(addprefix examples/,$(EXAMPLES))
-RUNTIMESWITHDIRS= $(addprefix runtime/,$(RUNTIMES))
+RELEASE := production
+VPATH := $(SRCDIR)
+ 
+include $(SRCDIR)/Mk/rules.mk
 
-OFLUXRUNTIMES= $(addsuffix /bin/liboflux.a,$(RUNTIMESWITHDIRS))
-EXAMPLESBUILT= $(foreach ex,$(EXAMPLES),examples/$(ex)/$(ex).xml) 
+all: build
 
-.PHONY : all
-all: $(OFLUX) $(OFLUXRUNTIMES) examples
+#begin debug helpers
 
-.PHONY : test
-test:
-	@echo "EXAMPLESWITHDIRS=" $(EXAMPLESWITHDIRS)
-	@echo "RUNTIMESWITHDIRS=" $(RUNTIMESWITHDIRS)
-	@echo "OFLUXRUNTIMES=" $(OFLUXRUNTIMES)
-	@echo "EXAMPLESBUILT=" $(EXAMPLESBUILT)
+print-%: ; @echo $* is $($*)
 
-$(OFLUX):
-	make -wC tools depend all
+#OLD_SHELL := $(SHELL)
+#	SHELL = $(warning [$@ ($^)($?)])$(OLD_SHELL)
 
-$(OFLUXRUNTIMES):
-	$(foreach rtd,$(RUNTIMESWITHDIRS),make -wC $(rtd); touch $(rtd)/bin/liboflux.a;)
+#end debug helpers
 
-.PHONY : examples
-examples: $(OFLUX) $(OFLUXRUNTIMES)
-	$(foreach exd,$(EXAMPLESWITHDIRS),make -wC $(exd);)
+DIR_SPECIFIC_MAKEFILE_NAME := contents.mk
 
-.PHONY : clean
-clean:
-	make -wC tools clean;
-	$(foreach rtd,$(RUNTIMESWITHDIRS),make -wC $(rtd) clean;)
-	$(foreach exd,$(EXAMPLESWITHDIRS),make -wC $(exd) clean;)
+buildable_dirs = \
+	$(shell find $(SRCDIR) -name $(DIR_SPECIFIC_MAKEFILE_NAME) | \
+	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//')
 
-.PHONY : package
-package :
-	echo "Debian package not available for oflux.  Executing default target..."
-package : all
+
+define process_dir
+  LIBRARIES :=
+
+  # passed to the contents.mk module files
+  COMPONENT_DIR = $1
+  include $1/contents.mk
+  ALL_TOOLS += $$(TOOLS)
+  ALL_LIBRARIES += $$(LIBRARIES)
+  ALL_APPS += $$(APPS)
+  VPATH += $1
+  #
+  # The last line of the function must be left blank
+  # in order to avoid some quirky, broken gmake
+  # behavior when expanding macros within foreach
+  # loops.
+  #
+
+endef
+
+
+define process_dirs
+  $(foreach DIR, $(buildable_dirs),\
+	$(call process_dir,$(DIR)))
+endef
+
+ALL_LIBRARIES :=
+
+$(eval $(process_dirs))
+
+.PHONY:
+	all \
+	clean
+
+build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS)
+
+clean::
+	$(RM) $(ALL_LIBRARIES)
+
+#----- END Boilerplate
+endif
+
