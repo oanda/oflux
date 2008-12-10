@@ -58,16 +58,17 @@ oflux.cmxa:
 vers.ml: 
 	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; echo "\""`git describe --tags`"\""; echo "") > vers.ml
 
-parser.mli: parser.mly
+# Hack to work around ocamlyacc's limitation of putting results in the
+# same dir as source.
+$(CURDIR)/% : $(COMPONENT_DIR)/%
+	cp "$<" "$@"
+
+parser.mli: $(CURDIR)/parser.mly
 	ocamlyacc -v $<
-	mv $(COMPONENT_DIR)/parser.mli $(CURDIR)
 
-parser.ml: parser.mli
+parser.ml: $(CURDIR)/parser.mli
 	echo "parser.ml built from yacc."
-	cp $(COMPONENT_DIR)/parser.ml $(CURDIR)
 
-lexer.ml: lexer.mll
-	ocamllex $(SRCDIR)/tools/lexer.mll
-	mv $(COMPONENT_DIR)/lexer.ml $(CURDIR)
-
+lexer.ml: $(CURDIR)/lexer.mll
+	ocamllex $<
 
