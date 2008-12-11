@@ -18,15 +18,15 @@ HEADERS:= \
 	generateCPP1.cmi \
 	generateXML.cmi \
 	dot.cmi \
-        main.cmi 
+	main.cmi
 
 CODE:= \
-        vers.cmx \
+	vers.cmx \
 	debug.cmx \
 	xml.cmx \
 	cmdLine.cmx \
 	parserTypes.cmx \
-        parser.cmx \
+	parser.cmx \
 	lexer.cmx \
 	symbolTable.cmx \
 	unify.cmx \
@@ -40,7 +40,7 @@ CODE:= \
 	codePrettyPrinter.cmx \
 	generateCPP1.cmx \
 	topLevel.cmx \
-        main.cmx 
+	main.cmx
 
 OBJS := $(HEADERS)
 OBJS += $(CODE)
@@ -51,7 +51,7 @@ oflux: vers.ml $(OBJS) oflux.cmxa
 	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) oflux.cmxa main.$(OBJECTEXT) -o oflux 
 
 
-oflux.cmxa: 
+oflux.cmxa: $(CODE)
 	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
 .PHONY : vers.ml
@@ -66,9 +66,8 @@ $(CURDIR)/% : $(COMPONENT_DIR)/%
 parser.mli: $(CURDIR)/parser.mly
 	ocamlyacc -v $<
 
-parser.ml: $(CURDIR)/parser.mli
+parser.ml: parser.mli
 	echo "parser.ml built from yacc."
 
 lexer.ml: $(CURDIR)/lexer.mll
 	ocamllex $<
-
