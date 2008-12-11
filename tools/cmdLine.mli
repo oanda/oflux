@@ -21,3 +21,5 @@ val get_timing_on : unit -> bool
 val get_weak_unify : unit -> bool
 
 val get_abstract_termination : unit -> bool
+
+val get_code_prefix : unit -> string
