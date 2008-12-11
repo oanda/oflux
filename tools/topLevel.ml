@@ -301,8 +301,9 @@ let xmain do_result fn =
                                 GenerateCPP1.get_module_file_suffix
                                         (CmdLine.get_plugin_name())
                                 else suff_string in
-			let h_filename = "OFluxGenerate"^suff_string^".h" in
-			let cpp_filename = "OFluxGenerate"^suff_string^".cpp" 
+                        let code_prefix = CmdLine.get_code_prefix () in
+			let h_filename = code_prefix^suff_string^".h" in
+			let cpp_filename = code_prefix^suff_string^".cpp" 
 			in  do_result fn 
 				{ xmlopt = xmlopt
 				; h_code = h_code

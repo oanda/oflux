@@ -1086,8 +1086,6 @@ let get_module_file_suffix modulenameopt =
 		else ""
 	in  const_ns
 
-let lc_codeprefix = CmdLine.get_code_prefix ()
-let uc_codeprefix = String.uppercase lc_codeprefix
 
 let emit_plugin_cpp pluginname brbef braft um deplist =
 	let stable = braft.Flow.symtable in
@@ -1104,6 +1102,8 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		else ""
 		in
 	let file_suffix = get_module_file_suffix (Some pluginname) in
+        let lc_codeprefix = CmdLine.get_code_prefix () in
+        let uc_codeprefix = String.uppercase lc_codeprefix in
         let dep_includes = List.map
                 (fun dep -> "#include \""
                         ^lc_codeprefix
@@ -1245,6 +1245,8 @@ let emit_cpp modulenameopt br um =
 		then "_"^def_const_ns
 		else ""
 		in
+        let lc_codeprefix = CmdLine.get_code_prefix () in
+        let uc_codeprefix = String.uppercase lc_codeprefix in
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
 		[ "#ifndef _"^uc_codeprefix^def_const_ns
 		; "#define _"^uc_codeprefix^def_const_ns
