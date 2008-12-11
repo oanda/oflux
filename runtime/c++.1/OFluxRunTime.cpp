@@ -57,12 +57,7 @@ RunTime::~RunTime()
         }
 }
 
-int RunTime::init_plugins(int argc, char * argv[])
-{
-        return flow()->init_libraries(argc,argv);
-}
-
-void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir)
+void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
 {
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
@@ -73,8 +68,11 @@ void RunTime::load_flow(const char * flname, const char * pluginxmldir, const ch
 	if(*pluginlibdir == '\0') {
 		pluginlibdir = _rtc.plugin_lib_dir;
 	}
+        if(initpluginparams == NULL) {
+                initpluginparams = _rtc.init_plugin_params;
+        }
 	// read XML file
-	XMLReader reader(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir);
+	XMLReader reader(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir, initpluginparams);
 	Flow * flow = reader.flow();
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)

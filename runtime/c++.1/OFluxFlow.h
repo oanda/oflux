@@ -493,7 +493,6 @@ public:
                 _libraries.push_back(lib);
         }
         bool haveLibrary(const char * name);
-        int init_libraries(int argc, char * argv[]);
         void assignMagicNumbers();
         inline void addGuardPrecedence(const char * before, const char * after)
         { _magic_sorter.addInequality(before,after); }

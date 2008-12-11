@@ -93,7 +93,7 @@ class EventBase;
 class FlowNode;
 
 extern "C" {
-typedef void InitFunction(int, char **);
+typedef void InitFunction(void *);
 }
 
 typedef bool (*ConditionFn)(const void *);

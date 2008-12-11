@@ -30,7 +30,7 @@ void SetErrorHandler::execute(Flow * f)
         _fn->setErrorHandler(fsrc);
 }
 
-XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir)
+XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
         : _flow(new Flow())
         , _flow_node(NULL)
         , _flow_successor_list(NULL)
@@ -43,6 +43,7 @@ XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char 
         , _library(NULL)
         , _plugin_lib_dir(pluginlibdir)
         , _plugin_xml_dir(pluginxmldir)
+        , _init_plugin_params(initpluginparams)
 { 
         _fmaps_vec.push_back(fmaps);
         read(filename);
@@ -538,7 +539,18 @@ void XMLReader::add_library()
         assert(ffmpfun);
         _fmaps_vec.push_back((*ffmpfun)());
         assert(_flow);
-        _flow->addLibrary(_library);
+
+        if(!_flow->haveLibrary(_library->getName().c_str())) {
+                _flow->addLibrary(_library);
+                // init plugin
+                std::string initfunction = "init__";
+                _library->addSuffix(initfunction);
+                InitFunction * initfunc =
+                        _library->getSymbol<InitFunction>(initfunction.c_str(), true); // ignore dlerror -- cause the programmer might not define it
+                if(initfunc) {
+                        (*initfunc)(_init_plugin_params);
+                }
+        }
 }
 
 void DependencyTracker::addDependency(const char * fl)

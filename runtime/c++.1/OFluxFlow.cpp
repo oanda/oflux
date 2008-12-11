@@ -365,22 +365,6 @@ std::vector<FlowNode *> & Flow::sources()
         return _sources;
 }
 
-int Flow::init_libraries(int argc, char * argv[])
-{
-        int number = 0;
-        for(int i = 0; i < (int)_libraries.size(); i++) {
-                std::string initfunction = "init__";
-                _libraries[i]->addSuffix(initfunction);
-                InitFunction * initfunc =
-                        _libraries[i]->getSymbol<InitFunction>(initfunction.c_str(), true); // ignore dlerror -- cause the programmer might not define it
-                if(initfunc) {
-                        (*initfunc)(argc,argv);
-                        number++;
-                }
-        }
-        return number;
-}
-
 void Flow::assignMagicNumbers() 
 { 
         _magic_sorter.numberAll(); 

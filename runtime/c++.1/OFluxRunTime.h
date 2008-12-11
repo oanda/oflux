@@ -36,8 +36,9 @@ struct RunTimeConfiguration {
 	int thread_collection_sample_period;
 	const char * flow_filename;
 	FlowFunctionMaps * flow_maps;
-    const char * plugin_xml_dir;    // plugin xml directory
-    const char * plugin_lib_dir;    // plugin lib directory
+        const char * plugin_xml_dir;    // plugin xml directory
+        const char * plugin_lib_dir;    // plugin lib directory
+        void * init_plugin_params;
 };
 
 class RunTimeThread;
@@ -72,7 +73,8 @@ public:
          */
 	void load_flow(const char * filename = "", 
                    const char * pluginxmldir = "", 
-                   const char * pluginlibdir = "");
+                   const char * pluginlibdir = "",
+                   void * initpluginparams = NULL);
         /**
          * @brief schedule a new flow load at some point convenient
          */
@@ -81,11 +83,6 @@ public:
          * @brief ask the runtime to shut down -- start() function returns
          */
 	void soft_kill() { _running = false; }
-
-        /**
-         * @brief the init_...() functions (if they exist are called)
-         */
-        int init_plugins(int argc, char * argv[]);
 
 	/**
 	 * @brief punt to a new thread

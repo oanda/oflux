@@ -104,7 +104,7 @@ private:
  */
 class XMLReader {
 public:
-        XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir);
+        XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams);
 
         /**
          * @brief read a file
@@ -274,6 +274,7 @@ private:
         const char *                    _plugin_lib_dir;
         const char *                    _plugin_xml_dir;
         DependencyTracker               _depends_visited;
+        void *                          _init_plugin_params;
 };
 
 };
