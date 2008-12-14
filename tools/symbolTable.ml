@@ -245,6 +245,9 @@ let get_module_uses_model symtable =
                 let result = fold_module_instances (find_inst depth) mdef.modulesymbols result 
                 in  fold_module_definitions find_def 
                         mdef.modulesymbols (depth,result) in  
-        let _,result = fold_module_definitions find_def symtable ([],[])
+        let find_def' mname mdef (depth,result) =
+                let _, r = find_def mname mdef (depth,result)
+                in  ([],r) in
+        let _,result = fold_module_definitions find_def' symtable ([],[])
         in result
 

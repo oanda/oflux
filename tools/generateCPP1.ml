@@ -372,8 +372,12 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
 			(Some nn,_) -> nn^"::"
 			| _ -> ""
 		in
-        let bidi_uses x y = (List.mem (x,y) uses_model) 
-                        || (List.mem (y,x) uses_model) in
+        let equiv_classes = UnionFind.union_find uses_model in
+        let bidi_uses x y = 
+                List.exists (fun ll -> (List.mem x ll) && (List.mem y ll))
+                        equiv_classes in
+                        (*(List.mem (x,y) uses_model) 
+                        || (List.mem (y,x) uses_model) in*)
         let is_ignorable x = List.mem (TypeCheck.get_union_from_strio conseq_res x) ignoreis in
         let code_template code (assign_opt,t_name,f_name) =
                 let as_name (x,isin) = 
@@ -1119,7 +1123,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
 		(List.map (fun m -> "#include \""^lc_codeprefix^"_"^m^".h\"") modules) in
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
-		[ "#include \"i"^lc_codeprefix^".h\" // get the standard stuff from the pre-built header"
+		[ "#include \""^lc_codeprefix^".h\" // get the standard stuff from the pre-built header"
 		; ""
 		; ""
 		; "// ---------- OFlux generated header (do not edit by hand) ------------"
