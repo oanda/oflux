@@ -21,37 +21,37 @@ HEADERS:= \
 	main.cmi
 
 CODE:= \
-	vers.cmx \
-	debug.cmx \
-	xml.cmx \
-	cmdLine.cmx \
-	parserTypes.cmx \
-	parser.cmx \
-	lexer.cmx \
-	symbolTable.cmx \
-	unify.cmx \
-	cycleFind.cmx \
-	unionFind.cmx \
-	typeCheck.cmx \
-	flatten.cmx \
-	flow.cmx \
-	generateXML.cmx \
-	dot.cmx \
-	codePrettyPrinter.cmx \
-	generateCPP1.cmx \
-	topLevel.cmx \
-	main.cmx
+	vers.$(OBJECTEXT) \
+	debug.$(OBJECTEXT) \
+	xml.$(OBJECTEXT) \
+	cmdLine.$(OBJECTEXT) \
+	parserTypes.$(OBJECTEXT) \
+	parser.$(OBJECTEXT) \
+	lexer.$(OBJECTEXT) \
+	symbolTable.$(OBJECTEXT) \
+	unify.$(OBJECTEXT) \
+	cycleFind.$(OBJECTEXT) \
+	unionFind.$(OBJECTEXT) \
+	typeCheck.$(OBJECTEXT) \
+	flatten.$(OBJECTEXT) \
+	flow.$(OBJECTEXT) \
+	generateXML.$(OBJECTEXT) \
+	dot.$(OBJECTEXT) \
+	codePrettyPrinter.$(OBJECTEXT) \
+	generateCPP1.$(OBJECTEXT) \
+	topLevel.$(OBJECTEXT) \
+	main.$(OBJECTEXT)
 
 OBJS := $(HEADERS)
 OBJS += $(CODE)
 
 COMPILED_CODE = $(addprefix $(CURDIR)/,$(addsuffix .$(OBJECTEXT),$(basename $(CODE))))
 
-oflux: vers.ml $(OBJS) oflux.cmxa 
-	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) oflux.cmxa main.$(OBJECTEXT) -o oflux 
+oflux: vers.ml $(OBJS) oflux.$(LIBRARYEXT) 
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) oflux.$(LIBRARYEXT) main.$(OBJECTEXT) -o oflux 
 
 
-oflux.cmxa: $(CODE)
+oflux.$(LIBRARYEXT): $(CODE)
 	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
 .PHONY : vers.ml
@@ -67,7 +67,7 @@ parser.mli: $(CURDIR)/parser.mly
 	ocamlyacc -v $<
 
 parser.ml: parser.mli
-	echo "parser.ml built from yacc."
+	-echo "parser.ml built from yacc."
 
 lexer.ml: $(CURDIR)/lexer.mll
 	ocamllex $<

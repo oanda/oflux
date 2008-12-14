@@ -45,15 +45,15 @@ INCS = \
 OFLUXCOMPILER := $(CURDIR)/oflux
 
 # OCAML
-OCAMLCOMPILER:=ocamlopt $(if $(findstring profile,$(OCAMLCONFIG)),-p,)
-OBJECTEXT:=cmx
-LIBRARYEXT:=cmxa
+OCAMLCOMPILER:=ocaml$(if $(findstring dev,$(OCAMLCONFIG)),c -g,opt) $(if $(findstring profile,$(OCAMLCONFIG)),-p,)
+OBJECTEXT:=cm$(if $(findstring dev,$(OCAMLCONFIG)),o,x)
+LIBRARYEXT:=cm$(if $(findstring dev,$(OCAMLCONFIG)),,x)a
 
 
 %.cmi: %.mli 
 	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $<
 
-%.cmx: %.ml 
+%.$(OBJECTEXT): %.ml 
 	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $<
 
 
