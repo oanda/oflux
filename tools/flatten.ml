@@ -74,6 +74,7 @@ let add_self_guardrefs pr =
                 let _,p1,p2 = nd.nodename in
                 { detached = nd.detached
                 ; abstract = nd.abstract
+                ; ismutable = false
                 ; externalnode = nd.externalnode
                 ; nodename = nd.nodename
                 ; nodefunction = nd.nodefunction
@@ -82,7 +83,8 @@ let add_self_guardrefs pr =
                         @ (if nd.abstract then [] 
                            else [ { guardname = ("self",p1,p2)
                                   ; arguments = []
-                                  ; modifiers = [ Read ]
+                                  ; modifiers = [ if nd.ismutable 
+                                                then Write else Read ]
                                   ; localgname = None
                                   ; guardcond = []
                                   } ]
@@ -230,6 +232,7 @@ let apply_guardref_subst gsubst pr =
                 in
                 { detached = nd.detached
                 ; abstract = nd.abstract
+                ; ismutable = nd.ismutable
                 ; nodename = nd.nodename
                 ; externalnode = nd.externalnode
                 ; nodefunction = nd.nodefunction
@@ -294,6 +297,7 @@ let flatten prog =
 	let for_node_decl pre_mi pre_md nd =
 		{ detached = nd.detached
 		; abstract = nd.abstract
+                ; ismutable = nd.ismutable
                 ; externalnode = nd.externalnode
 		; nodename = prefix_sp pre_mi nd.nodename
 		; nodefunction = prefix pre_md nd.nodefunction
@@ -480,6 +484,7 @@ let flatten_plugin' plugin_name prog =
                 in
                 { detached = nd.detached
                 ; abstract = nd.abstract
+                ; ismutable = nd.ismutable
                 ; externalnode = nd.externalnode
                 ; nodename = if isext then nd.nodename else prefix_sp pre nd.nodename
                 ; nodefunction = (if isext then "" else pref)^nd.nodefunction

@@ -40,6 +40,7 @@ type guardref = { guardname: string positioned
 type node_decl = 
 	{ detached: bool
 	; abstract: bool
+	; ismutable: bool
         ; externalnode: bool
 	; nodename: string positioned 
 	; nodefunction: string

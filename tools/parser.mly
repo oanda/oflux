@@ -29,7 +29,7 @@ let rec break_dotted_name nsn =
 %}
 %token ENDOFFILE
 %token <ParserTypes.position*ParserTypes.position> ATOMIC, PRECEDENCE;
-%token <ParserTypes.position*ParserTypes.position> DETACHED, ABSTRACT;
+%token <ParserTypes.position*ParserTypes.position> DETACHED, ABSTRACT, MUTABLE;
 %token <ParserTypes.position*ParserTypes.position> ARROW, STAR, EXCLAMATION;
 %token <ParserTypes.position*ParserTypes.position> LEFT_CR_BRACE, RIGHT_CR_BRACE;
 %token <ParserTypes.position*ParserTypes.position> PIPE, COLON, COMMA, EQUALS, SEMI;
@@ -321,11 +321,13 @@ node_decl:
                         ; localgname = localgname
                         ; guardcond = clean_cpp_uninterpreted ins guardcond
                         }) grefs in
+	  let is_mut = (List.mem "mutable" $3) in
 	  let is_abs = (List.mem "abstract" $3) ||
 	  	(match $7 with None -> true | _ -> false)
 	  in
 	  { detached=List.mem "detached" $3
           ; abstract=is_abs
+          ; ismutable=is_mut
           ; externalnode=$1
           ; nodename=$4
           ; nodefunction=(strip_position $4)
@@ -341,6 +343,8 @@ node_mod_list:
 	{ trace_thing "node_mod_list"; "detached"::$2 }
 	| ABSTRACT node_mod_list
 	{ trace_thing "node_mod_list"; "abstract"::$2 }
+	| MUTABLE node_mod_list
+	{ trace_thing "node_mod_list"; "mutable"::$2 }
 
 /*** Argument Lists ***/
 
