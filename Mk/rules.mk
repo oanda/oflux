@@ -44,6 +44,9 @@ INCS = \
 #OFLUX
 OFLUXCOMPILER := $(CURDIR)/oflux
 
+OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux
+	$(OFLUXCOMPILER) -a $* $(OFLUX_INCS) $*.flux
+
 # OCAML
 OCAMLCOMPILER:=ocaml$(if $(findstring dev,$(OCAMLCONFIG)),c -g,opt) $(if $(findstring profile,$(OCAMLCONFIG)),-p,)
 OBJECTEXT:=cm$(if $(findstring dev,$(OCAMLCONFIG)),o,x)
