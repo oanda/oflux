@@ -153,6 +153,25 @@ let get_collapsed_types stable ufs umap =
 			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl))
 	in  List.fold_left do_one ([],[],[]) ufs
 
+let get_umap ufs =  
+        let do_one (umap,i) ul =
+                ( (List.map (fun y -> (y,i)) ul) @ umap, i+1 ) in
+        let umap,_ = List.fold_left do_one ([],1) ufs
+        in  umap
+
+
+let finish_consequences stable ufs =
+        let umap = get_umap ufs in
+        let full_collapsed, full_collapsed_names, aliases =
+                get_collapsed_types stable ufs umap in
+        let subset_order = get_subset_order stable full_collapsed
+        in  { equiv_classes=ufs
+            ; union_map=umap
+            ; full_collapsed=full_collapsed
+            ; full_collapsed_names=full_collapsed_names
+            ; aliases=aliases
+            ; subset_order=subset_order
+            }
 
 let consequences ulist stable = 
         let union_find_uniq ufs =
@@ -174,23 +193,8 @@ let consequences ulist stable =
                 in
 	let ulist = translate_node_to_function stable ulist in
         let ufs = UnionFind.union_find ulist in  
-        let ufs = union_find_uniq ufs in
-        let get_umap ufs =  
-                let do_one (umap,i) ul =
-                        ( (List.map (fun y -> (y,i)) ul) @ umap, i+1 ) in
-                let umap,_ = List.fold_left do_one ([],1) ufs
-                in  umap in
-        let umap = get_umap ufs in
-        let full_collapsed, full_collapsed_names, aliases =
-                get_collapsed_types stable ufs umap in
-        let subset_order = get_subset_order stable full_collapsed
-        in  { equiv_classes=ufs
-            ; union_map=umap
-            ; full_collapsed=full_collapsed
-            ; full_collapsed_names=full_collapsed_names
-            ; aliases=aliases
-            ; subset_order=subset_order
-            }
+        let ufs = union_find_uniq ufs 
+        in  finish_consequences stable ufs
 
         
 let get_union_from_strio conseq_r strio = List.assoc strio conseq_r.union_map
@@ -204,5 +208,26 @@ let consequences_equiv_fold ffun onobj conseq_res =
 let consequences_umap_fold ffun onobj conseq_res =
         List.fold_left ffun onobj conseq_res.union_map
 
+let make_compatible stable_change conseq_const conseq_change =
+        let ufs_const = conseq_const.equiv_classes in
+        let ufs = conseq_change.equiv_classes in
+        let intersects ec1 ec2 = List.mem (List.hd ec1) ec2 in
+        let partfor ec ufs =
+                match List.partition (intersects ec) ufs with
+                        ([fd],rem) -> fd,rem
+                        | _ -> raise Not_found in
+        let ec_tostring ec =
+                match ec with  
+                        ((s,b)::_) -> s^(if b then "_in" else "_out")
+                        | _ -> "<empty>" in
+        let rec compat ufs_const ufs =
+                match ufs_const, ufs with
+                        ([],_) -> ufs
+                        | (h::t,_) ->
+                                (try let n,ufs = partfor h ufs
+                                    in n::(compat t ufs)
+                                with Not_found ->
+                                        raise (Failure ("make_compatible failure for class containing "^(ec_tostring h),noposition)))
+        in  finish_consequences stable_change (compat ufs_const ufs)
 
 

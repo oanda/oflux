@@ -571,3 +571,16 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs order_
             ; guard_order_pairs = List.map (fun (b,a) -> (strip_position b, strip_position a)) order_decls
 	    }
 
+let make_compatible br_const br_change =
+        let conseq = TypeCheck.make_compatible br_change.symtable br_const.consequences br_change.consequences
+        in  { sources = br_change.sources
+            ; fmap = br_change.fmap
+            ; ulist = br_change.ulist
+            ; symtable = br_change.symtable
+            ; errhandlers = br_change.errhandlers
+            ; modules = br_change.modules
+            ; terminates = br_change.terminates
+            ; runoncesources = br_change.runoncesources
+            ; consequences = conseq
+            ; guard_order_pairs = br_change.guard_order_pairs
+            }
