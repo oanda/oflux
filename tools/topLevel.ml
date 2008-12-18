@@ -269,8 +269,9 @@ let xmain do_result fn =
                                                 let br = semantic_analysis pres_flat pres.mod_def_list 
                                                 in  br,None
                                         | (Some pres_flat_after) ->  
-                                                ( semantic_analysis pres_flat pres.mod_def_list
-                                                , Some (semantic_analysis pres_flat_after pres.mod_def_list)) in
+                                                let br_bef = semantic_analysis pres_flat pres.mod_def_list in
+                                                let br_aft = semantic_analysis pres_flat_after pres.mod_def_list
+                                                in ( br_bef , Some (Flow.make_compatible br_bef br_aft)) in
                         let _ = sem_an_timer () in
                         let uses_model_timer = Debug.timer "uses model" in
                         let uses_model = get_uses_model pres in
