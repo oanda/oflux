@@ -34,10 +34,6 @@ INCS = \
 # Include any specific settings for this architecture (eg. Linux, Sparc, etc)
 -include $(SRCDIR)/Mk/$(_ARCH).mk
 
-# Used by libofshim 
-%.so: 
-	$(CXX) $(CPPFLAGS) -shared -o $@ $<
-
 %.pic.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c -fPIC $(CXXFLAGS) $< -o $@
 
