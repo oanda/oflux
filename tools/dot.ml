@@ -5,6 +5,10 @@ open ParserTypes
 
 type dot = string list
 
+let lightgreen = "\"#90ff90\""
+let lightpink = "\"#ff9090\""
+let darkgrey = "\"#202020\""
+
 let concat a b = b^a
 let concat' a b = a^b
 
@@ -282,7 +286,7 @@ let generate_program pname p =
                 let mins = lookup_mod_inst_nodes name in
                 let on_each nl (_,nn,copt) =
                           let c = match copt with
-                                        None -> "darkgrey"
+                                        None -> darkgrey
                                         | (Some c) -> c
                           in  for_node name false nn c None;
                                 nn::nl
@@ -378,7 +382,7 @@ let generate_program pname p =
                 (*let urlopt = mpos_to_url mpos.file in*)
                 let col = match CmdLine.get_plugin_name () with
                                 None -> "pink"
-                                | (Some pn) -> if pn = name then "lightgreen" else "lightpink" in
+                                | (Some pn) -> if pn = name then lightgreen else lightpink in
                 let _ = o_string d ("subgraph cluster"^name^" {\n"
                                 ^"style=filled;\ncolor="^col^";\n"
                                 ^"label=\""^name^"\";\n"

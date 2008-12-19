@@ -59,3 +59,7 @@ val build_flow_map :
 	ParserTypes.order_decl list -> 
 		built_flow
 
+val make_compatible : 
+        built_flow -> (* const baseline one *)
+        built_flow -> (* one to change *)
+        built_flow

@@ -95,4 +95,7 @@ val consequences_umap_fold : ( 'a -> ((string * bool) * int) -> 'a ) ->
         consequence_result ->
         'a
 
-
+val make_compatible : SymbolTable.symbol_table ->
+        consequence_result -> (* a pre-existing const consequence result *)
+        consequence_result -> (* a new one to be made compatible *)
+        consequence_result (* has the same stuff, but is compatible with const version*)
