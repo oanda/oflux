@@ -16,8 +16,8 @@ all: build
 
 print-%: ; @echo $* is $($*)
 
-#OLD_SHELL := $(SHELL)
-#	SHELL = $(warning [$@ ($^)($?)])$(OLD_SHELL)
+OLD_SHELL := $(SHELL)
+	SHELL = $(warning [$@ ($^)($?)])$(OLD_SHELL)
 
 #end debug helpers
 

@@ -54,8 +54,15 @@ oflux: vers.ml $(OBJS) oflux.$(LIBRARYEXT)
 oflux.$(LIBRARYEXT): $(CODE)
 	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
-.PHONY : vers.ml
-vers.ml: 
+ifeq ($(shell grep "^\"v" $(CURDIR)/vers.ml | sed s/\"//g), $(shell git describe --tags))
+  VERSDEPEND=
+else
+  VERSDEPEND=FORCE
+endif
+
+FORCE:
+
+vers.ml: $(VERSDEPEND) 
 	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; echo "\""`git describe --tags`"\""; echo "") > vers.ml
 
 # Hack to work around ocamlyacc's limitation of putting results in the
