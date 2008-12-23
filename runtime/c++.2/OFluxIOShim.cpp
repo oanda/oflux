@@ -39,7 +39,9 @@ private:
     T buf_[S];
 };
 
+#ifndef LINUX
 typedef size_t socklen_t;
+#endif
 
 oflux::RunTimeAbstract *eminfo = NULL;
 
@@ -173,7 +175,7 @@ extern "C" int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 	int ret;
 	int mgr_awake = eminfo->wake_another_thread();
 	oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
-	{ 
+	{
 		oflux::UnlockRunTime urt(eminfo);
 		ret = ((shim_accept)(s, addr, addrlen));
 	}
@@ -214,7 +216,7 @@ extern "C" ssize_t read(int fd, void *buf, size_t count)
 		*/
 		off_t off = lseek(fd, 0, SEEK_CUR);
 		void *addr = mmap(0, count, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, off);
-		
+
 		int len = (count+page_size-1) / page_size;
 		unsigned char *vec = new unsigned char[len];
 		//int rt = -- unused
@@ -225,16 +227,16 @@ extern "C" ssize_t read(int fd, void *buf, size_t count)
 #endif
 		munmap(addr, count);
 		bool in_memory = true;
-		
+
 		for (int i=0; i< len; i++) {
 			if (vec[i] == 0) {
 				in_memory = false;
 				break;
 			}
 		}
-		
+
 		delete [] vec;
-		
+
 		if (in_memory) {
 			return ((shim_read)(fd, buf, count));
 		}
@@ -264,18 +266,18 @@ extern "C" int open(const char *pathname, int flags)
 		}
 		return ((shim_open)(pathname, flags));
 	}
-	
-	
+
+
 	int fd = ((*shim_open)(pathname, flags));
 	if(-1 == fd) {
 	    return fd;
 	}
 	is_regular[fd] = true;
-	
+
 	if (strcmp("/proc/cpuinfo", pathname) == 0) {
 		is_regular[fd] = false;
 	}
-	
+
 	return fd;
 }
 
@@ -287,7 +289,7 @@ extern "C" int close(int fd)
 		}
 		return ((shim_close)(fd));
 	}
-	
+
 	is_regular[fd] = false;
 	return ((*shim_close)(fd));
 }
@@ -369,7 +371,7 @@ extern "C" ssize_t recv(int s, void * buf, size_t len, int flags) {
     if (pfd.revents & POLLIN || flags & MSG_DONTWAIT) { // if it won't block
         return ((shim_recv)(s, buf, len, flags));
     }
-    
+
     int mgr_awake = eminfo->wake_another_thread();
 	oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
     {
@@ -392,7 +394,7 @@ extern "C" ssize_t send(int s, const void * msg, size_t len, int flags) {
         }
         return ((shim_send)(s, msg, len, flags));
     }
-    
+
     struct pollfd pfd;
     pfd.fd = s;
     pfd.events = POLLOUT;
@@ -456,7 +458,7 @@ extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout)
         }
         return ((shim_port_get)(port, pe, timeout));
     }
-    
+
     uint_t nget = 0;
     ((shim_port_getn)(port, 0, 0, &nget, 0));
     if(nget > 0) { // if it won't block
@@ -488,7 +490,7 @@ extern "C" int port_getn(int port, port_event_t list[], uint_t max,
         }
         return ((shim_port_getn)(port, list, max, nget, timeout));
     }
-    
+
     if(0 == max) { // if it won't block
         return ((shim_port_getn)(port, list, max, nget, timeout));
     }
