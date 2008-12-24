@@ -40,7 +40,7 @@ INCS = \
 #OFLUX
 OFLUXCOMPILER := $(CURDIR)/oflux
 
-OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux
+OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux oflux
 	$(OFLUXCOMPILER) -a $* $(OFLUX_INCS) $*.flux
 
 # OCAML
