@@ -51,7 +51,7 @@ RunTime::~RunTime()
                 while(_queue.pop(e)) {} // empty the event queue
         }
         while(_active_flows.size() > 0) {
-                Flow * back = _active_flows.back();
+                flow::Flow * back = _active_flows.back();
                 _active_flows.pop_back();
                 delete back;
         }
@@ -72,19 +72,18 @@ void RunTime::load_flow(const char * flname, const char * pluginxmldir, const ch
                 initpluginparams = _rtc.init_plugin_params;
         }
 	// read XML file
-	XMLReader reader(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir, initpluginparams);
-	Flow * flow = reader.flow();
+        flow::Flow * flow = xml::read(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir, initpluginparams);
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
-	std::vector<FlowNode *> & sources = flow->sources();
+	std::vector<flow::Node *> & sources = flow->sources();
 	for(int i = 0; i < (int) sources.size(); i++) {
-		FlowNode * fn = sources[i];
+		flow::Node * fn = sources[i];
 		CreateNodeFn createfn = fn->getCreateFn();
 		boost::shared_ptr<EventBase> ev = (*createfn)(EventBase::no_event,NULL,fn);
 		_queue.push(ev);
 	}
 	while(_active_flows.size() > 0) {
-		Flow * back = _active_flows.back();
+		flow::Flow * back = _active_flows.back();
 		if(back->sources().size() > 0) {
 			back->turn_off_sources();
 		}
@@ -306,7 +305,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 	int wtype = 0;
 	// ------------------ Guards --------------------
 	static AtomicsHolder empty_ah;
-	FlowGuardReference * flow_guard_ref = NULL;
+	flow::GuardReference * flow_guard_ref = NULL;
 	Atomic * must_wait_on_atomic = 
 		ev->acquire(wtype /*output*/,
 			flow_guard_ref /*output*/,
@@ -352,13 +351,13 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 		std::vector<boost::shared_ptr<EventBase> > successor_events_released;
 		//ev->successors(successor_events,return_code);
 		if(return_code) { // error encountered
-			std::vector<FlowCase *> fsuccessors;
+			std::vector<flow::Case *> fsuccessors;
 			void * ev_output = ev->output_type().next();
 			ev->flow_node()->get_successors(fsuccessors, 
 					ev_output, return_code);
 			for(int i = 0; i < (int) fsuccessors.size(); i++) {
-				FlowNode * fn = fsuccessors[i]->targetNode();
-                FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
+				flow::Node * fn = fsuccessors[i]->targetNode();
+                flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
 				CreateNodeFn createfn = fn->getCreateFn();
 				boost::shared_ptr<EventBase> ev_succ = 
 					(*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn);
@@ -380,7 +379,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 				}
 			}
 		} else { // no error encountered
-			std::vector<FlowCase *> fsuccessors;
+			std::vector<flow::Case *> fsuccessors;
 			OutputWalker ev_ow = ev->output_type();
 			void * ev_output = NULL;
 			bool saw_source = false;
@@ -389,8 +388,8 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 				ev->flow_node()->get_successors(fsuccessors, 
 						ev_output, return_code);
 				for(int i = 0; i < (int) fsuccessors.size(); i++) {
-					FlowNode * fn = fsuccessors[i]->targetNode();
-                    FlowIOConverter * iocon = fsuccessors[i]->ioConverter();
+					flow::Node * fn = fsuccessors[i]->targetNode();
+                    flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
 					bool is_source = fn->getIsSource();
 					if(is_source && saw_source) {
 						continue;

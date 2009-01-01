@@ -6,6 +6,8 @@
 
 namespace oflux {
 
+namespace flow {
+
 class Library
 {
 public:
@@ -42,6 +44,8 @@ private:
         void * _handle;
 
 }; // class Library
+
+} // namespace flow
 
 } // namespace oflux 
 

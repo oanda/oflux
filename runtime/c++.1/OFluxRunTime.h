@@ -17,7 +17,11 @@
 
 namespace oflux {
 
-class FlowFunctionMaps;
+namespace flow {
+class FunctionMaps;
+class Flow;
+class Node;
+} // namespace flow
 
 class LoggingAbstract;
 
@@ -35,7 +39,7 @@ struct RunTimeConfiguration {
 	int min_waiting_thread_collect; // waiting in pool collector
 	int thread_collection_sample_period;
 	const char * flow_filename;
-	FlowFunctionMaps * flow_maps;
+	flow::FunctionMaps * flow_maps;
         const char * plugin_xml_dir;    // plugin xml directory
         const char * plugin_lib_dir;    // plugin lib directory
         void * init_plugin_params;
@@ -45,8 +49,6 @@ class RunTimeThread;
 class RunTime;
 
 typedef void (*initShimFnType) (RunTime *);
-
-class Flow;
 
 typedef Removable<RunTimeThread, InheritedNode<RunTimeThread> > RunTimeThreadNode;
 typedef LinkedListRemovable<RunTimeThread, RunTimeThreadNode> RunTimeThreadList;
@@ -113,13 +115,13 @@ protected:
 		{ return _rtc.thread_collection_sample_period; }
 	void doThreadCollection();
 protected:
-	inline Flow * flow() { return _active_flows.front(); }
+	inline flow::Flow * flow() { return _active_flows.front(); }
 	void remove(RunTimeThread * rtt);
 private:
 	const RunTimeConfiguration & _rtc;
 	RunTimeThreadList   _thread_list;
 protected:
-	std::deque<Flow *>  _active_flows;
+	std::deque<flow::Flow *>  _active_flows;
 	Queue               _queue;
 	bool                _running;
 	int                 _thread_count;
@@ -127,7 +129,6 @@ protected:
 	bool                _load_flow_next;
 };
 
-class FlowNode;
 
 /**
  * @class RunTimeThread
@@ -173,7 +174,7 @@ public:
 	virtual TimerList & timer_list() { return _timer_list; }
 	virtual TimerStartPausable * oflux_timer() { return _oflux_timer; }
 #endif
-	inline FlowNode * working_flow_node() { return _flow_node_working; }
+	inline flow::Node * working_flow_node() { return _flow_node_working; }
 	virtual void wait_state(RTT_WaitState ws) { _wait_state = ws; }
 private:
 	RunTime *      _rt;
@@ -184,7 +185,7 @@ private:
 	bool           _detached;
 	RTT_WaitState  _wait_state;
 	oflux_thread_t _tid;
-	FlowNode *     _flow_node_working;
+	flow::Node *   _flow_node_working;
 #ifdef PROFILING
 	TimerList      _timer_list;
 	TimerStartPausable * _oflux_timer;

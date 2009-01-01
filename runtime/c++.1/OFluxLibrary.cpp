@@ -3,6 +3,7 @@
 #include "OFluxLogging.h"
 
 namespace oflux {
+namespace flow {
 
 static void trim_extension(std::string & str)
 {
@@ -65,5 +66,5 @@ void * Library::_getSymbol( const char * name, bool ignoreError )
         }
         return res;
 }
-
+} // namespace flow
 } // namespace oflux 

@@ -5,7 +5,7 @@
 
 namespace oflux {
 
-void AtomicsHolder::add(FlowGuardReference * fg)
+void AtomicsHolder::add(flow::GuardReference * fg)
 {
 	assert(_number < MAX_ATOMICS_PER_NODE );
 	_holders[_number].init(fg);

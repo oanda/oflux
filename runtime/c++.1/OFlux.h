@@ -4,11 +4,12 @@
 
 namespace oflux {
 
-#define OFLUX_RUNTIME_VERSION "C++.1v0.24"
+#define OFLUX_RUNTIME_VERSION "C++.1v0.24" // FIXME GENERATE FROM GIT
 
-class LoggingAbstract;
-
-extern LoggingAbstract * logger;
+namespace logging {
+class Abstract;
+extern Abstract * logger;
+} // namespace logging
 
 // compile-time assertions
 template <bool> struct CompileTimeAssert;
@@ -90,7 +91,9 @@ private:
 extern E theE;
 
 class EventBase;
-class FlowNode;
+namespace flow {
+class Node;
+} //namespace flow
 
 extern "C" {
 typedef void InitFunction(void *);
@@ -98,7 +101,7 @@ typedef void InitFunction(void *);
 
 typedef bool (*ConditionFn)(const void *);
 
-typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, FlowNode *);
+typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, flow::Node *);
 
 typedef bool (*GuardTransFn)(void *, const void *);
 
