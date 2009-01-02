@@ -4,7 +4,9 @@
 
 namespace oflux {
 
-#define OFLUX_RUNTIME_VERSION "C++.1v0.24" // FIXME GENERATE FROM GIT
+extern const char * runtime_version;
+
+#define OFLUX_RUNTIME_VERSION runtime_version
 
 namespace logging {
 class Abstract;

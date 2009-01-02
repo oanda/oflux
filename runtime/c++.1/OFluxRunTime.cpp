@@ -299,23 +299,41 @@ void RunTimeThread::log_snapshot()
 		working_on);
 }
 
-void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
+class AcquireGuards {
+public:
+
+enum AcquireGuardsResult { AGR_Success = 1, AGR_MustWait = 0 };
+
+static AtomicsHolder empty_ah;
+
+static inline AcquireGuardsResult
+doit(boost::shared_ptr<EventBase> & ev, AtomicsHolder & ah = empty_ah)
 {
-	_flow_node_working = ev->flow_node();
+	AcquireGuardsResult res = AGR_Success;
 	int wtype = 0;
-	// ------------------ Guards --------------------
-	static AtomicsHolder empty_ah;
 	flow::GuardReference * flow_guard_ref = NULL;
 	Atomic * must_wait_on_atomic = 
 		ev->acquire(wtype /*output*/,
 			flow_guard_ref /*output*/,
-			empty_ah);
+			ah);
 	if(must_wait_on_atomic) {
+		res = AGR_MustWait;
 		must_wait_on_atomic->wait(ev,wtype);
 		_GUARD_WAIT(flow_guard_ref->getName().c_str(),
 			ev->flow_node()->getName(), 
 			wtype);
-	} else {
+	}
+	return res;
+}
+}; // AcquireGuards class
+	
+AtomicsHolder AcquireGuards::empty_ah;
+
+void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
+{
+	_flow_node_working = ev->flow_node();
+	// ------------------ Guards --------------------
+	if(AcquireGuards::doit(ev) == AcquireGuards::AGR_Success) {
 	// ---------------- Execution -------------------
 		int return_code;
 		{ 
@@ -349,7 +367,6 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 		std::vector<boost::shared_ptr<EventBase> > successor_events;
 		std::vector<boost::shared_ptr<EventBase> > successor_events_priority;
 		std::vector<boost::shared_ptr<EventBase> > successor_events_released;
-		//ev->successors(successor_events,return_code);
 		if(return_code) { // error encountered
 			std::vector<flow::Case *> fsuccessors;
 			void * ev_output = ev->output_type().next();
@@ -357,24 +374,12 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					ev_output, return_code);
 			for(int i = 0; i < (int) fsuccessors.size(); i++) {
 				flow::Node * fn = fsuccessors[i]->targetNode();
-                flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
+				flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
 				CreateNodeFn createfn = fn->getCreateFn();
 				boost::shared_ptr<EventBase> ev_succ = 
 					(*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn);
 				ev_succ->error_code(return_code);
-				Atomic * null_if_unblocked = ev_succ->acquire(
-					wtype /*output*/,
-					flow_guard_ref /*output*/,
-					ev->atomics());
-					// allow atomics to be passed to succ
-				if(null_if_unblocked) {
-					// could wait, but rather enqueue
-					//successor_events.push_back(ev_succ);
-					null_if_unblocked->wait(ev_succ,wtype);
-                    _GUARD_WAIT(flow_guard_ref->getName().c_str(),
-                                ev_succ->flow_node()->getName(),
-                                wtype);
-				} else { // priority to unblocked events
+				if(AcquireGuards::doit(ev_succ,ev->atomics()) == AcquireGuards::AGR_Success) {
 					successor_events_priority.push_back(ev_succ);
 				}
 			}
@@ -389,7 +394,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 						ev_output, return_code);
 				for(int i = 0; i < (int) fsuccessors.size(); i++) {
 					flow::Node * fn = fsuccessors[i]->targetNode();
-                    flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
+					flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
 					bool is_source = fn->getIsSource();
 					if(is_source && saw_source) {
 						continue;
@@ -404,21 +409,9 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 						: (*createfn)(ev,iocon->convert(ev_output),fn)
 						);
 					ev_succ->error_code(return_code);
-					Atomic * null_if_unblocked = ev_succ->acquire(
-						wtype /*output*/,
-						flow_guard_ref /*output*/,
-						is_source
-						? empty_ah
-						: ev->atomics());
-						// allow atomics to be passed to succ
-					if(null_if_unblocked) {
-						// could wait, but rather enqueue
-						//successor_events.push_back(ev_succ);
-                        null_if_unblocked->wait(ev_succ,wtype);
-                        _GUARD_WAIT(flow_guard_ref->getName().c_str(),
-                                    ev_succ->flow_node()->getName(),
-                                    wtype);
-					} else { // priority to unblocked events
+					if(AcquireGuards::doit(ev_succ,is_source
+                                                ? AcquireGuards::empty_ah
+                                                : ev->atomics()) == AcquireGuards::AGR_Success) {
 						successor_events_priority.push_back(ev_succ);
 					}
 				}
@@ -427,20 +420,11 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 	// ------------ Release held atomics --------------
 		// put the released events as priority on the queue
 		ev->atomics().release(successor_events_released);
-                for(int i = 0; i < (int)successor_events_released.size(); i++) {
-                        Atomic * null_if_unblocked = successor_events_released[i]->acquire(
-                                wtype /*output*/,
-                                flow_guard_ref /*output*/,
-                                empty_ah);
-                        if(null_if_unblocked) {
-                                null_if_unblocked->wait(successor_events_released[i],wtype);
-                                _GUARD_WAIT(flow_guard_ref->getName().c_str(),
-                                        ev_succ->flow_node()->getName(),
-                                        wtype);
-                        } else {
-                                successor_events_priority.push_back(successor_events_released[i]);
-                        }
-                }
+		for(int i = 0; i < (int)successor_events_released.size(); i++) {
+			if(AcquireGuards::doit(successor_events_released[i]) == AcquireGuards::AGR_Success) {
+				successor_events_priority.push_back(successor_events_released[i]);
+			}
+		}
 
 		_rt->_queue.push_list(successor_events_priority); // no priority
 		_rt->_queue.push_list(successor_events);
@@ -449,4 +433,4 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 }
 
 
-}; //namespace
+} //namespace oflux

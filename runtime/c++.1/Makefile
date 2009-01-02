@@ -21,7 +21,8 @@ OFILES= \
 	$(BINDIR)/OFluxRunTimeAbstract.o \
 	$(BINDIR)/OFluxRunTime.o \
 	$(BINDIR)/OFluxXML.o \
-	$(BINDIR)/OFluxLibrary.o
+	$(BINDIR)/OFluxLibrary.o \
+	$(BINDIR)/oflux_vers.o
 
 SHIMOFILES= $(BINDIR)/OFluxRunTimeAbstract.pic.o $(BINDIR)/OFluxIOShim.pic.o
 
@@ -75,6 +76,16 @@ else
 	ar vrcu $@ $^
 endif
 
+ifeq ($(shell test -e oflux_vers.cpp && grep "^\"v" oflux_vers.cpp | sed s/\"//g), $(shell git describe --tags))
+  VERSDEPEND=
+else
+  VERSDEPEND=FORCE
+endif
+
+oflux_vers.cpp: $(VERSDEPEND)
+	(echo "/* auto-generated - do not modify */"; echo ""; echo " namespace oflux { const char * runtime_version = "; echo "\""`git describe --tags`"\"";echo "; }"; echo "") > oflux_vers.cpp
+
+
 $(BINDIR)/%.o : %.cpp 
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	$(CXX) -c -Wall -D_REENTRANT $(CPPOPTS) $(INCS) $< -o $@
@@ -99,7 +110,10 @@ ifneq ($(MAKECMDGOALS),clean)
 endif
 
 clean:
-	rm -f $(BINDIR)/* $(BINDIR)/.*.d ofluxprobe.h
+	rm -f $(BINDIR)/* $(BINDIR)/.*.d ofluxprobe.h oflux_vers.cpp
 	rm -rf ../../doc/runtime/* 
 
-.PHONY : clean 
+FORCE:
+
+
+.PHONY : clean FORCE

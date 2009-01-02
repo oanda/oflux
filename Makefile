@@ -1,4 +1,4 @@
-$(warning Make v:$(MAKE_VERSION) Starting xs-libraries main makefile, goal:$(MAKECMDGOALS))
+$(warning Make v:$(MAKE_VERSION) Starting oflux main makefile, goal:$(MAKECMDGOALS))
 
 ifeq (,$(filter _%,$(notdir $(CURDIR))))
 include Mk/target.mk
