@@ -70,11 +70,8 @@ vers.ml: $(VERSDEPEND)
 $(CURDIR)/% : $(COMPONENT_DIR)/%
 	cp "$<" "$@"
 
-parser.mli: $(CURDIR)/parser.mly
+parser.mli parser.ml: $(CURDIR)/parser.mly
 	ocamlyacc -v $<
-
-parser.ml: parser.mli
-	-echo "parser.ml built from yacc."
 
 lexer.ml: $(CURDIR)/lexer.mll
 	ocamllex $<
