@@ -54,7 +54,7 @@ oflux: vers.ml $(OBJS) oflux.$(LIBRARYEXT)
 oflux.$(LIBRARYEXT): $(CODE)
 	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
-ifeq ($(shell grep "^\"v" $(CURDIR)/vers.ml | sed s/\"//g), $(shell git describe --tags))
+ifeq ($(shell grep "^\"" $(CURDIR)/vers.ml | sed s/\"//g), $(shell git describe --tags))
   VERSDEPEND=
 else
   VERSDEPEND=FORCE
