@@ -18,8 +18,6 @@ namespace oflux {
  * (partly based on value)
  */
 
-class FlowGuardReference;
-
 
 /**
  * @class HeldAtomic
@@ -40,7 +38,7 @@ public:
 	 * @brief init is a pseudo constructor used to tell us which guard
 	 * @param fg the FlowGuardReference indicates the guard instance
 	 */
-	inline void init(FlowGuardReference * fg)
+	inline void init(flow::GuardReference * fg)
 		{ _flow_guard = fg; }
 	/**
          * @brief the guard type indicates which guard is being used (no key values)
@@ -50,7 +48,7 @@ public:
 	//void set_atomic(Atomic * atom, bool haveit)
 		//{ _atom = atom; _haveit = haveit; }
 	//HeldAtomic & operator=(const HeldAtomic & ha);
-	inline FlowGuardReference * flow_guard_ref() 
+	inline flow::GuardReference * flow_guard_ref() 
 		{ return _flow_guard; }
 	/**
 	 * @brief compare is a classical compare function for heldatomics
@@ -131,10 +129,10 @@ public:
 	inline int wtype() const { return _flow_guard->wtype(); }
         inline bool skipit() const { return _atom == NULL; }
 private:
-	Atomic *             _atom;
-	FlowGuardReference * _flow_guard;
-	const void *         _key;
-	bool                 _haveit;
+	Atomic *               _atom;
+	flow::GuardReference * _flow_guard;
+	const void *           _key;
+	bool                   _haveit;
 };
 
 // want this to be static and easy
@@ -151,7 +149,7 @@ public:
 		: _number(0)
 		, _is_sorted_and_keyed(false)
 		{}
-	void add(FlowGuardReference * fg);
+	void add(flow::GuardReference * fg);
 	/**
 	 * @brief given a bunch of held atomics and a node input try to acquire (in order) what you need.
 	 * @remark returns -1 on sucess, otherwise the index where the atomic acquisition failed.

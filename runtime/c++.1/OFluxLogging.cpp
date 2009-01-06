@@ -4,12 +4,13 @@
 #include <iostream>
 
 namespace oflux {
+namespace logging {
 
-LoggingNone LoggingNone::nologger;
+None None::nologger;
 
-LoggingAbstract * logger = &LoggingNone::nologger;
+Abstract * logger = &None::nologger;
 
-static const char * convert_level_to_string(LoggingLevel lv)
+static const char * convert_level_to_string(Level lv)
 {
 	static const char * conv[LL_count] = 
 		{ "info  "
@@ -19,7 +20,7 @@ static const char * convert_level_to_string(LoggingLevel lv)
 	return conv[lv];
 }
 
-LoggingStreamed::LoggingStreamed(StreamArray streams,
+Streamed::Streamed(StreamArray streams,
                 int levels)
 	: _levels(levels)
 	, _streams(streams)
@@ -33,7 +34,7 @@ LoggingStreamed::LoggingStreamed(StreamArray streams,
 
 #define BUFFERLONGENOUGH 512
 
-int LoggingStreamed::oflux_log(LoggingLevel lv, const char * fmt, ...)
+int Streamed::oflux_log(Level lv, const char * fmt, ...)
 {
 	int rc = 0;
 	if(is_on[lv]) {
@@ -54,20 +55,21 @@ int LoggingStreamed::oflux_log(LoggingLevel lv, const char * fmt, ...)
 	return rc;
 }
 
-void LoggingStreamed::setLevelOnOff(LoggingLevel lv, bool to_on)
+void Streamed::setLevelOnOff(Level lv, bool to_on)
 {
 	is_on[lv] = to_on;
 }
 
-void loggingToStream(std::ostream & os) 
+void toStream(std::ostream & os) 
 {
 	static std::ostream * streamarray[LL_count] = 
 		{ &os
 		, &os
 		, &os
 		};
-	static LoggingStreamed logging(streamarray,LL_count);
-	logger = &logging;
+	static Streamed logging_(streamarray,LL_count);
+	logger = &logging_;
 }
 
-} // namespace
+} // namespace logging
+} // namespace oflux

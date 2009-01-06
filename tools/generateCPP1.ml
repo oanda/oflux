@@ -1053,7 +1053,7 @@ let emit_test_main code =
 		; "#ifdef HASINIT"
 		; "init(argc-1,&(argv[1]));"
 		; "#endif //HASINIT"
-		; "static FlowFunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
+		; "static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
 		; ", 1 // initial threads (ignored really)"
@@ -1063,13 +1063,14 @@ let emit_test_main code =
 		; ", 1000 // thread collection sample period (every N node execs)"
 		; ", argv[1] // XML file"
 		; ", &ffmaps"
-		; ", NULL"
+		; ", \"xml\""
+		; ", \"lib\""
 		; ", NULL"
 		; "};"
 		; "RunTime rt(rtc);"
 		; "theRT = &rt;"
 		; "signal(SIGHUP,handlesighup); // install SIGHUP handling"
-		; "loggingToStream(std::cout); // comment out if no oflux logging is desired"
+		; "logging::toStream(std::cout); // comment out if no oflux logging is desired"
 		; "rt.start();"
 		; "}"
 		; "#endif // TESTING"
@@ -1130,11 +1131,13 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		] in
 	let namespaceheader code = expand_namespace_decl_start code ns_broken in
 	let namespacefooter code = expand_namespace_decl_end code ns_broken in
-        let ffunmapname = "oflux::FlowFunctionMaps * flowfunctionmaps_"^file_suffix^"()" in
+        let ffunmapname = "oflux::flow::FunctionMaps * flowfunctionmaps_"^file_suffix^"()" in
         let h_code = List.fold_left CodePrettyPrinter.add_code h_code
                 [ ""
                 ; "namespace oflux {"
-                ; "class FlowFunctionMaps;"
+                ; "namespace flow {"
+                ; "class FunctionMaps;"
+                ; "}"
                 ; "}"
                 ; "extern \"C\" {"
                 ; ffunmapname^";"
@@ -1217,7 +1220,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
                 ; "{ \""^pluginname^"::\", "^pluginname^"::ofluximpl::__create_map_ptr },  "
                 ; "{ NULL, NULL }  "
                 ; "};"
-                ; "static oflux::FlowFunctionMaps ffm("
+                ; "static oflux::flow::FunctionMaps ffm("
                 ; "       "^pluginname^"::ofluximpl::__conditional_map"
                 ; "     , mcm"
                 ; "     , "^pluginname^"::ofluximpl::__theGuardTransMap"

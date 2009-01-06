@@ -11,6 +11,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include "OFlux.h"
+#include "OFluxFlow.h"
 #include "OFluxAtomicHolder.h"
 #include <vector>
 #ifdef HAS_DTRACE
@@ -29,7 +30,6 @@ namespace oflux {
 template<typename G,typename H> H * convert(G *);
 template<typename G,typename H> const H * const_convert(const G *);
 
-class FlowNode;
 
 /**
  * @class EventBase
@@ -38,17 +38,17 @@ class FlowNode;
  * This keeps it from being reclaimed to the heap before the current event
  * is done executing.
  */
-class EventBase : public FlowNodeCounterIncrementer {
+class EventBase : public flow::NodeCounterIncrementer {
 public:
 	static boost::shared_ptr<EventBase> no_event;
 
-	EventBase(boost::shared_ptr<EventBase> predecessor,FlowNode *flow_node)
-		: FlowNodeCounterIncrementer(flow_node)
+	EventBase(boost::shared_ptr<EventBase> predecessor,flow::Node *flow_node)
+		: flow::NodeCounterIncrementer(flow_node)
 		, _predecessor(predecessor)
 		, _error_code(0)
 		//, _flow_node(flow_node)
 		{
-			std::vector<FlowGuardReference *> & vec = 
+			std::vector<flow::GuardReference *> & vec = 
 				flow_node->guards();
 			for(int i = 0; i < (int) vec.size(); i++) {
 				_atomics.add(vec[i]);
@@ -59,7 +59,7 @@ public:
 	virtual const void * input_type() = 0;
 	void release() { _predecessor = no_event; }
 	virtual int execute() = 0;
-	Atomic * acquire(int & wtype, FlowGuardReference * & fgr, 
+	Atomic * acquire(int & wtype, flow::GuardReference * & fgr, 
 			AtomicsHolder & given_atomics)
 		{
 			int res = _atomics.acquire(given_atomics,
@@ -94,7 +94,7 @@ protected:
 template<typename IT, typename OT, typename AM>
 class EventBase2 : public EventBase {
 public:
-	EventBase2(boost::shared_ptr<EventBase> predecessor, FlowNode * flow_node)
+	EventBase2(boost::shared_ptr<EventBase> predecessor, flow::Node * flow_node)
 		: EventBase(predecessor,flow_node)
 		{
 		}
@@ -124,7 +124,7 @@ class EventBase3 : public EventBase2<IT,OT,AM> {
 public:
 	EventBase3(boost::shared_ptr<EventBase> predecessor,
 			const IOConversionBase<IM> *im_io_convert,
-			FlowNode * flow_node)
+			flow::Node * flow_node)
 		: EventBase2<IT,OT,AM>(predecessor,flow_node)
 		, _im_io_convert(im_io_convert)
 		{
@@ -166,7 +166,7 @@ class Event : public EventBase3<IT,OT,IM,OM,AM> {
 public:
 	Event(boost::shared_ptr<EventBase> predecessor,
                         const IOConversionBase<IM> * im_io_convert,
-                        FlowNode * flow_node)
+                        flow::Node * flow_node)
 		: EventBase3<IT,OT,IM,OM,AM>(predecessor,im_io_convert,flow_node)
 		{}
 	virtual int execute()
@@ -195,7 +195,7 @@ class ErrorEvent : public EventBase3<IT,OT,IM,OM,AM> {
 public:
 	ErrorEvent(boost::shared_ptr<EventBase> predecessor,
                         const IOConversionBase<IM> * im_io_convert,
-                        FlowNode * flow_node)
+                        flow::Node * flow_node)
 		: EventBase3<IT,OT,IM,OM,AM>(predecessor,im_io_convert,flow_node)
 		{}
 	virtual int execute()
@@ -214,7 +214,7 @@ public:
 };
 
 /**
- * @brief create an Event from a FlowNode
+ * @brief create an Event from a flow::Node
  * (this is a factory function)
  * @param pred_node_ptr  pointer to predecessor event
  * @param fn  flow node
@@ -223,26 +223,26 @@ public:
  * @return smart pointer to the new event (heap allocated)
  **/
 template<typename IT,typename OT,typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
-boost::shared_ptr<EventBase> create(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,FlowNode *fn)
+boost::shared_ptr<EventBase> create(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,flow::Node *fn)
 {
 	return boost::shared_ptr<EventBase>(new Event<IT,OT,IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
 }
 
 /**
- * @brief create an Event from a source FlowNode
+ * @brief create an Event from a source flow::Node
  * (this is a factory function)
  * @param fn  the source flow node
  *
  * @return  smart pointer managed new source event (heap allocated)
  **/
 template<typename IT,typename OT,typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
-boost::shared_ptr<EventBase> create_source(FlowNode *fn)
+boost::shared_ptr<EventBase> create_source(flow::Node *fn)
 {
 	return boost::shared_ptr<EventBase>(new Event<IT,OT,IM,OM,AM,node_func>(EventBase::no_event,NULL, fn));
 }
 
 /**
- * @brief create and ErrorEvent from a FlowNode
+ * @brief create and ErrorEvent from a flow::Node
  * (this is a factory function)
  * @param pred_node_ptr  predecessor event
  * @param fn  flow node
@@ -251,7 +251,7 @@ boost::shared_ptr<EventBase> create_source(FlowNode *fn)
  * @return smart pointer to the new error event (heap allocated)
  **/
 template<typename IT,typename OT,typename IM,typename OM,typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
-boost::shared_ptr<EventBase> create_error(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,FlowNode * fn)
+boost::shared_ptr<EventBase> create_error(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,flow::Node * fn)
 {
 	return boost::shared_ptr<EventBase>(new ErrorEvent<IT,OT,IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
 }

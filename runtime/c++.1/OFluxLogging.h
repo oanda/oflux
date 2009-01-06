@@ -4,6 +4,7 @@
 #include <ostream>
 
 namespace oflux {
+namespace logging {
 
 /** @file OFluxLogging.h
  *  @author Mark Pichora
@@ -11,7 +12,7 @@ namespace oflux {
  *    to specified streams
  */
 
-enum LoggingLevel 
+enum Level 
 	{ LL_info = 0
 	, LL_warn = 1
 	, LL_error = 2 
@@ -19,41 +20,41 @@ enum LoggingLevel
 	};
 
 /**
- * @class LoggingAbstract
+ * @class Abstract
  * @brief specifies the abstract interface of a logger (for hooking a framework)
  */
-class LoggingAbstract {
+class Abstract {
 public:
-	virtual ~LoggingAbstract() {}
-	virtual int oflux_log(LoggingLevel,const char *, ...) = 0;
-	virtual void setLevelOnOff(LoggingLevel lv, bool to_on) = 0;
+	virtual ~Abstract() {}
+	virtual int oflux_log(Level,const char *, ...) = 0;
+	virtual void setLevelOnOff(Level lv, bool to_on) = 0;
 };
 
 /**
- * @class LoggingNone
+ * @class None
  * @brief implementation of a logger that does no logging
  */
-class LoggingNone : public LoggingAbstract {
+class None : public Abstract {
 public:
-	static LoggingNone nologger;
-	LoggingNone() {}
-	virtual ~LoggingNone() {}
-	virtual int oflux_log(LoggingLevel,const char *,...) { return 0; }
-	virtual void setLevelOnOff(LoggingLevel, bool) {}
+	static None nologger;
+	None() {}
+	virtual ~None() {}
+	virtual int oflux_log(Level,const char *,...) { return 0; }
+	virtual void setLevelOnOff(Level, bool) {}
 };
 
 typedef std::ostream * StreamArray[];
 
 /**
- * @class LoggingStreamed
+ * @class Streamed
  * @brief a logger implementation for hooking to output streams (std::ostream)
  */
-class LoggingStreamed : public LoggingAbstract {
+class Streamed : public Abstract {
 public:
-	LoggingStreamed(StreamArray streams, 
+	Streamed(StreamArray streams, 
 		int levels);
-	virtual int oflux_log(LoggingLevel,const char *,...);
-	virtual void setLevelOnOff(LoggingLevel lv, bool to_on);
+	virtual int oflux_log(Level,const char *,...);
+	virtual void setLevelOnOff(Level lv, bool to_on);
 private:
 	int _levels;
 	std::ostream ** _streams;
@@ -64,13 +65,14 @@ private:
  * @brief set all the logging streams to be a single output stream (creates a LoggingStreamed object internally)
  * @param os the given output stream
  */
-void loggingToStream(std::ostream & os); // only call this once!
+void toStream(std::ostream & os); // only call this once!
 
-#define oflux_log_info(...) logger->oflux_log(LL_info,__VA_ARGS__)
-#define oflux_log_warn(...) logger->oflux_log(LL_warn,__VA_ARGS__)
-#define oflux_log_error(...) logger->oflux_log(LL_error,__VA_ARGS__)
+#define oflux_log_info(...) oflux::logging::logger->oflux_log(oflux::logging::LL_info,__VA_ARGS__)
+#define oflux_log_warn(...) oflux::logging::logger->oflux_log(oflux::logging::LL_warn,__VA_ARGS__)
+#define oflux_log_error(...) oflux::logging::logger->oflux_log(oflux::logging::LL_error,__VA_ARGS__)
 
-} // namespace
+} // namespace logging
+} // namespace oflux
 
 
 #endif // _OFLUX_LOGGING

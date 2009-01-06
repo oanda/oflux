@@ -1,37 +1,287 @@
 #include "OFluxXML.h"
+#include "OFluxFlow.h"
 #include "OFluxLibrary.h"
 #include "OFluxLogging.h"
+#include <vector>
+#include <set>
+#include <expat.h>
 #include <fstream>
 #include <cassert>
 #include <dirent.h>
 
-namespace oflux {
-
 #define XML_READER_MAX_LINE 300
 
-void AddTarget::execute(Flow * f)
+
+namespace oflux {
+namespace xml {
+
+
+class Reader;
+
+/**
+ * @class AddTarget
+ * @brief a storage class for keeping a link from a flow node to its target
+ * This is necessary to allow forward referencing in the XML file of nodes.
+ */
+class AddTarget {
+public:
+        AddTarget(
+            flow::Case *fc, 
+            const char * name,
+            int node_output_unionnumber,
+            Reader * xmlreader)
+        : _fc(fc)
+        , _name(name)
+        , _node_output_unionnumber(node_output_unionnumber)
+        , _target_input_unionnumber(0)
+        , _xmlreader(xmlreader)
+        {}
+        /**
+         * @brief links the flow node found in parsed flow to a case
+         * @param f  the fully parsed flow
+         **/
+        void execute(flow::Flow * f);
+private:
+        flow::Case * _fc;
+        std::string  _name; //target
+        int          _node_output_unionnumber;
+        int          _target_input_unionnumber;
+        Reader *     _xmlreader;
+};
+
+/**
+ * @class SetErrorHandler
+ * @brief
+ * This is necessary to allow forward referencing in the XML file of
+ * error handling nodes.
+ */
+class SetErrorHandler {
+public:
+        SetErrorHandler(flow::Node *fn, const char * name)
+                : _fn(fn)
+                , _name(name)
+        {}
+        /**
+         * @brief links the error flow node found in parsed flow to a node
+         * @param f  the fully parsed flow
+         **/
+        void execute(flow::Flow * f);
+private:
+        flow::Node * _fn;
+        std::string  _name;
+};
+
+class DependencyTracker {
+public:
+        DependencyTracker() {}
+        void addDependency(const char * fl);
+        bool isDependency(const char * fl);
+protected:
+        void canonize(std::string & filename); // modify in place
+private:
+        std::set<std::string> _depends_set;
+};
+
+/**
+ * @class Reader
+ * @brief reads an XML flux file given the mappings needed to compile a flow
+ * The mappings are used to build a flow with links to the event and
+ * conditional function mappings needed to run the flow in the run time.
+ */
+class Reader {
+public:
+        Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams);
+
+        /**
+         * @brief read a file
+         *
+         * @param filename  is the file that is being read
+         *
+         **/
+        void read(const char * filename);
+
+        static void startMainHandler(void *data, const char *el, const char **attr);
+        static void endMainHandler(void *data, const char *el);
+
+        static void startPluginHandler(void *data, const char *el, const char **attr);
+        static void endPluginHandler(void *data, const char *el);
+
+        static void dataHandler(void *data, const char *xml_data, int len);
+        static void commentHandler(void *data, const char *comment);
+
+        /**
+         * @brief get the result of a successfull reading
+         *
+         * @return smart pointer to the (heap allocated) result flow
+         **/
+        flow::Flow * flow() { return _flow; }
+        flow::Case * flow_case() { return _flow_case; }
+        void new_flow_case(const char * targetnodename, int node_output_unionnumber)
+        { 
+                _flow_case = new flow::Case(NULL); 
+                AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this);
+                _add_targets.push_back(at);
+        }
+        void add_flow_case(bool front=false) 
+        { 
+                _flow_successor->add(_flow_case, front); 
+                _flow_case = NULL; 
+        }
+        void new_flow_successor(const char * name) 
+        { 
+                if(_is_external_node) {
+                        _flow_successor = _flow_successor_list->get_successor(name); 
+                } 
+                if(_flow_successor) {
+                        _is_existing_successor = true;
+                } else {
+                        _flow_successor = new flow::Successor(name); 
+                }
+        }
+        void add_flow_successor() 
+        { 
+                if(_is_existing_successor) {
+                        _is_existing_successor = false;
+                } else {
+                        _flow_successor_list->add(_flow_successor); 
+                }
+                _flow_successor = NULL; 
+        }
+        void new_flow_successor_list() { }
+        void add_flow_successor_list() { }
+        void new_flow_guard(const char * name, AtomicMapAbstract * amap)
+        { _flow->addGuard(new flow::Guard(amap,name)); }
+        void new_flow_guardprecedence(const char * before, const char * after)
+        { _flow->addGuardPrecedence(before,after); }
+        void new_flow_guard_reference(flow::Guard * fg, int unionnumber, long hash, int wtype)
+        { 
+                _flow_guard_reference = new flow::GuardReference(fg,wtype); 
+                _flow_guard_ref_unionnumber = unionnumber;
+                _flow_guard_ref_hash = hash;
+                _flow_guard_ref_wtype = wtype;
+        }
+        void complete_flow_guard_reference()
+        {
+                const char * name = _flow_guard_reference->getName().c_str();
+                GuardTransFn guardfn = lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_hash, _flow_guard_ref_wtype);
+                assert(guardfn != NULL); 
+                _flow_guard_reference->setGuardFn(guardfn);
+                _flow_node->addGuard(_flow_guard_reference);
+                _flow_guard_reference = NULL;
+        }
+        //void flow_guard_ref_add_argument(int an) { _flow_guard_ref_args.push_back(an); }
+        flow::Node * flow_node() { return _flow_node; }
+        void new_flow_node(const char * name, CreateNodeFn createfn, 
+                        bool is_error_handler, 
+                        bool is_src,
+                        bool is_detached,
+                        int input_unionnumber,
+                        int output_unionnumber) 
+        {
+                _flow_node = new flow::Node(
+                                        name,
+                                        createfn,
+                                        is_error_handler,
+                                        is_src,
+                                        is_detached,
+                                        input_unionnumber,
+                                        output_unionnumber);
+                _flow_successor_list = &(_flow_node->successor_list());
+        }
+        void add_flow_node()
+        { 
+                if(_is_external_node) {
+                        _is_external_node = false;
+                } else {
+                        _flow->add(_flow_node);
+                }
+                _flow_node = NULL;
+                _flow_successor_list = NULL;
+        }
+        bool find_flow_node(const char * name)
+        {
+                _flow_node = _flow->get(name);
+                if(_flow_node) {
+                        _flow_successor_list = &(_flow_node->successor_list());
+                        return true;
+                }
+                return false;
+        }
+        void new_library(const char * filename);
+        void add_library();
+        void new_depend(const char * depend);
+        void setErrorHandler(const char * err_node_name)
+        {
+                SetErrorHandler seh(_flow_node,err_node_name);
+                _set_error_handlers.push_back(seh);
+        }
+        bool isExternalNode() { return _is_external_node; }
+        void setIsExternalNode(bool is_external_node) { _is_external_node = is_external_node; }
+        bool isAddition() { return _is_add; }
+        void setAddition(bool add) { _is_add = add; }
+protected:
+        /**
+         * @brief just connect the forward flow node references stored up
+         */
+        void readxmldir();
+        void readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
+
+        void finalize();
+
+public:
+        // functions for accessing the vector of flowmaps
+        CreateNodeFn lookup_node_function(const char *n);
+        ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
+        GuardTransFn lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype);
+        AtomicMapAbstract * lookup_atomic_map(const char * guardname);
+        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+        
+private:
+        std::vector<flow::FunctionMaps *> _fmaps_vec;
+        flow::Flow *                      _flow;
+        flow::Node *                      _flow_node;
+        flow::SuccessorList *             _flow_successor_list;
+        flow::Successor *                 _flow_successor;
+        flow::Case *                      _flow_case;
+        flow::GuardReference *            _flow_guard_reference;
+        int                               _flow_guard_ref_unionnumber;
+        long                              _flow_guard_ref_hash;
+        int                               _flow_guard_ref_wtype;
+        std::vector<AddTarget>            _add_targets;
+        std::vector<SetErrorHandler>      _set_error_handlers;
+        bool                              _is_external_node;
+        bool                              _is_existing_successor;
+        bool                              _is_add;
+        flow::Library *                   _library;
+        const char *                      _plugin_lib_dir;
+        const char *                      _plugin_xml_dir;
+        DependencyTracker                 _depends_visited;
+        void *                            _init_plugin_params;
+};
+
+void AddTarget::execute(flow::Flow * f)
 {
-        FlowNode *fsrc = f->get(_name);
+        flow::Node *fsrc = f->get(_name);
         assert(fsrc);
         _fc->setTargetNode(fsrc);
         _target_input_unionnumber = fsrc->inputUnionNumber();
         FlatIOConversionFun fiocf = _xmlreader->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
         if(fiocf) {
-                assert(_fc->ioConverter() == &FlowIOConverter::standard_converter);
-                _fc->setIOConverter(new FlowIOConverter(fiocf));
+                assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
+                _fc->setIOConverter(new flow::IOConverter(fiocf));
         }
 }
 
-void SetErrorHandler::execute(Flow * f)
+void SetErrorHandler::execute(flow::Flow * f)
 {
-        FlowNode *fsrc = f->get(_name);
+        flow::Node *fsrc = f->get(_name);
         assert(fsrc);
         assert(fsrc->getIsErrorHandler());
         _fn->setErrorHandler(fsrc);
 }
 
-XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
-        : _flow(new Flow())
+Reader::Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
+        : _flow(new flow::Flow())
         , _flow_node(NULL)
         , _flow_successor_list(NULL)
         , _flow_successor(NULL)
@@ -49,9 +299,9 @@ XMLReader::XMLReader(const char * filename, FlowFunctionMaps *fmaps, const char 
         read(filename);
 }
 
-void XMLReader::read(const char * filename)
+void Reader::read(const char * filename)
 {
-        readxmlfile(filename, XMLReader::startMainHandler, XMLReader::endMainHandler);
+        readxmlfile(filename, Reader::startMainHandler, Reader::endMainHandler);
         _depends_visited.addDependency(filename);
         if(_plugin_lib_dir == NULL) {
                 _plugin_lib_dir = ".";
@@ -63,22 +313,22 @@ void XMLReader::read(const char * filename)
         finalize();
 }
 
-void XMLReader::readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler)
+void Reader::readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler)
 {
         std::ifstream in(filename);
 
         if ( !in ) {
-                throw XMLReaderException("Cannot open XML config file.");
+                throw ReaderException("Cannot open XML config file.");
         }
 
         XML_Parser p = XML_ParserCreate(NULL);
         if ( !p ) {
-                throw XMLReaderException("Cannot create the XML parser!");
+                throw ReaderException("Cannot create the XML parser!");
         }
         XML_SetUserData(p, this);
         XML_SetElementHandler(p, startHandler, endHandler);
-        XML_SetCharacterDataHandler(p, XMLReader::dataHandler);
-        XML_SetCommentHandler(p, XMLReader::commentHandler);
+        XML_SetCharacterDataHandler(p, Reader::dataHandler);
+        XML_SetCommentHandler(p, Reader::commentHandler);
 
         int done,len;
         char buff[XML_READER_MAX_LINE +1];
@@ -87,18 +337,21 @@ void XMLReader::readxmlfile(const char * filename, XML_StartElementHandler start
                 len = strlen(buff);
                 done = in.eof();
                 if ( XML_Parse(p, buff, len, done) == XML_STATUS_ERROR ) {
-                        throw XMLReaderException("Error in parsing XML file");
+                        throw ReaderException("Error in parsing XML file");
                 }
         }
         in.close();
         XML_ParserFree(p);
 }
 
-void XMLReader::readxmldir()
+void Reader::readxmldir()
 {
         const char * pluginxmldir = _plugin_xml_dir;
         DIR * dir = ::opendir(pluginxmldir);
-        assert(dir);
+        if(!dir) {
+                oflux_log_warn("xml::Reader::readxmldir() directory %s does not exist or cannot be opened\n",pluginxmldir);
+                return;
+        }
         struct dirent * dir_entry;
         while((dir_entry = ::readdir(dir)) != NULL) {
                 std::string filename = dir_entry->d_name;
@@ -106,14 +359,14 @@ void XMLReader::readxmldir()
                 if(filename.substr(found+1) == "xml" ) {
                         filename = (std::string) pluginxmldir + "/" + filename;
                         if(!_depends_visited.isDependency(filename.c_str())) {
-                                readxmlfile(filename.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
+                                readxmlfile(filename.c_str(), Reader::startPluginHandler, Reader::endPluginHandler);
                         }
                 }
         }
         ::closedir(dir);
 }
 
-void XMLReader::finalize()
+void Reader::finalize()
 {
         for(int i = 0; i < (int)_add_targets.size(); i++) {
                 _add_targets[i].execute(_flow);
@@ -124,7 +377,7 @@ void XMLReader::finalize()
         _flow->pretty_print();
 }
 
-CreateNodeFn XMLReader::lookup_node_function(const char *n)
+CreateNodeFn Reader::lookup_node_function(const char *n)
 {
         CreateNodeFn res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
@@ -133,7 +386,7 @@ CreateNodeFn XMLReader::lookup_node_function(const char *n)
         return res;
 }
 
-ConditionFn XMLReader::lookup_conditional(const char * n, int argno, int unionnumber)
+ConditionFn Reader::lookup_conditional(const char * n, int argno, int unionnumber)
 {
         ConditionFn res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
@@ -142,7 +395,7 @@ ConditionFn XMLReader::lookup_conditional(const char * n, int argno, int unionnu
         return res;
 }
 
-GuardTransFn XMLReader::lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype)
+GuardTransFn Reader::lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype)
 {
         GuardTransFn res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
@@ -151,7 +404,7 @@ GuardTransFn XMLReader::lookup_guard_translator(const char * guardname, int unio
         return res;
 }
 
-AtomicMapAbstract * XMLReader::lookup_atomic_map(const char * guardname)
+AtomicMapAbstract * Reader::lookup_atomic_map(const char * guardname)
 {
         AtomicMapAbstract * res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
@@ -160,7 +413,7 @@ AtomicMapAbstract * XMLReader::lookup_atomic_map(const char * guardname)
         return res;
 }
 
-FlatIOConversionFun XMLReader::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
+FlatIOConversionFun Reader::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
 {
         FlatIOConversionFun res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
@@ -170,9 +423,9 @@ FlatIOConversionFun XMLReader::lookup_io_conversion(int from_unionnumber, int to
 }
 
 
-void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
+void Reader::startMainHandler(void *data, const char *el, const char **attr)
 {
-        XMLReader * pthis = static_cast<XMLReader *> (data);
+        Reader * pthis = static_cast<Reader *> (data);
         const char * el_name = NULL;
         const char * el_argno = NULL;
         const char * el_nodetarget = NULL;
@@ -248,7 +501,7 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
         } else if(strcmp(el,"guardref") == 0) {
                 // has attributes: name, unionnumber, wtype
                 // has children: argument(s)
-                FlowGuard * fg = pthis->flow()->getGuard(el_name);
+                flow::Guard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
                 pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype);
         } else if(strcmp(el,"condition") == 0) {
@@ -256,7 +509,7 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
                 // has no children
                 ConditionFn condfn = pthis->lookup_conditional(el_name,argno,unionnumber);
                 assert(condfn != NULL);
-                FlowCondition * fc = new FlowCondition(condfn,is_negated);
+                flow::Condition * fc = new flow::Condition(condfn,is_negated);
                 pthis->flow_case()->add(fc);
         } else if(strcmp(el,"case") == 0) {
                 // has attributes: nodetarget
@@ -283,9 +536,9 @@ void XMLReader::startMainHandler(void *data, const char *el, const char **attr)
         }
 }
 
-void XMLReader::endMainHandler(void *data, const char *el)
+void Reader::endMainHandler(void *data, const char *el)
 {
-        XMLReader * pthis = static_cast<XMLReader *> (data);
+        Reader * pthis = static_cast<Reader *> (data);
         if(strcmp(el,"argument") == 0) {
                 // do nothing
         } else if(strcmp(el,"guard") == 0) {
@@ -307,9 +560,9 @@ void XMLReader::endMainHandler(void *data, const char *el)
         }
 }
 
-void XMLReader::startPluginHandler(void *data, const char *el, const char **attr)
+void Reader::startPluginHandler(void *data, const char *el, const char **attr)
 {
-        XMLReader * pthis = static_cast<XMLReader *> (data);
+        Reader * pthis = static_cast<Reader *> (data);
 
         // node attributes
         const char * el_name = NULL;
@@ -414,7 +667,7 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
         } else if(strcmp(el,"guardref") == 0 && is_ok_to_create) {
                 // has attributes: name, unionnumber, wtype
                 // has children: argument(s)
-                FlowGuard * fg = pthis->flow()->getGuard(el_name);
+                flow::Guard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
                 pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype);
         } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
@@ -453,14 +706,14 @@ void XMLReader::startPluginHandler(void *data, const char *el, const char **attr
                 // has no children
                 ConditionFn condfn = pthis->lookup_conditional(el_name,argno,unionnumber);
                 assert(condfn != NULL);
-                FlowCondition * fc = new FlowCondition(condfn,is_negated);
+                flow::Condition * fc = new flow::Condition(condfn,is_negated);
                 pthis->flow_case()->add(fc);
         }
 }
 
-void XMLReader::endPluginHandler(void *data, const char *el)
+void Reader::endPluginHandler(void *data, const char *el)
 {
-        XMLReader * pthis = static_cast<XMLReader *> (data);
+        Reader * pthis = static_cast<Reader *> (data);
         bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
         if(strcmp(el,"plugin") == 0) {
                 // do nothing
@@ -488,46 +741,46 @@ void XMLReader::endPluginHandler(void *data, const char *el)
         }
 }
 
-void XMLReader::dataHandler(void *data, const char *xml_data, int len)
+void Reader::dataHandler(void *data, const char *xml_data, int len)
 {
         // not used
 }
 
-void XMLReader::commentHandler(void *data, const char *comment)
+void Reader::commentHandler(void *data, const char *comment)
 {
         // not used
 }
 
 extern "C" {
-typedef FlowFunctionMaps * FlowFunctionMapFunction ();
+typedef flow::FunctionMaps * FlowFunctionMapFunction ();
 }
 
-void XMLReader::new_depend(const char * dependname)
+void Reader::new_depend(const char * dependname)
 {
         std::string depxml = _plugin_xml_dir;
         depxml += "/";
         depxml += dependname;
         depxml += ".xml";
-        Library * lib = _library; // preserve on the stack
+        flow::Library * lib = _library; // preserve on the stack
         assert(_flow);
         if(!_flow->haveLibrary(dependname)) {
                 if(_depends_visited.isDependency(depxml.c_str())) {
                         depxml += " circular dependency -- already loading";
-                        throw XMLReaderException(depxml.c_str());
+                        throw ReaderException(depxml.c_str());
                 }
                 _depends_visited.addDependency(depxml.c_str());
                 _library = NULL;
-                readxmlfile(depxml.c_str(), XMLReader::startPluginHandler, XMLReader::endPluginHandler);
+                readxmlfile(depxml.c_str(), Reader::startPluginHandler, Reader::endPluginHandler);
         }
         _library = lib; // restore
 }
 
-void XMLReader::new_library(const char * filename)
+void Reader::new_library(const char * filename)
 {
-        _library = new Library(_plugin_lib_dir,filename);
+        _library = new flow::Library(_plugin_lib_dir,filename);
 }
 
-void XMLReader::add_library()
+void Reader::add_library()
 {
         bool loaded = _library->load();
         assert(loaded);
@@ -576,4 +829,13 @@ void DependencyTracker::canonize(std::string & filename)
         }
 }
 
-};
+
+flow::Flow *
+read(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
+{
+        Reader reader(filename,fmaps,pluginxmldir,pluginlibdir,initpluginparams);
+        return reader.flow();
+}
+
+} // namespace xml
+} // namespace oflux

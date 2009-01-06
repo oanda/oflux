@@ -1,6 +1,5 @@
 #include "OFluxEvent.h"
 #include "OFluxLogging.h"
-//#include "OFluxFlow.h"
 
 /**
  * @file OFluxEvent.cpp
