@@ -67,9 +67,9 @@ private:
  */
 void toStream(std::ostream & os); // only call this once!
 
-#define oflux_log_info(...) logging::logger->oflux_log(logging::LL_info,__VA_ARGS__)
-#define oflux_log_warn(...) logging::logger->oflux_log(logging::LL_warn,__VA_ARGS__)
-#define oflux_log_error(...) logging::logger->oflux_log(logging::LL_error,__VA_ARGS__)
+#define oflux_log_info(...) oflux::logging::logger->oflux_log(oflux::logging::LL_info,__VA_ARGS__)
+#define oflux_log_warn(...) oflux::logging::logger->oflux_log(oflux::logging::LL_warn,__VA_ARGS__)
+#define oflux_log_error(...) oflux::logging::logger->oflux_log(oflux::logging::LL_error,__VA_ARGS__)
 
 } // namespace logging
 } // namespace oflux

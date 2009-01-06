@@ -59,6 +59,7 @@ RunTime::~RunTime()
 
 void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
 {
+        oflux_log_info("RunTime::load_flow() called\n");
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
@@ -78,6 +79,7 @@ void RunTime::load_flow(const char * flname, const char * pluginxmldir, const ch
 	std::vector<flow::Node *> & sources = flow->sources();
 	for(int i = 0; i < (int) sources.size(); i++) {
 		flow::Node * fn = sources[i];
+                oflux_log_info("load_flow pushing %s\n",fn->getName());
 		CreateNodeFn createfn = fn->getCreateFn();
 		boost::shared_ptr<EventBase> ev = (*createfn)(EventBase::no_event,NULL,fn);
 		_queue.push(ev);

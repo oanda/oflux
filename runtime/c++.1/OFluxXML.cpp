@@ -348,7 +348,10 @@ void Reader::readxmldir()
 {
         const char * pluginxmldir = _plugin_xml_dir;
         DIR * dir = ::opendir(pluginxmldir);
-        assert(dir);
+        if(!dir) {
+                oflux_log_warn("xml::Reader::readxmldir() directory %s does not exist or cannot be opened\n",pluginxmldir);
+                return;
+        }
         struct dirent * dir_entry;
         while((dir_entry = ::readdir(dir)) != NULL) {
                 std::string filename = dir_entry->d_name;
