@@ -14,6 +14,8 @@ val get_uribase_path : unit -> string
 
 val help_text : string
 
+val get_runtime_engine : unit -> string
+
 val get_avoid_dot_ios : unit -> bool
 
 val get_timing_on : unit -> bool

@@ -117,7 +117,7 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 	shim_epoll_wait = (epoll_waitFnType) dlsym(RTLD_NEXT, "epoll_wait");
 #else
 	shim_port_get = (port_getFnType) dlsym(RTLD_NEXT, "port_get");
-    shim_port_getn = (port_getnFnType) dlsym(RTLD_NEXT, "port_getn");
+        shim_port_getn = (port_getnFnType) dlsym(RTLD_NEXT, "port_getn");
 #endif
 }
 

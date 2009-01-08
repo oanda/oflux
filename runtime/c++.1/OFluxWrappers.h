@@ -150,48 +150,23 @@ private:
 	bool & _valr;
 };
 
-class SpinLock { // not fair
-public:
-	SpinLock(int & lock)
-		: _lock(lock)
-		{}
-	void lock(int who) { 
-		while(_lock != who) {
-			while(_lock != 0) {}
-			_lock = who;
-		}
-	}
-	void unlock() { _lock = 0; }
-private:
-	int & _lock;
-};
-
-class NoSpinLock {
-public:
-	void lock(int) {}
-	void unlock() {}
-};
-
 /**
  * @class Increment
  * @brief RAII to increment a value and then decrement it again when done
- * can be MT safe if desired
+ * not MT safe
  */
-template<class S=NoSpinLock>
-class Increment : public S {
+class Increment {
 public:
-	Increment(int & val, int & lockvar, int whoami) 
-		: S(lockvar)
-		, _valp(&val)
-		{ this->lock(whoami); val++; this->unlock(); }
+	Increment(int & val, int whoami) 
+		: _valp(&val)
+		{ val++; }
 	~Increment() { if(_valp) (*_valp)--; } // count down one
 	void release(int whoami) 
-		{ this->lock(whoami); // exclusive
+		{ 
 		  if(_valp) { 
 			(*_valp)--;
 		  }
 		  _valp = NULL;
-		  this->unlock();
 		}
 private:
 	int * _valp;

@@ -4,6 +4,7 @@
 #include "OFluxEvent.h"
 #include "OFluxAtomic.h"
 #include "OFluxAtomicHolder.h"
+#include "OFluxAcquireGuards.h"
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
 #include <unistd.h>
@@ -11,6 +12,8 @@
 
 
 namespace oflux {
+namespace runtime {
+namespace classic {
 
 //Flow * RunTime::__no_flow_is_some_flow = new Flow();
 
@@ -27,12 +30,10 @@ void _thread_local_destructor(void *t)
 ThreadLocalDataKey<RunTimeThread> RunTime::thread_data_key(_thread_local_destructor);
 
 RunTime::RunTime(const RunTimeConfiguration & rtc)
-	: _rtc(rtc)
+	: RunTimeBase(rtc)
 	//, _flow(__no_flow_is_some_flow)
-	, _running(false)
 	, _thread_count(0) // will count the news
 	, _detached_count(0) 
-	, _load_flow_next(false)
 {
 	load_flow();
 	// init the shim
@@ -102,7 +103,7 @@ void RunTime::load_flow(const char * flname, const char * pluginxmldir, const ch
 void RunTime::start()
 {
 	_running = true;
-	RunTimeThread * rtt = new RunTimeThread(this, oflux_self());
+	RunTimeThread * rtt = new_RunTimeThread(oflux_self());
 	_thread_list.insert_front(rtt);
 	_thread_count++;
 	RunTime::thread_data_key.set(rtt);
@@ -169,10 +170,15 @@ bool RunTime::canDetachMore() const
 		|| _detached_count < _rtc.max_detached_threads;
 }
 
+RunTimeThread * RunTime::new_RunTimeThread(oflux_thread_t tid)
+{
+        return new RunTimeThread(this,tid);
+}
+
 int RunTime::wake_another_thread()
 {
 	if(_running && _waiting_in_pool.count() == 0 && canThreadMore()) {
-		RunTimeThread * rtt = new RunTimeThread(this);
+		RunTimeThread * rtt = new_RunTimeThread();
 		_thread_count++;
 		_thread_list.insert_front(rtt);
 		return rtt->create();
@@ -239,7 +245,8 @@ void RunTimeThread::start()
 	}
 
 	while(_system_running && !_request_death) {
-		{
+		if(_condition_context_switch 
+                                && _rt->_waiting_to_run.count() > 0 ) {
 			AutoUnLock ual(&(_rt->_manager_lock));
 		}
 		if(_rt->_load_flow_next) {
@@ -301,35 +308,23 @@ void RunTimeThread::log_snapshot()
 		working_on);
 }
 
-class AcquireGuards {
-public:
-
-enum AcquireGuardsResult { AGR_Success = 1, AGR_MustWait = 0 };
-
-static AtomicsHolder empty_ah;
-
-static inline AcquireGuardsResult
-doit(boost::shared_ptr<EventBase> & ev, AtomicsHolder & ah = empty_ah)
+int RunTimeThread::execute_detached(boost::shared_ptr<EventBase> & ev, 
+        int & detached_count_to_increment)
 {
-	AcquireGuardsResult res = AGR_Success;
-	int wtype = 0;
-	flow::GuardReference * flow_guard_ref = NULL;
-	Atomic * must_wait_on_atomic = 
-		ev->acquire(wtype /*output*/,
-			flow_guard_ref /*output*/,
-			ah);
-	if(must_wait_on_atomic) {
-		res = AGR_MustWait;
-		must_wait_on_atomic->wait(ev,wtype);
-		_GUARD_WAIT(flow_guard_ref->getName().c_str(),
-			ev->flow_node()->getName(), 
-			wtype);
-	}
-	return res;
+        SetTrue st(_detached);
+        Increment incr(detached_count_to_increment,_tid);
+        _rt->wake_another_thread();
+#ifdef PROFILING
+        TimerPause oflux_tp(_timer_list);
+#endif
+        int return_code;
+        {
+                UnlockRunTime urt(_rt);
+                return_code = ev->execute();
+                incr.release(_tid);
+        }
+        return return_code;
 }
-}; // AcquireGuards class
-	
-AtomicsHolder AcquireGuards::empty_ah;
 
 void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 {
@@ -345,18 +340,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 			_oflux_timer = & oflux_timing_execution;
 #endif
 			if( ev->flow_node()->getIsDetached() && _rt->canDetachMore()) {
-				SetTrue st(_detached);
-				static int spin_lock_var;
-				Increment<SpinLock> incr(_rt->_detached_count,spin_lock_var,_tid);
-				_rt->wake_another_thread();
-#ifdef PROFILING
-				TimerPause oflux_tp(_timer_list);
-#endif
-				{
-					UnlockRunTime urt(_rt);
-					return_code = ev->execute();
-					incr.release(_tid);
-				}
+                                return_code = execute_detached(ev,_rt->_detached_count);
 				wait_to_run();
 			} else {
 				return_code = ev->execute();
@@ -428,11 +412,19 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 			}
 		}
 
-		_rt->_queue.push_list(successor_events_priority); // no priority
-		_rt->_queue.push_list(successor_events);
+		enqueue_list(successor_events_priority); // no priority
+		enqueue_list(successor_events);
 	}
 	_flow_node_working = NULL;
 }
 
+
+} //namespace classic
+} //namespace runtime
+
+RunTimeBase * create_classic_runtime(const RunTimeConfiguration &rtc)
+{
+        return new runtime::classic::RunTime(rtc);
+}
 
 } //namespace oflux
