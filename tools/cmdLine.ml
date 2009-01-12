@@ -13,6 +13,10 @@ let plugin_name = ref None
 
 let root_filename = ref None
 
+let runtime_engine = ref "classic"
+
+let get_runtime_engine () = !runtime_engine
+
 let noios = ref false
 
 let code_prefix = ref "OFluxGenerate"
@@ -30,7 +34,7 @@ let set_weak_unify tf = (weak_unify_on := tf)
 let get_weak_unify () = !weak_unify_on
 
 let help_text =
-	 "usage: oflux [-d] [-t] [-duribase path] [-dnoios] [-a modulename | -p pluginname] [-absterm] [-oprefix pref] [-I incpath] file.flux\n"
+	 "usage: oflux [-d] [-t] [-duribase path] [-dnoios] [-a modulename | -p pluginname] [-absterm] [-oprefix pref] [-I incpath] [-rclassic | -rmelding] file.flux\n"
 	^" -a  for compiling module code\n"
 	^" -p  for compiling plugin code\n"
         ^" -absterm for terminating hanging abstract nodes\n"
@@ -41,6 +45,8 @@ let help_text =
         ^" -t turn on timing of compilation steps\n"
         ^" -us cause only strong (old style) type unification to be allowed\n"
         ^" -oprefix causes the 'OFluxGenerate' code prefix to change\n"
+        ^" -rclassic specifies the classic runtime engine (C++) [default]\n"
+        ^" -rmelding specifies the melding runtime engine (C++)\n"
 
 let parse_argv () =
     let sz = Array.length Sys.argv in
@@ -62,6 +68,8 @@ let parse_argv () =
 			    | ("-absterm",[]) -> (abstract_termination := true; [])
 			    | ("-dnoios",[]) -> (noios := true; [])
 			    | ("-us",[]) -> (set_weak_unify false; [])
+			    | ("-rclassic",[]) -> (runtime_engine := "classic"; [])
+			    | ("-rmelding",[]) -> (runtime_engine := "melding"; [])
 			    | _ -> arg::stk)
 	    in  pa stk (i-1)
     in  pa [] (sz-1)

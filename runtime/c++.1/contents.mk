@@ -14,9 +14,11 @@ OBJS := \
         OFluxAtomic.o \
         OFluxAtomicInit.o \
         OFluxAtomicHolder.o \
+        OFluxAcquireGuards.o \
         OFluxEvent.o \
         OFluxRunTimeAbstract.o \
         OFluxRunTime.o \
+        OFluxMeldingRunTime.o \
         OFluxXML.o \
         OFluxLibrary.o \
 	oflux_vers.o

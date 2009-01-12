@@ -17,9 +17,11 @@ OFILES= \
 	$(BINDIR)/OFluxAtomic.o \
 	$(BINDIR)/OFluxAtomicInit.o \
 	$(BINDIR)/OFluxAtomicHolder.o \
+        $(BINDIR)/OFluxAcquireGuards.o \
 	$(BINDIR)/OFluxEvent.o \
 	$(BINDIR)/OFluxRunTimeAbstract.o \
 	$(BINDIR)/OFluxRunTime.o \
+	$(BINDIR)/OFluxMeldingRunTime.o \
 	$(BINDIR)/OFluxXML.o \
 	$(BINDIR)/OFluxLibrary.o \
 	$(BINDIR)/oflux_vers.o

@@ -14,7 +14,7 @@
 namespace oflux {
 
 //forward declaration
-template<typename ToClass,typename FromClass> 
+template<typename ToClass,typename FromClass,int todepth,int fromdepth> 
 void copy_to(ToClass *, const FromClass *);
 
 template<typename ResultClass>
@@ -39,7 +39,7 @@ template<typename TargetClass,typename GivenClass>
 class RealIOConversion : public IOConversionBase<TargetClass> {
 public:
         RealIOConversion(const GivenClass * given)
-                { copy_to<TargetClass,GivenClass>(&_target,given); }
+                { copy_to<TargetClass,GivenClass,0,0>(&_target,given); }
         virtual const TargetClass * value() const { return &_target; }
 private:
         TargetClass _target;

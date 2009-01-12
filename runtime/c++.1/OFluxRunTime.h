@@ -7,48 +7,18 @@
  * Definitions for the OFlux run time and his threads
  */
 
-#include "OFlux.h"
-#include "OFluxRunTimeAbstract.h"
+#include "OFluxRunTimeBase.h"
 #include "OFluxWrappers.h"
 #include "OFluxQueue.h"
 #include "OFluxLinkedList.h"
 #include "boost/shared_ptr.hpp"
-#include <deque>
 
 namespace oflux {
-
-namespace flow {
-class FunctionMaps;
-class Flow;
-class Node;
-} // namespace flow
-
-class LoggingAbstract;
-
-/**
- * @class RunTimeConfiguration
- * @brief struct for holding the run-time configuration of the run time.
- * size of the stack, thread pool size (ignored), flow XML file name and
- * the flow maps structure.
- */
-struct RunTimeConfiguration {
-	int stack_size;
-	int initial_thread_pool_size;
-	int max_thread_pool_size;
-	int max_detached_threads;
-	int min_waiting_thread_collect; // waiting in pool collector
-	int thread_collection_sample_period;
-	const char * flow_filename;
-	flow::FunctionMaps * flow_maps;
-        const char * plugin_xml_dir;    // plugin xml directory
-        const char * plugin_lib_dir;    // plugin lib directory
-        void * init_plugin_params;
-};
+namespace runtime {
+namespace classic { // the runtime we know and love
 
 class RunTimeThread;
 class RunTime;
-
-typedef void (*initShimFnType) (RunTime *);
 
 typedef Removable<RunTimeThread, InheritedNode<RunTimeThread> > RunTimeThreadNode;
 typedef LinkedListRemovable<RunTimeThread, RunTimeThreadNode> RunTimeThreadList;
@@ -58,18 +28,18 @@ typedef LinkedListRemovable<RunTimeThread, RunTimeThreadNode> RunTimeThreadList;
  * Also has the functionality used by the shim to create / punt-to new
  * threads
  */
-class RunTime : public RunTimeAbstract {
+class RunTime : public RunTimeBase {
 public:
 	friend class RunTimeThread;
 	friend class UnlockRunTime;
 
 	RunTime(const RunTimeConfiguration & rtc);
-        ~RunTime();
+        virtual ~RunTime();
 
         /**
          * @brief cede control to the runtime (make it go!)
          */
-	void start();
+	virtual void start();
         /**
          * @brief load a particular flow
          */
@@ -77,14 +47,6 @@ public:
                    const char * pluginxmldir = "", 
                    const char * pluginlibdir = "",
                    void * initpluginparams = NULL);
-        /**
-         * @brief schedule a new flow load at some point convenient
-         */
-	void soft_load_flow() { _load_flow_next = true; }
-        /**
-         * @brief ask the runtime to shut down -- start() function returns
-         */
-	void soft_kill() { _running = false; }
 
 	/**
 	 * @brief punt to a new thread
@@ -101,7 +63,7 @@ public:
 	 * @brief outputs as much info the to the log as is available on
 	 * the runtime state
 	 */
-	void log_snapshot();
+	virtual void log_snapshot();
 protected:
 	/**
 	 * @brief determine if we can detach the thread (runtime limits allow it)
@@ -114,19 +76,16 @@ protected:
 	int threadCollectionSamplePeriod() const
 		{ return _rtc.thread_collection_sample_period; }
 	void doThreadCollection();
+        virtual RunTimeThread * new_RunTimeThread(oflux_thread_t tid = 0);
 protected:
 	inline flow::Flow * flow() { return _active_flows.front(); }
 	void remove(RunTimeThread * rtt);
-private:
-	const RunTimeConfiguration & _rtc;
-	RunTimeThreadList   _thread_list;
 protected:
+	RunTimeThreadList   _thread_list;
 	std::deque<flow::Flow *>  _active_flows;
 	Queue               _queue;
-	bool                _running;
 	int                 _thread_count;
 	int                 _detached_count;
-	bool                _load_flow_next;
 };
 
 
@@ -139,6 +98,7 @@ class RunTimeThread : public RunTimeThreadNode,
 public:
 	RunTimeThread(RunTime * rt, oflux_thread_t tid = 0)
 		: _rt(rt)
+                , _condition_context_switch(false)
 		, _bootstrap(true)
 		, _system_running(rt->_running)
 		, _thread_running(false)
@@ -150,8 +110,10 @@ public:
 		{}
 	virtual ~RunTimeThread() {}
 	int create();
-	void start();
+	virtual void start();
 	void handle(boost::shared_ptr<EventBase> & ev);
+	virtual int execute_detached(boost::shared_ptr<EventBase> & ev,
+                int & detached_count_to_increment);
 	virtual bool is_detached() { return _detached; }
 	virtual void set_detached(bool d) { _detached = d; }
 	virtual oflux_thread_t tid() { return _tid; }
@@ -176,8 +138,11 @@ public:
 #endif
 	inline flow::Node * working_flow_node() { return _flow_node_working; }
 	virtual void wait_state(RTT_WaitState ws) { _wait_state = ws; }
-private:
+protected:
+        inline void enqueue_list(std::vector<boost::shared_ptr<EventBase> > & events) { _rt->_queue.push_list(events); }
+protected:
 	RunTime *      _rt;
+        bool           _condition_context_switch;
 	bool           _bootstrap;
 	bool &         _system_running;
 	bool           _thread_running;
@@ -192,7 +157,8 @@ private:
 #endif
 };
 
-
-}; // namespace
+} // namespace classic
+} // namespace runtime
+} // namespace oflux
 
 #endif // _OFLUX_RUNTIME
