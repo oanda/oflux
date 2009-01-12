@@ -23,8 +23,7 @@ OBJS := \
         OFluxLibrary.o \
 	oflux_vers.o
 
- 
-liboflux.a: $(OBJS) 
+liboflux.a: liboflux.a($(OBJS))
 
 libofshim.so: $(COMMONOBJS)
 
