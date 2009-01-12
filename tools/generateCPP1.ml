@@ -69,6 +69,21 @@ let rec expand_namespace_decl_end code nsn_broken =
 
 let get_decls stable (name,isin) = SymbolTable.get_decls stable (name,isin)
 
+(*
+let metadeclbase s = 
+        if has_namespaced_name s then "" 
+        else "struct "^s^"meta { enum { depth = 0 }; }; "
+let metadeclfrom s f = 
+        if has_namespaced_name s then "" 
+        else "struct "^s^"meta { enum { depth = "^f^"meta::depth +1 }; }; "
+let metadeclofu s = 
+        if has_namespaced_name s then "" 
+        else "struct "^s^"meta { enum { depth = -1 }; }; "
+*)
+let metadeclbase s = ""
+let metadeclfrom s f = ""
+let metadeclofu s = ""
+
 let emit_structs conseq_res symbol_table code =
 	let struct_decl nclss =
 		(nclss^" : public oflux::BaseOutputStruct<"
@@ -98,7 +113,9 @@ let emit_structs conseq_res symbol_table code =
                                 ( [ "struct "^(struct_decl (n^"_in"))^" {"
                                   ]
                                 @ (e_one 1 inpl)
-                                @ [ "};"; "" ] )
+                                @ [ "};"
+                                  ; metadeclbase (n^"_in")
+                                  ; "" ] )
                 in  match nd.nodeoutputs with
 		    None -> code
 		    | (Some outl) ->
@@ -106,26 +123,37 @@ let emit_structs conseq_res symbol_table code =
 			else List.fold_left add_code code
 					( [ "struct "^(struct_decl (n^"_out"))^" {" ]
 					@ (e_one 1 outl)
-					@ [ "};"; "" ] )
+					@ [ "};"
+                                          ; metadeclbase (n^"_out")
+                                          ; "" ] )
 		in
 	let code = SymbolTable.fold_nodes e_s symbol_table code in
 	let tos (n,isin) = if isin then n^"_in" else n^"_out" in
 	let emit_type_def_alias code ((n,_) as is,what) =
 		if has_namespaced_name n then
 			code
-		else add_code code ("typedef "^(tos what)^" "^(tos is)^"; // emit_type_def_alias (1)") in
+		else let whats = tos what in
+                     let iss = tos is in
+                        List.fold_left add_code code 
+                        [ "typedef "^whats^" "^iss^"; // emit_type_def_alias (1)"
+                        ; metadeclfrom whats iss ] in
 	let emit_type_def_union (code,ignoreis) (i,ul) =
 	    try let nsnio = List.find (fun (x,_) -> has_namespaced_name x) ul in
 		let tosnsnio = tos nsnio in
 		let typedeffun s = ("typedef "^tosnsnio^" "^s^"; // emit_type_def_union (1)") in
 		let typedeflist =
-			List.map (fun y -> typedeffun (tos y))
-				(List.filter (fun (yn,_) -> not (has_namespaced_name yn)) ul) in
-		let typedeflist = (typedeffun ("OFluxUnion"^(string_of_int i)))::typedeflist
+                        let onlyon =List.filter (fun (yn,_) -> not (has_namespaced_name yn)) ul
+                        in  (List.map (fun y -> typedeffun (tos y)) onlyon)
+                            @ (List.map (fun y -> metadeclfrom (tos y) tosnsnio) onlyon)
+				 in
+		let typedeflist = 
+                        let tname = "OFluxUnion"^(string_of_int i)
+                        in  (typedeffun tname)::(metadeclfrom tname tosnsnio)::typedeflist
 		in  (List.fold_left add_code code typedeflist,i::ignoreis)
 	    with Not_found ->
+                let ofluxunion_i = "OFluxUnion"^(string_of_int i) in
 		let one_typedef u = 
-			("typedef OFluxUnion"^(string_of_int i)
+			("typedef "^ofluxunion_i
 			^" "^(tos u)^"; // emit_type_def_union (2)") in
 		let un,uisin = List.hd ul in
 		let rec e_two i decl =
@@ -142,12 +170,15 @@ let emit_structs conseq_res symbol_table code =
 		let decl = get_decls symbol_table (un,uisin)
 		in  List.fold_left add_code code 
 			( [ "struct "
-			    ^(struct_decl ("OFluxUnion"^(string_of_int i)))
+			    ^(struct_decl ofluxunion_i)
 			    ^" {" ]
 			@ (e_one 1 decl)
 			@ (e_two 1 decl)
-			@ [ "};"; "" ]
+			@ [ "};"
+                          ; metadeclofu ofluxunion_i
+                          ; "" ]
 			@ (List.map one_typedef ul)
+			@ (List.map (fun x -> metadeclbase (tos x)) ul)
 			@ [ "" ] ) 
 		   , ignoreis in
 	let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
@@ -187,7 +218,9 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
                                 ( [ "struct "^(struct_decl (n^"_in"))^" {"
                                   ]
                                 @ (e_one 1 inpl)
-                                @ [ "};"; "" ] )
+                                @ [ "};"
+                                  ; metadeclbase (n^"_in")
+                                  ; "" ] )
                 in  match nd.nodeoutputs with
 		    None -> code
 		    | (Some outl) ->
@@ -195,21 +228,29 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
 			else List.fold_left add_code code
 					( [ "struct "^(struct_decl (n^"_out"))^" {" ]
 					@ (e_one 1 outl)
-					@ [ "};"; "" ] )
+					@ [ "};"
+                                          ; metadeclbase (n^"_out")
+                                          ; "" ] )
 		in
 	let code = SymbolTable.fold_nodes e_s symbol_table code in
 	let emit_type_def_alias code ((n,_) as is,what) =
 		if string_has_prefix n pluginname then
-			add_code code ("typedef "^(tos what)^" "^(tos is)^"; // emit_type_def_alias (2)")
+                        List.fold_left add_code code 
+                                [ "typedef "^(tos what)^" "^(tos is)^"; // emit_type_def_alias (2)"
+                                ; metadeclfrom (tos is) (tos what) ]
 		else code in
 	let emit_type_def_union (code,ignoreis) (i,ul) =
 	    try let nsnio = List.find (fun (x,_) -> not (string_has_prefix x pluginname)) ul in
 		let tosnsnio = tos nsnio in
 		let typedeffun s = ("typedef "^tosnsnio^" "^s^"; // emit_type_def_union (3)") in
 		let typedeflist =
-			List.map (fun y -> typedeffun (tos y))
-				(List.filter (fun (yn,_) -> (string_has_prefix yn pluginname)) ul) in
-		let typedeflist = (typedeffun ("OFluxUnion"^(string_of_int i)))::typedeflist
+                        let onlyon =List.filter (fun (yn,_) -> (string_has_prefix yn pluginname)) ul
+                        in  (List.map (fun y -> typedeffun (tos y)) onlyon)
+                            @ (List.map (fun y -> metadeclfrom (tos y) tosnsnio) onlyon)
+				 in
+		let typedeflist = 
+                        let tname = "OFluxUnion"^(string_of_int i)
+                        in  (typedeffun tname)::(metadeclfrom tname tosnsnio)::typedeflist
 		in  (List.fold_left add_code code typedeflist,i::ignoreis)
 	    with Not_found ->
 		let one_typedef u = 
@@ -234,8 +275,11 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
 			    ^" {" ]
 			@ (e_one 1 decl)
 			@ (e_two 1 decl)
-			@ [ "};"; "" ]
+			@ [ "};"
+                          ; metadeclofu ("OFluxUnion"^(string_of_int i))
+                          ; "" ]
 			@ (List.map one_typedef ul)
+			@ (List.map (fun x -> metadeclbase (tos x)) ul)
 			@ [ "" ] ) 
 		   , ignoreis in
         let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
@@ -273,13 +317,29 @@ let emit_unions conseq_res symtable code =
 				( [ "union OFluxUnion"^(string_of_int i)^" {" ]
 				@ (List.map e_one ul)
 				@ mem_funs
-				@ [ "};"; "" ] )
+				@ [ "};"
+                                  ; metadeclofu ("OFluxUnion"^(string_of_int i))
+                                  ; "" ] )
 			in  code
 			in
 	let code = TypeCheck.consequences_equiv_fold e_union code conseq_res
 	in  code
 
-let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
+let uses_all um n = 
+        let rec fixedpointfun (fp,modified) umlocal =
+                match umlocal with 
+                        ((a,b)::t) ->
+                                fixedpointfun
+                                (if (List.mem a fp) && not (List.mem b fp) then
+                                        (b::fp,true)
+                                else (fp,modified)) t
+                        | [] -> if modified then fixedpointfun (fp,false) um
+                                else fp,false
+                in 
+        let fp,_ = fixedpointfun ([n],false) um
+        in  fp
+
+let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res uses_model =
         (*let collapsed_types_i = conseq_res.TypeCheck.full_collapsed in
         let aliased_types = conseq_res.TypeCheck.aliases in
 	let avoid ll i = 
@@ -328,15 +388,38 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
                     else matchtypes [] t_decls f_decls
                 in
         let primary_name ec =
-                try List.find (fun (a,b) -> has_namespaced_name a) ec
-                with Not_found -> List.hd ec
+                try let ecfilt = List.filter (fun (a,b) -> has_namespaced_name a) ec in
+                    let score (a,b) = 
+                        let modname = List.hd (break_namespaced_name a) in
+                        let sc = List.length (uses_all uses_model modname) in
+                        (*let _ = Debug.dprint_string ("primary score ("^modname^") ="^(string_of_int sc)^"\n")
+                        in*)  sc, (a,b) in
+                    let rec findmin mopt ll =
+                        match mopt,ll with
+                                (_,[]) -> mopt
+                                | (None,(s,x)::t) -> findmin (Some (s,x)) t
+                                | (Some (s',x'),(s,x)::t) -> 
+                                        findmin (if compare (s,x) (s',x') < 0 then Some (s,x) else mopt) t
+                    in  match findmin None (List.map score ecfilt) with
+                            None -> raise Not_found
+                            | (Some (_,res)) -> res
+                with Not_found -> List.hd ec in
+        (*let primary_name ec =
+                let as_string (s,io) = s^(if io then "_in" else "_out") in
+                let p_string x = Debug.dprint_string ((as_string x)^",") in
+                let pn = primary_name ec
+                in  ( Debug.dprint_string "primary choice [ "
+                    ; List.iter p_string ec
+                    ; Debug.dprint_string " ] ---> "
+                    ; p_string pn
+                    ; Debug.dprint_string "\n" ); pn*)
                 (*let as_string (s,io) = s^(if io then "_in" else "_out") in
                 let h = List.hd ec in
                 let r = try List.assoc h conseq_res.TypeCheck.aliases
                         with Not_found -> h in  
                 let _ = Debug.dprint_string ("primary_name: "^(as_string h)^" -> "^(as_string r)^"\n")
-                in  r*)
-                in
+                in  r
+                in*)
         let equivc = List.map primary_name conseq_res.TypeCheck.equiv_classes in
         let cross_no_equal ll1 ll2 =
                 let rec mfun ll x = 
@@ -347,6 +430,23 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res =
         let code_assignopt_fun' code (a,b) = code_assignopt_fun code (get_copy_code a b,a,b) in
         let code = List.fold_left code_assignopt_fun' code (cross_no_equal equivc equivc)
         in  code
+
+
+
+let determine_redundant_for_copyto um =
+        let uniq ll =
+                let ll = List.sort compare ll in
+                let rec uniq' ll =
+                        match ll with
+                                (h1::h2::t) -> if h1 = h2 then uniq' (h2::t) else h1::(uniq' (h2::t))
+                                | _ -> ll
+                in  uniq' ll in
+        let modlist = uniq ((List.map (fun (x,_) -> x) um) @ (List.map (fun (_,x) -> x) um)) in
+        let bigmodel = List.map (fun m -> uses_all um m) modlist in
+        let determine a b =
+                List.exists (fun us -> (List.mem a us) && (List.mem b us)) bigmodel
+        in determine
+        
         
 
 let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable uses_model code =
@@ -359,7 +459,7 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                         ; ""
                         ; "#ifndef OFLUX_COPY_TO_GENERAL"
                         ; "#define OFLUX_COPY_TO_GENERAL"
-                        ; "template<typename T,typename F>"
+                        ; "template<typename T,typename F, int tdepth, int fdepth>"
                         ; "inline void copy_to(T *to, const F * from)"
                         ; "{"
                         ; "enum { copy_to_code_failure_bug = 0 } _an_enum;"
@@ -372,12 +472,20 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
 			(Some nn,_) -> nn^"::"
 			| _ -> ""
 		in
-        let equiv_classes = UnionFind.union_find uses_model in
+        (*let equiv_classes = UnionFind.union_find 
+                (match modulenameopt with 
+                        (Some nn) -> List.filter (fun (a,b) -> not (nn = a)) uses_model 
+                        | _ -> uses_model) in
         let bidi_uses x y = 
                 List.exists (fun ll -> (List.mem x ll) && (List.mem y ll))
-                        equiv_classes in
+                        equiv_classes in*)
                         (*(List.mem (x,y) uses_model) 
                         || (List.mem (y,x) uses_model) in*)
+        let uses_model = 
+                (match modulenameopt with 
+                        (Some nn) -> List.filter (fun (a,b) -> not (nn = a)) uses_model 
+                        | _ -> uses_model) in
+        let bidi_uses = determine_redundant_for_copyto uses_model in
         let is_ignorable x = List.mem (TypeCheck.get_union_from_strio conseq_res x) ignoreis in
         let code_template code (assign_opt,t_name,f_name) =
                 let as_name (x,isin) = 
@@ -390,35 +498,63 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                                 | _ -> (nspace^xtmp),None in
                 let t_name',t_nspace = as_name t_name in
                 let f_name',f_nspace = as_name f_name in
-                let is_already_taken_care_of =
+                let is_already_taken_care_of1 =
                         (match t_nspace,f_nspace with
                                 (Some tn,Some fn) -> bidi_uses tn fn
-                                | _ -> false)
-                        ||
+                                | _ -> false) in
+                let is_already_taken_care_of2 =
                         ((is_ignorable t_name) 
                                 && (is_ignorable f_name)
                                 && (match pluginopt with
                                         None -> false
-                                        | _ -> true))
+                                        | _ -> true)) in
+                let is_already_taken_care_of =
+                        is_already_taken_care_of1 || is_already_taken_care_of2
+                        in let _ = Debug.dprint_string ("c2 consider "^t_name'^","^f_name'^"\n")
                 in  match is_already_taken_care_of, assign_opt with
-                        (true,_) -> code
-                        | (_,None) -> code
-                        | (_,Some []) -> code
+                        (true,_) -> 
+                                let _ = Debug.dprint_string ("  no gen1."
+                                        ^(if is_already_taken_care_of1 then "1t" else "1f")
+                                        ^(if is_already_taken_care_of2 then "2t" else "2f")
+                                        ^"\n") in 
+                                code
+                        | (_,None) -> 
+                                let _ = Debug.dprint_string "  no gen2\n" in 
+                                code
+                        | (_,Some []) -> 
+                                let _ = Debug.dprint_string "  no gen3\n" in 
+                                code
                         | (_,Some copy_code) -> 
+                                let _ = Debug.dprint_string "  gen template\n" in
+                                let _ = try let isreally = List.assoc t_name conseq_res.TypeCheck.aliases in
+                                            let irname,_ = as_name isreally
+                                            in  Debug.dprint_string  (" "^t_name'^" is "^irname^"\n")
+                                        with Not_found -> ()
+                                        in
+                                let _ = try let isreally = List.assoc f_name conseq_res.TypeCheck.aliases in
+                                            let irname,_ = as_name isreally
+                                            in  Debug.dprint_string  (" "^f_name'^" is "^irname^"\n")
+                                        with Not_found -> ()
+                                        in
                                 List.fold_left add_code code
                                         ([ "template<>"
-                                        ; ("inline void copy_to<"^t_name'^", "
-                                                ^f_name'^">("^t_name'^" * to, const "
+                                        ; ("inline void copy_to<"
+                                                ^t_name'^", "
+                                                ^f_name'^", "
+                                                (*^t_name'^"meta::depth, "
+                                                ^f_name'^"meta::depth"*)
+                                                ^"0,0" (*temp*)
+                                                ^">("^t_name'^" * to, const "
                                                 ^f_name'^" * from)")
                                         ; "{" ]
                                         @ copy_code @
                                         [ "}"
                                         ; "" ])
                 in
-        let code = generic_cross_equiv_weak_unify code code_template symtable conseq_res
+        let code = generic_cross_equiv_weak_unify code code_template symtable conseq_res uses_model
 	in  List.fold_left add_code code [ ""; "};"; "   //namespace" ]
 
-let emit_io_conversion_functions conseq_res symtable code =
+let emit_io_conversion_functions conseq_res symtable uses_model code =
         let code = add_code code "oflux::IOConverterMap __ioconverter_map[] = {" in
         let code_table_entry code (assign_opt,t_name,f_name) =
                 let as_name (x,isin) = x^(if isin then "_in" else "_out")
@@ -434,7 +570,7 @@ let emit_io_conversion_functions conseq_res symtable code =
                                 let f_u_n_str = string_of_int f_u_n 
                                 in  add_code code ("{ "^f_u_n_str^", "^t_u_n_str^", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" > }, ")
                 in
-        let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res
+        let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res uses_model
         in  List.fold_left add_code code [ "{ 0, 0, NULL }  " ; "};" ]
         
 
@@ -1209,7 +1345,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
 				[ "{ NULL,0,0,0, NULL}  "; "};" ] in
-                let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
+                let cpp_code = emit_io_conversion_functions conseq_res stable um cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
 	let cpp_code = emit_atom_fill (Some pluginname) stable node_atom_aliases cpp_code in
@@ -1365,7 +1501,7 @@ let emit_cpp modulenameopt br um =
 		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
 				[ "{ NULL,0,0,0, NULL}  "; "};" ] in
-                let cpp_code = emit_io_conversion_functions conseq_res stable cpp_code
+                let cpp_code = emit_io_conversion_functions conseq_res stable um cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
 	let cpp_code = emit_atom_fill None stable node_atom_aliases cpp_code in
