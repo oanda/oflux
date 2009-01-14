@@ -51,7 +51,7 @@ else
   WILLMAKETOPLEVEL=yes
 endif
 
-ifeq ($(shell grep "^\"v" vers.ml | sed s/\"//g), $(shell git describe --tags))
+ifeq ($(shell test -e vers.ml && grep "^\"v" vers.ml | sed s/\"//g), $(shell git describe --tags))
   VERSDEPEND=
 else
   VERSDEPEND=FORCE

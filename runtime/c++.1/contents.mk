@@ -27,7 +27,7 @@ liboflux.a: liboflux.a($(OBJS))
 
 libofshim.so: $(COMMONOBJS)
 
-ifeq ($(shell grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g), $(shell git describe --tags))
+ifeq ($(shell test -e $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g), $(shell git describe --tags))
   VERSDEPEND=
 else
   VERSDEPEND=FORCE
