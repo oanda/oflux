@@ -25,6 +25,8 @@ OBJS := \
 
 liboflux.a: liboflux.a($(OBJS))
 
+.SECONDARY: $(OBJS)
+
 ifeq ($(_ARCH),Linux)
 OFLUXRTLIBS=
 else
