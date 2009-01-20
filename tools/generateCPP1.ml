@@ -487,6 +487,11 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                         | _ -> uses_model) in
         let bidi_uses = determine_redundant_for_copyto uses_model in
         let is_ignorable x = List.mem (TypeCheck.get_union_from_strio conseq_res x) ignoreis in
+        let define_canon_module_pair nsn1 nsn2 =
+                let oneach nsn =
+                        let broken = break_namespaced_name nsn
+                        in  cstyle_name broken
+                in  "_HAVE_COPY_TO_"^(oneach nsn1)^"_FROM_"^(oneach nsn2) in
         let code_template code (assign_opt,t_name,f_name) =
                 let as_name (x,isin) = 
                         let xtmp = x^(if isin then "_in" else "_out")
@@ -534,10 +539,12 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                                 let _ = try let isreally = List.assoc f_name conseq_res.TypeCheck.aliases in
                                             let irname,_ = as_name isreally
                                             in  Debug.dprint_string  (" "^f_name'^" is "^irname^"\n")
-                                        with Not_found -> ()
-                                        in
-                                List.fold_left add_code code
-                                        ([ "template<>"
+                                        with Not_found -> () in
+                                let def_const = define_canon_module_pair t_name' f_name'
+                                in List.fold_left add_code code
+                                        ([ "#ifndef "^def_const
+                                        ; "# define "^def_const
+                                        ; "template<>"
                                         ; ("inline void copy_to<"
                                                 ^t_name'^", "
                                                 ^f_name'^", "
@@ -549,6 +556,7 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                                         ; "{" ]
                                         @ copy_code @
                                         [ "}"
+                                        ; "#endif"
                                         ; "" ])
                 in
         let code = generic_cross_equiv_weak_unify code code_template symtable conseq_res uses_model
@@ -827,8 +835,8 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 	   and pop them in this table.
 	*)
 	let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
-	let one_inst garg gn nn nf (code,line) pi =
-                if pi = [] then code,line
+	let one_inst garg gn nn nf (code,line,donel) pi =
+                if pi = [] then code,line,donel
                 else
 		let alist = List.map (fun (_,i) -> (string_of_int i)^", ") pi in
 		let cat a b = a^b in
@@ -836,45 +844,48 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 		let gpi = List.combine garg pi in
 		let ff str (_,i) = str^"_"^(string_of_int i) in
 		let pistr = List.fold_left ff "_" pi in
-		let translate_name = clean_dots ("g_trans_"^gn^"_"^nn^pistr) in
-		let proto = "void "^translate_name^"( "
-			^"void * out, const void *in)"
-			^(if with_code then "" else ";") in
-		let assign (gdf,(ndf,_)) =
-			"(reinterpret_cast<"^(clean_dots gn)^"_key *>"
-			^"(out))->"^(strip_position gdf.name)
-			^" = (reinterpret_cast<const "
-			^nf^"_in *>(in))->"^(strip_position ndf.name)^";" in
-		let ccode = [ "{" ]
-			  @ (List.map assign gpi)
-			  @ [ "}" ] in
-		let u_n = get_u_n nf in
-		let argnum = List.length pi in
-		let mapline = "{ \""^gn^"\", "^(string_of_int u_n)
-			^", "^(string_of_int argnum)
-			^", &(_argument_arr["^(string_of_int line)^"][0])"
-			^", "^translate_name^" },  "
-		in  List.fold_left add_code code
-		    ( (if with_proto then [ proto ] else [])
-		    @ (if with_code then ccode else [])
-		    @ (if with_map then [ mapline ] else [] ) 
-		    @ (if with_argnos then [ arglist ] else [] ) 
-		    ), line+1
-		in
-        let e_g gn gd (code,line) =
-                let e_n nn nd (code,line) =
+		let translate_name = clean_dots ("g_trans_"^gn^"_"^nn^pistr) 
+                in  if List.mem translate_name donel then
+                        (code,line,donel)
+                    else
+                        let proto = "void "^translate_name^"( "
+                                ^"void * out, const void *in)"
+                                ^(if with_code then "" else ";") in
+                        let assign (gdf,(ndf,_)) =
+                                "(reinterpret_cast<"^(clean_dots gn)^"_key *>"
+                                ^"(out))->"^(strip_position gdf.name)
+                                ^" = (reinterpret_cast<const "
+                                ^nf^"_in *>(in))->"^(strip_position ndf.name)^";" in
+                        let ccode = [ "{" ]
+                                  @ (List.map assign gpi)
+                                  @ [ "}" ] in
+                        let u_n = get_u_n nf in
+                        let argnum = List.length pi in
+                        let mapline = "{ \""^gn^"\", "^(string_of_int u_n)
+                                ^", "^(string_of_int argnum)
+                                ^", &(_argument_arr["^(string_of_int line)^"][0])"
+                                ^", "^translate_name^" },  "
+                        in  List.fold_left add_code code
+                            ( (if with_proto then [ proto ] else [])
+                            @ (if with_code then ccode else [])
+                            @ (if with_map then [ mapline ] else [] ) 
+                            @ (if with_argnos then [ arglist ] else [] ) 
+                            ), line+1, translate_name::donel
+                        in
+        let e_g gn gd (code,line,donel) =
+                let e_n nn nd (code,line,donel) =
 			let nf = nd.functionname in
 			let pio = possible_instances_of gd.garguments nd.nodeinputs in  
-                        let code,line = List.fold_left (one_inst gd.garguments gn nn nf) (code,line) pio
-                        in  code,line
-                in  SymbolTable.fold_nodes e_n symtable (code,line)
+                        let code,line,donel = List.fold_left (one_inst gd.garguments gn nn nf) (code,line,donel) pio
+                        in  code,line,donel
+                in  SymbolTable.fold_nodes e_n symtable (code,line,donel)
                 in
-        let code,_ = SymbolTable.fold_guards e_g symtable (code,0)
+        let code,_,_ = SymbolTable.fold_guards e_g symtable (code,0,[])
         in  code
 
 let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
         let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
-        let e_n nn nd code =
+        let e_n nn nd (code,donel) =
                 let nf = nd.functionname in
                 let u_n = get_u_n nf in
                 let fill_expr uel =
@@ -902,10 +913,13 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 (Read::_) -> 1
                                 | (Write::_) -> 2
                                 | _ -> 3 in
-                let e_gr code gr =
+                let e_gr (code,donel) gr =
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
                         let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn) in
+                        if List.mem gtfunc donel then
+                                (code,donel)
+                        else
                         let hash = Hashtbl.hash (gr.arguments, gr.guardcond) in
                         let proto = "bool "^gtfunc^"( "
                                 ^"void * out, const void *in)"
@@ -936,10 +950,10 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         let code = if with_map then 
                                         add_code code mapline
                                 else code 
-                        in  code
-                in  List.fold_left e_gr code (nd.nodeguardrefs)
+                        in  code,gtfunc::donel
+                in  List.fold_left e_gr (code,donel) (nd.nodeguardrefs)
                 in
-        let code = SymbolTable.fold_nodes e_n symtable code
+        let code,_ = SymbolTable.fold_nodes e_n symtable (code,[])
         in  code
 
 
