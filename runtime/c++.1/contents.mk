@@ -25,7 +25,16 @@ OBJS := \
 
 liboflux.a: liboflux.a($(OBJS))
 
-libofshim.so: $(COMMONOBJS)
+.SECONDARY: $(OBJS)
+
+ifeq ($(_ARCH),Linux)
+OFLUXRTLIBS=
+else
+OFLUXRTLIBS= -lposix4 -lexpat -lm -lc -lpthread
+endif
+
+libofshim.so: $(COMMONOBJS) -ldl
+	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
 
 ifeq ($(shell test -e $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g), $(shell git describe --tags))
   VERSDEPEND=
