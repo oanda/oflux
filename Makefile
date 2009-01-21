@@ -53,15 +53,40 @@ define process_dirs
 	$(call process_dir,$(DIR)))
 endef
 
+
+define process_oflux_project
+#VPATH:=.:$(2)
+$(1)_OFLUX_MODULE_OBJS=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.o)
+$(1)_OFLUX_MODULE_CPPS=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.cpp)
+OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux
+	$(OFLUXCOMPILER) -oprefix OFluxGenerate_$(1) -a $$* $$($(1)_OFLUX_INCS) $$<
+OFluxGenerate_$(1).h OFluxGenerate_$(1).cpp : $($(1)_OFLUX_MAIN) mImpl.h $$($(1)_OFLUX_MODULE_CPPS) oflux
+	$(OFLUXCOMPILER) -oprefix OFluxGenerate_$(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
+$$($(1)_OFLUX_MAIN:%.flux=%) : $$($(1)_OFLUX_MODULE_OBJS)
+$$($(1)_OFLUX_MODULE_OBJS) : INCS = $(INCS) -I$$($(1)_OFLUX_PATH)
+OFluxGenerate_$(1).o : INCS = $(INCS) -I$$($(1)_OFLUX_PATH)
+#
+# no link rule done
+
+endef
+
+define process_oflux_projects
+  $(foreach PROJ,$(OFLUX_PROJECTS),\
+	$(call process_oflux_project,$(notdir $(PROJ)),$(dir $(PROJ))))
+endef
+
 ALL_LIBRARIES :=
 
 $(eval $(process_dirs))
+$(eval $(process_oflux_projects))
+
+ALL_TESTS := $(OFLUX_TESTS)
 
 .PHONY:
 	all \
 	clean
 
-build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS)
+build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS) $(ALL_TESTS)
 
 clean::
 	$(RM) $(ALL_LIBRARIES)

@@ -5,6 +5,7 @@ exception SemanticFailure of string * ParserTypes.position
 (* done in 3 passes *)
 
 let open_file_from_include_path fn =
+        let def_incl_path = if (String.get fn 0) = '/' then "" else "." in
 	let rec offip ip =
 		match ip with
 			(hp::tp) ->
@@ -13,7 +14,7 @@ let open_file_from_include_path fn =
 				with (Sys_error _) -> offip tp)
 			| [] -> raise (SemanticFailure ("file "^fn^" not found",
 				ParserTypes.noposition))
-	in  offip ("."::(CmdLine.get_include_path()))
+	in  offip (def_incl_path::(CmdLine.get_include_path()))
 
 (*PASS 1*)
 
@@ -177,8 +178,10 @@ let write_result fn of_result =
 			| _ -> true
 		in
 	let base_file = 
-		try let ri = String.rindex fn '.'
-		    in  String.sub fn 0 ri
+		try let ri = String.rindex fn '.' in
+                    let rs = try min ri ((String.rindex fn '/') +1)
+                             with Not_found -> 0
+		    in  String.sub fn rs (ri-rs)
 		with Not_found -> fn in
 	let xml_file = base_file^".xml" in
 	let dot_file = base_file^".dot" in

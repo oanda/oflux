@@ -17,6 +17,7 @@ CPPFLAGS += $(BASECXXFLAGS) $(COMPONENT_FLAGS) $(ARCH_FLAGS) $(INCS) -D$(_ARCH)
 BOOSTDIR := /oanda/system/include/boost-1_34_1
 
 BASECXXFLAGS = -Wall -D_REENTRANT -ggdb -O0 -MMD -MF "$(notdir $*).d"
+OFLUX_RUNTIME = $(SRCDIR)/runtime/c++.1
 
 INCS = \
     -I/oanda/system/include \
