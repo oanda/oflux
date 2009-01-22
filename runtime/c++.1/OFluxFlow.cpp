@@ -359,8 +359,13 @@ std::vector<Node *> & Flow::sources()
 
 void Flow::assignMagicNumbers() 
 { 
-        _magic_sorter.numberAll(); 
         std::map<std::string,Guard *>::iterator itr = _guards.begin();
+        while(itr != _guards.end()) {
+                _magic_sorter.addPoint((*itr).second->getName().c_str());
+                itr++;
+        }
+        _magic_sorter.numberAll(); 
+        itr = _guards.begin();
         while(itr != _guards.end()) {
                 oflux_log_info("flow assigned guard %s magic no %d\n", (*itr).second->getName().c_str(), (*itr).second->magic_number());
                 itr++;

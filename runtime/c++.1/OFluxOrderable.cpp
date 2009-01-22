@@ -62,6 +62,14 @@ void MagicSorter::numberAll()
                 }
         }
         assert(allassigned);
+        std::vector<const char *>::iterator vitr = _points.begin();
+        while(vitr != _points.end()) {
+                MagicNumberable * mn = getMagicNumberable(*vitr);
+                if(mn->magic_number() == 0) {
+                        mn->magic_number(magic++);
+                }
+                vitr++;
+        }
 }
 
 

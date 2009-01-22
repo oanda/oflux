@@ -24,6 +24,7 @@ public:
         void numberAll();
         virtual MagicNumberable * getMagicNumberable(const char * c) = 0;
         void addInequality(const char * before, const char * after);
+        void addPoint(const char * pt) { _points.push_back(pt); }
 protected:
         struct Inequality {
                 Inequality(MagicNumberable *b, MagicNumberable *a)
@@ -35,7 +36,8 @@ protected:
                 MagicNumberable * after;
         };
 private:
-        std::vector<Inequality> _inequalities;
+        std::vector<Inequality>  _inequalities;
+        std::vector<const char*> _points;
 };
 
 } // namespace
