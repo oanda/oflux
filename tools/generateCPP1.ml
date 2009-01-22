@@ -829,11 +829,12 @@ let possible_instances_of to_dfl from_dfl =
 
 	
 
+(*
 let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map) 
                 conseq_res symtable code =
-	(* trick is to determine all possible unifications 
+	* trick is to determine all possible unifications 
 	   and pop them in this table.
-	*)
+	*
 	let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
 	let one_inst garg gn nn nf (code,line,donel) pi =
                 if pi = [] then code,line,donel
@@ -882,6 +883,7 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
                 in
         let code,_,_ = SymbolTable.fold_guards e_g symtable (code,0,[])
         in  code
+*)
 
 let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
         let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
@@ -917,7 +919,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
                         let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn) in
-                        if List.mem gtfunc donel then
+                        if (not with_map) && List.mem gtfunc donel then
                                 (code,donel)
                         else
                         let hash = Hashtbl.hash (gr.arguments, gr.guardcond) in
