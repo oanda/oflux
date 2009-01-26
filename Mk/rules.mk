@@ -26,8 +26,11 @@ INCS = \
     -I$(SRCDIR)/private_include \
     -I$(SRCDIR)/include \
     -I$(SRCDIR)/src \
-    -I$(OFLUX_RUNTIME)
+    -I$(OFLUX_RUNTIME) \
+    -I.
 
+LIBS= -loflux -lexpat -lpthread -ldl
+LIBDIRS= -L.
 
 # Include any specific settings for this RELEASE (eg. production, debug, etc)
 -include $(SRCDIR)/Mk/$(RELEASE).mk
