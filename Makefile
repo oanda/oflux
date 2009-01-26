@@ -29,7 +29,8 @@ EX_DIR_SPECIFIC_MAKEFILE_NAME := ex-contents.mk
 
 buildable_dirs = \
 	$(shell find $(SRCDIR) -name $(DIR_SPECIFIC_MAKEFILE_NAME) | \
-	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//') \
+	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//')
+ex_buildable_dirs = \
 	$(shell find $(SRCDIR) -name $(EX_DIR_SPECIFIC_MAKEFILE_NAME) | \
 	sed 's/$(EX_DIR_SPECIFIC_MAKEFILE_NAME)//') \
 
@@ -39,7 +40,7 @@ define process_dir
 
   # passed to the contents.mk module files
   COMPONENT_DIR = $1
-  include $1/contents.mk
+  include $1/$(2)contents.mk
   ALL_TOOLS += $$(TOOLS)
   ALL_LIBRARIES += $$(LIBRARIES)
   ALL_APPS += $$(APPS)
@@ -57,6 +58,8 @@ endef
 define process_dirs
   $(foreach DIR, $(buildable_dirs),\
 	$(call process_dir,$(DIR)))
+  $(foreach DIR, $(ex_buildable_dirs),\
+	$(call process_dir,$(DIR),ex-))
 endef
 
 
