@@ -25,10 +25,13 @@ OLD_SHELL := $(SHELL)
 #end debug helpers
 
 DIR_SPECIFIC_MAKEFILE_NAME := contents.mk
+EX_DIR_SPECIFIC_MAKEFILE_NAME := ex-contents.mk
 
 buildable_dirs = \
 	$(shell find $(SRCDIR) -name $(DIR_SPECIFIC_MAKEFILE_NAME) | \
-	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//')
+	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//') \
+	$(shell find $(SRCDIR) -name $(EX_DIR_SPECIFIC_MAKEFILE_NAME) | \
+	sed 's/$(EX_DIR_SPECIFIC_MAKEFILE_NAME)//') \
 
 
 define process_dir
