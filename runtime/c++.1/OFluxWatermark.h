@@ -1,6 +1,7 @@
 #ifndef _OFLUX_WATERMARK
 #define _OFLUX_WATERMARK
 
+#include <stdio.h>
 #include <stdlib.h>
 
 namespace oflux {

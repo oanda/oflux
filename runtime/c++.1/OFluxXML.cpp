@@ -1,3 +1,4 @@
+#include <string.h>
 #include "OFluxXML.h"
 #include "OFluxFlow.h"
 #include "OFluxLibrary.h"
