@@ -1225,6 +1225,9 @@ let emit_test_main code =
 		; "signal(SIGHUP,handlesighup); // install SIGHUP handling"
 		; "logging::toStream(std::cout); // comment out if no oflux logging is desired"
 		; "theRT->start();"
+		; "#ifdef HASDEINIT"
+		; "deinit();"
+		; "#endif //HASDEINIT"
 		; "}"
 		; "#endif // TESTING"
 		]

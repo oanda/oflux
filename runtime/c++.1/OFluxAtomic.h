@@ -111,6 +111,12 @@ protected:
 	std::deque<AtomicQueueEntry>        _waiters;
 };
 
+class AtomicMapWalker {
+public:
+        virtual ~AtomicMapWalker() {}
+        virtual bool next(const void * & key,Atomic * &atom) = 0;
+};
+
 class AtomicExclusive : public AtomicCommon { // implements AtomicScaffold
 public:
 	enum { Exclusive = 3 };
@@ -237,9 +243,23 @@ public:
 	 * @brief deallocate a key
 	 */
 	virtual void delete_key(void *) = 0;
+        /**
+         * @brief get a walker for this map
+         */
+        virtual AtomicMapWalker * walker() = 0;
 };
 
 class AtomicPooled;
+
+class AtomicPoolWalker : public AtomicMapWalker {
+public:
+        AtomicPoolWalker(AtomicPooled *n)
+                : _n(n)
+                {}
+        virtual bool next(const void * & key,Atomic * &atom);
+private:
+        AtomicPooled * _n;
+};
 
 class AtomicPool : public AtomicMapAbstract {
 public:
@@ -258,6 +278,7 @@ public:
 	virtual void delete_key(void *) {}
         virtual const void * get(Atomic * & a_out,const void * key);
         void put(AtomicPooled * ap);
+        virtual AtomicMapWalker * walker() { return new AtomicPoolWalker(_ap_list); }
 private:
 	std::deque<boost::shared_ptr<EventBase> > _q;
 	std::deque<void *> _dq;
@@ -308,6 +329,19 @@ private:
 	AtomicPool &   _pool;
         AtomicPooled * _next;
 };
+
+class TrivialWalker : public AtomicMapWalker {
+public:
+        TrivialWalker(Atomic &a)
+                : _atom(a)
+                , _more(true)
+                {}
+        virtual bool next(const void * & key,Atomic * &atom);
+private:
+        Atomic & _atom;
+        bool _more;
+};
+
 /**
  * @class AtomicMapTrivial
  * @brief implementation of the AtomicMap interface for keys that are empty
@@ -328,9 +362,41 @@ public:
 	virtual int compare(const void*, const void*) const { return 0; } // eq
 	virtual void * new_key() { return NULL; }
 	virtual void delete_key(void *) {}
+        virtual AtomicMapWalker * walker() { return new TrivialWalker(_atomic); }
 private:
 	int _something;
 	A   _atomic;
+};
+
+template<typename K>
+class AtomicMapStdCmp {
+public:
+        bool operator()( const K* s1, const K* s2 ) const 
+        {
+                  return *s1 < *s2;
+        }
+};
+
+template<typename K>
+class AtomicMapStdWalker : public AtomicMapWalker {
+public:
+        AtomicMapStdWalker( std::map<const K*, Atomic*,AtomicMapStdCmp<K> > & map)
+                : _at(map.begin())
+                , _end(map.end())
+                {}
+        virtual bool next(const void * & key,Atomic * &atom)
+                {
+                        bool res = _at != _end;
+                        if(res) {
+                                key = (*_at).first;
+                                atom = (*_at).second;
+                                _at++;
+                        }
+                        return res;
+                }
+private:
+        typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::iterator _at;
+        typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::iterator _end;
 };
 
 /**
@@ -342,16 +408,9 @@ template<typename K,typename A=AtomicExclusive>
 class AtomicMapStdMap : public AtomicMapAbstract {
 public:
 	AtomicMapStdMap() {}
-	class Cmp {
-	public:
-		bool operator()( const K* s1, const K* s2 ) const 
-		{
-			  return *s1 < *s2;
-		}
-	};
 	virtual ~AtomicMapStdMap() 
 	{
-		typename std::map<const K*, Atomic*,Cmp>::const_iterator mitr = _map.begin();
+		typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::const_iterator mitr = _map.begin();
 		while(mitr != _map.end()) {
 			delete (*mitr).first;
 			delete (*mitr).second;
@@ -361,10 +420,10 @@ public:
 	virtual const void *get(Atomic * &atomic, const void * key)
 	{
 		const K * k = reinterpret_cast<const K*>(key);
-		typename std::map<const K*, Atomic*,Cmp>::const_iterator mitr = _map.find(k);
+		typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::const_iterator mitr = _map.find(k);
 		if(mitr == _map.end()) {
 			typename std::pair<K*,Atomic*> vp(new K(*k),new A(NULL));
-			typename std::pair< typename std::map<const K*,Atomic*,Cmp>::iterator,bool> ir =
+			typename std::pair< typename std::map<const K*,Atomic*,AtomicMapStdCmp<K> >::iterator,bool> ir =
 				_map.insert(vp);
 			mitr = ir.first;
 		}
@@ -379,8 +438,9 @@ public:
 	}
 	virtual void * new_key() { return new K(); }
 	virtual void delete_key(void * k) { delete (reinterpret_cast<const K *>(k)); }
+        virtual AtomicMapWalker * walker() { return new AtomicMapStdWalker<K>(_map); }
 private:
-	std::map<const K*, Atomic*,Cmp> _map;
+	std::map<const K*, Atomic*,AtomicMapStdCmp<K> > _map;
 };
 
 };

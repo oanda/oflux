@@ -70,4 +70,26 @@ AtomicPool::~AtomicPool()
         }
 }
 
+bool AtomicPoolWalker::next(const void * & key, Atomic * &atom)
+{
+        bool res = (_n != NULL);
+        key = NULL;
+        if(res) {
+                atom = _n;
+                _n = _n->next();
+        }
+        return res;
+}
+
+bool TrivialWalker::next(const void * & key, Atomic * &atom)
+{
+        bool res = _more;
+        if(res) {
+                key = NULL;
+                atom = &_atom;
+                _more = false;
+        }
+        return res;
+}
+
 };

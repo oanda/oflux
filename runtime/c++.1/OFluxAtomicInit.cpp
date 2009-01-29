@@ -30,4 +30,22 @@ bool GuardInserter::insert(const void * key, void * value)
 	return res;
 }
 
+GuardWalker::GuardWalker(AtomicMapAbstract *ama)
+        : _walker(ama->walker())
+{
+}
+
+GuardWalker::~GuardWalker()
+{
+        delete _walker;
+}
+
+bool GuardWalker::next(const void *& key, void *& value)
+{
+        Atomic * atom = NULL;
+        bool res = _walker->next(key,atom);
+        if(res) value = *(atom->data());
+        return res;
+}
+
 } // namespace

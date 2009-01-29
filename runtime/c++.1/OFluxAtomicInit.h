@@ -24,6 +24,22 @@ private:
         std::vector<Atomic *> _to_release;
 };
 
+class AtomicMapWalker;
+
+class GuardWalker {
+public:
+        GuardWalker(AtomicMapAbstract *ama);
+        ~GuardWalker();
+        /**
+         * @brief call next() until it returns false. its output parameters
+         * give the (key,value) pairs in this guard
+         * @return true if there is something "next" and the outputs are valid
+         */
+        bool next(const void *& key, void *& value);
+private:
+	AtomicMapWalker *   _walker;
+};
+
 
 #define OFLUX_GUARD_POPULATER(GUARDNAME,POPNAME) \
 	oflux::GuardInserter POPNAME(ofluximpl::GUARDNAME##_map_ptr)
@@ -33,6 +49,10 @@ private:
                 MODULENAME::ModuleConfig * mc = MODULENAME::init( __VA_ARGS__ ); \
                 instpop.insert(NULL, mc); \
         }
+#define OFLUX_GUARD_WALKER(GUARDNAME,WALKNAME) \
+	oflux::GuardWalker WALKNAME(ofluximpl::GUARDNAME##_map_ptr)
+#define OFLUX_GUARD_WALKER_NEXT(WALKNAME,K,V) \
+        WALKNAME.next(K,V)
 
 } //namespace
 
