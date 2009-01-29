@@ -137,7 +137,7 @@ private:
 
 // want this to be static and easy
 //
-#define MAX_ATOMICS_PER_NODE 10
+#define MAX_ATOMICS_PER_NODE 16
 
 /**
  * @class AtomicsHolder
