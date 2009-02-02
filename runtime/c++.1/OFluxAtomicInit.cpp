@@ -40,11 +40,11 @@ GuardWalker::~GuardWalker()
         delete _walker;
 }
 
-bool GuardWalker::next(const void *& key, void *& value)
+bool GuardWalker::next(const void *& key, void ** & value)
 {
         Atomic * atom = NULL;
         bool res = _walker->next(key,atom);
-        if(res) value = *(atom->data());
+        if(res) value = atom->data();
         return res;
 }
 
