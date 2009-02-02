@@ -35,7 +35,7 @@ public:
          * give the (key,value) pairs in this guard
          * @return true if there is something "next" and the outputs are valid
          */
-        bool next(const void *& key, void *& value);
+        bool next(const void *& key, void **& value);
 private:
 	AtomicMapWalker *   _walker;
 };
