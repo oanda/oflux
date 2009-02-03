@@ -116,7 +116,7 @@ $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$$($(1)_FROM_
 $(1)_OFLUX_INCS+=$$($$($(1)_FROM_PROJECT)_OFLUX_PATH:%=-I %) \
 	$$(foreach P,$$($(1)_DEP_PLUGINS),$$($$(P)_OFLUX_PATH:%=-I %))
 $(1)_OFLUX_FINAL:=$$($(1)_OFLUX_KERNEL_DIR)/bin/$$($(1)_OFLUX_SO_TARGET)
-OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux
+OFluxGenerate_$$($(1)_FROM_PROJECT)_%.h OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp : %.flux mImpl_%.h oflux
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -a $$* $$($(1)_OFLUX_INCS) $$<
 OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl_$(1).h $$($(1)_OFLUX_MODULE_CPPS) oflux $$($(1)_OFLUX_KERNEL_DIR)
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -p $(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
