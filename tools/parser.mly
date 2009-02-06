@@ -137,9 +137,9 @@ code_list:
 /*** modules ***/
 
 mod_inst:
-	INSTANCE namespaced_ident IDENTIFIER where_guard_indentifications_opt SEMI
+	external_opt INSTANCE namespaced_ident IDENTIFIER where_guard_indentifications_opt SEMI
 	{ trace_thing "mod_inst"
-        ; { modsourcename=$2; modinstname=$3; guardaliases = $4 } }
+        ; { externalinst=$1; modsourcename=$3; modinstname=$4; guardaliases = $5 } }
 
 where_guard_indentifications_opt:
         WHERE guard_indentification_list

@@ -123,7 +123,7 @@ OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$
 	rm -f $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
 	ln -sf $(CURDIR)/$(1).xml $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) $$($(1)_OFLUX_SO_DEPS)
-	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
+	$(CXX) -L. -shared $$^ $(OFLUXRTLIBS) -loflux -o $$@
 $$($(1)_OFLUX_FINAL) : $$($(1)_OFLUX_KERNEL_DIR) $$($(1)_OFLUX_SO_TARGET)
 	ln -sf $(CURDIR)/$$($(1)_OFLUX_SO_TARGET) $$($(1)_OFLUX_FINAL)
 $(1)_done : $$($(1)_OFLUX_FINAL)

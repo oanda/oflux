@@ -25,6 +25,7 @@ type 'a t =
     mutable filenamelist : string list ;
     mutable chan : in_channel ;
     mutable lexbuf : Lexing.lexbuf ;
+    mutable incluses : (string * string) list ;
     lexfunc : Lexing.lexbuf -> 'a ;
     }
 
@@ -40,6 +41,7 @@ let ls_create top_filename lexer_function =
 	; chan = chan 
 	; lexbuf = Lexing.from_channel chan 
 	; lexfunc = lexer_function
+        ; incluses = []
         }
 
 (*
@@ -63,6 +65,7 @@ let rec get_token ls dummy_lexbuf =
 		begin
 		Lexer.updateIntoFile full_fn;
                 ls.stack <- (ls.filename, ls.chan, ls.lexbuf) :: ls.stack ;
+                ls.incluses <- (ls.filename,full_fn) :: ls.incluses ;
                 ls.filename <- full_fn ;
                 ls.filenamelist <- full_fn::(ls.filenamelist) ;
                 ls.chan <- cha;
@@ -106,7 +109,7 @@ let parsefile fl =
 	    with (Parsing.Parse_error| (Failure _)) ->
 		let pos = (*current_pos lexstack*) Lexer.getPos()
 		in  (print_string (fl^" Syntax Error "^(position_to_string pos)^"\n"); None)
-	in  res
+	in  res, lexstack.incluses
 
 
 (*PASS 2*)
@@ -148,8 +151,8 @@ let generate fn deplist br br_aft_opt um =
 (*MAIN*)
 let smain fn = 
 	match parsefile fn with
-		None -> (print_string "no parse result\n"; None)
-		| (Some pres) -> Some (semantic_analysis pres pres.mod_def_list)
+		(None,_) -> (print_string "no parse result\n"; None)
+		| ((Some pres),_) -> Some (semantic_analysis pres pres.mod_def_list)
 
 let print_result _ (xml,h_code,cpp_code) =
 	print_string (Xml.to_string_fmt xml); 
@@ -232,21 +235,48 @@ let write_result fn of_result =
         let _ = write_timer () 
         in  result
 
-let get_uses_model program =
+let get_uses_model incluses program =
+        let fnopt_to_fn fnopt =
+                match fnopt with 
+                        None -> (match CmdLine.get_root_filename () with 
+                                None -> "-" 
+                                | (Some s) -> s)
+                        | (Some s) -> s in
+        let get_plugin_module_uses pdef =
+                let res = List.map (fun y -> strip_position y.modsourcename) pdef.pluginprogramdef.mod_inst_list
+                in  List.map (fun h -> (strip_position pdef.pluginname,h)) res in
+        let get_plugin_plugin_uses pdef =
+                let ff flist (fn1,fn2) =
+                        if (List.mem fn1 flist) && not (List.mem fn2 flist) then
+                                fn2::flist
+                        else flist in
+                let pname,p1,_ = pdef.pluginname in
+                let fp fn = List.fold_left ff [fn] incluses in
+                let incluses_subset = fp (fnopt_to_fn p1.file) in
+                let plist = List.filter (fun pdef' ->
+                        let _,p2,_ = pdef'.pluginname 
+                        in  List.mem (fnopt_to_fn p2.file) incluses_subset)
+                        program.plugin_list in
+                let res = List.map (fun x -> (pname, strip_position x.pluginname)) plist
+                in  res in
         let stable = SymbolTable.add_program SymbolTable.empty_symbol_table program in  
         let module_uses_model = SymbolTable.get_module_uses_model stable in
-        let _ = 
-                let pp_use (a,b) = Debug.dprint_string (a^" uses "^b^"\n")
-                in  if (List.length module_uses_model) = 0 then
-                        Debug.dprint_string "no modules found\n"
-                    else List.iter pp_use module_uses_model
-        in  module_uses_model
+        let um1 = (List.map (fun x-> strip_position x.pluginname,"") program.plugin_list) in
+        let um2 = (List.map (fun x-> "",strip_position x.modsourcename) program.mod_inst_list) in
+        let um3 = (List.concat (List.map get_plugin_module_uses program.plugin_list)) in
+        let um4 = (List.concat (List.map get_plugin_plugin_uses program.plugin_list)) in
+        let uses_model = um1 @ um2 @ um3 @ um4 @ module_uses_model in
+        let _ = let pp_use (a,b) = Debug.dprint_string (a^" uses "^b^"\n")
+                in  if (List.length uses_model) = 0 then
+                        Debug.dprint_string "no modules/plugins found\n"
+                    else List.iter pp_use uses_model 
+        in  uses_model
 
 let xmain do_result fn = 
         let parse_timer = Debug.timer "parser" in
 	match parsefile fn with
-		None -> (print_string "no parse result\n"; parse_timer(); Some 1)
-		| (Some pres) ->
+		(None,_) -> (print_string "no parse result\n"; parse_timer(); Some 1)
+		| (Some pres, incluses) ->
                         let _ = parse_timer () in
                         let flatten_timer = Debug.timer "flatten" in
 			let pres_flat, pres_flat_after_opt, deplist = 
@@ -277,7 +307,7 @@ let xmain do_result fn =
                                                 in ( br_bef , Some (Flow.make_compatible br_bef br_aft)) in
                         let _ = sem_an_timer () in
                         let uses_model_timer = Debug.timer "uses model" in
-                        let uses_model = get_uses_model pres in
+                        let uses_model = get_uses_model incluses pres in
                         let _ = uses_model_timer () in
 			let debug = ! Debug.debug in
 			let _ = Flow.pp_flow_map debug br.Flow.fmap in

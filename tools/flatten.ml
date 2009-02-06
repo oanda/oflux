@@ -107,10 +107,13 @@ let add_self_guardrefs pr =
 let program_append pr1 pr2 =
         let is_ext_node n = n.externalnode in
         let is_ext_atom n = n.externalatom in
+        let is_ext_inst n = n.externalinst in
         let ext_nodes1,nodes1 = List.partition is_ext_node pr1.node_decl_list in
         let ext_nodes2,nodes2 = List.partition is_ext_node pr2.node_decl_list in
         let ext_atoms1,atoms1 = List.partition is_ext_atom pr1.atom_decl_list in
         let ext_atoms2,atoms2 = List.partition is_ext_atom pr2.atom_decl_list in
+        let ext_inst1,inst1 = List.partition is_ext_inst pr1.mod_inst_list in
+        let ext_inst2,inst2 = List.partition is_ext_inst pr2.mod_inst_list in
         let check_ext_node nodes extnode =
                 let ename,pos,_ = extnode.nodename in
                 try let _ = List.find (fun n-> (strip_position n.nodename) = ename) nodes 
@@ -121,6 +124,13 @@ let program_append pr1 pr2 =
                 try let _ = List.find (fun n-> (strip_position n.atomname) = ename) atoms
                 in  ()
                 with Not_found -> raise (FlattenFailure ("external guard reference "^ename^" not found",pos)) in
+        let check_ext_inst insts extinst =
+                let ename,pos,_ = extinst.modinstname in
+                try let _ = List.find (fun n-> (strip_position n.modinstname) = ename) insts
+                in  ()
+                with Not_found -> raise (FlattenFailure ("external module instance "^ename^" not found",pos)) in
+        let _ = List.iter (check_ext_inst inst1) ext_inst2 in
+        let _ = List.iter (check_ext_inst inst2) ext_inst1 in
         let _ = List.iter (check_ext_node nodes1) ext_nodes2 in
         let _ = List.iter (check_ext_node nodes2) ext_nodes1 in
         let _ = List.iter (check_ext_atom atoms1) ext_atoms2 in
@@ -133,7 +143,7 @@ let program_append pr1 pr2 =
         ; expr_list = pr1.expr_list @ pr2.expr_list
         ; err_list = pr1.err_list @ pr2.err_list
         ; mod_def_list = pr1.mod_def_list @ pr2.mod_def_list
-        ; mod_inst_list = pr1.mod_inst_list @ pr2.mod_inst_list
+        ; mod_inst_list = inst1 @ inst2
         ; plugin_list = pr1.plugin_list @ pr2.plugin_list
         ; terminate_list = pr1.terminate_list @ pr2.terminate_list
         ; order_decl_list = pr1.order_decl_list @ pr2.order_decl_list
@@ -520,17 +530,20 @@ let flatten_plugin' plugin_name prog =
                 { onnodes = List.map (for_ref is_en ) err.onnodes
                 ; handler = for_ref is_en err.handler
                 } in
-        let for_mod_inst minst =
+        let for_mod_inst is_en minst =
                 { modsourcename = minst.modsourcename
-                ; modinstname = for_ref (fun _ -> true) minst.modinstname
+                ; modinstname = for_ref is_en minst.modinstname
                 ; guardaliases = minst.guardaliases
+                ; externalinst = minst.externalinst
                 } in
         let for_terminate = for_ref in
 	let for_program pr =
                 let ext_nodes = List.map (fun n -> strip_position n.nodename) (List.filter (fun n -> n.externalnode) pr.node_decl_list) in
                 let ext_atoms = List.map (fun a -> strip_position a.atomname) (List.filter (fun a -> a.externalatom) pr.atom_decl_list) in
                 let ext_conds = List.map (fun c -> strip_position c.condname) (List.filter (fun c -> c.externalcond) pr.cond_decl_list) in
+                let ext_insts = List.map (fun c -> strip_position c.modinstname) (List.filter (fun c -> c.externalinst) pr.mod_inst_list) in
                 let is_ext_node n = List.mem n ext_nodes in
+                let is_ext_inst i = List.mem i ext_insts in
                 let is_ext_atom a = List.mem a ext_atoms in
                 let is_ext_cond c = List.mem c ext_conds
                 in
@@ -541,7 +554,7 @@ let flatten_plugin' plugin_name prog =
 		; expr_list = List.map (for_expr is_ext_node is_ext_cond) pr.expr_list
 		; err_list = List.map (for_err is_ext_node) pr.err_list
 		; mod_def_list = []
-		; mod_inst_list = List.map for_mod_inst pr.mod_inst_list
+		; mod_inst_list = List.map (for_mod_inst is_ext_inst) pr.mod_inst_list
                 ; plugin_list = []
                 ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
                 ; order_decl_list = List.map (for_order_decl is_ext_atom) pr.order_decl_list

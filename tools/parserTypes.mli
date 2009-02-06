@@ -84,6 +84,7 @@ type err =
 
 type mod_inst = 
 	{ modsourcename : string positioned 
+        ; externalinst : bool
 	; modinstname : string positioned
         ; guardaliases : (string positioned * string positioned) list
 	}
