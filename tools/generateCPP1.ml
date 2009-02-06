@@ -485,7 +485,8 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                         ; ""
                         ; "#ifndef OFLUX_COPY_TO_GENERAL"
                         ; "#define OFLUX_COPY_TO_GENERAL"
-                        ; "template<typename T,typename F, int tdepth, int fdepth>"
+                        ; "template<typename T,typename F>"
+                        (*; "template<typename T,typename F, int tdepth, int fdepth>"*)
                         ; "inline void copy_to(T *to, const F * from)"
                         ; "{"
                         ; "enum { copy_to_code_failure_bug = 0 } _an_enum;"
@@ -576,10 +577,10 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                                         ; "template<>"
                                         ; ("inline void copy_to<"
                                                 ^t_name'^", "
-                                                ^f_name'^", "
+                                                ^f_name'(*^", "*)
                                                 (*^t_name'^"meta::depth, "
                                                 ^f_name'^"meta::depth"*)
-                                                ^"0,0" (*temp*)
+                                                (*^"0,0" temp*)
                                                 ^">("^t_name'^" * to, const "
                                                 ^f_name'^" * from)")
                                         ; "{" ]
@@ -1074,15 +1075,15 @@ let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
                                         None -> nf
                                         | (Some pn) -> remove_prefix (pn^"::") nf)
 			in if (is_concrete n) && not (is_abstract n) then
-				let u_no_in = lookup_union_number (nf,true) in
+				(*let u_no_in = lookup_union_number (nf,true) in
 				let u_no_out = lookup_union_number (nf,false) 
-				in  add_code code ("{ \""^nfind
+				in*)  add_code code ("{ \""^nfind
 					^"\", &oflux::create"
 					^(if is_eh n then "_error" else "")
 					(*^"<OFluxUnion"^(string_of_int u_no_in)^", "
 					^"OFluxUnion"^(string_of_int u_no_out)^", "*)
-                                        ^"<"^nf^"_in::base_type, "
-                                        ^nf^"_out::base_type, "
+                                        ^"<"(*^nf^"_in::base_type, "
+                                        ^nf^"_out::base_type, "*)
 					^nf^"_in, "
 					^nf^"_out, "
 					^nf^"_atoms, "
@@ -1128,17 +1129,17 @@ let emit_converts modulenameopt ignoreis conseq_res code =
 		; ""
 		; "#ifndef OFLUX_CONVERT_GENERAL"
 		; "#define OFLUX_CONVERT_GENERAL"
-		; "template<typename G,typename H>"
-		; "inline H * convert(G *)"
+		; "template<typename H>"
+		; "inline H * convert(typename H::base_type *)"
 		; "{"
 		; "enum { general_conversion_not_supported_bug = 0 } _an_enum;"
 		; "oflux::CompileTimeAssert<general_conversion_not_supported_bug> cta;"
 		; "}"
 		; ""
-		; "template<typename G,typename H>"
-		; "inline H const * const_convert(G const * g)"
+		; "template<typename H>"
+		; "inline H const * const_convert(typename H::base_type const * g)"
 		; "{"
-		; "return convert<G,H>(const_cast<G*>(g));"
+		; "return convert<H>(const_cast<typename H::base_type *>(g));"
 		; "}"
 		; "#endif //OFLUX_CONVERT_GENERAL"
 		; ""
@@ -1149,7 +1150,7 @@ let emit_converts modulenameopt ignoreis conseq_res code =
 		in  if (List.length broken_name) = 1 then
                         List.fold_left add_code code 
 			[ "template<>"
-			; ("inline "^nspace^s_name^" * convert<"^nspace^u_name^", "
+			; ("inline "^nspace^s_name^" * convert<"(*^nspace^u_name^", "*)
 				^nspace^s_name^" >( "^nspace^u_name^" * s)")
 			; "{"
 			; ("return "^(if isderef then ("&((*s)._"^cs_name^")")

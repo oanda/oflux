@@ -27,8 +27,8 @@
 namespace oflux {
 
 //forward decl
-template<typename G,typename H> H * convert(G *);
-template<typename G,typename H> const H * const_convert(const G *);
+template<typename H> H * convert(typename H::base_type *);
+template<typename H> const H * const_convert(const typename H::base_type *);
 
 
 /**
@@ -119,21 +119,21 @@ protected:
  * Concrete structures are manipulated as input and output.
  * Only the execute implementation is missing.
  */
-template<typename IT,typename OT,typename IM,typename OM, typename AM>
-class EventBase3 : public EventBase2<IT,OT,AM> {
+template<typename IM,typename OM, typename AM>
+class EventBase3 : public EventBase2<typename IM::base_type,typename OM::base_type,AM> {
 public:
 	EventBase3(boost::shared_ptr<EventBase> predecessor,
 			const IOConversionBase<IM> *im_io_convert,
 			flow::Node * flow_node)
-		: EventBase2<IT,OT,AM>(predecessor,flow_node)
+		: EventBase2<typename IM::base_type,typename OM::base_type,AM>(predecessor,flow_node)
 		, _im_io_convert(im_io_convert)
 		{
-		  (convert<OT,OM>(EventBase2<IT,OT,AM>::pr_output_type()))->next(NULL);
+		  (convert<OM>(EventBase2<typename IM::base_type,typename OM::base_type,AM>::pr_output_type()))->next(NULL);
 		}
 	virtual ~EventBase3()
 		{
 		  // recover splayed outputs
-		  OM * output_m = const_convert<OT,OM>(EventBase2<IT,OT,AM>::pr_output_type())->next();
+		  OM * output_m = const_convert<OM>(EventBase2<typename IM::base_type, typename OM::base_type,AM>::pr_output_type())->next();
 		  while(output_m) {
 			OM * next_output_m = output_m->next();
 			delete output_m;
@@ -143,7 +143,7 @@ public:
 		}
 	virtual OutputWalker output_type()
 		{ 
-			OutputWalker ow(convert<OT,OM>(EventBase2<IT,OT,AM>::pr_output_type())); 
+			OutputWalker ow(convert<OM>(EventBase2<typename IM::base_type,typename OM::base_type,AM>::pr_output_type())); 
 			return ow;
 		}
 	virtual const void * input_type() 
@@ -161,22 +161,22 @@ private:
  * This highest level of the template hierarchy know the concrete data
  * structures manipulated as input and output.
  */
-template<typename IT,typename OT,typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM *)>
-class Event : public EventBase3<IT,OT,IM,OM,AM> {
+template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM *)>
+class Event : public EventBase3<IM,OM,AM> {
 public:
 	Event(boost::shared_ptr<EventBase> predecessor,
                         const IOConversionBase<IM> * im_io_convert,
                         flow::Node * flow_node)
-		: EventBase3<IT,OT,IM,OM,AM>(predecessor,im_io_convert,flow_node)
+		: EventBase3<IM,OM,AM>(predecessor,im_io_convert,flow_node)
 		{}
 	virtual int execute()
 		{ 
-		  EventBase2<IT,OT,AM>::atomics_argument()->fill(&(this->atomics()));
+		  EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
 		  _NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
-			EventBase3<IT,OT,IM,OM,AM>::pr_input_type(),
-			convert<OT,OM>(EventBase2<IT,OT,AM>::pr_output_type()),
-			EventBase2<IT,OT,AM>::atomics_argument()
+			EventBase3<IM,OM,AM>::pr_input_type(),
+			convert<OM>(EventBase2<typename IM::base_type,typename OM::base_type,AM>::pr_output_type()),
+			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument()
 			); 
 		  if (!res) EventBase::release();
 		  _NODE_DONE(EventBase::flow_node()->getName());
@@ -190,22 +190,22 @@ public:
  * This kind of event has a C function associated with it that takes 
  * the error code as the final argument in its parameter list
  */
-template<typename IT,typename OT,typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
-class ErrorEvent : public EventBase3<IT,OT,IM,OM,AM> {
+template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
+class ErrorEvent : public EventBase3<IM,OM,AM> {
 public:
 	ErrorEvent(boost::shared_ptr<EventBase> predecessor,
                         const IOConversionBase<IM> * im_io_convert,
                         flow::Node * flow_node)
-		: EventBase3<IT,OT,IM,OM,AM>(predecessor,im_io_convert,flow_node)
+		: EventBase3<IM,OM,AM>(predecessor,im_io_convert,flow_node)
 		{}
 	virtual int execute()
 		{ 
-		  EventBase2<IT,OT,AM>::atomics_argument()->fill(&(this->atomics()));
+		  EventBase2<typename IM::base_type, typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
 		  _NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
-			EventBase3<IT,OT,IM,OM,AM>::pr_input_type(),
-			convert<OT,OM>(EventBase2<IT,OT,AM>::pr_output_type()), 
-			EventBase2<IT,OT,AM>::atomics_argument(),
+			EventBase3<IM,OM,AM>::pr_input_type(),
+			convert<OM>(EventBase2<typename IM::base_type, typename OM::base_type,AM>::pr_output_type()), 
+			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument(),
 			EventBase::error_code()); 
 		  if (!res) EventBase::release();
 		  _NODE_DONE(EventBase::flow_node()->getName());
@@ -222,10 +222,10 @@ public:
  *
  * @return smart pointer to the new event (heap allocated)
  **/
-template<typename IT,typename OT,typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
+template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
 boost::shared_ptr<EventBase> create(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,flow::Node *fn)
 {
-	return boost::shared_ptr<EventBase>(new Event<IT,OT,IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
+	return boost::shared_ptr<EventBase>(new Event<IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
 }
 
 /**
@@ -235,10 +235,10 @@ boost::shared_ptr<EventBase> create(boost::shared_ptr<EventBase> pred_node_ptr, 
  *
  * @return  smart pointer managed new source event (heap allocated)
  **/
-template<typename IT,typename OT,typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
+template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
 boost::shared_ptr<EventBase> create_source(flow::Node *fn)
 {
-	return boost::shared_ptr<EventBase>(new Event<IT,OT,IM,OM,AM,node_func>(EventBase::no_event,NULL, fn));
+	return boost::shared_ptr<EventBase>(new Event<IM,OM,AM,node_func>(EventBase::no_event,NULL, fn));
 }
 
 /**
@@ -250,10 +250,10 @@ boost::shared_ptr<EventBase> create_source(flow::Node *fn)
  *
  * @return smart pointer to the new error event (heap allocated)
  **/
-template<typename IT,typename OT,typename IM,typename OM,typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
+template<typename IM,typename OM,typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
 boost::shared_ptr<EventBase> create_error(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,flow::Node * fn)
 {
-	return boost::shared_ptr<EventBase>(new ErrorEvent<IT,OT,IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
+	return boost::shared_ptr<EventBase>(new ErrorEvent<IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
 }
 
 
