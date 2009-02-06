@@ -256,6 +256,7 @@ public:
         AtomicPoolWalker(AtomicPooled *n)
                 : _n(n)
                 {}
+        virtual ~AtomicPoolWalker() {}
         virtual bool next(const void * & key,Atomic * &atom);
 private:
         AtomicPooled * _n;
@@ -336,6 +337,7 @@ public:
                 : _atom(a)
                 , _more(true)
                 {}
+        virtual ~TrivialWalker() {}
         virtual bool next(const void * & key,Atomic * &atom);
 private:
         Atomic & _atom;
@@ -384,6 +386,7 @@ public:
                 : _at(map.begin())
                 , _end(map.end())
                 {}
+        virtual ~AtomicMapStdWalker() {}
         virtual bool next(const void * & key,Atomic * &atom)
                 {
                         bool res = _at != _end;
