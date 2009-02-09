@@ -39,7 +39,7 @@ define process_dir
   LIBRARIES :=
 
   # passed to the contents.mk module files
-  COMPONENT_DIR = $1
+  COMPONENT_DIR := $1
   include $1/$(2)contents.mk
   ALL_TOOLS += $$(TOOLS)
   ALL_LIBRARIES += $$(LIBRARIES)
@@ -122,8 +122,8 @@ OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -p $(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
 	rm -f $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
 	ln -sf $(CURDIR)/$(1).xml $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
-$$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) $$($(1)_OFLUX_SO_DEPS)
-	$(CXX) -L. -shared $$^ $(OFLUXRTLIBS) -loflux -o $$@
+$$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) $$($(1)_OFLUX_SO_DEPS) liboflux.so
+	$(CXX) -L. -shared $$^ $(OFLUXRTLIBS) -o $$@
 $$($(1)_OFLUX_FINAL) : $$($(1)_OFLUX_KERNEL_DIR) $$($(1)_OFLUX_SO_TARGET)
 	ln -sf $(CURDIR)/$$($(1)_OFLUX_SO_TARGET) $$($(1)_OFLUX_FINAL)
 $(1)_done : $$($(1)_OFLUX_FINAL)

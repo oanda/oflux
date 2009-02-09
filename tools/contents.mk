@@ -2,6 +2,8 @@ $(warning Reading contents.mk $(COMPONENT_DIR))
 
 TOOLS += oflux 
 
+OFLUX_COMPONENT_DIR:=$(COMPONENT_DIR)
+
 HEADERS:= \
 	xml.cmi \
 	cycleFind.cmi \
@@ -54,7 +56,10 @@ oflux: vers.ml $(OBJS) oflux.$(LIBRARYEXT)
 oflux.$(LIBRARYEXT): $(CODE)
 	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
-ifeq ($(shell test -e $(CURDIR)/vers.ml && grep "^\"" $(CURDIR)/vers.ml | sed s/\"//g), $(shell git describe --tags))
+OFLUX_VERS_READ:=$(shell test -r $(CURDIR)/vers.ml && grep "^\"" $(CURDIR)/vers.ml | sed s/\"//g)
+OFLUX_VERS_EXISTING:=$(shell cd $(OFLUX_COMPONENT_DIR); git describe --tags; cd $(CURDIR))
+
+ifeq ($(OFLUX_VERS_READ),$(OFLUX_VERS_EXISTING))
   VERSDEPEND=
 else
   VERSDEPEND=FORCE
@@ -63,12 +68,12 @@ endif
 FORCE:
 
 vers.ml: $(VERSDEPEND) 
-	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; echo "\""`git describe --tags`"\""; echo "") > vers.ml
+	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; cd $(OFLUX_COMPONENT_DIR); echo "\""`git describe --tags`"\""; echo ""; cd $(CURDIR)) > vers.ml
 
 # Hack to work around ocamlyacc's limitation of putting results in the
 # same dir as source.
-$(CURDIR)/% : $(COMPONENT_DIR)/%
-	cp "$<" "$@"
+$(CURDIR)/% : $(OFLUX_COMPONENT_DIR)/%
+	ln -sf "$<" "$@"
 
 parser.mli parser.ml: $(CURDIR)/parser.mly
 	ocamlyacc -v $<

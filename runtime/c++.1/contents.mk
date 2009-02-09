@@ -1,5 +1,7 @@
 $(warning Reading contents.mk)
 
+OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
+
 LIBRARIES += liboflux.a libofshim.so 
 
 COMMONOBJS := OFluxRunTimeAbstract.pic.o OFluxIOShim.pic.o
@@ -25,6 +27,8 @@ OBJS := \
 
 liboflux.a: liboflux.a($(OBJS))
 
+liboflux.so: liboflux.so($(OBJS:%.o=%.pic.o))
+
 .SECONDARY: $(OBJS)
 
 ifeq ($(_ARCH),Linux)
@@ -36,7 +40,10 @@ endif
 libofshim.so: $(COMMONOBJS) -ldl
 	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
 
-ifeq ($(shell test -e $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g), $(shell git describe --tags))
+OFLUX_LIB_VERS_READ:=$(shell test -r $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g)
+OFLUX_LIB_VERS_EXISTING:=$(shell cd $(OFLUX_LIB_COMPONENT_DIR); git describe --tags; cd $(CURDIR))
+
+ifeq ($(OFLUX_LIB_VERS_READ), $(OFLUX_LIB_VERS_EXISTING))
   VERSDEPEND=
 else
   VERSDEPEND=FORCE
@@ -45,7 +52,7 @@ endif
 FORCE:
 
 oflux_vers.cpp: $(VERSDEPEND)
-	(echo "/* auto-generated - do not modify */"; echo ""; echo " namespace oflux { const char * runtime_version = "; echo "\""`git describe --tags`"\"";echo "; }"; echo "") > oflux_vers.cpp
+	(echo "/* auto-generated - do not modify */"; echo ""; echo " namespace oflux { const char * runtime_version = "; cd $(OFLUX_LIB_COMPONENT_DIR); echo "\""`git describe --tags`"\"";cd $(CURDIR); echo "; }"; echo "") > oflux_vers.cpp
 
 
 #dependencies
