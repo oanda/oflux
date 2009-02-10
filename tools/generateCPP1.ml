@@ -795,6 +795,8 @@ let emit_atom_fill pluginopt symtable aliases code =
 
 let emit_atom_map_decl symtable code =
 	let e_one n gd code =
+                if gd.gexternal then code
+                else
 		let clean_n = clean_dots n
 		in  add_code code ("extern oflux::AtomicMapAbstract * "^clean_n
                                 ^"_map_ptr;") in
@@ -809,6 +811,8 @@ let emit_atom_map_decl symtable code =
 
 let emit_atom_map_map plugin_opt symtable code =
 	let e_one n gd code =
+                if gd.gexternal then code
+                else
                 let clean_n = clean_dots n in
                 List.fold_left add_code code
 		((
@@ -1358,6 +1362,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		; "    //namespace"
 		; ""
 		] in
+	let h_code = emit_atom_map_decl stable h_code in
 	let is_concrete n = Flow.is_concrete stable fm n in
 	let h_code = emit_union_forward_decls conseq_res stable h_code in
 	let h_code,ignoreis = emit_plugin_structs pluginname conseq_res stable h_code in

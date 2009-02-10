@@ -104,7 +104,7 @@ let add_self_guardrefs pr =
                 ; order_decl_list = pr.order_decl_list
                 }
 
-let program_append pr1 pr2 =
+let program_append keepextatoms pr1 pr2 =
         let is_ext_node n = n.externalnode in
         let is_ext_atom n = n.externalatom in
         let is_ext_inst n = n.externalinst in
@@ -134,10 +134,19 @@ let program_append pr1 pr2 =
         let _ = List.iter (check_ext_node nodes1) ext_nodes2 in
         let _ = List.iter (check_ext_node nodes2) ext_nodes1 in
         let _ = List.iter (check_ext_atom atoms1) ext_atoms2 in
-        let _ = List.iter (check_ext_atom atoms2) ext_atoms1
+        let _ = List.iter (check_ext_atom atoms2) ext_atoms1 in
+        let keep_ext extl h =
+                try let hname = strip_position h.atomname in
+                    let h = List.find (fun n -> (strip_position n.atomname) = hname) extl
+                    in  h
+                with Not_found -> h
         in
         { cond_decl_list = pr1.cond_decl_list @ pr2.cond_decl_list
-        ; atom_decl_list = atoms1 @ atoms2
+        ; atom_decl_list = 
+                        if keepextatoms then
+                                (List.map (keep_ext ext_atoms2) atoms1) 
+                                @ (List.map (keep_ext ext_atoms1) atoms2)
+                        else atoms1 @ atoms2
         ; node_decl_list = nodes1 @ nodes2
         ; mainfun_list = pr1.mainfun_list @ pr2.mainfun_list
         ; expr_list = pr1.expr_list @ pr2.expr_list
@@ -402,7 +411,7 @@ let flatten prog =
                         let moddefpr = flt ip mp modl gsubst moddefpr in
                         let moddefpr = apply_guardref_subst gsubst moddefpr
 			in  add_atom_decl ip mp
-				(program_append pr_sofar moddefpr)
+				(program_append true pr_sofar moddefpr)
 			in
 		let modl = (List.map (add_mod_prefix modprefix) pr.mod_def_list) @ modl
 		in  List.fold_left (oninst modl instprefix modprefix) 
@@ -568,7 +577,9 @@ let flatten_plugin plugin_name prog =
         let append_but n prog pd =
                 if (strip_position pd.pluginname) = n then prog
                 else let pn = strip_position pd.pluginname
-                     in  program_append (flatten_plugin' pn pd.pluginprogramdef) prog in
+                     in  program_append 
+                        ((n=plugin_name) && (pn = n))
+                        (flatten_plugin' pn pd.pluginprogramdef) prog in
         let append_all_but n prog pdl =
                 List.fold_left (append_but n) prog pdl in
         let flt_with = flatten (append_all_but "" prog prog.plugin_list) in
