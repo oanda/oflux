@@ -29,7 +29,7 @@ liboflux.a: liboflux.a($(OBJS))
 
 liboflux.so: liboflux.so($(OBJS:%.o=%.pic.o))
 
-.SECONDARY: $(OBJS)
+.SECONDARY: $(OBJS) $(OBJS:%.o=%.pic.o)
 
 ifeq ($(_ARCH),Linux)
 OFLUXRTLIBS=

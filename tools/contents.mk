@@ -4,6 +4,7 @@ TOOLS += oflux
 
 OFLUX_COMPONENT_DIR:=$(COMPONENT_DIR)
 
+
 HEADERS:= \
 	xml.cmi \
 	cycleFind.cmi \
@@ -44,6 +45,9 @@ CODE:= \
 	topLevel.$(OBJECTEXT) \
 	main.$(OBJECTEXT)
 
+OFLUXTOOLSRC:= $(CODE:%.$(OBJECTEXT)=%.ml) $(HEADERS:%.cmi=%.mli)
+OFLUXOCAMLDEPENDS:= $(shell (test -r oflux.ocaml.depend || ((cd $(OFLUX_COMPONENT_DIR); $(OCAMLDEP) $(INCLUDEOPTS) $(OFLUXTOOLSRC); cd $(CURDIR)) > oflux.ocaml.depend)); echo oflux.ocaml.depend)
+
 OBJS := $(HEADERS)
 OBJS += $(CODE)
 
@@ -80,3 +84,5 @@ parser.mli parser.ml: $(CURDIR)/parser.mly
 
 lexer.ml: $(CURDIR)/lexer.mll
 	ocamllex $<
+
+include $(OFLUXOCAMLDEPENDS)

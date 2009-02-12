@@ -29,7 +29,7 @@ INCS = \
     -I$(OFLUX_RUNTIME) \
     -I.
 
-LIBS= -loflux -lexpat -lpthread -ldl
+LIBS= -lexpat -lpthread -ldl
 LIBDIRS= -L.
 
 # Include any specific settings for this RELEASE (eg. production, debug, etc)
@@ -51,6 +51,7 @@ OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux oflux
 OCAMLCOMPILER:=ocaml$(if $(findstring dev,$(OCAMLCONFIG)),c -g,opt) $(if $(findstring profile,$(OCAMLCONFIG)),-p,)
 OBJECTEXT:=cm$(if $(findstring dev,$(OCAMLCONFIG)),o,x)
 LIBRARYEXT:=cm$(if $(findstring dev,$(OCAMLCONFIG)),,x)a
+OCAMLDEP:=ocamldep $(if $(findstring dev,$(OCAMLCONFIG)),, -native)
 
 
 %.cmi: %.mli 
