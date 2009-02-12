@@ -86,3 +86,12 @@ lexer.ml: $(CURDIR)/lexer.mll
 	ocamllex $<
 
 include $(OFLUXOCAMLDEPENDS)
+
+# rules not discovered by ocamldep until ocamlyacc ocamllex run
+parser.cmi: parserTypes.cmi
+parser.cmo: parserTypes.cmi parser.cmi 
+parser.cmx: parserTypes.cmx parser.cmi 
+lexer.cmo: parserTypes.cmi parser.cmi 
+lexer.cmx: parserTypes.cmx parser.cmx 
+topLevel.cmx: parser.cmx lexer.cmx
+topLevel.cmo: parser.cmi lexer.cmi
