@@ -22,7 +22,7 @@ let rec break_dotted_name nsn =
             let len = String.length nsn in
             let hstr = String.sub nsn 0 ind in
             let tstr = String.sub nsn (ind+1) (len-(ind+1))
-            in  hstr::(break_dotted_name tstr)
+            in  hstr::"."::(break_dotted_name tstr)
         with Not_found -> [nsn]
 
 
