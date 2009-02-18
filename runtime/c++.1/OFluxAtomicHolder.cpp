@@ -78,7 +78,9 @@ int AtomicsHolder::acquire(AtomicsHolder & given_atomics,
 	AtomicsHolderTraversal my_aht(*this);
 	bool more_given = given_aht.next(given_ha);
 	while(result == -1 && my_aht.next(my_ha)) {
-		while(more_given && given_ha->compare(*my_ha) < 0) {
+		while(more_given 
+                                && (!given_ha->haveit() 
+                                        || given_ha->compare(*my_ha) < 0)) {
 			more_given = given_aht.next(given_ha);
 		}
 		if(my_ha->haveit() || my_ha->skipit()) {

@@ -91,6 +91,7 @@ include $(OFLUXOCAMLDEPENDS)
 parser.cmi: parserTypes.cmi
 parser.cmo: parserTypes.cmi parser.cmi 
 parser.cmx: parserTypes.cmx parser.cmi 
+lexer.cmi: parserTypes.cmi
 lexer.cmo: parserTypes.cmi parser.cmi 
 lexer.cmx: parserTypes.cmx parser.cmx 
 topLevel.cmx: parser.cmx lexer.cmx
