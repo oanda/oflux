@@ -27,7 +27,8 @@ OBJS := \
 
 liboflux.a: liboflux.a($(OBJS))
 
-liboflux.so: liboflux.so($(OBJS:%.o=%.pic.o))
+liboflux.so: $(OBJS:%.o=%.pic.o)
+	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
 
 .SECONDARY: $(OBJS) $(OBJS:%.o=%.pic.o)
 
