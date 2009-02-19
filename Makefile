@@ -85,7 +85,7 @@ $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
 	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
 $$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a)
 	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$(if $(HAS_DTRACE),$(BINDIR)/oflux_probe.o,) $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) $(LIBS) -o $$@
-$$($(1)_OFLUX_MAIN:%.flux=run-%.sh) : $$($(1)_OFLUX_MAIN:%.flux=%) $$($(1)_OFLUX_KERNEL_DIR)
+$$($(1)_OFLUX_MAIN:%.flux=run-%.sh) : $$($(1)_OFLUX_MAIN:%.flux=%) $$($(1)_OFLUX_KERNEL_DIR) libofshim.so
 	echo "#!$(shell which bash)" > $$@; \
 	echo "" >> $$@; \
 	echo "export LD_PRELOAD=$(shell pwd)/libofshim.so" >> $$@; \

@@ -39,7 +39,7 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 	// init the shim
 	initShimFnType f = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
 	if (f == NULL){
-		oflux_log_error("ERROR no SHIM file found... exiting\n");
+		oflux_log_error("ERROR no SHIM file found... exiting\n%s\n",dlerror());
 		exit(0);
 	}
 	((f)(this));

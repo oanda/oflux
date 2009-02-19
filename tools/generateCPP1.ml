@@ -1061,11 +1061,11 @@ let emit_cond_func_decl plugin_opt symtable code =
 
 let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
 	let is_eh f = List.mem f ehs in
-	let lookup_union_number (n,isin) =
+	(*let lookup_union_number (n,isin) =
 		try TypeCheck.get_union_from_strio conseq_res (n,isin)
 		with Not_found -> raise (CppGenFailure ("emit_create_map: not found union "
 			^n^" "^(if isin then "input" else "output")))
-		in
+		in*)
         let is_abstract n = SymbolTable.is_abstract symtable n in
 	let e_one n _ code =
                 let ignore_emit = 
