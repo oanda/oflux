@@ -43,7 +43,7 @@ LIBS=
 else
 LIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
-CPPOPTS= -O3 -g -MMD -MF "$(BINDIR)/.$(notdir $*).d" #-DOFLUX_RT_DEBUG
+CPPOPTS= -O3 -g -MMD -MF "$(BINDIR)/.$(@F:.o=.d)" #-DOFLUX_RT_DEBUG
 ifeq ($(ARCH),Linux)
 CPPOPTS += -DLINUX
 endif
