@@ -357,7 +357,7 @@ let add_choice_expr symtable fmap unified expr =
 			| _ -> raise (Failure("expression must have consequences",identpos)) in
 	let unified = type_check_all unified conseq in
 	let unified =
-                TypeCheck.type_check_inputs_only unified symtable ident_n first_n identpos in
+                TypeCheck.type_check_inputs_only unified symtable first_n ident_n identpos in
 	let unified = 
 		match out_param, conseq_out with
 			(Some op,Some co) ->
