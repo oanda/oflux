@@ -29,10 +29,10 @@ EX_DIR_SPECIFIC_MAKEFILE_NAME := ex-contents.mk
 
 buildable_dirs = \
 	$(shell find $(SRCDIR) -name $(DIR_SPECIFIC_MAKEFILE_NAME) | \
-	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//')
+	sed 's/$(DIR_SPECIFIC_MAKEFILE_NAME)//' | sort)
 ex_buildable_dirs = \
 	$(shell find $(SRCDIR) -name $(EX_DIR_SPECIFIC_MAKEFILE_NAME) | \
-	sed 's/$(EX_DIR_SPECIFIC_MAKEFILE_NAME)//') \
+	sed 's/$(EX_DIR_SPECIFIC_MAKEFILE_NAME)//' | sort) \
 
 
 define process_dir

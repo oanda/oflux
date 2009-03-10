@@ -37,12 +37,15 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 {
 	load_flow();
 	// init the shim
-	initShimFnType f = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
-	if (f == NULL){
+	if(!RunTimeBase::initShim) {
+                RunTimeBase::initShim = 
+                        (initShimFnType)dlsym (RTLD_NEXT, "initShim");
+        }
+	if (RunTimeBase::initShim == NULL){
 		oflux_log_error("ERROR no SHIM file found... exiting\n%s\n",dlerror());
 		exit(0);
 	}
-	((f)(this));
+	((RunTimeBase::initShim)(this));
 }
 
 RunTime::~RunTime()
@@ -422,7 +425,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 } //namespace classic
 } //namespace runtime
 
-RunTimeBase * create_classic_runtime(const RunTimeConfiguration &rtc)
+RunTimeBase * _create_classic_runtime(const RunTimeConfiguration &rtc)
 {
         return new runtime::classic::RunTime(rtc);
 }

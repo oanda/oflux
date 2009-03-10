@@ -3,6 +3,7 @@
 
 #include "OFlux.h"
 #include "OFluxRunTimeAbstract.h"
+#include <dlfcn.h>
 
 namespace oflux {
 
@@ -36,6 +37,8 @@ typedef void (*initShimFnType) (RunTimeAbstract *);
 
 class RunTimeBase : public RunTimeAbstract {
 public:
+        static initShimFnType initShim;
+        
 	RunTimeBase(const RunTimeConfiguration & rtc)
                 : _rtc(rtc)
                 , _running(false)
@@ -59,8 +62,19 @@ protected:
 };
 
 // list of runtime factory functions:
-extern RunTimeBase * create_classic_runtime(const RunTimeConfiguration &);
-extern RunTimeBase * create_melding_runtime(const RunTimeConfiguration &);
+extern RunTimeBase * _create_classic_runtime(const RunTimeConfiguration &);
+extern RunTimeBase * _create_melding_runtime(const RunTimeConfiguration &);
+
+inline RunTimeBase * create_classic_runtime(const RunTimeConfiguration & rtc)
+{
+        RunTimeBase::initShim = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
+        return _create_classic_runtime(rtc);
+}
+inline RunTimeBase * create_melding_runtime(const RunTimeConfiguration & rtc)
+{
+        RunTimeBase::initShim = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
+        return _create_melding_runtime(rtc);
+}
 
 } // namespace oflux
 

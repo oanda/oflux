@@ -69,7 +69,7 @@ int RunTimeThread::execute_detached(boost::shared_ptr<EventBase> & ev,
 
 } // namespace melding
 } // namespace runtime
-RunTimeBase * create_melding_runtime(const RunTimeConfiguration & rtc)
+RunTimeBase * _create_melding_runtime(const RunTimeConfiguration & rtc)
 {
         return new runtime::melding::RunTime(rtc);
 }

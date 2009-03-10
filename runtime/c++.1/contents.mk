@@ -19,6 +19,7 @@ OBJS := \
         OFluxAcquireGuards.o \
         OFluxEvent.o \
         OFluxRunTimeAbstract.o \
+        OFluxRunTimeBase.o \
         OFluxRunTime.o \
         OFluxMeldingRunTime.o \
         OFluxXML.o \
