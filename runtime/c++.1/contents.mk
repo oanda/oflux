@@ -26,7 +26,8 @@ OBJS := \
         OFluxLibrary.o \
 	oflux_vers.o
 
-liboflux.a: liboflux.a($(OBJS))
+liboflux.a: $(OBJS)
+	$(AR) r $@ $^
 
 liboflux.so: $(OBJS:%.o=%.pic.o)
 	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
