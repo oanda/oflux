@@ -74,6 +74,8 @@ $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.cpp)
 $(1)_OFLUX_OPTS+=$$(if $$($(1)_OFLUX_KERNEL),-absterm,)
 $(1)_OFLUX_MAIN_OBJ_DEP:=$$(if $$($(1)_OFLUX_KERNEL),$$($(1)_OFLUX_KERNEL:%.cpp=%.o),$$($(1)_OFLUX_OBJS))
 $(1)_OFLUX_MAIN_TARGET:=$$($(1)_OFLUX_MAIN:%.flux=%)
+$(1)_RUN_SCRIPT:=$$($(1)_OFLUX_MAIN:%.flux=run-%.sh)
+
 OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$(1) -a $$* $$($(1)_OFLUX_INCS) $$<
 OFluxGenerate_$(1).h OFluxGenerate_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl.h $$($(1)_OFLUX_MODULE_CPPS) oflux
@@ -85,7 +87,7 @@ $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
 	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
 $$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a)
 	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$(if $(HAS_DTRACE),$(BINDIR)/oflux_probe.o,) $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) $(LIBS) -o $$@
-$$($(1)_OFLUX_MAIN:%.flux=run-%.sh) : $$($(1)_OFLUX_MAIN:%.flux=%) $$($(1)_OFLUX_KERNEL_DIR) libofshim.so
+$$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libofshim.so
 	echo "#!$(shell which bash)" > $$@; \
 	echo "" >> $$@; \
 	echo "export LD_PRELOAD=$(shell pwd)/libofshim.so" >> $$@; \
@@ -94,6 +96,9 @@ $$($(1)_OFLUX_MAIN:%.flux=run-%.sh) : $$($(1)_OFLUX_MAIN:%.flux=%) $$($(1)_OFLUX
 	echo "pushd .; cd $(shell pwd)/$$($(1)_OFLUX_KERNEL_DIR)" >> $$@;,) \
 	(echo $(shell pwd)/$$($(1)_OFLUX_MAIN:%.flux=%) " " $(shell pwd)/$$($(1)_OFLUX_MAIN:%.flux=%.xml) "@: @," | sed -e 's/:/1/g' | sed -e 's/\,/2/g' | sed -e 's/@/$$$$/g') >> $$@; \
 	chmod +x $$@
+
+$(1)_load_test: $$($(1)_RUN_SCRIPT)
+	OFLUX_CONFIG=nostart $(CURDIR)/$$($(1)_RUN_SCRIPT) $$($(1)_LOADTEST_ARGS) > $$@
 
 $$($(1)_OFLUX_KERNEL:%.cpp=%.o) $$($(1)_OFLUX_OBJS) $$($(1)_OFLUX_SO_OBJS): INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
