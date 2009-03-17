@@ -88,6 +88,13 @@ let updatePosInTok lexbuf tokfun =
                 }
         in  tokfun (startpos,endpos)
 
+(* some documentation tags for within comments 
+   Comments need be /**  */ enclosed
+   @node description of the node
+   @input input-name description of the input 
+   @output output-name description of the output
+   @guard guard-name description of the guard (why it is needed)
+*)
 
 }
 
@@ -163,8 +170,13 @@ rule token = parse
 			{ updatePosInTok lexbuf
 				(fun (x1,x2) -> IDENTIFIER (Lexing.lexeme lexbuf,x1,x2)) }
 	| eof                   { updatePos lexbuf ENDOFFILE (*; raise Eof*) }
-	| "/*" { comment lexbuf; token lexbuf }
+	| "/**" { comment lexbuf; token lexbuf }
+	| "/*" { doccomment lexbuf; token lexbuf }
 	| '/' { updatePosInTok lexbuf (fun x -> SLASH x) }
+and doccomment = parse
+	"*/"                    { () }
+	| [ '\n' ]      { updateNewLine(); comment lexbuf } (* should count these *)
+	| _                     { comment lexbuf }
 and comment = parse
 	"*/"                    { () }
 	| [ '\n' ]      { updateNewLine(); comment lexbuf } (* should count these *)

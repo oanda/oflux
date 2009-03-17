@@ -44,8 +44,8 @@ LIBDIRS= -L.
 #OFLUX
 OFLUXCOMPILER := $(CURDIR)/oflux
 
-OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux oflux
-	$(OFLUXCOMPILER) -a $* $(OFLUX_INCS) $*.flux
+#OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux oflux
+	#$(OFLUXCOMPILER) -a $* $(OFLUX_INCS) $*.flux
 
 # OCAML
 OCAMLCOMPILER:=ocaml$(if $(findstring dev,$(OCAMLCONFIG)),c -g,opt) $(if $(findstring profile,$(OCAMLCONFIG)),-p,)

@@ -3,3 +3,5 @@
 
 ARCH_FLAGS += -DLINUX
 LIBS += -lrt
+DOTCOMMAND:= $(shell which dot | grep -v no)
+DOT:=$(if $(DOTCOMMAND),$(DOTCOMMAND) -Tsvg,)

@@ -1240,6 +1240,7 @@ let emit_test_main code =
 	List.fold_left add_code code
 		[ "#ifdef TESTING"
 		; "#include <signal.h>"
+		; "#include <cstring>"
 		; "using namespace oflux;"
 		; "boost::shared_ptr<RunTimeBase> theRT;"
 		; "void handlesighup(int)"

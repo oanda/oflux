@@ -10,6 +10,7 @@ VPATH := $(SRCDIR)
 OFLUX_PROJECTS :=
 OFLUX_PLUGIN_PROJECTS :=
 OFLUX_TESTS :=
+OFLUX_DOCUMENTATION:=
  
 include $(SRCDIR)/Mk/rules.mk
 
@@ -74,15 +75,19 @@ $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.cpp)
 $(1)_OFLUX_OPTS+=$$(if $$($(1)_OFLUX_KERNEL),-absterm,)
 $(1)_OFLUX_MAIN_OBJ_DEP:=$$(if $$($(1)_OFLUX_KERNEL),$$($(1)_OFLUX_KERNEL:%.cpp=%.o),$$($(1)_OFLUX_OBJS))
 $(1)_OFLUX_MAIN_TARGET:=$$($(1)_OFLUX_MAIN:%.flux=%)
+$(1)_OFLUX_MAIN_SVG:=$$($(1)_OFLUX_MAIN:%.flux=%.svg)
 $(1)_RUN_SCRIPT:=$$($(1)_OFLUX_MAIN:%.flux=run-%.sh)
 
 OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$(1) -a $$* $$($(1)_OFLUX_INCS) $$<
+
 OFluxGenerate_$(1).h OFluxGenerate_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl.h $$($(1)_OFLUX_MODULE_CPPS) oflux
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
+
 $$($(1)_OFLUX_KERNEL_DIR) : 
 	mkdir -p $$@/xml; \
 	mkdir -p $$@/bin
+
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
 	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
 $$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a)
@@ -99,6 +104,17 @@ $$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libof
 
 $(1)_load_test: $$($(1)_RUN_SCRIPT)
 	OFLUX_CONFIG=nostart $(CURDIR)/$$($(1)_RUN_SCRIPT) $$($(1)_LOADTEST_ARGS) > $$@
+
+$$($(1)_OFLUX_MAIN:.flux=-flat.dot) $$($(1)_OFLUX_MAIN:.flux=.dot) : OFluxGenerate_$(1).h
+$$($(1)_OFLUX_MODULES:.flux=.dot) : %.dot : OFluxGenerate_$(1)_%.h
+
+$$($(1)_OFLUX_MAIN:.flux=-flat.svg) $$($(1)_OFLUX_MAIN:.flux=.svg) $$($(1)_OFLUX_MODULES:.flux=.svg) : %.svg : %.dot
+	$(if $(DOT),$(DOT),$(warning has no dot); echo dot) $$< > $$@
+
+OFLUX_DOCUMENTATION += \
+  $$($(1)_OFLUX_MAIN:.flux=.svg) \
+  $$($(1)_OFLUX_MAIN:.flux=-flat.svg) \
+  $$($(1)_OFLUX_MODULES:.flux=.svg)
 
 $$($(1)_OFLUX_KERNEL:%.cpp=%.o) $$($(1)_OFLUX_OBJS) $$($(1)_OFLUX_SO_OBJS): INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
@@ -135,6 +151,15 @@ $$($(1)_OFLUX_FINAL) : $$($(1)_OFLUX_KERNEL_DIR) $$($(1)_OFLUX_SO_TARGET)
 $(1)_done : $$($(1)_OFLUX_FINAL)
 	touch $(1)_done
 
+$$($(1)_OFLUX_MODULES:.flux=.dot) : %.dot : OFluxGenerate_$$($(1)_FROM_PROJECT)_%.h
+$$($(1)_OFLUX_MAIN:.flux=.dot) : OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h
+$$($(1)_OFLUX_MAIN:.flux=.svg) $$($(1)_OFLUX_MODULES:.flux=.svg) : %.svg : %.dot
+	$(if $(DOT),$(DOT),$(warning has no dot); echo dot) $$< > $$@
+
+OFLUX_DOCUMENTATION += \
+  $$($(1)_OFLUX_MAIN:.flux=.svg) \
+  $$($(1)_OFLUX_MODULES:.flux=.svg)
+
 $$($(1)_OFLUX_SO_OBJS) : INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
 $$($(1)_OFLUX_SO_OBJS): OFluxGenerate_$$($(1)_FROM_PROJECT).cpp $$($(1)_DEP_PLUGINS:%=OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp)
@@ -157,15 +182,19 @@ $(eval $(process_dirs))
 $(eval $(process_oflux_projects))
 
 ALL_TESTS := $(OFLUX_TESTS)
+ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 
 .PHONY:
 	all \
-	clean
+	clean \
+	doc
 
-build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS) $(ALL_TESTS)
+build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS) $(ALL_TESTS) $(ALL_DOCUMENTATION)
 
 clean::
 	$(RM) $(ALL_LIBRARIES)
+
+doc: $(ALL_DOCUMENTATION)
 
 #----- END Boilerplate
 endif
