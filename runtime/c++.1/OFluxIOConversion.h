@@ -21,6 +21,7 @@ template<typename ResultClass>
 class IOConversionBase {
 public:
         IOConversionBase() {}
+        virtual ~IOConversionBase() {}
         virtual const ResultClass * value() const = 0;
 };
 
@@ -40,6 +41,7 @@ class RealIOConversion : public IOConversionBase<TargetClass> {
 public:
         RealIOConversion(const GivenClass * given)
                 { copy_to<TargetClass,GivenClass/*,0,0*/ >(&_target,given); }
+        virtual ~RealIOConversion() {}
         virtual const TargetClass * value() const { return &_target; }
 private:
         TargetClass _target;
