@@ -290,7 +290,7 @@ let emit_program_xml programname br =
 	let find_union_number (y,io) = 
 		let nd = SymbolTable.lookup_node_symbol stable y
 		in  unionmap_as_string (nd.SymbolTable.functionname,io) in
-	let rec gen_succ' ccond fl = 
+	let rec gen_succ' n_out_u_n ccond fl = 
 		let sfun n _ _ _ = 
 			let u_n = find_union_number (n,true) in
                         let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
@@ -299,7 +299,7 @@ let emit_program_xml programname br =
                                 else ()
 			in  if ist || (is_condition_always_false ccond) then
                                 []
-                            else [[case n (gen_cond u_n 1 ccond)]] in
+                            else [[case n (gen_cond n_out_u_n 1 ccond)]] in
 		let chefun choice_name solfl =
                         let condunit = List.map (fun x -> []) 
                                 (let sol,_ = List.hd solfl in sol) in
@@ -318,22 +318,22 @@ let emit_program_xml programname br =
                                                 ; ccond'
                                                 ; condneg ] in
                                 let condneg = and_canon_condition condneg negccond'
-                                in  condneg, ((gen_succ' ccondlocal flr)::sofar) in
+                                in  condneg, ((gen_succ' n_out_u_n ccondlocal flr)::sofar) in
 			let _,part_res = List.fold_left onfold (condunit,[]) solfl in
 			let tmp = List.fold_left (prod (fun a -> (fun b -> b @ a))) [[]] part_res 
                         in  tmp in
                 let coefun _ fll = 
-                        let tmp = List.concat (List.map (gen_succ' ccond) fll) 
+                        let tmp = List.concat (List.map (gen_succ' n_out_u_n ccond) fll) 
                         in  tmp in
 		let nfun _ = []
 		in  Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in
-	let gen_succ ccond fl =
+	let gen_succ n_out_u_n ccond fl =
                 let foldfun (resl,i) s =
                         (if s = [] then resl else ((successor (string_of_int i) s)::resl))
                         , i+1 in
                 let resl,_ = List.fold_left foldfun ([],0) 
-                        (List.rev (gen_succ' ccond fl))
+                        (List.rev (gen_succ' n_out_u_n ccond fl))
                 in resl in
 	let is_error_handler n = List.mem n errhandlers in
 	(*let number_inputs (i,ll) df = (i+1,(ParserTypes.strip_position df.ParserTypes.name,i)::ll) in
@@ -367,14 +367,16 @@ let emit_program_xml programname br =
 		let chefun _ _ = Flow.null_flow in
 		let coefun _ _ = Flow.null_flow in
 		let nfun _ = Flow.null_flow in
+                let n_in_u_n = find_union_number (n,true) in
+                let n_out_u_n = find_union_number (n,false) in
 		let succ = Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in  node n f 
                         (if is_src then "true" else "false")
 			(if is_eh then "true" else "false")
 			(if is_dt then "true" else "false")
 			(if is_ext then "true" else "false")
-                        (find_union_number (n,true))
-                        (find_union_number (n,false))
+                        n_in_u_n
+                        n_out_u_n
 			(List.map do_gr nd.SymbolTable.nodeguardrefs)
 			(let sfun _ _ _ eh = 
                                 (match gen_eh eh with
@@ -386,7 +388,7 @@ let emit_program_xml programname br =
 			let coefun _ _ = None in
 			let nfun _ = None
 			in  Flow.flow_apply (sfun, chefun, coefun, sfun, nfun) fl)
-			(successorlist ((gen_succ [] succ)
+			(successorlist ((gen_succ n_out_u_n [] succ)
 				@ (if is_src && (not is_ro_src) then [successor "erste" [case n []]] else []))) in
 	let guard_ff (ll,i) gname = 
 		let element = guard gname (*(string_of_int i)*)
