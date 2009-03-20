@@ -1280,6 +1280,7 @@ let emit_test_main code =
 		; "#ifdef HASDEINIT"
 		; "deinit();"
 		; "#endif //HASDEINIT"
+                ; "theRT.reset(); // force collection before static dtr order"
 		; "}"
 		; "#endif // TESTING"
 		]
