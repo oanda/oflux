@@ -204,9 +204,9 @@ exception XMLConversion of string * ParserTypes.position
 
 let emit_program_xml programname br = 
         let conseq_res = br.Flow.consequences in
-        let unionmap_as_string strio =
+        let unionmap_find strio =
                 let u_n = TypeCheck.get_union_from_strio conseq_res strio
-                in  string_of_int u_n in
+                in  u_n in
 	let stable = br.Flow.symtable in
 	let fmap = br.Flow.fmap in
 	let sourcelist = br.Flow.sources in
@@ -266,14 +266,40 @@ let emit_program_xml programname br =
 		if Flow.is_null_node ehfl then None
 		else let n = get_name ehfl
                      in Some(errorhandler n, n) in
-	let rec gen_cond u_n i ccond =
+        let convert_argn t_u_n u_n j =
+                if t_u_n = u_n then j
+                else 
+                try 
+                        let gdecll = TypeCheck.get_decl_list_from_union conseq_res stable in
+                        let t_is = gdecll t_u_n in
+                        let is = gdecll u_n in
+                        let rec pick j ll = 
+                                match ll with
+                                        (h::t) ->
+                                                if j <= 1 then h
+                                                else pick (j-1) t 
+                                        | _ -> raise Not_found in
+                        let df = (pick j t_is) in
+                        let name = ParserTypes.strip_position df.ParserTypes.name in
+                        let rec find i dfl =
+                                match dfl with
+                                        (h::t) -> 
+                                                if (ParserTypes.strip_position h.ParserTypes.name)=name then i
+                                                else find (i+1) t
+                                        | _ -> raise (XMLConversion ("can't find arg conversion "^(string_of_int t_u_n)^" -> "^(string_of_int u_n),ParserTypes.noposition))
+                        in  find 1 is 
+                with Not_found -> j
+                in
+	let rec gen_cond t_u_n u_n i ccond =
 		match ccond with
 			(h::t) ->
 				(List.map (fun (s,neg) -> 
-                                        condition s (string_of_int i) 
+                                        condition s 
+                                                (let i = convert_argn t_u_n u_n i
+                                                in  string_of_int i) 
                                                 (if neg then "true" else "false")
-                                                u_n) h)
-				@ (gen_cond u_n (i+1) t)
+                                                (string_of_int u_n)) h)
+				@ (gen_cond t_u_n u_n (i+1) t)
 			| _ -> [] in
 	(*let rec prod f ll1 ll2 =
 		match ll2 with
@@ -289,7 +315,7 @@ let emit_program_xml programname br =
                 in
 	let find_union_number (y,io) = 
 		let nd = SymbolTable.lookup_node_symbol stable y
-		in  unionmap_as_string (nd.SymbolTable.functionname,io) in
+		in  unionmap_find (nd.SymbolTable.functionname,io) in
 	let rec gen_succ' n_out_u_n ccond fl = 
 		let sfun n _ _ _ = 
 			let u_n = find_union_number (n,true) in
@@ -299,7 +325,7 @@ let emit_program_xml programname br =
                                 else ()
 			in  if ist || (is_condition_always_false ccond) then
                                 []
-                            else [[case n (gen_cond n_out_u_n 1 ccond)]] in
+                            else [[case n (gen_cond u_n n_out_u_n 1 ccond)]] in
 		let chefun choice_name solfl =
                         let condunit = List.map (fun x -> []) 
                                 (let sol,_ = List.hd solfl in sol) in
@@ -354,7 +380,7 @@ let emit_program_xml programname br =
 		let do_gr gr = 
 			(*let _,gr_pos,_ = gr.ParserTypes.guardname in*)
 			guardref (ParserTypes.strip_position gr.ParserTypes.guardname)
-			(unionmap_as_string (nd.SymbolTable.functionname,true))
+			(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
                         (string_of_int (Hashtbl.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond)))
 			(match gr.ParserTypes.modifiers with
 				(ParserTypes.Read::_) -> "1"
@@ -375,8 +401,8 @@ let emit_program_xml programname br =
 			(if is_eh then "true" else "false")
 			(if is_dt then "true" else "false")
 			(if is_ext then "true" else "false")
-                        n_in_u_n
-                        n_out_u_n
+                        (string_of_int n_in_u_n)
+                        (string_of_int n_out_u_n)
 			(List.map do_gr nd.SymbolTable.nodeguardrefs)
 			(let sfun _ _ _ eh = 
                                 (match gen_eh eh with

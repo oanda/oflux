@@ -77,6 +77,11 @@ val consequences : unification_result ->
         SymbolTable.symbol_table ->
         consequence_result
 
+val get_decl_list_from_union : consequence_result ->
+        SymbolTable.symbol_table ->
+        int -> (* union number *)
+        ParserTypes.decl_formal list 
+
 val get_union_from_equiv : consequence_result ->
         (string * bool) list ->
         int

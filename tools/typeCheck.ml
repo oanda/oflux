@@ -68,6 +68,14 @@ type consequence_result =
                   *)
         }
 
+let get_decl_list_from_union conseq_res symtable nn =
+        let (str,io),_ = List.find (fun (_,n) -> n=nn) conseq_res.union_map in
+        let nd = SymbolTable.lookup_node_symbol_from_function symtable str 
+        in  if io then nd.SymbolTable.nodeinputs
+            else match nd.SymbolTable.nodeoutputs with
+                        None -> raise (Failure ("get_decl_list_from_union tried "^str^(if io then "_in" else "_out"),ParserTypes.noposition))
+                        | (Some dl) -> dl
+
 let get_subset_order stable full_collapsed =
         let on_each (i,ul) = 
                 let h = List.hd ul in
