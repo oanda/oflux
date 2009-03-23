@@ -54,6 +54,7 @@ public:
          * @brief ask the runtime to shut down -- start() function returns
          */
         void soft_kill() { _running = false; }
+        virtual void hard_kill() { soft_kill(); }
         virtual void log_snapshot() = 0;
 protected:
 	const RunTimeConfiguration & _rtc;

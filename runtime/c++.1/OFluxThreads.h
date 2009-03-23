@@ -32,6 +32,7 @@ namespace oflux {
 # define oflux_cond_signal(X) cond_signal(X)
 # define oflux_key_create(X,Y) thr_keycreate(X,Y)
 # define oflux_key_delete(X) 
+# define oflux_cancel(X) thr_kill(X,SIGTERM) // somewhat iffy
 namespace oflux {
   inline void * oflux_get_specific(thread_key_t x) { int * ptr; thr_getspecific(x,(void**) &ptr); return (void*) ptr; }
   inline int oflux_create_thread(size_t stack_size, void *(*start_routine) (void *), void * data_arg, oflux_thread_t * thr) { 
@@ -72,6 +73,7 @@ namespace oflux {
 # define oflux_key_delete(X) pthread_key_delete(X)
 # define oflux_get_specific(X) pthread_getspecific(X)
 # define oflux_set_specific(X,Y) pthread_setspecific(X,Y)
+# define oflux_cancel(X) pthread_cancel(X)
 namespace oflux {
   inline int oflux_create_thread(size_t stack_size, void *(*start_routine) (void *), void * data_arg, oflux_thread_t * thr) { 
 	pthread_attr_t attr;

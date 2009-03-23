@@ -61,6 +61,16 @@ RunTime::~RunTime()
         }
 }
 
+void RunTime::hard_kill()
+{
+        soft_kill(); // setup a soft kill, then harden it
+        RunTimeThreadNode * rtt = _thread_list.first();
+        while(rtt != NULL) {
+                rtt->content()->hard_die();
+                rtt = rtt->next();
+        }
+}
+
 void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
 {
         oflux_log_info("RunTime::load_flow() called\n");

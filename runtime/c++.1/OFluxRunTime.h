@@ -77,6 +77,7 @@ protected:
 		{ return _rtc.thread_collection_sample_period; }
 	void doThreadCollection();
         virtual RunTimeThread * new_RunTimeThread(oflux_thread_t tid = 0);
+        virtual void hard_kill();
 protected:
 	inline flow::Flow * flow() { return _active_flows.front(); }
 	void remove(RunTimeThread * rtt);
@@ -119,6 +120,7 @@ public:
 	virtual oflux_thread_t tid() { return _tid; }
 	void log_snapshot();
 	void soft_die() { _request_death = true; }
+	void hard_die() { _request_death = true; oflux_cancel(_tid); }
 	bool running() { return _thread_running; }
 	inline void wait_to_run() 
 		{

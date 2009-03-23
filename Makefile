@@ -10,6 +10,7 @@ VPATH := $(SRCDIR)
 OFLUX_PROJECTS :=
 OFLUX_PLUGIN_PROJECTS :=
 OFLUX_TESTS :=
+OFLUX_UNIT_TESTS :=
 OFLUX_DOCUMENTATION:=
  
 include $(SRCDIR)/Mk/rules.mk
@@ -182,6 +183,7 @@ $(eval $(process_dirs))
 $(eval $(process_oflux_projects))
 
 ALL_TESTS := $(OFLUX_TESTS)
+ALL_UNIT_TESTS := $(OFLUX_UNIT_TESTS)
 ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 
 .PHONY:
@@ -189,7 +191,15 @@ ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 	clean \
 	doc
 
-build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS) $(ALL_TESTS) 
+$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o %.o liboflux.a
+	$(CXX) $(CXXOPTS) $(INCS) $(LIBDIRS) $^ $(LIBS) -o $@
+
+$(ALL_UNIT_TESTS:%.cpp=%.xml): %.xml : %
+	$(LIBRARY_PATH_NAME)=$(subst $(space),$(colon),$(strip $(LIBRARY_PATH_DIRS))) \
+	$(CURDIR)/$< --gtest_output="xml:$(CURDIR)/$@"
+
+
+build: $(ALL_TOOLS) $(ALL_LIBRARIES) $(ALL_APPS) $(ALL_TESTS) $(ALL_UNIT_TESTS:%.cpp=%.xml) 
 
 clean::
 	$(RM) $(ALL_LIBRARIES)
