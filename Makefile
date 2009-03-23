@@ -192,10 +192,9 @@ ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 	doc
 
 $(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o %.o liboflux.a
-	$(CXX) $(CXXOPTS) $(INCS) $(LIBDIRS) $^ $(LIBS) -o $@
+	$(CXX) $(CXXOPTS) $(INCS) $(LIBDIRS) $^ $(LIBS) -lgtest -o $@
 
 $(ALL_UNIT_TESTS:%.cpp=%.xml): %.xml : %
-	$(LIBRARY_PATH_NAME)=$(subst $(space),$(colon),$(strip $(LIBRARY_PATH_DIRS))) \
 	$(CURDIR)/$< --gtest_output="xml:$(CURDIR)/$@"
 
 
