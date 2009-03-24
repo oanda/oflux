@@ -57,7 +57,7 @@ public:
         virtual void hard_kill() { soft_kill(); }
         virtual void log_snapshot() = 0;
 protected:
-	const RunTimeConfiguration & _rtc;
+	const RunTimeConfiguration   _rtc;
         bool                         _running;
         bool                         _load_flow_next;
 };
