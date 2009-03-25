@@ -132,6 +132,7 @@ let rec break_dotted_name nsn =
 	with Not_found -> [nsn]
 
 let generate_program pname p =
+        let p = Flatten.remove_reductions p in
         let is_plugin pn = List.exists (fun p -> (strip_position p.pluginname) = pn) p.plugin_list in
         let pname = sanitize_name pname in
         let strip x = strip_position x in
