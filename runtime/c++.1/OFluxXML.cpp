@@ -154,7 +154,10 @@ public:
         { _flow->addGuard(new flow::Guard(amap,name)); }
         void new_flow_guardprecedence(const char * before, const char * after)
         { _flow->addGuardPrecedence(before,after); }
-        void new_flow_guard_reference(flow::Guard * fg, int unionnumber, long hash, int wtype)
+        void new_flow_guard_reference(flow::Guard * fg
+                , int unionnumber
+                , const char * hash
+                , int wtype)
         { 
                 _flow_guard_reference = new flow::GuardReference(fg,wtype); 
                 _flow_guard_ref_unionnumber = unionnumber;
@@ -164,7 +167,10 @@ public:
         void complete_flow_guard_reference()
         {
                 const char * name = _flow_guard_reference->getName().c_str();
-                GuardTransFn guardfn = lookup_guard_translator(name, _flow_guard_ref_unionnumber, _flow_guard_ref_hash, _flow_guard_ref_wtype);
+                GuardTransFn guardfn = lookup_guard_translator(name
+                        , _flow_guard_ref_unionnumber
+                        , _flow_guard_ref_hash.c_str()
+                        , _flow_guard_ref_wtype);
                 assert(guardfn != NULL); 
                 _flow_guard_reference->setGuardFn(guardfn);
                 _flow_node->addGuard(_flow_guard_reference);
@@ -233,7 +239,10 @@ public:
         // functions for accessing the vector of flowmaps
         CreateNodeFn lookup_node_function(const char *n);
         ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
-        GuardTransFn lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype);
+        GuardTransFn lookup_guard_translator(const char * guardname
+                , int union_number
+                , const char * hash
+                , int wtype);
         AtomicMapAbstract * lookup_atomic_map(const char * guardname);
         FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
         
@@ -246,7 +255,7 @@ private:
         flow::Case *                      _flow_case;
         flow::GuardReference *            _flow_guard_reference;
         int                               _flow_guard_ref_unionnumber;
-        long                              _flow_guard_ref_hash;
+        std::string                       _flow_guard_ref_hash;
         int                               _flow_guard_ref_wtype;
         std::vector<AddTarget>            _add_targets;
         std::vector<SetErrorHandler>      _set_error_handlers;
@@ -396,11 +405,17 @@ ConditionFn Reader::lookup_conditional(const char * n, int argno, int unionnumbe
         return res;
 }
 
-GuardTransFn Reader::lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype)
+GuardTransFn Reader::lookup_guard_translator(const char * guardname
+        , int union_number
+        , const char * hash
+        , int wtype)
 {
         GuardTransFn res = NULL;
         for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_guard_translator(guardname,union_number,hash,wtype);
+                res = _fmaps_vec[i]->lookup_guard_translator(guardname
+                        , union_number
+                        , hash
+                        , wtype);
         }
         return res;
 }
@@ -484,7 +499,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
         int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
-        long hash = (el_hash ? atol(el_hash) : 0);
+        const char * hash = el_hash;
         if(strcmp(el,"argument") == 0) {
                 // has attributes: argno
                 // has no children
@@ -640,7 +655,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
         int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
-        long hash = (el_hash ? atol(el_hash) : 0);
+        const char * hash = el_hash;
 
         bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
 

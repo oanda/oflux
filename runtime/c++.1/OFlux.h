@@ -99,6 +99,7 @@ class Node;
 
 extern "C" {
 typedef void InitFunction(void *);
+typedef void DeInitFunction();
 }
 
 typedef bool (*ConditionFn)(const void *);
@@ -130,7 +131,7 @@ struct ConditionalMap {
 struct GuardTransMap {
 	const char * guardname;
 	const int union_number;
-        const long hash;
+        const char * hash;
         const int wtype;
 	GuardTransFn guardtransfn;
 };

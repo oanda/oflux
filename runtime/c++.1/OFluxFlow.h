@@ -64,7 +64,10 @@ public:
          * @param argnos a vector of unique argument numbers used to pick off the fields
          * @return the compiled function (pointer to it)
          */
-        GuardTransFn lookup_guard_translator(const char * guardname, int union_number, long hash, int wtype);
+        GuardTransFn lookup_guard_translator(const char * guardname
+                , int union_numberu
+                , const char * hash
+                , int wtype);
 
         /**
          * @brief lookup the atomic map object for the given guard 

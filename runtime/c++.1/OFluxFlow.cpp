@@ -71,14 +71,14 @@ ConditionFn FunctionMaps::lookup_conditional(const char * n, int argno, int unio
 }
 
 GuardTransFn FunctionMaps::lookup_guard_translator(const char * guardname,
-                                int union_number, long hash, int wtype)
+                                int union_number, const char * hash, int wtype)
 {
         GuardTransFn res = NULL;
         GuardTransMap * ptr = _guard_trans_map;
         while(ptr->guardname != NULL) {
                 if(strcmp(guardname, ptr->guardname) == 0
                                 && union_number == ptr->union_number
-                                && hash == ptr->hash
+                                && 0 == strcmp(hash,ptr->hash)
                                 && wtype == ptr->wtype
                                 ) {
                         res = ptr->guardtransfn;

@@ -963,8 +963,8 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                 let e_gr (code,donel) gr =
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
-                        let hash = Hashtbl.hash (gr.arguments, gr.guardcond) in
-                        let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn^"_"^(string_of_int hash)) in
+                        let hash = HashString.hash (gr.arguments, gr.guardcond) in
+                        let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn^"_"^hash) in
                         if (not with_map) && List.mem gtfunc donel then
                                 (code,donel)
                         else
@@ -973,7 +973,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 ^(if with_code then "" else ";") in
                         let mapline = ("{ \""^gn^"\", "
                                 ^(string_of_int u_n)^", "
-                                ^(string_of_int hash)^", "
+                                ^"\""^hash^"\", "
                                 ^(string_of_int (wtype gr.modifiers))^", "
                                 ^"&"^gtfunc
                                 ^" },  ") in

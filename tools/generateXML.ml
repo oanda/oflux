@@ -381,7 +381,7 @@ let emit_program_xml programname br =
 			(*let _,gr_pos,_ = gr.ParserTypes.guardname in*)
 			guardref (ParserTypes.strip_position gr.ParserTypes.guardname)
 			(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
-                        (string_of_int (Hashtbl.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond)))
+                        (HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
 			(match gr.ParserTypes.modifiers with
 				(ParserTypes.Read::_) -> "1"
 				| (ParserTypes.Write::_) -> "2"
