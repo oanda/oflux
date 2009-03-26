@@ -64,6 +64,7 @@ define process_dirs
 	$(call process_dir,$(DIR),ex-))
 endef
 
+OFLUXRTLIBS += -lofshim
 
 define process_oflux_project
 $(1)_OFLUX_MODULE_OBJS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.o)
@@ -92,11 +93,11 @@ $$($(1)_OFLUX_KERNEL_DIR) :
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
 	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
 $$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a)
-	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$(if $(HAS_DTRACE),$(BINDIR)/oflux_probe.o,) $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) $(LIBS) -o $$@
+	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$(if $(HAS_DTRACE),$(BINDIR)/oflux_probe.o,) $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so $(LIBS) -o $$@
 $$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libofshim.so
 	echo "#!$(shell which bash)" > $$@; \
 	echo "" >> $$@; \
-	echo "export LD_PRELOAD=$(shell pwd)/libofshim.so" >> $$@; \
+	echo "export LD_LIBRARY_PATH=$(shell pwd):$$$$LD_LIBRARY_PATH" >> $$@; \
 	echo "" >> $$@; \
 	$$(if $$($(1)_OFLUX_KERNEL),echo "export LD_LIBRARY_PATH=$(shell pwd):$$$$LD_LIBRARY_PATH" >> $$@; \
 	echo "pushd .; cd $(shell pwd)/$$($(1)_OFLUX_KERNEL_DIR)" >> $$@;,) \

@@ -41,7 +41,7 @@ OFLUXRTLIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
 
 libofshim.so: $(COMMONOBJS) -ldl
-	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
+	$(CXX) -shared -Wl,-z,interpose $^ $(OFLUXRTLIBS) -o $@
 
 OFLUX_LIB_VERS_READ:=$(shell test -r $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g)
 OFLUX_LIB_VERS_EXISTING:=$(shell cd $(OFLUX_LIB_COMPONENT_DIR); git describe --tags; cd $(CURDIR))
