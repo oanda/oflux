@@ -28,9 +28,9 @@ struct RunTimeConfiguration {
 	int thread_collection_sample_period;
 	const char * flow_filename;
 	flow::FunctionMaps * flow_maps;
-        const char * plugin_xml_dir;    // plugin xml directory
-        const char * plugin_lib_dir;    // plugin lib directory
-        void * init_plugin_params;
+	const char * plugin_xml_dir;    // plugin xml directory
+	const char * plugin_lib_dir;    // plugin lib directory
+	void * init_plugin_params;
 };
 
 typedef void (*initShimFnType) (RunTimeAbstract *);
