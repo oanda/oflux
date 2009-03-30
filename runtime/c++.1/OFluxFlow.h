@@ -460,18 +460,38 @@ public:
                 return (itr == _nodes.end() ? NULL : (*itr).second);
         }
 
+        /**
+         * @brief lookup a guard with a particular name
+         * @param name of the guard you are looking for
+         * @return a pointer to the guard (NULL if not found)
+         */
         Guard * getGuard(const std::string & name)
         {
                 std::map<std::string, Guard *>::iterator itr = _guards.find(name);
                 return (itr == _guards.end() ? NULL : (*itr).second);
         }
 
+        /**
+         * @brief add a guard to the guard map (internal) for lookup
+         * @param fg the guard to add to this flow
+         */
         void addGuard(Guard *fg) 
         {
                 _guards[fg->getName()] = fg;
         }
+        /**
+         * @brief output to the logger some information about the state in
+         * this object(flow)
+         */
         void log_snapshot();
+        /**
+         * @brief log a "pretty printed" flow DAG (graph) showing the flow
+         */
         void pretty_print();
+        /**
+         * @brief take the source property away from the node in this flow
+         *   that currently have it (they will no longer spawn themselves)
+         */
         void turn_off_sources()
         {
                 for(int i = 0; i < (int)_sources.size(); i++) {
@@ -479,6 +499,9 @@ public:
                 }
                 _sources.clear();
         }
+        /**
+         * @brief determine whether there are event instances using this flow
+         */
         bool has_instances() 
         {
                 bool res = false;
@@ -490,12 +513,25 @@ public:
                 }
                 return res;
         }
+        /**
+         * @brief add a library to this flow
+         */
         void addLibrary(Library * lib)
         {
                 _libraries.push_back(lib);
         }
+        /**
+         * @brief determine if this library is already know to this flow
+         */
         bool haveLibrary(const char * name);
+        /**
+         * @brief [internal use] -- total ordering of guards is determined
+         */
         void assignMagicNumbers();
+        /**
+         * @brief add an ordering constraint on the acquisition of two
+         *   guards in this flow
+         */
         inline void addGuardPrecedence(const char * before, const char * after)
         { _magic_sorter.addInequality(before,after); }
 private:
