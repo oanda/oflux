@@ -8,6 +8,7 @@ OFLUX_COMPONENT_DIR:=$(COMPONENT_DIR)
 HEADERS:= \
 	xml.cmi \
 	hashString.cmi \
+	docTag.cmi \
 	cycleFind.cmi \
 	unionFind.cmi \
 	codePrettyPrinter.cmi \
@@ -28,6 +29,7 @@ CODE:= \
 	vers.$(OBJECTEXT) \
 	debug.$(OBJECTEXT) \
 	hashString.$(OBJECTEXT) \
+	docTag.$(OBJECTEXT) \
 	xml.$(OBJECTEXT) \
 	cmdLine.$(OBJECTEXT) \
 	parserTypes.$(OBJECTEXT) \

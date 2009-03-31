@@ -109,6 +109,8 @@ let parsefile fl =
 	    with (Parsing.Parse_error| (Failure _)) ->
 		let pos = (*current_pos lexstack*) Lexer.getPos()
 		in  (print_string (fl^" Syntax Error "^(position_to_string pos)^"\n"); None)
+                in
+        let _ = DocTag.dump (Lexer.getNodeDocList())
 	in  res, lexstack.incluses
 
 

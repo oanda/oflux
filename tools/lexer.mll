@@ -96,6 +96,114 @@ let updatePosInTok lexbuf tokfun =
    @guard guard-name description of the guard (why it is needed)
 *)
 
+type tag_type = ANothing |ANode | AOutput | AInput | AGuard
+
+type doctag_context =
+        { mutable ndl : DocTag.node_doc_list
+        ; mutable n : DocTag.node_doc option
+        ; mutable i : string DocTag.doc option
+        ; mutable o : string DocTag.doc option
+        ; mutable g : string DocTag.doc option
+        ; mutable tt : tag_type
+        }
+
+
+let theDocContext =
+        { ndl = DocTag.empty
+        ; n = None
+        ; i = None
+        ; o = None
+        ; g = None
+        ; tt = ANothing
+        }
+
+let getNodeDocList () = theDocContext.ndl
+
+let dt_close () = 
+        try let n = match theDocContext.n with
+                        None -> raise Not_found
+                        |(Some n) -> n  in
+            let res = 
+                match theDocContext.tt with
+                         ANothing -> (Debug.dprint_string "nothing to close\n")
+                        |ANode ->
+                                begin
+                                theDocContext.ndl <- (n::(theDocContext.ndl));
+                                (*theDocContext.n <- None*)
+                                end
+                        |AInput ->
+                                (match theDocContext.i with
+                                        None -> (Debug.dprint_string "no input\n")
+                                        | (Some id) -> 
+                                                begin
+                                                DocTag.add_input n id;
+                                                theDocContext.i <- None
+                                                end)
+                        |AOutput ->
+                                (match theDocContext.o with
+                                        None -> (Debug.dprint_string "no output\n")
+                                        | (Some od) -> 
+                                                begin
+                                                DocTag.add_output n od;
+                                                theDocContext.o <- None
+                                                end)
+                        |AGuard ->
+                                (match theDocContext.g with
+                                        None -> (Debug.dprint_string "no guard\n")
+                                        | (Some gd) -> 
+                                                begin
+                                                DocTag.add_guard n gd;
+                                                theDocContext.o <- None
+                                                end)
+                in  (theDocContext.tt <- ANothing); res
+        with Not_found -> Debug.dprint_string "no current node"
+
+
+let dt_open_node s =
+        begin
+        dt_close(); 
+        theDocContext.tt <- ANode;
+        theDocContext.n <- Some (DocTag.new_node s)
+        end
+let dt_open_input s =
+        begin
+        dt_close(); 
+        theDocContext.tt <- AInput;
+        theDocContext.i <- Some (DocTag.new_item s)
+        end
+let dt_open_output s =
+        begin
+        dt_close(); 
+        theDocContext.tt <- AOutput;
+        theDocContext.o <- Some (DocTag.new_item s)
+        end
+let dt_open_guard s =
+        begin
+        dt_close(); 
+        theDocContext.tt <- AGuard;
+        theDocContext.g <- Some (DocTag.new_item s)
+        end
+
+let dt_add_content s =
+        match theDocContext.tt with
+                ANothing -> Debug.dprint_string "added content to nothing\n"
+                | ANode -> 
+                        (match theDocContext.n with
+                                None -> Debug.dprint_string "cannot add content to undef node\n"
+                                | (Some nd) -> DocTag.add_description nd s)
+                | AInput ->
+                        (match theDocContext.i with
+                                None -> Debug.dprint_string "cannot add content to undef input\n"
+                                | (Some ad) -> DocTag.add_content_string ad s)
+                | AOutput ->
+                        (match theDocContext.o with
+                                None -> Debug.dprint_string "cannot add content to undef output\n"
+                                | (Some ad) -> DocTag.add_content_string ad s)
+                | AGuard ->
+                        (match theDocContext.g with
+                                None -> Debug.dprint_string "cannot add content to undef guard\n"
+                                | (Some ad) -> DocTag.add_content_string ad s)
+
 }
 
 rule token = parse
@@ -170,16 +278,28 @@ rule token = parse
 			{ updatePosInTok lexbuf
 				(fun (x1,x2) -> IDENTIFIER (Lexing.lexeme lexbuf,x1,x2)) }
 	| eof                   { updatePos lexbuf ENDOFFILE (*; raise Eof*) }
-	| "/**" { comment lexbuf; token lexbuf }
-	| "/*" { doccomment lexbuf; token lexbuf }
+	| "/**" { doccomment lexbuf; token lexbuf }
+	| "/*" { comment lexbuf; token lexbuf }
 	| '/' { updatePosInTok lexbuf (fun x -> SLASH x) }
 and doccomment = parse
-	"*/"                    { () }
-	| [ '\n' ]      { updateNewLine(); comment lexbuf } (* should count these *)
-	| _                     { comment lexbuf }
+	"*/"                    { dt_close(); () }
+	| "*"                   { doccomment lexbuf }
+	| [ '\n' ]              { updateNewLine(); doccomment lexbuf } (* should count these *)
+        | "@node"               { let astr = docelementname lexbuf in dt_open_node astr; doccomment lexbuf }
+        | "@input"              { let astr = docelementname lexbuf in dt_open_input astr; doccomment lexbuf  }
+        | "@output"             { let astr = docelementname lexbuf in dt_open_output astr; doccomment lexbuf  }
+        | "@guard"              { let astr = docelementname lexbuf in dt_open_guard astr; doccomment lexbuf  }
+	| ( ['a' - 'z'] | ['A' - 'Z'] | ['0' - '9'] | '_' | '.' )+
+				{ dt_add_content (Lexing.lexeme lexbuf); doccomment lexbuf }
+	| _                     { dt_add_content (Lexing.lexeme lexbuf); doccomment lexbuf }
+and docelementname = parse
+	[ ' ' '\t' ]            { incl lexbuf }
+	(*| ( ['a' - 'z'] | ['A' - 'Z'] | ['0' - '9'] | '_' | '.' )+
+				{ Lexing.lexeme lexbuf }*)
+	| _                     { Lexing.lexeme lexbuf }
 and comment = parse
 	"*/"                    { () }
-	| [ '\n' ]      { updateNewLine(); comment lexbuf } (* should count these *)
+	| [ '\n' ]              { updateNewLine(); comment lexbuf } (* should count these *)
 	| _                     { comment lexbuf }
 and incl = parse
 	[ ' ' '\t' ]            { incl lexbuf }
