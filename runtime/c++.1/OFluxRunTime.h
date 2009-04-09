@@ -112,6 +112,7 @@ public:
 	virtual ~RunTimeThread() {}
 	int create();
 	virtual void start();
+        void disconnect_from_runtime() { _rt->remove(this); }
 	void handle(boost::shared_ptr<EventBase> & ev);
 	virtual int execute_detached(boost::shared_ptr<EventBase> & ev,
                 int & detached_count_to_increment);
