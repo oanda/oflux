@@ -29,7 +29,7 @@ output:
 
 */
 #include "OFluxLinkedList.h"
-#include <iostream>
+#include <gtest/gtest.h>
 
 using namespace oflux;
 
@@ -53,30 +53,72 @@ private:
 	int _c;
 };
 
+typedef int ContentType;
+
+struct FPT {
+        int sz;
+        const int max_sz;
+        const ContentType * ctptr;
+};
+
+void * contents_fold_fun(void *fp_vd, ContentType * c)
+{
+        FPT * fp = static_cast<FPT *>(fp_vd);
+        ASSERT_LE(fp->sz,fp->max_sz)
+                << "exceeded the maximum size in content check";
+        EXPECT_EQ(*(fp->ctptr),*c)
+                << "content check on single element";
+        (fp->sz)++;
+        (fp->ctptr)++;
+}
+
+template<const int csz, class LinkedListType>
+void validate_contents_templ(
+          ContentType arr[]
+        , LinkedListType & ll)
+{
+        FPT fpt = { 0, csz, &arr[0] };
+        ll.fold(&fpt,&contents_foldfun);
+        EXPECT_EQ(fpt.sz,csz)
+                << "content size mismatch";
+}
+
+#define validate_contents(ARR,LL) \
+validate_contents_templ<sizeof(ARR)/sizeof(ContentType),decltype(LL)>(ARR,LL)
+
+class OFluxLinkedListTests : public testing::Test {
+public:
+OFluxLinkedListTests() {}
+virtual ~OFluxLinkedListTests() {}
+virtual void SetUp() {}
+virtual void TearDown() {}
+public:
+};
+
+
 template<class C, class N >
 void pp_list(LinkedListRemovable<C,N> * llp)
 {
-	llp->iter(C::pp);
+llp->iter(C::pp);
 }
 
 typedef Removable<C, Node<C> > RNC;
 
-int main1()
-{
-	LinkedListRemovable<C,RNC> ll;
+TEST_F(OFluxLinkedListTests,Test1) {
+LinkedListRemovable<C,RNC> ll;
 
-	C c1(1);
-	C c2(2);
-	C c3(3);
-	C c4(4);
-	C c5(5);
+C c1(1);
+C c2(2);
+C c3(3);
+C c4(4);
+C c5(5);
 
-	RNC * n1 = ll.insert_front(&c1);
-	pp_list<C, RNC >(&ll); std::cout << std::endl;
-	RNC * n2 = ll.insert_front(&c2);
-	pp_list<C, RNC>(&ll); std::cout << std::endl;
-	RNC * n3 = ll.insert_back(&c3);
-	pp_list<C, RNC>(&ll); std::cout << std::endl;
+RNC * n1 = ll.insert_front(&c1);
+pp_list<C, RNC >(&ll); std::cout << std::endl;
+RNC * n2 = ll.insert_front(&c2);
+pp_list<C, RNC>(&ll); std::cout << std::endl;
+RNC * n3 = ll.insert_back(&c3);
+pp_list<C, RNC>(&ll); std::cout << std::endl;
 	RNC * n4 = ll.insert_front(&c4);
 	pp_list<C, RNC>(&ll); std::cout << std::endl;
 	RNC * n5 = ll.insert_back(&c5);
@@ -96,8 +138,7 @@ int main1()
 
 typedef Removable<C, SharedPtrNode<C> > RSNPC;
 
-int main3()
-{
+TEST_F(OFluxLinkedList,Test2) {
 	LinkedListRemovable<C,RSNPC> ll;
 
 	RSNPC * n1 = NULL;
@@ -139,8 +180,7 @@ int main3()
 
 typedef Removable<B, InheritedNode<B> > RNB;
 
-int main2()
-{
+TEST_F(OFluxLinkedListTests,Test3) {
 	LinkedListRemovable<B,RNB> ll;
 
 	B c1(1);
@@ -171,10 +211,7 @@ int main2()
 	return 0;
 }
 
-int main()
-{
-	main1();
-	main2();
-	main3();
-	return 0;
+int main(int argc, char **argv) {
+	testing::InitGoogleTest(&argc, argv);
+	return RUN_ALL_TESTS();
 }
