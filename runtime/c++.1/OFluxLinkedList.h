@@ -131,7 +131,7 @@ protected:
 		}
 	static Removable<C,N> * create(boost::shared_ptr<C> & c)
 		{
-			CompileTimeAssert<N::create_does_new && N::can_share_ptr> cta;
+			CompileTimeAssert<N::create_does_new && N::can_share_ptr> __attribute__((unused)) cta;
 			return new Removable<C,N>(c,NULL);
 		}
 private:
@@ -141,6 +141,7 @@ private:
 template<class C, class N=Node<C> >
 class LinkedList {
 public:
+        typedef C content_type;
 	typedef void (*iter_fun)(C *);
 	typedef void * (*fold_fun)(void *, C *);
 
@@ -169,7 +170,7 @@ public:
 		}
 	inline N * insert_front(boost::shared_ptr<C> & csp)
 		{
-			CompileTimeAssert<N::can_share_ptr> cta;
+			CompileTimeAssert<N::can_share_ptr> __attribute__((unused)) cta;
 			N * n = N::create(csp);
 			insert_front(n);
 			return n;
@@ -240,7 +241,7 @@ public:
 		}
 	inline N * insert_front(boost::shared_ptr<C> & csp)
 		{
-			CompileTimeAssert<N::can_share_ptr> cta;
+			CompileTimeAssert<N::can_share_ptr> __attribute__((unused)) cta;
 			N * n = N::create(csp);
 			LinkedListRemovable<C,N>::insert_front(n);
 			return n;
@@ -264,7 +265,7 @@ public:
 		}
 	inline N * insert_back(boost::shared_ptr<C> & csp)
 		{
-			CompileTimeAssert<N::can_share_ptr> cta;
+			CompileTimeAssert<N::can_share_ptr> __attribute__((unused)) cta;
 			N * n = N::create(csp);
 			LinkedListRemovable<C,N>::insert_back(n);
 			return n;

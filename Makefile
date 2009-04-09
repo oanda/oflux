@@ -192,7 +192,7 @@ ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 	clean \
 	doc
 
-$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o %.o liboflux.a
+$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o liboflux.a
 	$(CXX) $(CXXOPTS) $(INCS) $(LIBDIRS) $^ $(LIBS) -lgtest -o $@
 
 $(ALL_UNIT_TESTS:%.cpp=%.xml): %.xml : %
