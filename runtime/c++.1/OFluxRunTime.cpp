@@ -23,6 +23,7 @@ void _thread_local_destructor(void *t)
 	if(t) {
 		RunTime::thread_data_key.set(NULL);
 		oflux_log_info("runtime thread memory reclaimed for tid %d\n", rtt->tid());
+                rtt->disconnect_from_runtime();
 		delete rtt; // no idea if this is safe
 	}
 }
