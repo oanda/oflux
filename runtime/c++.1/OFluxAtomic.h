@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <boost/shared_ptr.hpp>
+//#include "OFluxLogging.h" // DEBUGGING
 
 #ifdef HAS_DTRACE
 #include "ofluxprobe.h"
@@ -60,7 +61,7 @@ public:
 	*/
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev ) = 0;
 	/**
-	* @brief add an envent the waiting list of this atomic
+	* @brief add an event the waiting list of this atomic
 	* It is assumed that the atomic is held by another event
 	*/
 	virtual void wait(boost::shared_ptr<EventBase> & ev,int) = 0;
@@ -154,19 +155,33 @@ public:
 	virtual ~AtomicReadWrite() {}
 	virtual int acquire(int wtype)
 	{
+                int res = 0;
+                //oflux_log_info(" acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
+                        //, wtype
+                        //, _held
+                        //, _mode
+                        //, _waiters.size());
 		if(_held == 0) {
 			_held = 1;
 			_mode = wtype;
-			return 1;
+			res = 1;
 		} else if(wtype == Read && _mode == Read && _waiters.size() == 0) {
 			_held++;
-			return 1;
+			res = 1;
 		}
-		return 0;
+                //oflux_log_info(" acquire() finished held:%d mode:%d res:%d\n"
+                        //, _held
+                        //, _mode
+                        //, res);
+		return res;
 	}
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
 	{
-		_held = std::max(_held-2,0);
+                //oflux_log_info(" release() called held:%d mode:%d waiters:%d\n"
+                        //, _held
+                        //, _mode
+                        //, _waiters.size());
+		_held = std::max(_held-1,0);
 		if(_held == 0) {
 			_mode = AtomicCommon::None;
 			if(_waiters.size()) {
@@ -182,9 +197,18 @@ public:
 				}
 			}
 		}
+                //oflux_log_info(" release() finished held:%d mode:%d releases:%d\n"
+                        //, _held
+                        //, _mode
+                        //, rel_ev.size());
 	}
 	virtual void wait(boost::shared_ptr<EventBase> & ev, int wtype)
 	{
+                //oflux_log_info(" wait() called wtype:%d held:%d mode:%d waiters:%d\n"
+                        //, wtype
+                        //, _held
+                        //, _mode
+                        //, _waiters.size());
 		AtomicQueueEntry aqe(ev,wtype);
 		_waiters.push_back(aqe);
 	}
