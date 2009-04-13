@@ -92,7 +92,7 @@ $$($(1)_OFLUX_KERNEL_DIR) :
 
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
 	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
-$$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a)
+$$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so
 	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$(if $(HAS_DTRACE),$(BINDIR)/oflux_probe.o,) $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so $(LIBS) -o $$@
 $$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libofshim.so
 	echo "#!$(shell which bash)" > $$@; \

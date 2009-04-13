@@ -54,6 +54,8 @@ public:
 		_waiting_in_pool.wait();
 	}
 
+        virtual bool running() = 0;
+
 	/**
 	 * @brief allow another thread to come up and process events
 	 *
@@ -109,6 +111,10 @@ private:
 #endif
 };
 
+class RunTimeAbort {
+public:
+};
+
 /**
  * @brief an RAII class for unlocking a runtime
  *
@@ -119,9 +125,15 @@ public:
 		: _aul(&(rt->_manager_lock))
 		, rt_(rt)
 		, prev_detached_(rt->thread()->is_detached())
-		{ rt_->thread()->set_detached(true); }
+        { rt_->thread()->set_detached(true); }
 	~UnlockRunTime(void)
-		{ rt_->thread()->set_detached(prev_detached_); }
+        { 
+                if(rt_ && rt_->running()) {
+                        rt_->thread()->set_detached(prev_detached_); 
+                } else {
+                        throw RunTimeAbort();
+                }
+        }
 private:
 	AutoUnLock _aul;
 	RunTimeAbstract *rt_;
