@@ -61,5 +61,7 @@ OCAMLDEP:=ocamldep $(if $(findstring dev,$(OCAMLCONFIG)),, -native)
 	$(OCAMLCOMPILER) $(INCLUDEOPTS) -o $@ -c $<
 
 
+DOTCOMMAND:= $(shell which dot | grep -v no)
+DOT:=$(if $(DOTCOMMAND),$(DOTCOMMAND) -Tsvg,)
 
 
