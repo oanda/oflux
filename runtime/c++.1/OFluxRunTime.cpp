@@ -60,6 +60,8 @@ RunTime::~RunTime()
                 _active_flows.pop_back();
                 delete back;
         }
+        _waiting_to_run.turn_off();
+        _waiting_in_pool.turn_off();
 }
 
 void RunTime::hard_kill()
@@ -258,40 +260,44 @@ void RunTimeThread::start()
 		wait_in_pool();
 	}
 
-	while(_system_running && !_request_death) {
-		if(_condition_context_switch 
-                                && _rt->_waiting_to_run.count() > 0 ) {
-			AutoUnLock ual(&(_rt->_manager_lock));
-		}
-		if(_rt->_load_flow_next) {
-			_rt->_load_flow_next = false;
-			_rt->load_flow();
-		}
+        try {
+                while(_system_running && !_request_death) {
+                        if(_condition_context_switch 
+                                        && _rt->_waiting_to_run.count() > 0 ) {
+                                AutoUnLock ual(&(_rt->_manager_lock));
+                        }
+                        if(_rt->_load_flow_next) {
+                                _rt->_load_flow_next = false;
+                                _rt->load_flow();
+                        }
 
 #ifdef THREAD_COLLECTION
-		static int thread_collection_sample_counter = 0;
+                        static int thread_collection_sample_counter = 0;
 #define THREAD_COLLECTION_PERIOD 6000
-		thread_collection_sample_counter++;
-		if(thread_collection_sample_counter 
-				> _rt->threadCollectionSamplePeriod()) {
-			thread_collection_sample_counter = 0;
-			_rt->doThreadCollection();
-			
-	
-		}
+                        thread_collection_sample_counter++;
+                        if(thread_collection_sample_counter 
+                                        > _rt->threadCollectionSamplePeriod()) {
+                                thread_collection_sample_counter = 0;
+                                _rt->doThreadCollection();
+                                
+                
+                        }
 #endif // THREAD_COLLECTION
 
-		if(_rt->_waiting_to_run.count() > 0) {
-			_rt->_waiting_to_run.signal();
-			wait_in_pool();
-		}
-		if(_rt->_queue.pop(ev)) {
-			handle(ev);
-		} else { // queue is empty - strange case
-			_rt->_waiting_to_run.signal();
-			wait_in_pool();
-		}
-	}
+                        if(_rt->_waiting_to_run.count() > 0) {
+                                _rt->_waiting_to_run.signal();
+                                wait_in_pool();
+                        }
+                        if(_rt->_queue.pop(ev)) {
+                                handle(ev);
+                        } else { // queue is empty - strange case
+                                _rt->_waiting_to_run.signal();
+                                wait_in_pool();
+                        }
+                }
+        } catch (RunTimeAbort rta) {
+                oflux_log_info("runtime thread %d aborted\n", _tid);
+        }
 	_rt->remove(this);
 	oflux_log_info("runtime thread %d is exiting\n", _tid);
 	if(_rt->_thread_count > 0) {

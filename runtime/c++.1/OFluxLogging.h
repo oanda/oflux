@@ -1,6 +1,7 @@
 #ifndef _OFLUX_LOGGING
 #define _OFLUX_LOGGING
 
+#include "OFlux.h"
 #include <ostream>
 
 namespace oflux {

@@ -125,6 +125,11 @@ public:
 		}
 		oflux_cond_signal(&_cond); 
 	}
+        void turn_off()
+        {
+                _allow_skip_cond = true;
+		oflux_cond_broadcast(&_cond); 
+        }
 	const int & count() const { return (const int &) _waiter_count; }
 	inline C & counter_implementation() { return _waiter_count; }
 private:
