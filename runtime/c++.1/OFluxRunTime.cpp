@@ -9,6 +9,7 @@
 #include "OFluxProfiling.h"
 #include <unistd.h>
 #include <dlfcn.h>
+#include <stdio.h>
 
 
 namespace oflux {
@@ -51,6 +52,7 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 
 RunTime::~RunTime()
 {
+        printf("runtime destructor called\n");
         {
                 Queue::Element e;
                 while(_queue.pop(e)) {} // empty the event queue
@@ -60,17 +62,38 @@ RunTime::~RunTime()
                 _active_flows.pop_back();
                 delete back;
         }
-        _waiting_to_run.turn_off();
-        _waiting_in_pool.turn_off();
+}
+
+static void deinit_eminfo() 
+{
+	// deinit the shim
+	if(!RunTimeBase::deinitShim) {
+                RunTimeBase::deinitShim = 
+                        (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
+        }
+	if (RunTimeBase::deinitShim == NULL){
+		oflux_log_error("ERROR(deinit) no SHIM file found... exiting\n%s\n",dlerror());
+		exit(0);
+	}
+	((RunTimeBase::deinitShim)());
+        oflux_log_info("deinit_eminfo() returning....\n");
 }
 
 void RunTime::hard_kill()
 {
         soft_kill(); // setup a soft kill, then harden it
         RunTimeThreadNode * rtt = _thread_list.first();
+        deinit_eminfo();
+        _waiting_to_run.turn_off();
+        _waiting_in_pool.turn_off();
+        std::vector<RunTimeThread *> vec;
         while(rtt != NULL) {
-                rtt->content()->hard_die();
+                vec.push_back(rtt->content());
                 rtt = rtt->next();
+        }
+        for(std::vector<RunTimeThread *>::iterator itr = vec.begin()
+                        ; itr != vec.end(); ++itr) {
+                (*itr)->hard_die();
         }
 }
 
@@ -129,12 +152,15 @@ void RunTime::start()
         }
         remove(rtt);
         delete rtt;
+        deinit_eminfo();
+        oflux_log_info("deinit_eminfo() returning....\n");
 }
 
 void RunTime::remove(RunTimeThread * rtt)
 {
-	_thread_count--;
-	_thread_list.remove(rtt);
+	if(_thread_list.remove(rtt)) {
+                _thread_count--;
+        }
 }
 
 static void log_snapshot_thread(RunTimeThread * rtt)
@@ -260,7 +286,7 @@ void RunTimeThread::start()
 		wait_in_pool();
 	}
 
-        try {
+        //try {
                 while(_system_running && !_request_death) {
                         if(_condition_context_switch 
                                         && _rt->_waiting_to_run.count() > 0 ) {
@@ -295,9 +321,10 @@ void RunTimeThread::start()
                                 wait_in_pool();
                         }
                 }
-        } catch (RunTimeAbort rta) {
-                oflux_log_info("runtime thread %d aborted\n", _tid);
-        }
+        //} catch (RunTimeAbort rta) {
+                //oflux_log_info("runtime thread %d aborted\n", _tid);
+        //}
+        oflux_testcancel();
 	_rt->remove(this);
 	oflux_log_info("runtime thread %d is exiting\n", _tid);
 	if(_rt->_thread_count > 0) {

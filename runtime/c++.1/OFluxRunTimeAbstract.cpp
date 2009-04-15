@@ -22,5 +22,22 @@ RunTimeAbstract::~RunTimeAbstract()
 {
 }
 
+UnlockRunTime::UnlockRunTime(RunTimeAbstract * rt)
+        : _aul(&(rt->_manager_lock))
+        , rt_(rt)
+        , prev_detached_(rt->thread()->is_detached())
+{ 
+rt_->thread()->set_detached(true); 
+}
+
+UnlockRunTime::~UnlockRunTime(void)
+{ 
+        if(rt_ && rt_->running()) {
+                rt_->thread()->set_detached(prev_detached_); 
+        } else {
+                //throw RunTimeAbort();
+        }
+}
+
 };
 

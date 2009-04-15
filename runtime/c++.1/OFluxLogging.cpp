@@ -51,7 +51,8 @@ int Streamed::oflux_log(Level lv, const char * fmt, ...)
 		rc = vsnprintf (buffer+hsz,sz,fmt, args);
 		std::ostream & strm = *(_streams[lv]);
 		va_end (args);
-		strm << buffer;
+		strm.write(buffer,strlen(buffer));
+                strm.flush();
 	}
 	return rc;
 }

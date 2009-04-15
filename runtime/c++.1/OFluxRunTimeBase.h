@@ -34,10 +34,12 @@ struct RunTimeConfiguration {
 };
 
 typedef void (*initShimFnType) (RunTimeAbstract *);
+typedef void (*deinitShimFnType) ();
 
 class RunTimeBase : public RunTimeAbstract {
 public:
         static initShimFnType initShim;
+        static deinitShimFnType deinitShim;
         
 	RunTimeBase(const RunTimeConfiguration & rtc)
                 : _rtc(rtc)
@@ -70,11 +72,13 @@ extern RunTimeBase * _create_melding_runtime(const RunTimeConfiguration &);
 inline RunTimeBase * create_classic_runtime(const RunTimeConfiguration & rtc)
 {
         RunTimeBase::initShim = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
+        RunTimeBase::deinitShim = (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
         return _create_classic_runtime(rtc);
 }
 inline RunTimeBase * create_melding_runtime(const RunTimeConfiguration & rtc)
 {
         RunTimeBase::initShim = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
+        RunTimeBase::deinitShim = (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
         return _create_melding_runtime(rtc);
 }
 
