@@ -53,6 +53,17 @@ private:
                 MODULENAME::ModuleConfig * mc = MODULENAME::init( __VA_ARGS__ ); \
                 instpop.insert(NULL, mc); \
         }
+#define OFLUX_MODULE_DEINIT(MODULENAME,INST) \
+        { \
+                void ** v; \
+                const void * k; \
+                OFLUX_GUARD_WALKER(INST##_self, Gwalk); \
+                while (OFLUX_GUARD_WALKER_NEXT(Gwalk, k, v)) { \
+                        if (*v) { \
+                                delete static_cast<MODULENAME::ModuleConfig*>(*v); \
+                        } \
+                } \
+        }
 #define OFLUX_GUARD_WALKER(GUARDNAME,WALKNAME) \
 	oflux::GuardWalker WALKNAME(ofluximpl::GUARDNAME##_map_ptr)
 #define OFLUX_GUARD_WALKER_NEXT(WALKNAME,K,V) \
