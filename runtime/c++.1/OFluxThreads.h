@@ -69,6 +69,7 @@ namespace oflux {
 # define oflux_self pthread_self // function on ()
 # define oflux_cond_wait(X,Y) pthread_cond_wait(X,Y)
 # define oflux_cond_signal(X) pthread_cond_signal(X)
+# define oflux_cond_broadcast(X) pthread_cond_broadcast(X)
 # define oflux_key_create(X,Y) pthread_key_create(X,Y)
 # define oflux_key_delete(X) pthread_key_delete(X)
 # define oflux_get_specific(X) pthread_getspecific(X)
