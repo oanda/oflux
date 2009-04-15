@@ -104,9 +104,11 @@ public:
 	inline void next(Removable<C,N> *n) 
 		{ static_cast<N *>(this)->next(n); }
 protected:
-	inline void remove() 
+	inline bool remove() 
 		{ 
+                        bool res = false;
 			if(_previous) {
+                                res = true;
 				*_previous = static_cast<Removable<C,N> *>(this->next()); 
 				if(*_previous) {
 					(*_previous)->previous(_previous);
@@ -114,6 +116,7 @@ protected:
 			}
 			_previous = NULL; 
 			this->next(NULL); 
+                        return res;
 		}
 	inline Removable<C,N> ** previous() { return _previous; }
 	inline void previous(Removable<C,N> ** p) { _previous = p; }
@@ -270,18 +273,19 @@ public:
 			LinkedListRemovable<C,N>::insert_back(n);
 			return n;
 		}
-	inline void remove(N * n) 
+	inline bool remove(N * n) 
 		{
 			if(_tail == n->next_location()) {
 				_tail = n->previous();
 			}
-			n->remove();
+			bool res = n->remove();
 			if(_tail == &(this->_head)) {
 				// empty again
 				_tail = NULL;
 				this->_head = NULL;
 			}
 			N::destroy(n);
+                        return res;
 		}
 private:
 	CompileTimeAssert<N::is_removable> _ct;
