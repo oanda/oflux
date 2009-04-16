@@ -10,6 +10,10 @@
 
 #include "OFlux.h"
 #include "OFluxThreads.h"
+#ifdef OFLUX_RT_DEBUG
+# include "OFluxLogging.h"
+#endif
+
 
 namespace oflux {
 
@@ -43,10 +47,6 @@ public:
 private:
 	oflux_mutex_t * _lck;
 };
-
-#ifdef OFLUX_RT_DEBUG
-# include <stdio.h>
-#endif
 
 class IntegerCounter {
 public:
@@ -128,7 +128,7 @@ public:
         void turn_off()
         {
                 _allow_skip_cond = true;
-		//oflux_cond_broadcast(&_cond); 
+		oflux_cond_broadcast(&_cond); 
         }
 	const int & count() const { return (const int &) _waiter_count; }
 	inline C & counter_implementation() { return _waiter_count; }
