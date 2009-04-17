@@ -10,6 +10,10 @@
 
 #include "OFlux.h"
 #include "OFluxThreads.h"
+#ifdef OFLUX_RT_DEBUG
+# include "OFluxLogging.h"
+#endif
+
 
 namespace oflux {
 
@@ -43,10 +47,6 @@ public:
 private:
 	oflux_mutex_t * _lck;
 };
-
-#ifdef OFLUX_RT_DEBUG
-# include <stdio.h>
-#endif
 
 class IntegerCounter {
 public:

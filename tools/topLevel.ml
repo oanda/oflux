@@ -98,6 +98,12 @@ let current_pos ls =
         String.length (Lexing.lexeme ls.lexbuf)
     in  { file=Some ls.filename; lineno=pos.Lexing.pos_lnum; characterno=linepos }
 
+let basename fn =
+        try let ri = String.rindex fn '.' in
+            let rs = try min ri ((String.rindex fn '/') +1)
+                     with Not_found -> 0
+            in  String.sub fn rs (ri-rs)
+        with Not_found -> fn
 
 
 let parsefile fl =
@@ -182,12 +188,7 @@ let write_result fn of_result =
 			None -> false
 			| _ -> true
 		in
-	let base_file = 
-		try let ri = String.rindex fn '.' in
-                    let rs = try min ri ((String.rindex fn '/') +1)
-                             with Not_found -> 0
-		    in  String.sub fn rs (ri-rs)
-		with Not_found -> fn in
+	let base_file = basename fn in
 	let xml_file = base_file^".xml" in
 	let dot_file = base_file^".dot" in
 	let dot_flat_file = base_file^"-flat.dot" in  
@@ -326,7 +327,7 @@ let xmain do_result fn =
                                 in
                         let dot_output = 
                                 match CmdLine.get_module_name() with
-                                        None -> Dot.generate_program fn pres
+                                        None -> Dot.generate_program (basename fn) pres
                                         | (Some mn) ->
                                                 Dot.generate_program mn 
                                                         (Flatten.context_for_module pres mn) in

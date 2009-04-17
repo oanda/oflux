@@ -30,6 +30,7 @@
 #define OFLUX_SHIM_WAIT(X)
 #define OFLUX_SHIM_RETURN(X)
 #endif
+#include <errno.h>
 
 #define SHIM_CALL(X) OFLUX_SHIM_CALL(const_cast<char *>(X))
 #define SHIM_WAIT(X) OFLUX_SHIM_WAIT(const_cast<char *>(X))
@@ -59,12 +60,15 @@ oflux::RunTimeAbstract *eminfo = NULL;
 
 SafeArray<bool, 16384> is_regular;
 
+extern "C" {
+
 typedef ssize_t (*readFnType) (int, void *, size_t);
 typedef ssize_t (*writeFnType) (int, const void*, size_t);
 typedef int (*openFnType) (const char*, int);
 typedef int (*closeFnType) (int fd);
 typedef unsigned int (*sleepFnType) (unsigned int);
 typedef int (*usleepFnType) (useconds_t);
+typedef int (*nanosleepFnType)(const struct timespec *rqtp,  struct timespec *rmtp);
 typedef int (*acceptFnType) (int, struct sockaddr *, socklen_t *);
 typedef int (*selectFnType) (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 typedef ssize_t (*recvFnType) (int, void *, size_t, int);
@@ -77,12 +81,15 @@ typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
 typedef int (*port_getnFnType) (int port, port_event_t [],  uint_t, uint_t *, const timespec_t *);
 #endif
 
+} // extern "C"
+
 static readFnType shim_read = NULL;
 static closeFnType shim_close = NULL;
 static writeFnType shim_write = NULL;
 static openFnType shim_open = NULL;
 static sleepFnType shim_sleep = NULL;
 static usleepFnType shim_usleep = NULL;
+static nanosleepFnType shim_nanosleep = NULL;
 static acceptFnType shim_accept = NULL;
 static selectFnType shim_select = NULL;
 static recvFnType shim_recv = NULL;
@@ -109,6 +116,7 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 	shim_close = (closeFnType) dlsym (RTLD_NEXT, "close");
 	shim_sleep = (sleepFnType) dlsym(RTLD_NEXT, "sleep");
 	shim_usleep = (usleepFnType) dlsym(RTLD_NEXT, "usleep");
+	shim_nanosleep = (nanosleepFnType) dlsym(RTLD_NEXT, "nanosleep");
 	shim_accept = (acceptFnType) dlsym(RTLD_NEXT, "accept");
 	shim_select = (selectFnType) dlsym(RTLD_NEXT, "select");
 	shim_recv = (recvFnType) dlsym(RTLD_NEXT, "recv");
@@ -122,6 +130,10 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 #endif
 }
 
+extern "C" void deinitShim()
+{
+	eminfo = NULL;
+}
 
 extern "C" unsigned int sleep(unsigned int seconds)
 {
@@ -152,7 +164,8 @@ extern "C" unsigned int sleep(unsigned int seconds)
 
 extern "C" int usleep(useconds_t useconds)
 {
-	if (!eminfo || eminfo->thread()->is_detached()) {
+        oflux::RunTimeAbstract *local_eminfo = eminfo;
+	if (!local_eminfo || local_eminfo->thread()->is_detached()) {
 		if (!shim_sleep) {
 			shim_usleep = (int (*)(useconds_t)) dlsym(RTLD_NEXT, "usleep");
 		}
@@ -160,19 +173,26 @@ extern "C" int usleep(useconds_t useconds)
 	}
 
 	unsigned int ret;
-	oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
-	eminfo->wake_another_thread();
+	local_eminfo->wake_another_thread();
+	//oflux::WaitingToRunRAII wtr_raii(eminfo->thread()); FIXME
+        local_eminfo->thread()->wait_state(oflux::RTTWS_blockingcall);
 
 	SHIM_CALL("usleep");
 	{
-		oflux::UnlockRunTime urt(eminfo);
+                oflux_mutex_unlock(&(local_eminfo->_manager_lock));
+                bool dt = local_eminfo->thread()->is_detached();
+                local_eminfo->thread()->set_detached(true);
+		//oflux::UnlockRunTime urt(eminfo);
 		ret = ((shim_usleep)(useconds));
+                local_eminfo->thread()->set_detached(dt);
+                oflux_mutex_lock(&(local_eminfo->_manager_lock));
 	}
 
-	wtr_raii.state_wtr();
+	//wtr_raii.state_wtr();
 	SHIM_WAIT("usleep");
-	eminfo->wait_to_run();
+	local_eminfo->wait_to_run();
 	SHIM_RETURN("usleep");
+        local_eminfo->thread()->wait_state(oflux::RTTWS_running);
 	return ret;
 }
 
