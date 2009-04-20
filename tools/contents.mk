@@ -95,7 +95,7 @@ doc/oflux-syntax.html: parser.ml grammardoc.sed grammardoc.sed
 		| awk -f $(OFLUX_COMPONENT_DIR)/grammardoc.awk \
 		| sed -f $(OFLUX_COMPONENT_DIR)/grammardoc.sed) > $@
 
-doc/compiler: $(filter-out parser.mli main.mli,$(HEADERS:.cmi=.mli))
+doc/compiler: $(HEADERS)
 	mkdir -p $@; \
 	ocamldoc -html -I . -d doc/compiler  $^
 #		$(foreach f,$^,$(OFLUX_COMPONENT_DIR)/$(f))
