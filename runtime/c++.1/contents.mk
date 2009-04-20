@@ -61,7 +61,7 @@ OFLUX_DOCUMENTATION += doc/runtime
 
 doc/runtime: oflux.dox $(OBJS)
 	mkdir -p $@; \
-	doxygen $<
+	$(DOXYGEN) $<
 
 #dependencies
 -include $(OBJS:.o=.d)

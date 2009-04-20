@@ -64,4 +64,6 @@ OCAMLDEP:=ocamldep $(if $(findstring dev,$(OCAMLCONFIG)),, -native)
 DOTCOMMAND:= $(shell which dot | grep -v no)
 DOT:=$(if $(DOTCOMMAND),$(DOTCOMMAND) -Tsvg,)
 
+DOXYGENCOMMAND:= $(shell which doxygen | grep -v no)
+DOXYGEN:=$(if $(DOXYGENCOMMAND),$(DOXYGENCOMMAND), echo "install doxygen ")
 
