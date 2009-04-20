@@ -67,7 +67,7 @@ type consequence_result =
         ; aliases : ((string * bool) * (string * bool)) list
         ; subset_order : (int * int) list
                 (** (a,b) in this list means that the
-                        union_map^{-1} will indicate
+                        inverse(union_map) will indicate
                     that a is a subset of b 
                     not reflexive,trans,anti-symmetric closed
                   *)

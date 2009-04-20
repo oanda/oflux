@@ -89,6 +89,19 @@ parser.mli parser.ml: $(CURDIR)/parser.mly
 lexer.ml: $(CURDIR)/lexer.mll
 	ocamllex $<
 
+doc/oflux-syntax.html: parser.ml grammardoc.sed grammardoc.sed
+	mkdir -p $(dir $@); \
+	(cat parser.output \
+		| awk -f grammardoc.awk \
+		| sed -f grammardoc.sed) > $@
+
+doc/compiler: $(filter-out parser.mli main.mli,$(HEADERS:.cmi=.mli))
+	mkdir -p $@; \
+	ocamldoc -html -I . -d doc/compiler  $^
+#		$(foreach f,$^,$(OFLUX_COMPONENT_DIR)/$(f))
+
+OFLUX_DOCUMENTATION += doc/compiler doc/oflux-syntax.html
+
 include $(OFLUXOCAMLDEPENDS)
 
 # rules not discovered by ocamldep until ocamlyacc ocamllex run

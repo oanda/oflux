@@ -57,6 +57,11 @@ FORCE:
 oflux_vers.cpp: $(VERSDEPEND)
 	(echo "/* auto-generated - do not modify */"; echo ""; echo " namespace oflux { const char * runtime_version = "; cd $(OFLUX_LIB_COMPONENT_DIR); echo "\""`git describe --tags`"\"";cd $(CURDIR); echo "; }"; echo "") > oflux_vers.cpp
 
+OFLUX_DOCUMENTATION += doc/runtime
+
+doc/runtime: oflux.dox $(OBJS)
+	mkdir -p $@; \
+	doxygen $<
 
 #dependencies
 -include $(OBJS:.o=.d)
