@@ -92,8 +92,8 @@ lexer.ml: $(CURDIR)/lexer.mll
 doc/oflux-syntax.html: parser.ml grammardoc.sed grammardoc.sed
 	mkdir -p $(dir $@); \
 	(cat parser.output \
-		| awk -f grammardoc.awk \
-		| sed -f grammardoc.sed) > $@
+		| awk -f $(OFLUX_COMPONENT_DIR)/grammardoc.awk \
+		| sed -f $(OFLUX_COMPONENT_DIR)/grammardoc.sed) > $@
 
 doc/compiler: $(filter-out parser.mli main.mli,$(HEADERS:.cmi=.mli))
 	mkdir -p $@; \
