@@ -13,8 +13,8 @@ HEADERS:= \
 	unionFind.cmi \
 	codePrettyPrinter.cmi \
 	cmdLine.cmi \
-	parserTypes.cmi \
 	flatten.cmi \
+	parserTypes.cmi \
 	parser.cmi \
 	symbolTable.cmi \
 	unify.cmi \
