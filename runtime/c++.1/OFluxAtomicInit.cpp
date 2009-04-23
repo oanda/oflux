@@ -30,6 +30,20 @@ bool GuardInserter::insert(const void * key, void * value)
 	return res;
 }
 
+void * GuardInserter::swap(const void * key, void * newvalue)
+{
+	void * oldvalue = NULL;
+	bool res = true;
+	Atomic * aptr;
+	_ama->get(aptr, key);
+	assert(aptr);
+	void ** d = aptr->data();
+	oldvalue = *d;
+	*d = newvalue;
+        _to_release.push_back(aptr);
+	return oldvalue;
+}
+
 GuardWalker::GuardWalker(AtomicMapAbstract *ama)
         : _walker(ama->walker())
 {

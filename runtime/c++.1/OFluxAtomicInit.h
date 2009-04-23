@@ -32,8 +32,10 @@ public:
         ~GuardInserter();
 	/**
 	 * @brief insert values into a guard
+	 * @return false if the value was already populated (non-NULL)
 	 */
 	bool insert(const void * key, void * value);
+	void * swap(const void * key, void * newvalue);
 private:
 	AtomicMapAbstract *   _ama;
         std::vector<Atomic *> _to_release;
