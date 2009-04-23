@@ -65,7 +65,7 @@ public:
          * @return the compiled function (pointer to it)
          */
         GuardTransFn lookup_guard_translator(const char * guardname
-                , int union_numberu
+                , int union_number
                 , const char * hash
                 , int wtype);
 

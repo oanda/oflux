@@ -54,12 +54,22 @@ endif
 
 FORCE:
 
-oflux_vers.cpp: $(VERSDEPEND)
-	(echo "/* auto-generated - do not modify */"; echo ""; echo " namespace oflux { const char * runtime_version = "; cd $(OFLUX_LIB_COMPONENT_DIR); echo "\""`git describe --tags`"\"";cd $(CURDIR); echo "; }"; echo "") > oflux_vers.cpp
+oflux_vers.cpp oflux_vers.h: $(VERSDEPEND)
+	(echo "/* auto-generated - do not modify */" \
+	; echo "" \
+	; echo " namespace oflux { const char * runtime_version = " \
+	; cd $(OFLUX_LIB_COMPONENT_DIR) \
+	; echo "\""`git describe --tags`"\"" \
+	;cd $(CURDIR) \
+	; echo "; }" \
+	; echo "") > oflux_vers.cpp
+	( echo "/**" \
+	; echo " * @version "`git describe --tags | sed s/v// | sed s/-.*//g` \
+	; echo " */") > oflux_vers.h
 
 OFLUX_DOCUMENTATION += doc/runtime
 
-doc/runtime: oflux.dox $(OBJS)
+doc/runtime: oflux.dox $(OBJS) oflux_vers.cpp
 	mkdir -p $@; \
 	$(DOXYGEN) $<
 

@@ -2,6 +2,16 @@
 #define _O_FLUX
 #include <boost/shared_ptr.hpp>
 
+/**
+ * @mainpage OFlux Runtime (and compiler)
+ *   OFlux is an event-based datadriven runtime & compiler
+ *   which extends C++.  It is meant to be used to control the flow 
+ *   of your (reactive service-oriented) program by managing threads 
+ *   for you.  Shared data is handled using guards which have various
+ *   data structure semantics embedded into them (e.g singleton, map, 
+ *   pool).
+ */
+
 namespace oflux {
 
 extern const char * runtime_version;

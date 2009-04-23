@@ -3,12 +3,27 @@
 
 #include <vector>
 
+/**
+ * @file OFluxAtomicInit.h
+ * @author Mark Pichora
+ * @brief These helper classes/macros are used to populate a guard with useful
+ *    data, or walk a guard to examine its contents.  The main use of this
+ *    functionality is (1) to initiatialize the guard before the runtime
+ *    starts and (2) to recover resources when the runtime has finished.
+ */
+
 namespace oflux {
 
 class AtomicMapAbstract;
 
 class Atomic;
 
+/**
+ * @class GuardInserter
+ * @brief Given a pointer to the guard's abstract structure, this object
+ *    allows you to insert() (key,value) pairs into the guard (not all
+ *    guard types care about the the key argument)
+ */
 class GuardInserter {
 public:
 	GuardInserter(AtomicMapAbstract *ama)
@@ -26,6 +41,13 @@ private:
 
 class AtomicMapWalker;
 
+/**
+ * @class GuardWalker
+ * @brief Given a pointer to the guard's abstract structure, this object
+ *    allows you to pass through (and modify if you wish), the (key,value)
+ *    pairs that are in this guard.  For guard types that do not use
+ *    keys,  that argument should be ignored.
+ */
 class GuardWalker {
 public:
         GuardWalker(AtomicMapAbstract *ama);

@@ -6,9 +6,8 @@
 #include <cassert>
 
 /**
- * @file OFluxFLow.cpp
  * @author Mark Pichora
- * Flow implementation
+ * @brief Flow implementation
  *   A flow is the resident data structure that captures the flow of the 
  *   program (it is read from an XML input to the oflux runtime)
  */
