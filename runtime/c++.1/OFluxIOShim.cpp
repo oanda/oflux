@@ -145,7 +145,7 @@ extern "C" unsigned int sleep(unsigned int seconds)
 	}
 
 	unsigned int ret;
-	eminfo->wake_another_thread();
+	int mgr_awake = eminfo->wake_another_thread();
 
 	oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
 	SHIM_CALL("sleep");
@@ -154,10 +154,12 @@ extern "C" unsigned int sleep(unsigned int seconds)
 		ret = ((shim_sleep)(seconds));
 	}
 
-	wtr_raii.state_wtr();
-	SHIM_WAIT("sleep");
-	eminfo->wait_to_run();
-	SHIM_RETURN("sleep");
+        SHIM_WAIT("sleep");
+        if(mgr_awake == 0) {
+                wtr_raii.state_wtr();
+                eminfo->wait_to_run();
+        }
+        SHIM_RETURN("sleep");
 
 	return ret;
 }
@@ -173,7 +175,7 @@ extern "C" int usleep(useconds_t useconds)
 	}
 
 	unsigned int ret;
-	local_eminfo->wake_another_thread();
+	int mgr_awake = local_eminfo->wake_another_thread();
 	//oflux::WaitingToRunRAII wtr_raii(eminfo->thread()); FIXME
         local_eminfo->thread()->wait_state(oflux::RTTWS_blockingcall);
 
@@ -189,10 +191,12 @@ extern "C" int usleep(useconds_t useconds)
 	}
 
 	//wtr_raii.state_wtr();
-	SHIM_WAIT("usleep");
-	local_eminfo->wait_to_run();
-	SHIM_RETURN("usleep");
-        local_eminfo->thread()->wait_state(oflux::RTTWS_running);
+        SHIM_WAIT("usleep");
+        if(mgr_awake == 0) {
+                local_eminfo->wait_to_run();
+                local_eminfo->thread()->wait_state(oflux::RTTWS_running);
+        }
+        SHIM_RETURN("usleep");
 	return ret;
 }
 
@@ -213,7 +217,7 @@ extern "C" int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 		return ((shim_accept)(s, addr, addrlen));
 
 	int ret;
-    int mgr_awake = eminfo->wake_another_thread();
+        int mgr_awake = eminfo->wake_another_thread();
 	oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
 	SHIM_CALL("accept");
 	{
