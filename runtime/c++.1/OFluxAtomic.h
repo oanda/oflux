@@ -156,7 +156,7 @@ public:
 	virtual int acquire(int wtype)
 	{
                 int res = 0;
-                //oflux_log_info(" acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
+                //oflux_log_debug(" acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
                         //, wtype
                         //, _held
                         //, _mode
@@ -169,7 +169,7 @@ public:
 			_held++;
 			res = 1;
 		}
-                //oflux_log_info(" acquire() finished held:%d mode:%d res:%d\n"
+                //oflux_log_debug(" acquire() finished held:%d mode:%d res:%d\n"
                         //, _held
                         //, _mode
                         //, res);
@@ -177,7 +177,7 @@ public:
 	}
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
 	{
-                //oflux_log_info(" release() called held:%d mode:%d waiters:%d\n"
+                //oflux_log_debug(" release() called held:%d mode:%d waiters:%d\n"
                         //, _held
                         //, _mode
                         //, _waiters.size());
@@ -197,14 +197,14 @@ public:
 				}
 			}
 		}
-                //oflux_log_info(" release() finished held:%d mode:%d releases:%d\n"
+                //oflux_log_debug(" release() finished held:%d mode:%d releases:%d\n"
                         //, _held
                         //, _mode
                         //, rel_ev.size());
 	}
 	virtual void wait(boost::shared_ptr<EventBase> & ev, int wtype)
 	{
-                //oflux_log_info(" wait() called wtype:%d held:%d mode:%d waiters:%d\n"
+                //oflux_log_debug(" wait() called wtype:%d held:%d mode:%d waiters:%d\n"
                         //, wtype
                         //, _held
                         //, _mode

@@ -5,11 +5,15 @@
 namespace oflux {
 namespace flow {
 
-static void trim_extension(std::string & str)
+static void trim_extension_and_prefix(std::string & str)
 {
         size_t dotpos = str.find_last_of('.');
         if(dotpos != std::string::npos) {
                 str.replace(dotpos,3,""); // trim ".so" or whatever
+        }
+        size_t libpos = str.find("lib",0,3);
+        if(libpos != std::string::npos) {
+                str.replace(libpos,3,""); // trim the lib prefix if there
         }
 }
 
@@ -19,7 +23,7 @@ Library::Library( const char * path, const char * filename )
         , _name(filename)
         , _handle( NULL )
 {
-        trim_extension(_name);
+        trim_extension_and_prefix(_name);
 }
 
 Library::~Library()
@@ -47,10 +51,13 @@ bool Library::load( int mode )
 
 void Library::addSuffix(std::string & str)
 {
+        /*
         if(_filename.length() > 3) {
                 str += _filename.c_str() + 3; // drop "lib"
         }
         trim_extension(str); // drop the ".so"
+        */
+        str += _name;
 }
 
 void * Library::_getSymbol( const char * name, bool ignoreError )

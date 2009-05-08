@@ -14,10 +14,11 @@ namespace logging {
  */
 
 enum Level 
-	{ LL_info = 0
-	, LL_warn = 1
-	, LL_error = 2 
-	, LL_count = 3 
+	{ LL_debug = 0
+        , LL_info  = LL_debug+1
+	, LL_warn  = LL_info +1
+	, LL_error = LL_warn +1
+	, LL_count = LL_error+1
 	};
 
 /**
@@ -53,7 +54,7 @@ typedef std::ostream * StreamArray[];
 class Streamed : public Abstract {
 public:
 	Streamed(StreamArray streams, 
-		int levels);
+		int levels = LL_count);
 	virtual int oflux_log(Level,const char *,...);
 	virtual void setLevelOnOff(Level lv, bool to_on);
 private:
@@ -68,9 +69,14 @@ private:
  */
 void toStream(std::ostream & os); // only call this once!
 
-#define oflux_log_info(...) oflux::logging::logger->oflux_log(oflux::logging::LL_info,__VA_ARGS__)
-#define oflux_log_warn(...) oflux::logging::logger->oflux_log(oflux::logging::LL_warn,__VA_ARGS__)
-#define oflux_log_error(...) oflux::logging::logger->oflux_log(oflux::logging::LL_error,__VA_ARGS__)
+#define oflux_log_debug(...) \
+        oflux::logging::logger->oflux_log(oflux::logging::LL_debug,__VA_ARGS__)
+#define oflux_log_info(...) \
+        oflux::logging::logger->oflux_log(oflux::logging::LL_info,__VA_ARGS__)
+#define oflux_log_warn(...) \
+        oflux::logging::logger->oflux_log(oflux::logging::LL_warn,__VA_ARGS__)
+#define oflux_log_error(...) \
+        oflux::logging::logger->oflux_log(oflux::logging::LL_error,__VA_ARGS__)
 
 } // namespace logging
 } // namespace oflux

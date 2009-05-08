@@ -516,14 +516,15 @@ public:
         /**
          * @brief add a library to this flow
          */
-        void addLibrary(Library * lib)
-        {
-                _libraries.push_back(lib);
-        }
+        void addLibrary(Library * lib);
         /**
          * @brief determine if this library is already know to this flow
          */
         bool haveLibrary(const char * name);
+        /**
+         * @brief return the names of the plugin libraries in loaded order
+         */
+        void getLibraryNames(std::vector<std::string> & result);
         /**
          * @brief [internal use] -- total ordering of guards is determined
          */

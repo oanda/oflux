@@ -4,6 +4,8 @@
 #include "OFlux.h"
 #include "OFluxRunTimeAbstract.h"
 #include <dlfcn.h>
+#include <vector>
+#include <string>
 
 namespace oflux {
 
@@ -59,6 +61,7 @@ public:
         virtual bool running() { return _running; }
         virtual void hard_kill() { soft_kill(); }
         virtual void log_snapshot() = 0;
+        virtual void getPluginNames(std::vector<std::string> & result) = 0;
 protected:
 	const RunTimeConfiguration   _rtc;
         bool                         _running;

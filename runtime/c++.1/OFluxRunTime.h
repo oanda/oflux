@@ -78,6 +78,10 @@ protected:
 	void doThreadCollection();
         virtual RunTimeThread * new_RunTimeThread(oflux_thread_t tid = 0);
         virtual void hard_kill();
+        /**
+         * @brief obtain the list of plugin names (in loaded order)
+         */
+        virtual void getPluginNames(std::vector<std::string> & result);
 protected:
 	inline flow::Flow * flow() { return _active_flows.front(); }
 	void remove(RunTimeThread * rtt);

@@ -29,7 +29,8 @@ FunctionMaps::FunctionMaps(ConditionalMap cond_map[],
 
 // linear searches are fast enough -- its just for XML converstion...
 
-CreateNodeFn FunctionMaps::lookup_node_function(const char * n)
+CreateNodeFn 
+FunctionMaps::lookup_node_function(const char * n)
 {
         CreateNodeFn res = NULL;
         ModularCreateMap * mcm = _create_map;
@@ -53,7 +54,8 @@ CreateNodeFn FunctionMaps::lookup_node_function(const char * n)
         return res;
 }
 
-ConditionFn FunctionMaps::lookup_conditional(const char * n, int argno, int unionnumber)
+ConditionFn 
+FunctionMaps::lookup_conditional(const char * n, int argno, int unionnumber)
 {
         ConditionFn res = NULL;
         ConditionalMap * cm = _cond_map;
@@ -69,7 +71,8 @@ ConditionFn FunctionMaps::lookup_conditional(const char * n, int argno, int unio
         return res;
 }
 
-GuardTransFn FunctionMaps::lookup_guard_translator(const char * guardname,
+GuardTransFn 
+FunctionMaps::lookup_guard_translator(const char * guardname,
                                 int union_number, const char * hash, int wtype)
 {
         GuardTransFn res = NULL;
@@ -88,7 +91,8 @@ GuardTransFn FunctionMaps::lookup_guard_translator(const char * guardname,
         return res;
 }
 
-AtomicMapAbstract * FunctionMaps::lookup_atomic_map(const char * guardname)
+AtomicMapAbstract * 
+FunctionMaps::lookup_atomic_map(const char * guardname)
 {
         AtomicMapAbstract * res = NULL;
         AtomicMapMap * ptr = _atom_map_map;
@@ -102,7 +106,8 @@ AtomicMapAbstract * FunctionMaps::lookup_atomic_map(const char * guardname)
         return res;
 }
 
-FlatIOConversionFun FunctionMaps::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
+FlatIOConversionFun 
+FunctionMaps::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
 {
         FlatIOConversionFun res = NULL;
         IOConverterMap * ptr = _ioconverter_map;
@@ -122,7 +127,8 @@ Condition::Condition(ConditionFn condfn, bool is_negated)
         {}
 
 template<class O>
-void delete_vector_contents(std::vector<O *> & vo)
+void 
+delete_vector_contents(std::vector<O *> & vo)
 {
         for(int i = 0; i < (int) vo.size(); i++) {
                 delete vo[i];
@@ -130,7 +136,8 @@ void delete_vector_contents(std::vector<O *> & vo)
 }
 
 template<class O>
-void delete_deque_contents(std::deque<O *> & mo)
+void 
+delete_deque_contents(std::deque<O *> & mo)
 {
         typename std::deque<O *>::iterator itr;
         itr = mo.begin();
@@ -141,7 +148,8 @@ void delete_deque_contents(std::deque<O *> & mo)
 }
 
 template<typename K, typename O>
-void delete_map_contents(std::map<K,O *> & mo)
+void 
+delete_map_contents(std::map<K,O *> & mo)
 {
         typename std::map<K,O *>::iterator mitr;
         mitr = mo.begin();
@@ -151,7 +159,8 @@ void delete_map_contents(std::map<K,O *> & mo)
         }
 }
 
-std::string create_indention(int depth)
+std::string 
+create_indention(int depth)
 {
         std::string indention;
         for(int i = 0; i < depth; i++) {
@@ -179,12 +188,14 @@ Case::~Case()
         }
 }
 
-void Case::add(Condition *fc) 
+void 
+Case::add(Condition *fc) 
 { 
         _conditions.push_back(fc); 
 }
 
-void Case::pretty_print(int depth)
+void 
+Case::pretty_print(int depth)
 {
         _targetnode->pretty_print(depth,
                 (_conditions.size() == 0 ? 'D' : 'C'));
@@ -200,7 +211,8 @@ Successor::~Successor()
         delete_deque_contents<Case>(_cases); 
 }
 
-void Successor::add(Case * fc, bool front) 
+void 
+Successor::add(Case * fc, bool front) 
 { 
         if(front) {
                 _cases.push_front(fc);
@@ -209,10 +221,10 @@ void Successor::add(Case * fc, bool front)
         }
 }
 
-void Successor::pretty_print(int depth)
+void 
+Successor::pretty_print(int depth)
 {
         // do not print successor for now
-        //oflux_log_info("%s%s\n", create_indention(depth).c_str(), _name.c_str());
         std::deque<Case *>::iterator itr = _cases.begin();
         while(itr != _cases.end()) {
                 (*itr)->pretty_print(depth+1);
@@ -230,13 +242,15 @@ SuccessorList::~SuccessorList()
         delete_map_contents<std::string, Successor>(_successorlist); 
 }
 
-void SuccessorList::add(Successor * fs) 
+void 
+SuccessorList::add(Successor * fs) 
 { 
         std::pair<std::string,Successor *> pr(fs->getName(),fs);
         _successorlist.insert(pr); 
 }
 
-void SuccessorList::pretty_print(int depth)
+void 
+SuccessorList::pretty_print(int depth)
 {
         std::map<std::string, Successor *>::iterator itr = _successorlist.begin();
         while(itr != _successorlist.end()) { 
@@ -271,12 +285,14 @@ Node::~Node()
         delete_vector_contents<GuardReference>(_guard_refs);
 }
 
-void Node::setErrorHandler(Node *fn)
+void 
+Node::setErrorHandler(Node *fn)
 {
         _error_handler_case.setTargetNode(fn);
 }
 
-void Node::log_snapshot()
+void 
+Node::log_snapshot()
 {
 #ifdef PROFILING
         oflux_log_info("%s (%c%c%c) %d instances %d executions (time real:avg %lf max %lf oflux:avg %lf max %lf)\n", 
@@ -301,7 +317,8 @@ void Node::log_snapshot()
 #endif
 }
 
-void Node::pretty_print(int depth, char context)
+void 
+Node::pretty_print(int depth, char context)
 {
         oflux_log_info("%s%c %s\n", create_indention(depth).c_str(),context, _name.c_str());
         // if a source node is some node's successor(depth>0 && is_source), do not re-print its sucessor list
@@ -317,7 +334,8 @@ Flow::~Flow()
         delete_vector_contents<Library>(_libraries);
 }
 
-bool Flow::haveLibrary(const char * name)
+bool 
+Flow::haveLibrary(const char * name)
 {
         bool fd = false;
         for(int i = 0; i <(int)_libraries.size(); i++) {
@@ -326,10 +344,14 @@ bool Flow::haveLibrary(const char * name)
                         break;
                 }
         }
+        oflux_log_debug("Flow::haveLibrary() %s, returns %s\n"
+                , name
+                , fd ? "true" : "false");
         return fd;
 }
 
-void Flow::log_snapshot()
+void 
+Flow::log_snapshot()
 {
         std::map<std::string, Node *>::iterator mitr = _nodes.begin();
         while(mitr != _nodes.end()) {
@@ -338,7 +360,8 @@ void Flow::log_snapshot()
         }
 }
 
-void Flow::pretty_print()
+void 
+Flow::pretty_print()
 {
         for(int i=0; i < (int) _sources.size(); i++) {
                 _sources[i]->pretty_print(0,'S');
@@ -352,12 +375,14 @@ void Flow::pretty_print()
         */
 }
 
-std::vector<Node *> & Flow::sources()
+std::vector<Node *> & 
+Flow::sources()
 {
         return _sources;
 }
 
-void Flow::assignMagicNumbers() 
+void 
+Flow::assignMagicNumbers() 
 { 
         std::map<std::string,Guard *>::iterator itr = _guards.begin();
         while(itr != _guards.end()) {
@@ -367,7 +392,7 @@ void Flow::assignMagicNumbers()
         _magic_sorter.numberAll(); 
         itr = _guards.begin();
         while(itr != _guards.end()) {
-                oflux_log_info("flow assigned guard %s magic no %d\n", (*itr).second->getName().c_str(), (*itr).second->magic_number());
+                oflux_log_debug("flow assigned guard %s magic no %d\n", (*itr).second->getName().c_str(), (*itr).second->magic_number());
                 itr++;
         }
 }
@@ -377,6 +402,24 @@ MagicNumberable * GuardMagicSorter::getMagicNumberable(const char * c)
 { 
         std::string cs(c); 
         return _flow->getGuard(cs); 
+}
+
+void
+Flow::getLibraryNames(std::vector<std::string> & result)
+{
+        for(size_t i = 0; i < _libraries.size(); i++ ) {
+                if(_libraries[i]) {
+                        result.push_back(_libraries[i]->getName());
+                }
+        }
+}
+
+void 
+Flow::addLibrary(Library * lib)
+{
+        _libraries.push_back(lib);
+        oflux_log_debug("Flow::addLibrary() %s\n"
+                , lib->getName().c_str());
 }
 
 } // namespace flow

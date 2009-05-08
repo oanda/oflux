@@ -99,7 +99,7 @@ void RunTime::hard_kill()
 
 void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
 {
-        oflux_log_info("RunTime::load_flow() called\n");
+        oflux_log_debug("RunTime::load_flow() called\n");
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
@@ -340,13 +340,13 @@ void RunTimeThread::log_snapshot()
 		(_flow_node_working 
 		? _flow_node_working->getName()
 		: "<none>");
-	oflux_log_info("%d (%c%c%c %s) job:%s\n",
-		_tid,
-		(_thread_running ? 'r' : '-'),
-		(_detached ? 'd' : '-'),
-		(_bootstrap ? 'b' : '-'),
-		_wait_state_string[_wait_state],
-		working_on);
+	oflux_log_info("%d (%c%c%c %s) job:%s\n"
+		, _tid
+		, (_thread_running ? 'r' : '-')
+		, (_detached ? 'd' : '-')
+		, (_bootstrap ? 'b' : '-')
+		, _wait_state_string[_wait_state]
+		, working_on);
 }
 
 int RunTimeThread::execute_detached(boost::shared_ptr<EventBase> & ev, 
@@ -459,6 +459,12 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 	_flow_node_working = NULL;
 }
 
+void
+RunTime::getPluginNames(std::vector<std::string> & result)
+{
+        flow::Flow * f = flow();
+        if(f) f->getLibraryNames(result);
+}
 
 } //namespace classic
 } //namespace runtime

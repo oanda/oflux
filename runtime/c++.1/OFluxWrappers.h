@@ -97,11 +97,11 @@ public:
 	void wait() 
 	{ 
 #ifdef OFLUX_RT_DEBUG
-		oflux_log_info(" %x : wait() this %x wc %d asc %d\n",
-			oflux_self(),
-			this,
-			(const int &)_waiter_count,
-			_allow_skip_cond);
+		oflux_log_debug(" %x : wait() this %x wc %d asc %d\n"
+                        , oflux_self()
+			, this
+			, (const int &)_waiter_count
+			, _allow_skip_cond);
 #endif
 		++_waiter_count;
 		if(_allow_skip_cond) {
@@ -114,11 +114,11 @@ public:
 	void signal()
 	{ 
 #ifdef OFLUX_RT_DEBUG
-		oflux_log_info(" %x : signal() this %x wc %d asc %d\n", 
-			oflux_self(),
-			this,
-			(const int &)_waiter_count,
-			_allow_skip_cond);
+		oflux_log_debug(" %x : signal() this %x wc %d asc %d\n"
+			, oflux_self()
+			, this
+			, (const int &)_waiter_count
+			, _allow_skip_cond);
 #endif
 		if(_waiter_count==0) {
 			_allow_skip_cond = true;

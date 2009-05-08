@@ -14,7 +14,8 @@ Abstract * logger = &None::nologger;
 static const char * convert_level_to_string(Level lv)
 {
 	static const char * conv[LL_count] = 
-		{ "info  "
+		{ "debug "
+                , "info  "
 		, "warn  "
 		, "error " 
 		};
@@ -27,7 +28,8 @@ Streamed::Streamed(StreamArray streams,
 	, _streams(streams)
 {
 	assert(levels == LL_count); // levels should coincide
-	oflux_log(LL_info,"OFlux runtime logging begins (%s)\n",OFLUX_RUNTIME_VERSION);
+	oflux_log_info("OFlux runtime logging begins (%s)\n"
+                , OFLUX_RUNTIME_VERSION);
 	for(int i = 0; i < LL_count; i++) {
 		is_on[i] = true;
 	}
@@ -68,8 +70,9 @@ void toStream(std::ostream & os)
 		{ &os
 		, &os
 		, &os
+		, &os
 		};
-	static Streamed logging_(streamarray,LL_count);
+	static Streamed logging_(streamarray);
 	logger = &logging_;
 }
 
