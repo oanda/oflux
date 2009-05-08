@@ -2,7 +2,6 @@
 *.swp
 *.dot
 *.xml
-*.d
 *.o
 *.so
 *vers.ml
