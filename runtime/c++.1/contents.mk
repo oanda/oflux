@@ -4,7 +4,7 @@ OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
 
 LIBRARIES += liboflux.a libofshim.so 
 
-COMMONOBJS := OFluxRunTimeAbstract.pic.o OFluxIOShim.pic.o
+COMMONOBJS := OFluxRunTimeAbstract.pic.dt.o OFluxIOShim.pic.dt.o
 
 OBJS := \
         OFlux.o \
@@ -26,11 +26,34 @@ OBJS := \
         OFluxLibrary.o \
 	oflux_vers.o
 
-liboflux.a: $(OBJS)
-	$(AR) r $@ $^
 
-liboflux.so: $(OBJS:%.o=%.pic.o)
+$(OBJS) $(OBJS:.o=.pic.o) $(COMMONOBJS) : $(DTRACE_PROBE_HEADER)
+
+liboflux.a: $(OBJS:.o=.dt.o) $(DTRACE_PROBE_OBJ)
+ifeq ($(_ARCH),SunOS)
+	$(LD) $(LDFLAGS) -r -o glommedobj.o $^ 
+	$(AR) r $@ glommedobj.o
+else
+	$(AR) r $@ $^ $(DTRACE_PROBE_OBJ)
+endif
+
+liboflux.so: $(OBJS:%.o=%.pic.dt.o) $(DTRACE_PROBE_OBJ)
+ifeq ($(_ARCH),SunOS)
+	$(LD) $(LDFLAGS) -r -o glommedobj.pic.o $^ 
+	$(LD) $(LDFLAGS) -G -o $@ glommedobj.pic.o \
+		$(OFLUXRTLIBS)
+else
 	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
+endif
+
+$(DTRACE_PROBE_HEADER): ofluxprobe.d
+	$(if $(DTRACE), $(DTRACE) -h -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d)
+
+%.dt.o: %.o ofluxprobe.d
+	cp $< $@ 
+	$(if $(DTRACE),$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d \
+		$@,)
+		#$(if $(filter $<,$(OBJS)), -o ofluxprobe.o,) $@,)
 
 .SECONDARY: $(OBJS) $(OBJS:%.o=%.pic.o)
 

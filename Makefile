@@ -67,10 +67,13 @@ endef
 OFLUXRTLIBS += -lofshim
 
 define process_oflux_project
-$(1)_OFLUX_MODULE_OBJS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.o)
-$(1)_OFLUX_MAIN_TARGET_OBJ:=OFluxGenerate_$(1).o
-$(1)_OFLUX_OBJS:=$$($(1)_OFLUX_MAIN_TARGET_OBJ) $$($(1)_OFLUX_MODULE_OBJS) $$($(1)_OFLUX_SRC:%.cpp=%.o)
-$(1)_OFLUX_SO_OBJS:=$$($(1)_OFLUX_OBJS:%.o=%.pic.o)
+$(1)_OFLUX_MODULE_OBJS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.dt.o)
+$(1)_OFLUX_MAIN_TARGET_OBJ:=OFluxGenerate_$(1).dt.o
+$(1)_OFLUX_DTRACE_TARGET_OBJ:=$$(if $(DTRACE),oflux_probe_$(1).o,)
+$(1)_OFLUX_OBJS:=$$($(1)_OFLUX_MAIN_TARGET_OBJ) $$($(1)_OFLUX_MODULE_OBJS) $$($(1)_OFLUX_SRC:%.cpp=%.o) 
+$(1)_OFLUX_SO_OBJS:= \
+	$$(patsubst %.dt.o,%.pic.dt.o,$$(filter %.dt.o,$$($(1)_OFLUX_OBJS))) \
+	$$(patsubst %.o,%.pic.o,$$(filter-out %.dt.o,$$($(1)_OFLUX_OBJS)))
 $(1)_OFLUX_SO_TARGET:=$$($(1)_OFLUX_KERNEL:%.cpp=lib%.so)
 $(1)_OFLUX_KERNEL_DIR:=$$($(1)_OFLUX_KERNEL:%.cpp=%dir)
 $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.cpp)
@@ -80,20 +83,25 @@ $(1)_OFLUX_MAIN_TARGET:=$$($(1)_OFLUX_MAIN:%.flux=%)
 $(1)_OFLUX_MAIN_SVG:=$$($(1)_OFLUX_MAIN:%.flux=%.svg)
 $(1)_RUN_SCRIPT:=$$($(1)_OFLUX_MAIN:%.flux=run-%.sh)
 
-OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux
+OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux $(DTRACE_PROBE_HEADER)
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$(1) -a $$* $$($(1)_OFLUX_INCS) $$<
 
-OFluxGenerate_$(1).h OFluxGenerate_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl.h $$($(1)_OFLUX_MODULE_CPPS) oflux
+OFluxGenerate_$(1).h OFluxGenerate_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl.h $$($(1)_OFLUX_MODULE_CPPS) oflux $(DTRACE_PROBE_HEADER)
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
 
 $$($(1)_OFLUX_KERNEL_DIR) : 
 	mkdir -p $$@/xml; \
 	mkdir -p $$@/bin
 
-$$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
-	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
-$$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so
-	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$(if $(HAS_DTRACE),$(BINDIR)/oflux_probe.o,) $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so $(LIBS) -o $$@
+$$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) $$($(1)_OFLUX_DTRACE_TARGET_OBJ) liboflux.so
+	$(LD) $(LDFLAGS) -L. -G $$^ $(OFLUXRTLIBS) -o $$@
+
+$$($(1)_OFLUX_DTRACE_TARGET_OBJ): $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d $$($(1)_OFLUX_MAIN_TARGET_OBJ)
+	$(DTRACE) -G -s $$< $$($(1)_OFLUX_MAIN_TARGET_OBJ:.dt.o=.o) -o $$@
+
+$$($(1)_OFLUX_MAIN_TARGET) : $$($(1)_OFLUX_MAIN_OBJ_DEP) $$($(1)_OFLUX_SO_TARGET) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so $$($(1)_OFLUX_DTRACE_TARGET_OBJ) glommedobj.o
+	$(CXX) $(CXXOPTS) $$($(1)_OFLUX_CXXFLAGS) $(INCS) $(LIBDIRS) $$($(1)_OFLUX_DTRACE_TARGET_OBJ) $$($(1)_OFLUX_MAIN_OBJ_DEP) glommedobj.o $$($(1)_OFLUX_KERNEL:%.cpp=-l%) liboflux.$$(if $$($(1)_OFLUX_KERNEL),so,a) libofshim.so $(LIBS) -o $$@
+
 $$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libofshim.so
 	echo "#!$(shell which bash)" > $$@; \
 	echo "" >> $$@; \
@@ -121,7 +129,7 @@ OFLUX_DOCUMENTATION += \
 $$($(1)_OFLUX_KERNEL:%.cpp=%.o) $$($(1)_OFLUX_OBJS) $$($(1)_OFLUX_SO_OBJS): INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
 $$($(1)_OFLUX_KERNEL:%.cpp=%.o) $$($(1)_OFLUX_OBJS) $$($(1)_OFLUX_SO_OBJS): OFluxGenerate_$(1).cpp
-$$($(1)_OFLUX_SRC): $$($(1)_OFLUX_MODULE_OBJS:%.o=%.h) $$($(1)_OFLUX_MAIN_TARGET_OBJ:%.o=%.h)
+$$($(1)_OFLUX_SRC): $$($(1)_OFLUX_MODULE_OBJS:%.dt.o=%.h) $$($(1)_OFLUX_MAIN_TARGET_OBJ:%.dt.o=%.h)
 #
 # no link rule done
 
@@ -129,8 +137,8 @@ endef
 
 
 define process_oflux_plugin_project
-$(1)_OFLUX_MODULE_OBJS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$$($(1)_FROM_PROJECT)_%.pic.o)
-$(1)_OFLUX_MAIN_TARGET_OBJ:=OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).pic.o
+$(1)_OFLUX_MODULE_OBJS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$$($(1)_FROM_PROJECT)_%.pic.dt.o)
+$(1)_OFLUX_MAIN_TARGET_OBJ:=OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).pic.dt.o
 $(1)_OFLUX_SO_OBJS:=$$($(1)_OFLUX_MAIN_TARGET_OBJ) $$($(1)_OFLUX_MODULE_OBJS) $$($(1)_OFLUX_SRC:%.cpp=%.pic.o)
 $(1)_OFLUX_SO_TARGET:=lib$(1).so
 $(1)_OFLUX_SO_KERNEL:=lib$$($(1)_FROM_PROJECT).so
@@ -139,17 +147,23 @@ $(1)_OFLUX_KERNEL_DIR:=$$($$($(1)_FROM_PROJECT)_OFLUX_KERNEL:%.cpp=%dir)
 $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp)
 $(1)_OFLUX_INCS+=$$($$($(1)_FROM_PROJECT)_OFLUX_PATH:%=-I %) \
 	$$(foreach P,$$($(1)_DEP_PLUGINS),$$($$(P)_OFLUX_PATH:%=-I %))
+
 $(1)_OFLUX_FINAL:=$$($(1)_OFLUX_KERNEL_DIR)/bin/$$($(1)_OFLUX_SO_TARGET)
-OFluxGenerate_$$($(1)_FROM_PROJECT)_%.h OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp : %.flux mImpl_%.h oflux
+
+OFluxGenerate_$$($(1)_FROM_PROJECT)_%.h OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp : %.flux mImpl_%.h oflux $(DTRACE_PROBE_HEADER)
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -a $$* $$($(1)_OFLUX_INCS) $$<
-OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl_$(1).h $$($(1)_OFLUX_MODULE_CPPS) oflux $$($(1)_OFLUX_KERNEL_DIR)
+
+OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl_$(1).h $$($(1)_OFLUX_MODULE_CPPS) oflux $$($(1)_OFLUX_KERNEL_DIR) $(DTRACE_PROBE_HEADER)
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -p $(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
 	rm -f $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
 	ln -sf $(CURDIR)/$(1).xml $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
+
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) $$($(1)_OFLUX_SO_DEPS) liboflux.so
-	$(CXX) -L. -shared $$^ $(OFLUXRTLIBS) -o $$@
+	$(LD) $(LDFLAGS) -L. -G $$^ $(OFLUXRTLIBS) -o $$@
+
 $$($(1)_OFLUX_FINAL) : $$($(1)_OFLUX_KERNEL_DIR) $$($(1)_OFLUX_SO_TARGET)
 	ln -sf $(CURDIR)/$$($(1)_OFLUX_SO_TARGET) $$($(1)_OFLUX_FINAL)
+
 $(1)_done : $$($(1)_OFLUX_FINAL)
 	touch $(1)_done
 
@@ -165,7 +179,7 @@ OFLUX_DOCUMENTATION += \
 $$($(1)_OFLUX_SO_OBJS) : INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
 $$($(1)_OFLUX_SO_OBJS): OFluxGenerate_$$($(1)_FROM_PROJECT).cpp $$($(1)_DEP_PLUGINS:%=OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp)
-$$($(1)_OFLUX_SRC): $$($(1)_OFLUX_MODULE_OBJS:%.pic.o=%.h) $$($(1)_OFLUX_MAIN_TARGET_OBJ:%.pic.o=%.h)
+$$($(1)_OFLUX_SRC): $$($(1)_OFLUX_MODULE_OBJS:%.pic.dt.o=%.h) $$($(1)_OFLUX_MAIN_TARGET_OBJ:%.pic.dt.o=%.h) 
 #
 # no link rule done
 
@@ -192,7 +206,7 @@ ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 	clean \
 	doc
 
-$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o liboflux.a
+$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.dt.o liboflux.a
 	$(CXX) $(CXXOPTS) $(INCS) $(LIBDIRS) $^ $(LIBS) -lgtest -o $@
 
 $(ALL_UNIT_TESTS:%.cpp=%.xml): %.xml : %

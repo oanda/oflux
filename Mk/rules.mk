@@ -67,3 +67,6 @@ DOT:=$(if $(DOTCOMMAND),$(DOTCOMMAND) -Tsvg,)
 DOXYGENCOMMAND:= $(shell which doxygen | grep -v no)
 DOXYGEN:=$(if $(DOXYGENCOMMAND),$(DOXYGENCOMMAND), echo "install doxygen ")
 
+DTRACE:=$(shell which dtrace | grep -v no)
+CPPFLAGS += $(if $(DTRACE),-DHAS_DTRACE,)
+DTRACE_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
