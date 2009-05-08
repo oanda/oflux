@@ -1,5 +1,9 @@
 
 provider oflux {
+        probe node__acquireguards(char *);
+	                /*node name*/
+        probe node__haveallguards(char *);
+	                /*node name*/
         probe node__start(char *,int,int);
 	                /*node name, is source, is detached*/
         probe node__done(char *);

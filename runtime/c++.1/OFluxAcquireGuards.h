@@ -39,6 +39,7 @@ static inline AcquireGuardsResult
 doit(boost::shared_ptr<EventBase> & ev, AtomicsHolder & ah = empty_ah)
 {
 	AcquireGuardsResult res = AGR_Success;
+        OFLUX_NODE_ACQUIRE(ev->flow_node()->getName());
 	int wtype = 0;
 	flow::GuardReference * flow_guard_ref = NULL;
 	Atomic * must_wait_on_atomic = 
@@ -51,7 +52,9 @@ doit(boost::shared_ptr<EventBase> & ev, AtomicsHolder & ah = empty_ah)
 		_GUARD_WAIT(flow_guard_ref->getName().c_str(),
 			ev->flow_node()->getName(), 
 			wtype);
-	}
+	} else {
+                OFLUX_NODE_HAVEALLGUARDS(ev->flow_node()->getName());
+        }
 	return res;
 }
 }; // AcquireGuards class

@@ -19,10 +19,16 @@
 #else
 #define OFLUX_NODE_START(X,Y,Z)
 #define OFLUX_NODE_DONE(X)
+#define OFLUX_NODE_HAVEALLGUARDS(X)
+#define OFLUX_NODE_ACQUIREGUARDS(X)
 #endif
 
 #define _NODE_START(X,Y,Z) OFLUX_NODE_START(const_cast<char *>(X),Y,Z)
 #define _NODE_DONE(X)      OFLUX_NODE_DONE(const_cast<char *>(X))
+#define _NODE_HAVEALLGUARDS(X) \
+     OFLUX_NODE_HAVEALLGUARDS(const_cast<char *>(X))
+#define _NODE_ACQUIREGUARDS(X) \
+     OFLUX_NODE_ACQUIREGUARDS(const_cast<char *>(X))
 
 namespace oflux {
 
