@@ -22,7 +22,7 @@ namespace oflux {
 void PUBLIC_NODE_START(const char * X,int Y,int Z);
 void PUBLIC_NODE_DONE(const char * X);
 #else
-# define PUBLIC_NODE_START(const X,Y,Z)
+# define PUBLIC_NODE_START(X,Y,Z)
 # define PUBLIC_NODE_DONE(X)
 #endif
 

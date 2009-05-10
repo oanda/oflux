@@ -7,6 +7,7 @@
 
 namespace oflux {
 
+#ifdef HAS_DTRACE
 void PUBLIC_NODE_START(const char * X,int Y,int Z)
 {
 	OFLUX_NODE_START(const_cast<char *>(X),Y,Z);
@@ -16,6 +17,7 @@ void PUBLIC_NODE_DONE(const char * X)
 {
 	OFLUX_NODE_DONE(const_cast<char *>(X));
 }
+#endif // HAS_DTRACE
 
 /**
  * @brief need an event that is sort of the empty event
