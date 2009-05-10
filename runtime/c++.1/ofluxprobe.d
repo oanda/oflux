@@ -9,13 +9,6 @@ provider oflux {
         probe node__done(char *);
 	                /*node name*/
 
-	probe shim__call(char *);
-	                /*syscall name*/
-	probe shim__wait(char *);
-	                /*syscall name*/
-	probe shim__return(char *);
-	                /*syscall name*/
-
 	probe fifo__push(char *);
 	                /*event name*/
 	probe fifo__pop(char *);

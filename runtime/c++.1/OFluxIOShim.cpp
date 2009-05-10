@@ -24,7 +24,7 @@
 #include <sys/port.h>
 #endif
 #ifdef HAS_DTRACE
-#include "ofluxprobe.h"
+#include "ofluxshimprobe.h"
 #else
 #define OFLUX_SHIM_CALL(X)
 #define OFLUX_SHIM_WAIT(X)

@@ -41,7 +41,7 @@ LIBDIRS= -L.
 %.pic.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c -fPIC $(CXXFLAGS) $< -o $@
 
-#OFLUX
+# OFLUX
 OFLUXCOMPILER := $(CURDIR)/oflux
 
 #OFluxGenerate_%.h OFluxGenerate_%.cpp %.dot : %.flux oflux
@@ -67,6 +67,8 @@ DOT:=$(if $(DOTCOMMAND),$(DOTCOMMAND) -Tsvg,)
 DOXYGENCOMMAND:= $(shell which doxygen | grep -v no)
 DOXYGEN:=$(if $(DOXYGENCOMMAND),$(DOXYGENCOMMAND), echo "install doxygen ")
 
+# dtrace
 DTRACE:=$(shell which dtrace | grep -v no)
 CPPFLAGS += $(if $(DTRACE),-DHAS_DTRACE,)
-DTRACE_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
+DTRACE_LIB_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
+DTRACE_SHIM_PROBE_HEADER:=$(if $(DTRACE),ofluxshimprobe.h,)

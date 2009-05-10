@@ -2,6 +2,8 @@
 #include "OFluxEvent.h"
 #include <cassert>
 #include <stdlib.h>
+#include "OFluxLibDTrace.h"
+
 
 namespace oflux {
 
