@@ -7,18 +7,6 @@
 #include <boost/shared_ptr.hpp>
 //#include "OFluxLogging.h" // DEBUGGING
 
-#ifdef HAS_DTRACE
-#include "ofluxprobe.h"
-#else
-#define OFLUX_GUARD_ACQUIRE(X,Y,Z)
-#define OFLUX_GUARD_WAIT(X,Y,Z)
-#define OFLUX_GUARD_RELEASE(X,Y,Z)
-#endif
-
-#define _GUARD_ACQUIRE(X,Y,Z) OFLUX_GUARD_ACQUIRE(const_cast<char *>(X),const_cast<char *>(Y), Z)
-#define _GUARD_WAIT(X,Y,Z)    OFLUX_GUARD_WAIT(const_cast<char *>(X),const_cast<char *>(Y), Z)
-#define _GUARD_RELEASE(X,Y,Z) OFLUX_GUARD_RELEASE(const_cast<char *>(X),const_cast<char *>(Y), Z)
-
 namespace oflux {
 
 /**

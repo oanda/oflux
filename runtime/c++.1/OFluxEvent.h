@@ -14,23 +14,17 @@
 #include "OFluxFlow.h"
 #include "OFluxAtomicHolder.h"
 #include <vector>
-#ifdef HAS_DTRACE
-#include "ofluxprobe.h"
-#else
-#define OFLUX_NODE_START(X,Y,Z)
-#define OFLUX_NODE_DONE(X)
-#define OFLUX_NODE_HAVEALLGUARDS(X)
-#define OFLUX_NODE_ACQUIREGUARDS(X)
-#endif
 
-#define _NODE_START(X,Y,Z) OFLUX_NODE_START(const_cast<char *>(X),Y,Z)
-#define _NODE_DONE(X)      OFLUX_NODE_DONE(const_cast<char *>(X))
-#define _NODE_HAVEALLGUARDS(X) \
-     OFLUX_NODE_HAVEALLGUARDS(const_cast<char *>(X))
-#define _NODE_ACQUIREGUARDS(X) \
-     OFLUX_NODE_ACQUIREGUARDS(const_cast<char *>(X))
 
 namespace oflux {
+
+#ifdef HAS_DTRACE
+void PUBLIC_NODE_START(const char * X,int Y,int Z);
+void PUBLIC_NODE_DONE(const char * X);
+#else
+# define PUBLIC_NODE_START(const X,Y,Z)
+# define PUBLIC_NODE_DONE(X)
+#endif
 
 //forward decl
 template<typename H> H * convert(typename H::base_type *);
@@ -178,14 +172,14 @@ public:
 	virtual int execute()
 		{ 
 		  EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
-		  _NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
+		  PUBLIC_NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
 			EventBase3<IM,OM,AM>::pr_input_type(),
 			convert<OM>(EventBase2<typename IM::base_type,typename OM::base_type,AM>::pr_output_type()),
 			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument()
 			); 
 		  if (!res) EventBase::release();
-		  _NODE_DONE(EventBase::flow_node()->getName());
+		  PUBLIC_NODE_DONE(EventBase::flow_node()->getName());
 		  return res;
 		}
 };
@@ -207,14 +201,14 @@ public:
 	virtual int execute()
 		{ 
 		  EventBase2<typename IM::base_type, typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
-		  _NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
+		  PUBLIC_NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
 			EventBase3<IM,OM,AM>::pr_input_type(),
 			convert<OM>(EventBase2<typename IM::base_type, typename OM::base_type,AM>::pr_output_type()), 
 			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument(),
 			EventBase::error_code()); 
 		  if (!res) EventBase::release();
-		  _NODE_DONE(EventBase::flow_node()->getName());
+		  PUBLIC_NODE_DONE(EventBase::flow_node()->getName());
 		  return res;
 		}
 };
