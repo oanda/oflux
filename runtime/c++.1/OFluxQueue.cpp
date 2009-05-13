@@ -15,21 +15,21 @@ void
 Queue::push(Element & e) 
 {
 	_q.push_back(e);
-	_FIFO_PUSH(element_name(e));
+	_FIFO_PUSH(e.get(),element_name(e));
 }
 
 void 
 Queue::push_priority(Element & e) 
 {
 	_q.push_front(e);
-	_FIFO_PUSH(element_name(e));
+	_FIFO_PUSH(e.get(),element_name(e));
 }
 void 
 Queue::push_list(std::vector<Element> & vec) 
 {
 	for(int i = 0; i < (int)vec.size(); i++) {
 		_q.push_back(vec[i]);
-		_FIFO_PUSH(element_name(vec[i]));
+		_FIFO_PUSH(e.get(),element_name(vec[i]));
 	}
 }
 void 
@@ -38,7 +38,7 @@ Queue::push_list_priority(std::vector<Element> & vec)
 	// reverse
 	for(int i = ((int)vec.size())-1; i >= 0; i--) {
 		_q.push_front(vec[i]);
-		_FIFO_PUSH(element_name(vec[i]));
+		_FIFO_PUSH(e.get(),element_name(vec[i]));
 	}
 }
 
@@ -49,7 +49,7 @@ Queue::pop(Element & e)
 	if(res) {
 		e = _q.front();
 		_q.pop_front();
-		_FIFO_POP(element_name(e));
+		_FIFO_POP(e.get(),element_name(e));
 	}
 	return res;
 }

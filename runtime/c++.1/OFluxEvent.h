@@ -19,11 +19,15 @@
 namespace oflux {
 
 #ifdef HAS_DTRACE
-void PUBLIC_NODE_START(const char * X,int Y,int Z);
-void PUBLIC_NODE_DONE(const char * X);
+void PUBLIC_NODE_START(const void *,const char * X,int Y,int Z);
+void PUBLIC_NODE_DONE(const void *,const char * X);
+void PUBLIC_EVENT_BORN(const void *,const char * X);
+void PUBLIC_EVENT_DEATH(const void *,const char * X);
 #else
-# define PUBLIC_NODE_START(X,Y,Z)
-# define PUBLIC_NODE_DONE(X)
+# define PUBLIC_NODE_START(E,X,Y,Z)
+# define PUBLIC_NODE_DONE(E,X)
+# define PUBLIC_EVENT_BORN(E,X)
+# define PUBLIC_EVENT_DEATH(E,X)
 #endif
 
 //forward decl
@@ -46,15 +50,18 @@ public:
 		: flow::NodeCounterIncrementer(flow_node)
 		, _predecessor(predecessor)
 		, _error_code(0)
-		//, _flow_node(flow_node)
 		{
 			std::vector<flow::GuardReference *> & vec = 
 				flow_node->guards();
 			for(int i = 0; i < (int) vec.size(); i++) {
 				_atomics.add(vec[i]);
 			}
+                        PUBLIC_EVENT_BORN(this,flow_node->getName());
 		}
-	virtual ~EventBase() {}
+	virtual ~EventBase()
+                {
+                        PUBLIC_EVENT_DEATH(this,flow_node->getName());
+                }
 	virtual OutputWalker output_type() = 0;
 	virtual const void * input_type() = 0;
 	void release() { _predecessor = no_event; }
@@ -172,14 +179,14 @@ public:
 	virtual int execute()
 		{ 
 		  EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
-		  PUBLIC_NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
+		  PUBLIC_NODE_START(this,EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
 			EventBase3<IM,OM,AM>::pr_input_type(),
 			convert<OM>(EventBase2<typename IM::base_type,typename OM::base_type,AM>::pr_output_type()),
 			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument()
 			); 
 		  if (!res) EventBase::release();
-		  PUBLIC_NODE_DONE(EventBase::flow_node()->getName());
+		  PUBLIC_NODE_DONE(this,EventBase::flow_node()->getName());
 		  return res;
 		}
 };
@@ -201,14 +208,14 @@ public:
 	virtual int execute()
 		{ 
 		  EventBase2<typename IM::base_type, typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
-		  PUBLIC_NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
+		  PUBLIC_NODE_START(this,EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
 			EventBase3<IM,OM,AM>::pr_input_type(),
 			convert<OM>(EventBase2<typename IM::base_type, typename OM::base_type,AM>::pr_output_type()), 
 			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument(),
 			EventBase::error_code()); 
 		  if (!res) EventBase::release();
-		  PUBLIC_NODE_DONE(EventBase::flow_node()->getName());
+		  PUBLIC_NODE_DONE(this,EventBase::flow_node()->getName());
 		  return res;
 		}
 };

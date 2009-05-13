@@ -8,15 +8,26 @@
 namespace oflux {
 
 #ifdef HAS_DTRACE
-void PUBLIC_NODE_START(const char * X,int Y,int Z)
+void PUBLIC_NODE_START(const void * E,const char * X,int Y,int Z)
 {
-	OFLUX_NODE_START(const_cast<char *>(X),Y,Z);
+	OFLUX_NODE_START(const_cast<void *>(E),const_cast<char *>(X),Y,Z);
 }
 
-void PUBLIC_NODE_DONE(const char * X)
+void PUBLIC_NODE_DONE(const void * E,const char * X)
 {
-	OFLUX_NODE_DONE(const_cast<char *>(X));
+	OFLUX_NODE_DONE(const_cast<void *>(E),const_cast<char *>(X));
 }
+
+void PUBLIC_EVENT_BORN(const void * E, const char * N)
+{
+        OFLUX_EVENT_BORN(const_cast<void *>(E),const_cast<char *>(N));
+}
+
+void PUBLIC_EVENT_DEATH(const void * E, const char * N)
+{
+        OFLUX_EVENT_DEATH(const_cast<void *>(E),const_cast<char *>(N));
+}
+
 #endif // HAS_DTRACE
 
 /**
