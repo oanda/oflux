@@ -11,7 +11,8 @@ AcquireGuards::doit(
 	, AtomicsHolder & ah)
 {
 	Result res = AGR_Success;
-        _NODE_ACQUIREGUARDS(ev->flow_node()->getName());
+        _NODE_ACQUIREGUARDS(static_cast<void *>(ev.get())
+		,ev->flow_node()->getName());
 	int wtype = 0;
 	flow::GuardReference * flow_guard_ref = NULL;
 	Atomic * must_wait_on_atomic = 
@@ -25,7 +26,8 @@ AcquireGuards::doit(
 			ev->flow_node()->getName(), 
 			wtype);
 	} else {
-                _NODE_HAVEALLGUARDS(ev->flow_node()->getName());
+                _NODE_HAVEALLGUARDS(static_cast<void *>(ev.get())
+			,ev->flow_node()->getName());
         }
 	return res;
 }

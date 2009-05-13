@@ -29,7 +29,7 @@ Queue::push_list(std::vector<Element> & vec)
 {
 	for(int i = 0; i < (int)vec.size(); i++) {
 		_q.push_back(vec[i]);
-		_FIFO_PUSH(e.get(),element_name(vec[i]));
+		_FIFO_PUSH(vec[i].get(),element_name(vec[i]));
 	}
 }
 void 
@@ -38,7 +38,7 @@ Queue::push_list_priority(std::vector<Element> & vec)
 	// reverse
 	for(int i = ((int)vec.size())-1; i >= 0; i--) {
 		_q.push_front(vec[i]);
-		_FIFO_PUSH(e.get(),element_name(vec[i]));
+		_FIFO_PUSH(vec[i].get(),element_name(vec[i]));
 	}
 }
 

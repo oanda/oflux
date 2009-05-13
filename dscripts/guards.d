@@ -19,13 +19,13 @@
 
 :::node-acquireguards
 {
-	g = copyinstr(arg0);
+	g = copyinstr(arg1);
 	node_acquire_starts[g] = timestamp;
 }
 
 :::node-haveallguards
 {
-	g = copyinstr(arg0);
+	g = copyinstr(arg1);
 	@node_acquire_times[g] = avg(timestamp - node_acquire_starts[g]);
 }
 

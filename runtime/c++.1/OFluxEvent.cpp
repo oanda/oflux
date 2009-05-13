@@ -40,10 +40,12 @@ boost::shared_ptr<EventBase> EventBase::no_event;
 int access_dtrace()
 {
 	char * empty = const_cast<char *>("");
-	OFLUX_NODE_START(empty,0,0);
-	OFLUX_NODE_DONE(empty);
-	OFLUX_NODE_HAVEALLGUARDS(empty);
-	OFLUX_NODE_ACQUIREGUARDS(empty);
+	OFLUX_NODE_START(NULL,empty,0,0);
+	OFLUX_NODE_DONE(NULL,empty);
+	OFLUX_NODE_HAVEALLGUARDS(NULL,empty);
+	OFLUX_NODE_ACQUIREGUARDS(NULL,empty);
+	OFLUX_EVENT_BORN(NULL,empty);
+	OFLUX_EVENT_DEATH(NULL,empty);
 	//OFLUX_SHIM_CALL(empty);
 	//OFLUX_SHIM_WAIT(empty);
 	//OFLUX_SHIM_RETURN(empty);

@@ -66,20 +66,17 @@ provider oflux {
                 );
 
 	probe guard__wait(
-                  void *  /*event ptr*/
-                , char *  /*guard name*/
+                  char *  /*guard name*/
                 , char *  /*node name*/ 
                 , int     /*wtype*/
                 );
 	probe guard__acquire(
-                  void *  /*event ptr*/
-                , char *  /*guard name*/
+                  char *  /*guard name*/
                 , char *  /*node name*/  
                 , int     /*is passed*/
                 );
 	probe guard__release(
-                  void *  /*event ptr*/ 
-                , char *  /*guard name*/ 
+                  char *  /*guard name*/ 
                 , char *  /*first event name*/ 
                 , int     /*num events released*/
                 );

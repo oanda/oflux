@@ -60,7 +60,7 @@ public:
 		}
 	virtual ~EventBase()
                 {
-                        PUBLIC_EVENT_DEATH(this,flow_node->getName());
+                        PUBLIC_EVENT_DEATH(this,flow_node()->getName());
                 }
 	virtual OutputWalker output_type() = 0;
 	virtual const void * input_type() = 0;
