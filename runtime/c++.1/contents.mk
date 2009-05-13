@@ -63,7 +63,7 @@ OFLUXRTLIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
 
 libofshim.so: $(SHIMOBJS) -ldl
-	$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o
+	$(if $(DTRACE),$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o)
 	$(CXX) -shared -Wl,-z,interpose $^ $(if $(DTRACE),ofluxshimprobe_so.o,) $(OFLUXRTLIBS) -o $@
 
 OFLUX_LIB_VERS_READ:=$(shell test -r $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g)
