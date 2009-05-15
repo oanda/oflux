@@ -55,6 +55,7 @@ let add_atom_decl ip mp pr =
                         ; dctype = (mp^"ModuleConfig *",noposition,noposition) }
                 ; atomtype = "readwrite"
                 ; externalatom=false
+                ; atommodifiers=[]
                 } 
         in      { cond_decl_list = pr.cond_decl_list
                 ; atom_decl_list = ad::pr.atom_decl_list
@@ -305,6 +306,7 @@ let flatten prog =
 		; outputtype = (*for_data_type pre_mi pre_md*) ad.outputtype
 		; atomtype = ad.atomtype 
                 ; externalatom = ad.externalatom
+                ; atommodifiers = ad.atommodifiers
                 } in
 	let for_guard_ref pre_mi pre_md gr =
 		{ guardname = prefix_sp pre_mi gr.guardname
@@ -490,6 +492,7 @@ let flatten_plugin' plugin_name prog =
                 ; outputtype = ad.outputtype
                 ; atomtype = ad.atomtype
                 ; externalatom = ad.externalatom
+                ; atommodifiers = ad.atommodifiers
                 } in
         let for_node_decl is_ea nd =
                 let for_guardref gr =

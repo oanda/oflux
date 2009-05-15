@@ -30,7 +30,9 @@ type guard_data =
 		; gtype: string
                 ; gexternal: bool
 		; return: data_type 
-		; magicnumber: int }
+		; magicnumber: int 
+                ; gunordered: bool
+                }
 
 type module_inst_data =
 		{ modulesource : string }
@@ -77,7 +79,9 @@ let add_guard symtable g =
 		; return=g.outputtype
 		; gtype=g.atomtype
                 ; gexternal=g.externalatom
-		; magicnumber = mn}) symtable in
+		; magicnumber = mn
+		; gunordered = List.mem "unordered" g.atommodifiers
+                }) symtable in
 	let _ = next_magic_no := mn+1
 	in  res
 

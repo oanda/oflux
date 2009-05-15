@@ -49,6 +49,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
 %token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE, IF;
+%token <ParserTypes.position*ParserTypes.position> UNORDERED;
 %token <ParserTypes.position*ParserTypes.position> BACKARROW, NOTEQUALS, ISEQUALS;
 %token <ParserTypes.position*ParserTypes.position> DOUBLEAMPERSAND;
 %token <ParserTypes.position*ParserTypes.position> DOUBLEBAR;
@@ -245,10 +246,26 @@ atom_type:
 	| POOL
 	{ "pool" }
 
+atom_mod:
+        UNORDERED
+        { "unordered" }
+
+atom_mod_opt_list:
+        /*epsilon*/
+        { [] }
+        | SLASH atom_mod atom_mod_opt_list
+        { $2::$3 }
+
 atom_decl:
-	external_opt atom_type namespaced_ident simple_arg_list ARROW data_type SEMI
+	external_opt atom_type atom_mod_opt_list namespaced_ident simple_arg_list ARROW data_type SEMI
 	{ trace_thing "atom_decl"; 
-	  { externalatom=$1; atomname=$3; atominputs=$4; outputtype=$6; atomtype = $2 } }
+	  { externalatom=$1
+          ; atomname=$4
+          ; atominputs=$5
+          ; outputtype=$7
+          ; atomtype = $2 
+          ; atommodifiers = $3
+          } }
 
 external_opt:
         EXTERNAL

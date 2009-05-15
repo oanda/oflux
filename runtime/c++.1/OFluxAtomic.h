@@ -3,8 +3,10 @@
 
 #include <deque>
 #include <map>
+#include <tr1/unordered_map>
 #include <vector>
 #include <boost/shared_ptr.hpp>
+#include "OFlux.h"
 //#include "OFluxLogging.h" // DEBUGGING
 
 namespace oflux {
@@ -396,9 +398,34 @@ public:
 };
 
 template<typename K>
+class BaseMapPolicy {
+public:
+        typedef K keytype;
+        typedef std::pair<const K *, Atomic *> pairtype;
+};
+
+template<typename K>
+class StdMapPolicy : public BaseMapPolicy<K> {
+public:
+        typedef typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> > maptype;
+        typedef typename maptype::iterator iterator;
+        typedef typename maptype::const_iterator const_iterator;
+        typedef typename std::pair<iterator, bool> insertresulttype;
+};
+
+template<typename K>
+class HashMapPolicy : public BaseMapPolicy<K> {
+public:
+        typedef typename std::tr1::unordered_map<const K*, Atomic*, hash_ptr<K> > maptype;
+        typedef typename maptype::iterator iterator;
+        typedef typename maptype::const_iterator const_iterator;
+        typedef typename std::pair<iterator,bool> insertresulttype;
+};
+
+template<typename MapPolicy>
 class AtomicMapStdWalker : public AtomicMapWalker {
 public:
-	AtomicMapStdWalker( std::map<const K*, Atomic*,AtomicMapStdCmp<K> > & map)
+	AtomicMapStdWalker( typename MapPolicy::maptype & map)
 		: _at(map.begin())
 		, _end(map.end())
 		{}
@@ -415,22 +442,22 @@ public:
 	}
 
 private:
-	typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::iterator _at;
-	typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::iterator _end;
-	};
+	typename MapPolicy::iterator _at;
+	typename MapPolicy::iterator _end;
+};
 
 /**
  * @class AtomicMapStdMap
  * @brief this is the standard atom map
  * Keys are compared given the operator< in the key class K
  */
-template<typename K,typename A=AtomicExclusive>
+template<typename MapPolicy,typename A=AtomicExclusive>
 class AtomicMapStdMap : public AtomicMapAbstract {
 public:
 	AtomicMapStdMap() {}
 	virtual ~AtomicMapStdMap()
 	{
-		typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::const_iterator mitr = _map.begin();
+		typename MapPolicy::const_iterator mitr = _map.begin();
 		while(mitr != _map.end()) {
 			delete (*mitr).first;
 			delete (*mitr).second;
@@ -439,12 +466,15 @@ public:
 	}
 	virtual const void *get(Atomic * &atomic, const void * key)
 	{
-	const K * k = reinterpret_cast<const K*>(key);
-	typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> >::const_iterator mitr = _map.find(k);
-	if(mitr == _map.end()) {
-		typename std::pair<K*,Atomic*> vp(new K(*k),new A(NULL));
-		typename std::pair< typename std::map<const K*,Atomic*,AtomicMapStdCmp<K> >::iterator,bool> ir =
-			_map.insert(vp);
+                const typename MapPolicy::keytype * k = 
+                        reinterpret_cast<const typename MapPolicy::keytype *>(key);
+                typename MapPolicy::const_iterator mitr = _map.find(k);
+                if(mitr == _map.end()) {
+                        typename MapPolicy::pairtype vp(
+                                  new typename MapPolicy::keytype(*k)
+                                , new A(NULL));
+                        typename MapPolicy::insertresulttype ir =
+                                _map.insert(vp);
 			mitr = ir.first;
 		}
 		atomic = (*mitr).second;
@@ -453,8 +483,10 @@ public:
 	virtual int compare(const void * v_k1, const void * v_k2) const
 	{
 		if (v_k1 && v_k2) {
-			const K * k1 = reinterpret_cast<const K *>(v_k1);
-			const K * k2 = reinterpret_cast<const K *>(v_k2);
+			const typename MapPolicy::keytype * k1 = 
+                                reinterpret_cast<const typename MapPolicy::keytype *>(v_k1);
+			const typename MapPolicy::keytype * k2 = 
+                                reinterpret_cast<const typename MapPolicy::keytype *>(v_k2);
 			return (*k1 < *k2 ? -1 : (*k2 < *k1 ? 1 : 0));
 		} else if (!v_k1 && v_k2) {
 			return -1;
@@ -464,11 +496,13 @@ public:
 			return 0;
 		}
 	}
-	virtual void * new_key() { return new K(); }
-	virtual void delete_key(void * k) { delete (reinterpret_cast<const K *>(k)); }
-	virtual AtomicMapWalker * walker() { return new AtomicMapStdWalker<K>(_map); }
+	virtual void * new_key() { return new typename MapPolicy::keytype(); }
+	virtual void delete_key(void * k) 
+        { delete (reinterpret_cast<const typename MapPolicy::keytype *>(k)); }
+	virtual AtomicMapWalker * walker() 
+        { return new AtomicMapStdWalker<MapPolicy>(_map); }
 private:
-	std::map<const K*, Atomic*,AtomicMapStdCmp<K> > _map;
+	typename MapPolicy::maptype _map;
 };
 
 };

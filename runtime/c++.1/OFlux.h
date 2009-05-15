@@ -1,6 +1,7 @@
 #ifndef _O_FLUX
 #define _O_FLUX
 #include <boost/shared_ptr.hpp>
+#include <tr1/functional_hash.h>
 
 /**
  * @mainpage OFlux Runtime (and compiler)
@@ -26,6 +27,22 @@ extern Abstract * logger;
 // compile-time assertions
 template <bool> struct CompileTimeAssert;
 template<> struct CompileTimeAssert<true> {};
+
+template<typename C>
+struct hash {
+        inline size_t operator()(const C & c) const
+        {
+                return std::tr1::hash<C>()(c);
+        }
+};
+
+template<typename PC>
+struct hash_ptr {
+        inline size_t operator()(const PC * p) const
+        {
+                return hash<PC>()(*p);
+        }
+};
 
 // the empty node input type (internal detail)
 struct _E {};
