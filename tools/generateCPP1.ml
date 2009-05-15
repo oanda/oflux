@@ -628,6 +628,11 @@ let emit_atomic_key_structs symtable code =
 		in  ("res = res || (eq && "^n^" < "^"o."^n^");"
 			^" eq = eq && ("^n^" == o."^n^");")
 		in
+        let e_hash df =
+                let n = strip_position df.name in
+                let tm = strip_position df.ctypemod in
+                let t = strip_position df.ctype
+                in  "res = res ^ oflux::hash<"^tm^" "^t^">()("^n^");" in
 	let e_one n gd code =
 		List.fold_left add_code code
 			( let clean_n = clean_dots n in
@@ -642,7 +647,18 @@ let emit_atomic_key_structs symtable code =
 			@ [ "return res;"
 			  ; "}"
 			  ; ""
-			  ; "};" ])
+			  ; "};" ]
+                        @ [ ""
+                          ; "template<>"
+                          ; "class hash<"^clean_n^"_key> {"
+                          ; "size_t operator()( const "^clean_n
+                                ^"_key k)"
+                          ; "{" 
+                          ; "size_t res = 0;" ]
+			@ (List.map e_hash gd.garguments)
+                        @ [ "}"
+                          ; "};" ]
+                        )
 	in  SymbolTable.fold_guards e_one symtable code
 
 let gather_atom_aliases symtable =
