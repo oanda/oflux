@@ -628,11 +628,6 @@ let emit_atomic_key_structs symtable code =
 		in  ("res = res || (eq && "^n^" < "^"o."^n^");"
 			^" eq = eq && ("^n^" == o."^n^");")
 		in
-        let e_hash df =
-                let n = strip_position df.name in
-                let tm = strip_position df.ctypemod in
-                let t = strip_position df.ctype
-                in  "res = res ^ oflux::hash<"^tm^" "^t^">()("^n^");" in
 	let e_one n gd code =
 		List.fold_left add_code code
 			( let clean_n = clean_dots n in
@@ -648,16 +643,35 @@ let emit_atomic_key_structs symtable code =
 			  ; "}"
 			  ; ""
 			  ; "};" ]
-                        @ [ ""
+                        )
+	in  SymbolTable.fold_guards e_one symtable code
+
+let emit_atomic_key_structs_hashfuns symtable code nsopt =
+        let e_hash df =
+                let n = strip_position df.name in
+                let tm = strip_position df.ctypemod in
+                let t = strip_position df.ctype
+                in  "res = res ^ oflux::hash<"^tm^" "^t^">()(k."^n^");" in
+	let e_one n gd code =
+		List.fold_left add_code code
+			( let clean_n = clean_dots n in
+                          let clean_n = match nsopt with
+                                       (Some ns) -> ns^"::"^clean_n
+                                        | None -> clean_n
+                        in
+                          [ ""
+                          ; "namespace oflux {  "
                           ; "template<>"
-                          ; "class hash<"^clean_n^"_key> {"
-                          ; "size_t operator()( const "^clean_n
-                                ^"_key k)"
+                          ; "struct hash<"^clean_n^"_key> {"
+                          ; "size_t operator()(const "^clean_n
+                                ^"_key & k) const"
                           ; "{" 
                           ; "size_t res = 0;" ]
 			@ (List.map e_hash gd.garguments)
-                        @ [ "}"
-                          ; "};" ]
+                        @ [ "return res;"
+                          ; "}"
+                          ; "};"
+                          ; "} // namespace oflux" ]
                         )
 	in  SymbolTable.fold_guards e_one symtable code
 
@@ -844,7 +858,14 @@ let emit_atom_map_map plugin_opt symtable code =
 			("oflux::AtomicMapTrivial<"
 				^atomic_class_str^"> "^clean_n^"_map;")
 		    else
-			("oflux::AtomicMapStdMap<"^clean_n^"_key"
+                        let mappolicy =
+                                "oflux::"
+                                ^(if gd.gunordered 
+                                        then "Hash"
+                                        else "Std")
+                                ^"MapPolicy<"^clean_n^"_key> "
+                        in
+			("oflux::AtomicMapStdMap<"^mappolicy
 				^","^atomic_class_str^"> "^clean_n^"_map;")
 			))::[ "oflux::AtomicMapAbstract * "^clean_n
                                 ^"_map_ptr = &"^clean_n^"_map;" ])
@@ -1398,6 +1419,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let h_code = CodePrettyPrinter.add_cr h_code in
 	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
+        let h_code = emit_atomic_key_structs_hashfuns stable h_code (Some pluginname) in
 	let h_code = emit_converts (Some pluginname) ignoreis conseq_res h_code in
         let h_code = emit_copy_to_functions (Some pluginname) None ignoreis conseq_res stable um h_code in
 	let h_code = CodePrettyPrinter.add_code h_code ("#endif // _"^uc_codeprefix) in
@@ -1558,6 +1580,7 @@ let emit_cpp modulenameopt br um =
 	let h_code = CodePrettyPrinter.add_cr h_code in
 	let h_code = emit_unions conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
+        let h_code = emit_atomic_key_structs_hashfuns stable h_code modulenameopt in 
 	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
         let h_code = emit_copy_to_functions None modulenameopt ignoreis conseq_res stable um h_code in
 	let h_code = CodePrettyPrinter.add_code h_code ("#endif // _"^uc_codeprefix) in

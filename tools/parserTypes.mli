@@ -62,6 +62,7 @@ type atom_decl =
 	; outputtype: data_type
 	; atomtype: string
         ; externalatom : bool
+        ; atommodifiers : string list
 	}
 
 type ident = string positioned 

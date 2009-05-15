@@ -399,12 +399,14 @@ public:
 
 template<typename K>
 class BaseMapPolicy {
+public:
         typedef K keytype;
-        typedef std::pair<K, Atomic *> pairtype;
+        typedef std::pair<const K *, Atomic *> pairtype;
 };
 
 template<typename K>
 class StdMapPolicy : public BaseMapPolicy<K> {
+public:
         typedef typename std::map<const K*, Atomic*,AtomicMapStdCmp<K> > maptype;
         typedef typename maptype::iterator iterator;
         typedef typename maptype::const_iterator const_iterator;
@@ -412,7 +414,8 @@ class StdMapPolicy : public BaseMapPolicy<K> {
 };
 
 template<typename K>
-class HashMapPolicy {
+class HashMapPolicy : public BaseMapPolicy<K> {
+public:
         typedef typename std::tr1::unordered_map<const K*, Atomic*, hash_ptr<K> > maptype;
         typedef typename maptype::iterator iterator;
         typedef typename maptype::const_iterator const_iterator;
@@ -482,7 +485,7 @@ public:
 		if (v_k1 && v_k2) {
 			const typename MapPolicy::keytype * k1 = 
                                 reinterpret_cast<const typename MapPolicy::keytype *>(v_k1);
-			const typename MapPolicy::keytypeK * k2 = 
+			const typename MapPolicy::keytype * k2 = 
                                 reinterpret_cast<const typename MapPolicy::keytype *>(v_k2);
 			return (*k1 < *k2 ? -1 : (*k2 < *k1 ? 1 : 0));
 		} else if (!v_k1 && v_k2) {

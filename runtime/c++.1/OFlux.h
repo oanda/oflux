@@ -30,7 +30,7 @@ template<> struct CompileTimeAssert<true> {};
 
 template<typename C>
 struct hash {
-        inline size_t operator()(C & c)
+        inline size_t operator()(const C & c) const
         {
                 return std::tr1::hash<C>()(c);
         }
@@ -38,7 +38,7 @@ struct hash {
 
 template<typename PC>
 struct hash_ptr {
-        inline size_t operator()(const PC * p)
+        inline size_t operator()(const PC * p) const
         {
                 return hash<PC>()(*p);
         }
