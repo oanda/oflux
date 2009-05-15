@@ -6,6 +6,8 @@ LIBRARIES += liboflux.a libofshim.so
 
 SHIMOBJS := OFluxRunTimeAbstract.pic.o OFluxIOShim.pic.o
 
+DTRACECALLINGCPPS := $(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f)))
+
 OBJS := \
         OFlux.o \
         OFluxLogging.o \
@@ -26,6 +28,7 @@ OBJS := \
         OFluxLibrary.o \
 	oflux_vers.o
 
+$(DTRACECALLINGCPPS:.cpp=.o) $(DTRACECALLINGCPPS:.cpp=.pic.o): OPTIMIZATION_FLAGS := -O0
 
 $(OBJS) $(OBJS:.o=.pic.o) $(SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM_PROBE_HEADER)
 

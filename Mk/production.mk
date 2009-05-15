@@ -1,8 +1,7 @@
 $(warning Reading production.mk)
 
 # Setting for production builds
+# This decision is meant to be _only_ local to oflux
 
-ifeq ($(_PROC),i386)
-	OPTIMIZATION_FLAGS := -O0
-endif
+OPTIMIZATION_FLAGS ?= -O0
 
