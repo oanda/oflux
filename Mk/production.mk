@@ -2,4 +2,7 @@ $(warning Reading production.mk)
 
 # Setting for production builds
 
-CPPFLAGS += -O0 
+ifeq ($(_PROC),i386)
+	OPTIMIZATION_FLAGS := -O0
+endif
+

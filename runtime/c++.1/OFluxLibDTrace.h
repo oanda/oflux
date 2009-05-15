@@ -11,9 +11,9 @@
 
 #else // ! HAS_DTRACE
 
-# define OFLUX_GUARD_ACQUIRE(E,X,Y,Z)
-# define OFLUX_GUARD_WAIT(E,X,Y,Z)
-# define OFLUX_GUARD_RELEASE(E,X,Y,Z)
+# define OFLUX_GUARD_ACQUIRE(X,Y,Z)
+# define OFLUX_GUARD_WAIT(X,Y,Z)
+# define OFLUX_GUARD_RELEASE(X,Y,Z)
 
 # define OFLUX_FIFO_PUSH(E,X)
 # define OFLUX_FIFO_POP(E,X)

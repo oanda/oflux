@@ -53,9 +53,12 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 RunTime::~RunTime()
 {
         printf("runtime destructor called\n");
-        {
+        { // empty the event queue
                 Queue::Element e;
-                while(_queue.pop(e)) {} // empty the event queue
+                while(_queue.pop(e)) {} 
+        }
+        { // empty the guard queues of events
+                flow()->drainGuardsOfEvents();
         }
         while(_active_flows.size() > 0) {
                 flow::Flow * back = _active_flows.back();

@@ -13,10 +13,21 @@ CC := gcc
 %.gch: $(HEADERS)  
 	$(CXX) $(CPPFLAGS) $^ -o $@
 
-CPPFLAGS += $(BASECXXFLAGS) $(COMPONENT_FLAGS) $(ARCH_FLAGS) $(INCS) -D$(_ARCH) 
+# CPPFLAGS are the flags that will be given to the C Preprocessor
+# Place things here that will alter what will be compiled
+CPPFLAGS = $(COMPONENT_FLAGS) $(ARCH_FLAGS) $(INCS) -D$(_ARCH) -D_REENTRANT
+
+# CXXFLAGS are the flags that will be given to the C++ Compiler
+# Place things here that will alter how the compilation will occur
+CXXFLAGS = $(BASECXXFLAGS) $(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) $(WARN_FLAGS)
+
 BOOSTDIR := /oanda/system/include/boost-1_34_1
 
-BASECXXFLAGS = -Wall -D_REENTRANT -ggdb -O0 -MMD -MF "$(@F:.o=.d)"
+DEBUG_FLAGS := -ggdb
+OPTIMIZATION_FLAGS := -O0
+WARN_FLAGS = -Wall
+
+BASECXXFLAGS = -MMD -MF "$(@F:.o=.d)"
 OFLUX_RUNTIME = $(SRCDIR)/runtime/c++.1
 
 INCS = \

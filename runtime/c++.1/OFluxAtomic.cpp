@@ -39,6 +39,9 @@ const void * AtomicPool::get(Atomic * & a_out,const void * key)
         if(_ap_list) {
                 a_out = _ap_list;
                 _ap_list = _ap_list->next();
+                if(_ap_list == NULL) {
+                        _ap_last = NULL;
+                }
                 reinterpret_cast<AtomicPooled *>(a_out)->next(NULL);
         } else {
                 a_out = new AtomicPooled(*this,NULL);
@@ -53,9 +56,14 @@ void AtomicPool::put(AtomicPooled * ap)
 {
         //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
         //assert(ap != _ap_list);
-        assert(*(ap->data()) == NULL);
-        ap->next(_ap_list);
-        _ap_list = ap;
+        if(ap->next() == NULL && ap != _ap_last) {
+                assert(*(ap->data()) == NULL);
+                ap->next(_ap_list);
+                if(_ap_list == NULL) {
+                        _ap_last = ap;
+                }
+                _ap_list = ap;
+        }
         //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
 }
 

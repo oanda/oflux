@@ -143,6 +143,10 @@ public:
          * @return name of the guard
          */
         inline const std::string & getName() { return _name; }
+        /**
+         * @brief release all events from this guard's queues
+         */
+        void drain();
 private:
         AtomicMapAbstract * _amap;
         std::string         _name;
@@ -535,6 +539,7 @@ public:
          */
         inline void addGuardPrecedence(const char * before, const char * after)
         { _magic_sorter.addInequality(before,after); }
+        void drainGuardsOfEvents();
 private:
         std::map<std::string, Node *>  _nodes;
         std::vector<Node *>            _sources;

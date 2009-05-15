@@ -281,6 +281,7 @@ public:
 	friend class AtomicPooled;
 	AtomicPool ()
 		: _ap_list(NULL)
+                , _ap_last(NULL)
 	{}
 	virtual ~AtomicPool();
 	void * get_data();
@@ -298,6 +299,7 @@ private:
 	std::deque<boost::shared_ptr<EventBase> > _q;
 	std::deque<void *> _dq;
 	AtomicPooled * _ap_list;
+	AtomicPooled * _ap_last;
 };
 
 class AtomicPooled : public Atomic { // implements AtomicScaffold
@@ -317,9 +319,11 @@ public:
 	}
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
 	{
-		_pool.put_data(_data);
+		if(_data) {
+                        _pool.put_data(_data);
+                }
 		if(_pool.waiter_count()) {
-		rel_ev.push_back(_pool.get_waiter());
+                        rel_ev.push_back(_pool.get_waiter());
 		}
 		_data = NULL;
 		_pool.put(this);
