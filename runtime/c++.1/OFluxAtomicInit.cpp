@@ -33,7 +33,6 @@ bool GuardInserter::insert(const void * key, void * value)
 void * GuardInserter::swap(const void * key, void * newvalue)
 {
 	void * oldvalue = NULL;
-	bool res = true;
 	Atomic * aptr;
 	_ama->get(aptr, key);
 	assert(aptr);

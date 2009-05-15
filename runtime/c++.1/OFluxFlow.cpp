@@ -172,6 +172,18 @@ create_indention(int depth)
         return indention;
 }
 
+void
+Guard::drain()
+{
+        std::vector<boost::shared_ptr<EventBase> > rel_vector;
+        boost::shared_ptr<AtomicMapWalker> walker(_amap->walker());
+        const void * v = NULL;
+        Atomic * a = NULL;
+        while(walker->next(v,a)) {
+                a->release(rel_vector);
+        }
+}
+
 Case::Case(Node *targetnode, IOConverter *converter)
         : _targetnode(targetnode)
         , _io_converter(converter ? converter : &IOConverter::standard_converter)
@@ -420,6 +432,16 @@ Flow::addLibrary(Library * lib)
         _libraries.push_back(lib);
         oflux_log_debug("Flow::addLibrary() %s\n"
                 , lib->getName().c_str());
+}
+
+void 
+Flow::drainGuardsOfEvents()
+{
+        std::map<std::string,Guard *>::iterator gitr = _guards.begin();
+        while(gitr != _guards.end()) {
+                (*gitr).second->drain();
+                gitr++;
+        }
 }
 
 } // namespace flow
