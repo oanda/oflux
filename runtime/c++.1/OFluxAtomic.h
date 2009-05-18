@@ -398,6 +398,15 @@ public:
 };
 
 template<typename K>
+class AtomicMapUnorderedCmp {
+public:
+	bool operator()( const K* s1, const K* s2 ) const
+	{
+		return *s1 == *s2;
+	}
+};
+
+template<typename K>
 class BaseMapPolicy {
 public:
         typedef K keytype;
@@ -416,7 +425,7 @@ public:
 template<typename K>
 class HashMapPolicy : public BaseMapPolicy<K> {
 public:
-        typedef typename std::tr1::unordered_map<const K*, Atomic*, hash_ptr<K> > maptype;
+        typedef typename std::tr1::unordered_map<const K*, Atomic*, hash_ptr<K>, AtomicMapUnorderedCmp<K> > maptype;
         typedef typename maptype::iterator iterator;
         typedef typename maptype::const_iterator const_iterator;
         typedef typename std::pair<iterator,bool> insertresulttype;

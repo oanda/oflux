@@ -628,6 +628,10 @@ let emit_atomic_key_structs symtable code =
 		in  ("res = res || (eq && "^n^" < "^"o."^n^");"
 			^" eq = eq && ("^n^" == o."^n^");")
 		in
+	let e_equals df =
+		let n = strip_position df.name
+		in  ("if ("^n^" != "^"o."^n^") return false;")
+		in
 	let e_one n gd code =
 		List.fold_left add_code code
 			( let clean_n = clean_dots n in
@@ -640,6 +644,12 @@ let emit_atomic_key_structs symtable code =
 			  ]
 			@ (List.map e_lthan gd.garguments)
 			@ [ "return res;"
+			  ; "}"
+			  ; ""
+			  ; "inline bool operator==(const "^clean_n^"_key & o) const {"
+			  ]
+			@ (List.map e_equals gd.garguments)
+			@ [ "return true;"
 			  ; "}"
 			  ; ""
 			  ; "};" ]
