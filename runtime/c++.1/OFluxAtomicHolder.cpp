@@ -59,7 +59,9 @@ void AtomicsHolder::get_keys_sort(const void * node_in)
 		_holders[i].build(node_in);
 		_sorted[i] = &(_holders[i]);
 	}
-	qsort(_sorted,_number,sizeof(HeldAtomic *),compare_held_atomics);
+	if(!_is_completely_sorted) {
+                qsort(_sorted,_number,sizeof(HeldAtomic *),compare_held_atomics);
+        }
 	_is_sorted_and_keyed = true;
 }
 

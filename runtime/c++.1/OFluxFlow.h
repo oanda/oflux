@@ -377,6 +377,8 @@ public:
         inline void turn_off_source() { _is_source = false; }
         inline int inputUnionNumber() { return _input_unionnumber; }
         inline int outputUnionNumber() { return _output_unionnumber; }
+        void sortGuards();
+        bool isGuardsCompletelySorted() { return _is_guards_completely_sorted; }
 protected:
         int                           _instances; // count active events
         int                           _executions; // count active events
@@ -392,6 +394,7 @@ private:
         std::vector<GuardReference *> _guard_refs;
         int                           _input_unionnumber;
         int                           _output_unionnumber;
+        bool                          _is_guards_completely_sorted;
 #ifdef PROFILING
         TimerStats                    _real_timer_stats;
         TimerStats                    _oflux_timer_stats;

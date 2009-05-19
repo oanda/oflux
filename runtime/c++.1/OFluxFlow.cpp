@@ -3,6 +3,7 @@
 #include "OFluxLogging.h"
 #include "OFluxLibrary.h"
 #include <stdlib.h>
+#include <algorithm>
 #include <cassert>
 
 /**
@@ -289,6 +290,7 @@ Node::Node(const char * name,
         , _this_case(this,NULL)
         , _input_unionnumber(input_unionnumber)
         , _output_unionnumber(output_unionnumber)
+        , _is_guards_completely_sorted(false)
 { 
 }
 
@@ -296,6 +298,34 @@ Node::~Node()
 {
         delete_vector_contents<GuardReference>(_guard_refs);
 }
+
+struct CompareGuardsInNode {
+        // our version of a < comparator
+        bool operator()(GuardReference * gr1, GuardReference * gr2)
+        {
+                return gr1->magic_number() < gr2->magic_number();
+        }
+};
+        
+void
+Node::sortGuards()
+{
+        CompareGuardsInNode acompare;
+        // sort all guard reference ascending by magic number
+        // it does not matter to much how slow std::sort is.
+        std::sort(_guard_refs.begin(), _guard_refs.end(),acompare);
+        // determine once and for all if the sort has magic number dupes
+        _is_guards_completely_sorted = true;
+        int last_magic_number = -1;
+        for(size_t i = 0; i < _guard_refs.size(); ++i) {
+                int mn = _guard_refs[i]->magic_number();
+                if(last_magic_number >= mn) {
+                        _is_guards_completely_sorted = false;
+                        break;
+                }
+                last_magic_number = mn;
+        }
+}       
 
 void 
 Node::setErrorHandler(Node *fn)
@@ -393,6 +423,7 @@ Flow::sources()
         return _sources;
 }
 
+
 void 
 Flow::assignMagicNumbers() 
 { 
@@ -406,6 +437,11 @@ Flow::assignMagicNumbers()
         while(itr != _guards.end()) {
                 oflux_log_debug("flow assigned guard %s magic no %d\n", (*itr).second->getName().c_str(), (*itr).second->magic_number());
                 itr++;
+        }
+        std::map<std::string, Node *>::iterator nitr = _nodes.begin();
+        while(nitr != _nodes.end()) {
+                (*nitr).second->sortGuards();
+                nitr++;
         }
 }
 

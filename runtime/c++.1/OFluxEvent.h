@@ -50,6 +50,7 @@ public:
 		: flow::NodeCounterIncrementer(flow_node)
 		, _predecessor(predecessor)
 		, _error_code(0)
+                , _atomics(flow_node->isGuardsCompletelySorted())
 		{
 			std::vector<flow::GuardReference *> & vec = 
 				flow_node->guards();

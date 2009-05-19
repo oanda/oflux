@@ -145,9 +145,10 @@ private:
  */
 class AtomicsHolder {
 public:
-	AtomicsHolder()
+	AtomicsHolder(bool completelysorted = false)
 		: _number(0)
 		, _is_sorted_and_keyed(false)
+                , _is_completely_sorted(completelysorted)
 		{}
 	void add(flow::GuardReference * fg);
 	/**
@@ -180,6 +181,7 @@ private:
 	HeldAtomic   _holders[MAX_ATOMICS_PER_NODE];
 	HeldAtomic * _sorted[MAX_ATOMICS_PER_NODE];
 	bool         _is_sorted_and_keyed;
+        bool         _is_completely_sorted;
 };
 
 }; // namespace
