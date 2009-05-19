@@ -21,9 +21,9 @@ void AtomicsHolder::add(flow::GuardReference * fg)
 // ascending
 class AtomicsHolderTraversal {
 public:
-	AtomicsHolderTraversal(AtomicsHolder & ah)
+	AtomicsHolderTraversal(AtomicsHolder & ah, int startindex = 0)
 		: _ah(ah)
-		, _index(0)
+		, _index(startindex)
 		{}
 	bool next(HeldAtomic * &);
 	int index() const { return _index; }
@@ -49,8 +49,10 @@ typedef HeldAtomic * HeldAtomicPtr;
 
 static int compare_held_atomics(const void * v_ha1,const void * v_ha2)
 {
-	const HeldAtomicPtr * ha1 = reinterpret_cast<const HeldAtomicPtr *>(v_ha1);
-	const HeldAtomicPtr * ha2 = reinterpret_cast<const HeldAtomicPtr *>(v_ha2);
+	const HeldAtomicPtr * ha1 = 
+                reinterpret_cast<const HeldAtomicPtr *>(v_ha1);
+	const HeldAtomicPtr * ha2 = 
+                reinterpret_cast<const HeldAtomicPtr *>(v_ha2);
 	return (*ha1)->compare(**ha2);
 }
 
@@ -82,7 +84,7 @@ int AtomicsHolder::acquire(AtomicsHolder & given_atomics,
 	HeldAtomic * given_ha = NULL;
 	HeldAtomic * my_ha = NULL;
 	AtomicsHolderTraversal given_aht(given_atomics);
-	AtomicsHolderTraversal my_aht(*this);
+	AtomicsHolderTraversal my_aht(*this,_working_on);
 	bool more_given = given_aht.next(given_ha);
 	while(result == -1 && my_aht.next(my_ha)) {
 		while(more_given 
@@ -108,6 +110,7 @@ int AtomicsHolder::acquire(AtomicsHolder & given_atomics,
 			}
 		}
 	}
+        _working_on = std::max(result,_working_on);
 	return result;
 }
 

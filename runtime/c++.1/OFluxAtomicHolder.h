@@ -149,6 +149,7 @@ public:
 		: _number(0)
 		, _is_sorted_and_keyed(false)
                 , _is_completely_sorted(completelysorted)
+                , _working_on(0)
 		{}
 	void add(flow::GuardReference * fg);
 	/**
@@ -188,6 +189,7 @@ private:
 	HeldAtomic * _lexical[MAX_ATOMICS_PER_NODE];
 	bool         _is_sorted_and_keyed;
         bool         _is_completely_sorted;
+        int          _working_on;
 };
 
 }; // namespace
