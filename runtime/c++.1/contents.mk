@@ -28,7 +28,8 @@ OBJS := \
         OFluxLibrary.o \
 	oflux_vers.o
 
-$(DTRACECALLINGCPPS:.cpp=.o) $(DTRACECALLINGCPPS:.cpp=.pic.o): OPTIMIZATION_FLAGS := -O0
+# disable optimization for dtrace USDT code (PIC code not affected):
+$(DTRACECALLINGCPPS:.cpp=.o) : OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)
 
 $(OBJS) $(OBJS:.o=.pic.o) $(SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM_PROBE_HEADER)
 

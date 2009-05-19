@@ -82,3 +82,4 @@ DTRACE:=$(shell which dtrace | grep -v no)
 CPPFLAGS += $(if $(DTRACE),-DHAS_DTRACE,)
 DTRACE_LIB_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
 DTRACE_SHIM_PROBE_HEADER:=$(if $(DTRACE),ofluxshimprobe.h,)
+DTRACE_GCC_OPTIMIZATIONS:=-O1 -finline-functions
