@@ -807,7 +807,7 @@ let emit_atom_fill pluginopt symtable aliases code =
                 let atomic_n = "atomic_"^(trim_dot n)
                 in
 		(("oflux::Atomic * "^atomic_n^" = ah->get("
-		^(string_of_int i)^",false)->atomic();")
+		^(string_of_int i)^",oflux::AtomicsHolder::HA_get_lexical)->atomic();")
                 ::("_"^(trim_dot n)^" = ("^atomic_n^" ? reinterpret_cast<"^t
                 ^" *> ("^atomic_n^"->data()) : NULL);")
                 ::cl), i+1 in

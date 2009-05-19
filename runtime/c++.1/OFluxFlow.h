@@ -163,6 +163,7 @@ public:
                 , _flow_guard(fg)
                 , _local_key(fg->new_key())
                 , _wtype(wtype)
+                , _lexical_index(-1)
                 {}
         ~GuardReference()
         {
@@ -207,11 +208,14 @@ public:
          */
         inline const std::string & getName() { return _flow_guard->getName(); }
         inline int wtype() const { return _wtype; }
+        inline void setLexicalIndex(int i) { _lexical_index = i; }
+        inline int getLexicalIndex() const { return _lexical_index; }
 private:
         GuardTransFn _guardfn;
         Guard *      _flow_guard;
         void *       _local_key; // not reentrant here
         int          _wtype;
+        int          _lexical_index;
 };
 
 class Node;
@@ -366,7 +370,11 @@ public:
                 }
         }
         inline std::vector<GuardReference *> & guards() { return _guard_refs; }
-        inline void addGuard(GuardReference * fgr) { _guard_refs.push_back(fgr); }
+        inline void addGuard(GuardReference * fgr) 
+        { 
+                fgr->setLexicalIndex(_guard_refs.size());
+                _guard_refs.push_back(fgr); 
+        }
         void log_snapshot();
         void pretty_print(int depth, char context);
 #ifdef PROFILING

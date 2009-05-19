@@ -170,16 +170,22 @@ public:
 	 * @brief get the ith held atomic (can do this in sorted order)
 	 * @return ith held atomic
 	 */
-	inline HeldAtomic * get(int i, bool sortedifsorted=true) 
-		{ return (_is_sorted_and_keyed && sortedifsorted
+        enum HA_get { HA_get_unsorted, HA_get_sorted, HA_get_lexical };
+	inline HeldAtomic * get(int i, HA_get hg = HA_get_sorted) 
+		{ 
+                return (_is_sorted_and_keyed && (hg==HA_get_sorted)
 				? _sorted[i]
-				: &(_holders[i])); }
+				: (hg == HA_get_lexical)
+                                        ? _lexical[i]
+                                        : &(_holders[i])); 
+                }
 protected:
 	void get_keys_sort(const void * node_in);
 private:
 	int          _number;
 	HeldAtomic   _holders[MAX_ATOMICS_PER_NODE];
 	HeldAtomic * _sorted[MAX_ATOMICS_PER_NODE];
+	HeldAtomic * _lexical[MAX_ATOMICS_PER_NODE];
 	bool         _is_sorted_and_keyed;
         bool         _is_completely_sorted;
 };

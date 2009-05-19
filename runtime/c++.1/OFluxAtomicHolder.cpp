@@ -11,6 +11,9 @@ void AtomicsHolder::add(flow::GuardReference * fg)
 {
 	assert(_number < MAX_ATOMICS_PER_NODE );
 	_holders[_number].init(fg);
+        int li = fg->getLexicalIndex(); 
+        assert(li >= 0);
+        _lexical[li] = &_holders[_number];
 	_number++;
 }
 
