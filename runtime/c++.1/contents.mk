@@ -101,4 +101,4 @@ doc/runtime: oflux.dox $(OBJS) oflux_vers.cpp
 	$(DOXYGEN) $<
 
 #dependencies
--include $(OBJS:.o=.d)
+-include $(OBJS:.o=.depend)

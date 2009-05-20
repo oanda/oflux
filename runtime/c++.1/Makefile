@@ -50,7 +50,7 @@ LIBS=
 else
 LIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
-CPPOPTS= -g -MMD -MF "$(BINDIR)/.$(@F:.o=.d)" #-DOFLUX_RT_DEBUG
+CPPOPTS= -g -MMD -MF "$(BINDIR)/.$(@F:.o=.depend)" #-DOFLUX_RT_DEBUG
 ifeq ($(ARCH),Linux)
 CPPOPTS += -DLINUX
 endif
@@ -108,11 +108,11 @@ ofluxprobe.h: ofluxprobe.d
 	$(if $(DTRACE), $(DTRACE) -h -s ofluxprobe.d)
 
 ifneq ($(MAKECMDGOALS),clean)
- -include $(BINDIR)/.*.d
+ -include $(BINDIR)/.*.depend
 endif
 
 clean:
-	rm -f $(BINDIR)/* $(BINDIR)/.*.d ofluxprobe.h oflux_vers.cpp
+	rm -f $(BINDIR)/* $(BINDIR)/.*.depend ofluxprobe.h oflux_vers.cpp
 	rm -rf ../../doc/runtime/* 
 
 FORCE:

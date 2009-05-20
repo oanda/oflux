@@ -26,7 +26,7 @@ BOOSTDIR := /oanda/system/include/boost-1_34_1
 DEBUG_FLAGS := -ggdb
 WARN_FLAGS = -Wall
 
-BASECXXFLAGS = -MMD -MF "$(@F:.o=.d)"
+BASECXXFLAGS = -MMD -MF "$(@F:.o=.depend)"
 OFLUX_RUNTIME = $(SRCDIR)/runtime/c++.1
 
 INCS = \

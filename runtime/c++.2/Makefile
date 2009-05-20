@@ -43,7 +43,7 @@ LIBS=
 else
 LIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
-CPPOPTS= -O3 -g -MMD -MF "$(BINDIR)/.$(@F:.o=.d)" #-DOFLUX_RT_DEBUG
+CPPOPTS= -O3 -g -MMD -MF "$(BINDIR)/.$(@F:.o=.depend)" #-DOFLUX_RT_DEBUG
 ifeq ($(ARCH),Linux)
 CPPOPTS += -DLINUX
 endif
@@ -72,9 +72,9 @@ $(SHIMSO): $(SHIMOFILES)
 	$(CXX) $(LIBDIRS) -shared $(SHIMOFILES) $(LIBS) -o $(SHIMSO) -ldl
 
 ifneq ($(MAKECMDGOALS),clean)
- -include $(BINDIR)/.*.d
+ -include $(BINDIR)/.*.depend
 endif
 
 clean:
-	rm -f $(BINDIR)/* $(BINDIR)/.*.d 
+	rm -f $(BINDIR)/* $(BINDIR)/.*.depend
 	rm -rf ../../doc/runtime/*
