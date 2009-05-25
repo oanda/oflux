@@ -236,7 +236,7 @@ let write_result fn of_result =
                     dot_flat_timer ())
 	    end in
         let _ = write_timer () 
-        in  result
+        in  flush_all () ; result
 
 let get_uses_model incluses program =
         let fnopt_to_fn fnopt =
