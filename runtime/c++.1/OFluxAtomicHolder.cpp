@@ -25,14 +25,14 @@ public:
 		: _ah(ah)
 		, _index(startindex)
 		{}
-	bool next(HeldAtomic * &);
-	int index() const { return _index; }
+	inline bool next(HeldAtomic * &);
+	inline int index() const { return _index; }
 private:
 	AtomicsHolder & _ah;
 	int             _index;
 };
 
-bool AtomicsHolderTraversal::next(HeldAtomic * & ha_ptr)
+inline bool AtomicsHolderTraversal::next(HeldAtomic * & ha_ptr)
 {
 	bool res = false;
 	if(_index >= _ah.number()) {
