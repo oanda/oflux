@@ -317,6 +317,17 @@ let emit_program_xml programname br =
 		let nd = SymbolTable.lookup_node_symbol stable y
 		in  unionmap_find (nd.SymbolTable.functionname,io) in
 	let rec gen_succ' n_out_u_n ccond fl = 
+		(***********************************
+		 * returns a ((case list) list)
+		 * intention is  that each (case list) becomes a successor
+		 * each successor is evaluated separately
+		 * the first case to have all true conditions is used
+		 * ccond is a (string * bool) list list where 
+		 *     - each item (string * bool) is a condition_function & its "is negated" property
+		 *     - a (string * bool) list is a conjunction of these on the same argument
+		 *     - the full list is ordered and conjunctive so that the ith (string * bool) list
+		 *       applies to the ith argument
+		 ***********************************)
 		let sfun n _ _ _ = 
 			let u_n = find_union_number (n,true) in
                         let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
@@ -326,23 +337,43 @@ let emit_program_xml programname br =
 			in  if ist || (is_condition_always_false ccond) then
                                 []
                             else [[case n (gen_cond u_n n_out_u_n 1 ccond)]] in
+			(***************************
+			 * return a successor list with one successor in it on the given condition
+		         * going to the given target
+			 ***************************)
 		let chefun choice_name solfl =
+			(***************************
+			 * solfl is a (string option list * flow ref ref) list
+			 * each (string option list) denotes the parsed "[whatever1,whatever2,...]" line from the source
+			 * the accompanying flow is the direction that takes
+                         * Since choice has several of these, there is a list of them to process (order is important!)
+			 ***************************)
                         let condunit = List.map (fun x -> []) 
                                 (let sol,_ = List.hd solfl in sol) in
+				(***************
+				 * condunit is the nominal "true" (acts as "and" unit)
+				 ***************)
                         let onfold (condneg,sofar) (sol,flr) =
                                 let ccond' = canon_case sol in
+				(***************
+				 * ccond' : is the simple condition for this line
+				 ***************)
                                 let negccond' = 
                                         match negate_canon_condition ccond' with
                                                 [] -> condunit
                                                 | [x] -> x
                                                 | _ ->
                                                         raise (XMLConversion ("not - implemented - talk to Mark "^choice_name,ParserTypes.noposition)) in
+				(***************
+				 * negccond' : try to obtain a condition for the negation of previous lines
+				 ***************)
                                 let ccondlocal =
                                         List.fold_left and_canon_condition 
                                                 condunit
-                                                [ ccond
-                                                ; ccond'
-                                                ; condneg ] in
+                                                [ ccond (* upper level condition *)
+                                                ; ccond' (* local condition *)
+                                                ; condneg (* accumulated negative condition, upto this case *)
+						] in
                                 let condneg = and_canon_condition condneg negccond'
                                 in  condneg, ((gen_succ' n_out_u_n ccondlocal flr)::sofar) in
 			let _,part_res = List.fold_left onfold (condunit,[]) solfl in
@@ -350,6 +381,9 @@ let emit_program_xml programname br =
                         in  tmp in
                 let coefun _ fll = 
                         let tmp = List.concat (List.map (gen_succ' n_out_u_n ccond) fll) 
+			(****************************
+			 * so basically concatenate the successor lists
+			 ****************************)
                         in  tmp in
 		let nfun _ = []
 		in  Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
