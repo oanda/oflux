@@ -266,11 +266,11 @@ let emit_program_xml programname br =
 		if Flow.is_null_node ehfl then None
 		else let n = get_name ehfl
                      in Some(errorhandler n, n) in
+	let gdecll = TypeCheck.get_decl_list_from_union conseq_res stable in
         let convert_argn t_u_n u_n j =
                 if t_u_n = u_n then j
                 else 
                 try 
-                        let gdecll = TypeCheck.get_decl_list_from_union conseq_res stable in
                         let t_is = gdecll t_u_n in
                         let is = gdecll u_n in
                         let rec pick j ll = 
@@ -329,14 +329,32 @@ let emit_program_xml programname br =
 		 *       applies to the ith argument
 		 ***********************************)
 		let sfun n _ _ _ = 
-			let u_n = find_union_number (n,true) in
+			let pp_ccond ll =
+				let str_c (s,isn) = (if isn then "!" else "")^s in
+				let pp_cs ll = 
+					begin
+					List.iter (fun x -> print_string ((str_c x)^", ")) ll ; 
+					print_string "; "
+					end
+				in  List.iter pp_cs ll in
+			let u_n = 
+				if (List.length ccond) = (List.length (gdecll n_out_u_n)) 
+				then n_out_u_n 
+				else find_union_number (n,true) in
                         let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
                         let _ = if (not ist) && (is_abstract n) then 
                                         raise (XMLConversion ("the node "^n^" is abstract, but it is not defined", ParserTypes.noposition))
                                 else ()
 			in  if ist || (is_condition_always_false ccond) then
                                 []
-                            else [[case n (gen_cond u_n n_out_u_n 1 ccond)]] in
+                            else  let _ = (print_string "sfun - gencond on "
+					; pp_ccond ccond
+					; print_string "\n"
+					; print_string ("n="^n^" u_n="^(string_of_int u_n)
+						^" n_out_u_n="^(string_of_int n_out_u_n)
+						^"\n"))
+				in
+				[[case n (gen_cond u_n n_out_u_n 1 ccond)]] in
 			(***************************
 			 * return a successor list with one successor in it on the given condition
 		         * going to the given target
