@@ -193,10 +193,11 @@ extern "C" int usleep(useconds_t useconds)
 	//wtr_raii.state_wtr();
         SHIM_WAIT("usleep");
         if(mgr_awake == 0) {
+                local_eminfo->thread()->wait_state(oflux::RTTWS_wtrshim);
                 local_eminfo->wait_to_run();
-                local_eminfo->thread()->wait_state(oflux::RTTWS_running);
         }
         SHIM_RETURN("usleep");
+        local_eminfo->thread()->wait_state(oflux::RTTWS_running);
 	return ret;
 }
 
@@ -541,7 +542,10 @@ extern "C" int epoll_wait(int epfd, struct epoll_event * events,
 
 #ifndef LINUX
 extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout) {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+
+    oflux::RunTimeAbstract *local_eminfo = eminfo;
+
+    if (!local_eminfo || local_eminfo->thread()->is_detached()) {
         if (!shim_port_get) {
             shim_port_get = (port_getFnType) dlsym (RTLD_NEXT, "port_get");
         }
@@ -555,20 +559,34 @@ extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout)
     }
 
     int ret;
-    int mgr_awake = eminfo->wake_another_thread();
+    int mgr_awake = local_eminfo->wake_another_thread();
 
-    oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
+    //oflux::WaitingToRunRAII wtr_raii(local_eminfo->thread()); FIXME
+    local_eminfo->thread()->wait_state(oflux::RTTWS_blockingcall);
+
     SHIM_CALL("port_get");
     {
-        oflux::UnlockRunTime urt(eminfo);
+        oflux_mutex_unlock(&(local_eminfo->_manager_lock));
+        bool dt = local_eminfo->thread()->is_detached();
+        local_eminfo->thread()->set_detached(true);
+        //oflux::UnlockRunTime urt(local_eminfo);
         ret = ((shim_port_get)(port, pe, timeout));
+
+        // port_get isn't a cancellation point, when a hard_kill() is
+        // called the pthread_cancel will cause port_get to return
+        // with -1 and errno = EINTR, so call testcancel here so we
+        // can exit if we were cancelled.
+        oflux_testcancel();
+        local_eminfo->thread()->set_detached(dt);
+        oflux_mutex_lock(&(local_eminfo->_manager_lock));
     }
     SHIM_WAIT("port_get");
     if (mgr_awake == 0) {
-	wtr_raii.state_wtr();
-        eminfo->wait_to_run();
+        local_eminfo->thread()->wait_state(oflux::RTTWS_wtrshim);
+        local_eminfo->wait_to_run();
     }
     SHIM_RETURN("port_get");
+    local_eminfo->thread()->wait_state(oflux::RTTWS_running);
     return ret;
 }
 
