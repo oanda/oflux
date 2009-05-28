@@ -69,4 +69,9 @@ void EventBase::log_snapshot()
 	// could print the names of the atomics held...
 }
 
+EventBase::~EventBase()
+{
+	PUBLIC_EVENT_DEATH(this,flow_node()->getName());
+}
+
 };

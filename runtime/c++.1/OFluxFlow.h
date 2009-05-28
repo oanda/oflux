@@ -417,8 +417,7 @@ public:
                 _flow_node->_instances++; 
                 _flow_node->_executions++; 
         }
-        ~NodeCounterIncrementer()
-        { _flow_node->_instances--; }
+        virtual ~NodeCounterIncrementer();
         inline Node * flow_node() { return _flow_node; }
 protected:
         Node * _flow_node;

@@ -59,10 +59,7 @@ public:
 			}
                         PUBLIC_EVENT_BORN(this,flow_node->getName());
 		}
-	virtual ~EventBase()
-                {
-                        PUBLIC_EVENT_DEATH(this,flow_node()->getName());
-                }
+	virtual ~EventBase();
 	virtual OutputWalker output_type() = 0;
 	virtual const void * input_type() = 0;
 	void release() { _predecessor = no_event; }

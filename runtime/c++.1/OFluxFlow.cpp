@@ -480,5 +480,10 @@ Flow::drainGuardsOfEvents()
         }
 }
 
+NodeCounterIncrementer::~NodeCounterIncrementer()
+{
+    _flow_node->_instances--;
+}
+
 } // namespace flow
 } // namespace oflux
