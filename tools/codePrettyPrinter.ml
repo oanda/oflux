@@ -1,5 +1,7 @@
 (* pretty printing C++ish code *)
 
+exception CodeOutput of string
+
 type code = string list * int (* list of lines, indent level *)
 
 let empty_code = ([],0)
@@ -22,4 +24,18 @@ let add_cr (cdl,ind) = (("")::cdl,ind)
 let to_string (cdl,_) =
 	let t_s r s = (s^"\n"^r)
 	in  List.fold_left t_s "" cdl
+
+let output filename (cdl,_) =
+	let chan = open_out filename in
+	let _ =
+		begin
+		List.iter (fun x -> output_string chan (x^"\n")) (List.rev cdl);
+		close_out chan;
+		end in
+	let st = Unix.stat filename
+	in  if st.Unix.st_size = 0 
+	    then raise (CodeOutput 
+		("output file: "^filename^" wrote 0 bytes\n"))
+	    else ()
+
 

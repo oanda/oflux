@@ -196,19 +196,13 @@ let write_result fn of_result =
         let result =
 	    begin
 	    (let h_timer = Debug.timer "write .h" in
-             let h_outchan = open_out of_result.h_filename in
-	     let h_lines =CodePrettyPrinter.to_string of_result.h_code 
-		(*in
-	     let _ = Debug.dprint_string ("wrote h:\n"^h_lines) *)
-	     in  output_string h_outchan h_lines; 
-                 close_out h_outchan;
-                 h_timer ()); 
+	     let _ = CodePrettyPrinter.output 
+			of_result.h_filename of_result.h_code 
+ 	     in  h_timer ());
             (let cpp_timer = Debug.timer "write .cpp" in 
-             let cpp_outchan = open_out of_result.cpp_filename in
-	     let cpp_lines = CodePrettyPrinter.to_string of_result.cpp_code
-	     in output_string cpp_outchan cpp_lines; 
-                close_out cpp_outchan;
-                cpp_timer ()); 
+	     let _ = CodePrettyPrinter.output
+			of_result.cpp_filename of_result.cpp_code
+	     in  cpp_timer());
             (let dot_timer = Debug.timer "write .dot" in
              let dot_outchan = open_out dot_file 
 		 in output_string dot_outchan (Dot.to_string of_result.dot_output); 

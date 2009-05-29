@@ -2,6 +2,8 @@
 (** Code pretty printing in a C++ style (auto-indents based on incoming strings)
 *)
 
+exception CodeOutput of string
+
 type code (** opaque type *)
 
 val empty_code : code (** you begin with an empty code value *)
@@ -16,4 +18,6 @@ val add_cr : code -> code
 val to_string : code -> string
 (** convert the code value to a big string *)
 
-
+val output : string -> (* filename *)
+	code -> unit
+(** write the code to the given filename *)

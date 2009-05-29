@@ -30,6 +30,8 @@ let main () =
 			^" "^(pos_to_string p)^"\n"); Some 4)
 		    | (GenerateCPP1.CppGenFailure s) ->
 			(print_string (" Error : C++ code gen - "^s); Some 5)
+		    | (CodePrettyPrinter.CodeOutput s) ->
+			(print_string (" Error : C++ code file I/O - "^s); Some 9)
 		    | (SymbolTable.DeclarationLookup s) ->
 			(print_string (" Error : Symbol table lookup - "^s); Some 5)
 		    | (TypeCheck.Failure (s,p)) ->
