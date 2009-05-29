@@ -347,13 +347,13 @@ let emit_program_xml programname br =
                                 else ()
 			in  if ist || (is_condition_always_false ccond) then
                                 []
-                            else  let _ = (print_string "sfun - gencond on "
+                            else  (*let _ = (print_string "sfun - gencond on "
 					; pp_ccond ccond
 					; print_string "\n"
 					; print_string ("n="^n^" u_n="^(string_of_int u_n)
 						^" n_out_u_n="^(string_of_int n_out_u_n)
 						^"\n"))
-				in
+				in*)
 				[[case n (gen_cond u_n n_out_u_n 1 ccond)]] in
 			(***************************
 			 * return a successor list with one successor in it on the given condition
