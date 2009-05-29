@@ -320,7 +320,7 @@ let generate_program pname p =
                                 Star -> "*,"
                                 | (Ident sp) -> ((strip sp)^",") in
                 let on_cil cil = List.fold_left concat "" 
-                                (List.map on_comma_item cil) in
+                                (List.map on_comma_item (List.rev cil)) in
                 let cb = on_cil ex.condbinding in
                 let n = strip ex.exprname in
                 let c = match ex.etype with
