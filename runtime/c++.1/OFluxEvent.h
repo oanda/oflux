@@ -197,13 +197,15 @@ public:
                         const IOConversionBase<IM> * im_io_convert,
                         flow::Node * flow_node)
 		: EventBase3<IM,OM,AM>(predecessor,im_io_convert,flow_node)
+		, _error_im(* EventBase3<IM,OM,AM>::pr_input_type())
 		{}
 	virtual int execute()
 		{ 
 		  EventBase2<typename IM::base_type, typename OM::base_type,AM>::atomics_argument()->fill(&(this->atomics()));
 		  _NODE_START(EventBase::flow_node()->getName(), EventBase::flow_node()->getIsSource(), EventBase::flow_node()->getIsDetached());
 		  int res = (*node_func)(
-			EventBase3<IM,OM,AM>::pr_input_type(),
+			//EventBase3<IM,OM,AM>::pr_input_type(),
+			&_error_im,
 			convert<OM>(EventBase2<typename IM::base_type, typename OM::base_type,AM>::pr_output_type()), 
 			EventBase2<typename IM::base_type,typename OM::base_type,AM>::atomics_argument(),
 			EventBase::error_code()); 
@@ -211,6 +213,8 @@ public:
 		  _NODE_DONE(EventBase::flow_node()->getName());
 		  return res;
 		}
+private:
+	IM _error_im;
 };
 
 /**
