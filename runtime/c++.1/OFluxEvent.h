@@ -46,7 +46,8 @@ class EventBase : public flow::NodeCounterIncrementer {
 public:
 	static boost::shared_ptr<EventBase> no_event;
 
-	EventBase(boost::shared_ptr<EventBase> predecessor,flow::Node *flow_node)
+	EventBase(        boost::shared_ptr<EventBase> & predecessor
+			, flow::Node *flow_node)
 		: flow::NodeCounterIncrementer(flow_node)
 		, _predecessor(predecessor)
 		, _error_code(0)
@@ -99,7 +100,8 @@ protected:
 template<typename IT, typename OT, typename AM>
 class EventBase2 : public EventBase {
 public:
-	EventBase2(boost::shared_ptr<EventBase> predecessor, flow::Node * flow_node)
+	EventBase2(       boost::shared_ptr<EventBase> & predecessor
+			, flow::Node * flow_node)
 		: EventBase(predecessor,flow_node)
 		{
 		}
@@ -127,9 +129,9 @@ protected:
 template<typename IM,typename OM, typename AM>
 class EventBase3 : public EventBase2<typename IM::base_type,typename OM::base_type,AM> {
 public:
-	EventBase3(boost::shared_ptr<EventBase> predecessor,
-			const IOConversionBase<IM> *im_io_convert,
-			flow::Node * flow_node)
+	EventBase3(       boost::shared_ptr<EventBase> & predecessor
+			, const IOConversionBase<IM> *im_io_convert
+			, flow::Node * flow_node)
 		: EventBase2<typename IM::base_type,typename OM::base_type,AM>(predecessor,flow_node)
 		, _im_io_convert(im_io_convert)
 		{
@@ -169,9 +171,9 @@ private:
 template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM *)>
 class Event : public EventBase3<IM,OM,AM> {
 public:
-	Event(boost::shared_ptr<EventBase> predecessor,
-                        const IOConversionBase<IM> * im_io_convert,
-                        flow::Node * flow_node)
+	Event(            boost::shared_ptr<EventBase> & predecessor
+                        , const IOConversionBase<IM> * im_io_convert
+                        , flow::Node * flow_node)
 		: EventBase3<IM,OM,AM>(predecessor,im_io_convert,flow_node)
 		{}
 	virtual int execute()
@@ -198,9 +200,9 @@ public:
 template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
 class ErrorEvent : public EventBase3<IM,OM,AM> {
 public:
-	ErrorEvent(boost::shared_ptr<EventBase> predecessor,
-                        const IOConversionBase<IM> * im_io_convert,
-                        flow::Node * flow_node)
+	ErrorEvent(       boost::shared_ptr<EventBase> & predecessor
+                        , const IOConversionBase<IM> * im_io_convert
+                        , flow::Node * flow_node)
 		: EventBase3<IM,OM,AM>(predecessor,im_io_convert,flow_node)
 		, _error_im(* EventBase3<IM,OM,AM>::pr_input_type())
 		{}
