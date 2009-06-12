@@ -81,6 +81,8 @@ typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
 typedef int (*port_getnFnType) (int port, port_event_t [],  uint_t, uint_t *, const timespec_t *);
 #endif
 
+typedef ssize_t (*recvfromFnType)(int,void *,size_t,int,struct sockaddr *,socklen_t *);
+
 } // extern "C"
 
 static readFnType shim_read = NULL;
@@ -101,6 +103,7 @@ static epoll_waitFnType shim_epoll_wait = NULL;
 static port_getFnType shim_port_get = NULL;
 static port_getnFnType shim_port_getn = NULL;
 #endif
+static recvfromFnType shim_recvfrom = NULL;
 
 static int page_size;
 
@@ -128,6 +131,7 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 	shim_port_get = (port_getFnType) dlsym(RTLD_NEXT, "port_get");
         shim_port_getn = (port_getnFnType) dlsym(RTLD_NEXT, "port_getn");
 #endif
+	shim_recvfrom = (recvfromFnType) dlsym(RTLD_NEXT,"recvfrom");
 }
 
 extern "C" void deinitShim()
@@ -407,6 +411,42 @@ extern "C" int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfd
 	}
 	SHIM_RETURN("select");
 	return ret;
+}
+
+extern "C" ssize_t recvfrom(int s, void * buf, size_t len, int flags, struct sockaddr *socketaddress, socklen_t * address_len) {
+    ssize_t ret;
+
+    if (!eminfo || eminfo->thread()->is_detached()) {
+        if (!shim_recvfrom)  {
+            shim_recvfrom = (recvfromFnType) dlsym (RTLD_NEXT, "recvfrom");
+        }
+        return ((shim_recvfrom)(s, buf, len, flags,socketaddress,address_len));
+    }
+
+    struct pollfd pfd;
+    pfd.fd = s;
+    pfd.events = POLLIN;
+    poll(&pfd, 1, 0);
+
+    if (pfd.revents & POLLIN || flags & MSG_DONTWAIT) { // if it won't block
+        return ((shim_recvfrom)(s, buf, len, flags,socketaddress,address_len));
+    }
+
+    int mgr_awake = eminfo->wake_another_thread();
+    oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
+    SHIM_CALL("recvfrom");
+    {
+        oflux::UnlockRunTime urt(eminfo);
+        ret = ((shim_recvfrom)(s, buf, len, flags,socketaddress,address_len));
+    }
+    SHIM_WAIT("recvfrom");
+    if (mgr_awake == 0) {
+        wtr_raii.state_wtr();
+        eminfo->wait_to_run();
+    }
+    SHIM_RETURN("recvfrom");
+
+    return ret;
 }
 
 extern "C" ssize_t recv(int s, void * buf, size_t len, int flags) {
