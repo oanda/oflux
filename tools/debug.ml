@@ -15,11 +15,11 @@ let timer thing_timed_str =
                 else " "^(findent (n-1))
         in
         if !timing_on then
-                let starttime = ref (Unix.time ()) in
+                let starttime = ref (Sys.time ()) in
                 let indent = findent (!timer_indent) in
                 let _ = timer_indent := (!timer_indent) + 1
                 in  fun () ->
-                        let endtime = Unix.time () in
+                        let endtime = Sys.time () in
                         let _ = timer_indent := (!timer_indent) - 1
                         in  print_string (" "^indent
                                 ^(string_of_float (endtime))

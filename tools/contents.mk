@@ -58,7 +58,8 @@ OBJS += $(CODE)
 COMPILED_CODE = $(addprefix $(CURDIR)/,$(addsuffix .$(OBJECTEXT),$(basename $(CODE))))
 
 oflux: vers.ml $(OBJS) oflux.$(LIBRARYEXT) 
-	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) oflux.$(LIBRARYEXT) main.$(OBJECTEXT) -o oflux 
+	$(OCAMLCOMPILER) $(INCLUDEOPTS) oflux.$(LIBRARYEXT) main.$(OBJECTEXT) -o oflux 
+#	$(OCAMLCOMPILER) $(INCLUDEOPTS) unix.$(LIBRARYEXT) oflux.$(LIBRARYEXT) main.$(OBJECTEXT) -o oflux 
 
 
 oflux.$(LIBRARYEXT): $(CODE)

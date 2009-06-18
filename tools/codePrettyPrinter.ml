@@ -31,11 +31,12 @@ let output filename (cdl,_) =
 		begin
 		List.iter (fun x -> output_string chan (x^"\n")) (List.rev cdl);
 		close_out chan;
-		end in
-	let st = Unix.stat filename
+		end 
+	in ()
+	(*let st = Unix.stat filename
 	in  if st.Unix.st_size = 0 
 	    then raise (CodeOutput 
 		("output file: "^filename^" wrote 0 bytes\n"))
-	    else ()
+	    else ()*)
 
 
