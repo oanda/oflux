@@ -107,6 +107,36 @@ static recvfromFnType shim_recvfrom = NULL;
 
 static int page_size;
 
+#define STRINGIFY(x) XSTRINGIFY(x)
+#define XSTRINGIFY(x) #x
+
+/**
+ * Need to make sure we get the correct implementation of select.
+ * This affects Solaris.  These #if checks are based on the
+ * code in sys/select.h on solaris machines.
+ *
+ * NOTE: This works if the oflux code gets compiled with the
+ *       same FD_SETSIZE as the app code.  If for some reason
+ *       the app code gets compiled with an FD_SETSIZE > 1024,
+ *       and this file does not, then the app code will still
+ *       use select_large_fdset, but the shim won't be providing
+ *       an intercept for it...
+ */
+static selectFnType get_select_fn()
+{
+#if FD_SETSIZE > 1024 && !defined(_LP64) && defined(__PRAGMA_REDEFINE_EXTNAME)
+    return (selectFnType) dlsym(RTLD_NEXT, "select_large_fdset");
+#endif
+
+#ifdef select
+    if (strcmp(STRINGIFY(select), "select_large_fdset") == 0) {
+        return (selectFnType) dlsym(RTLD_NEXT, "select_large_fdset");
+    }
+#endif
+
+    return (selectFnType) dlsym(RTLD_NEXT, "select");
+}
+
 extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 {
 	eminfo = eventmgrinfo;
@@ -121,7 +151,7 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 	shim_usleep = (usleepFnType) dlsym(RTLD_NEXT, "usleep");
 	shim_nanosleep = (nanosleepFnType) dlsym(RTLD_NEXT, "nanosleep");
 	shim_accept = (acceptFnType) dlsym(RTLD_NEXT, "accept");
-	shim_select = (selectFnType) dlsym(RTLD_NEXT, "select");
+	shim_select = get_select_fn();
 	shim_recv = (recvFnType) dlsym(RTLD_NEXT, "recv");
 	shim_send = (sendFnType) dlsym(RTLD_NEXT, "send");
 	shim_gethostbyname_r = (gethostbyname_rFnType) dlsym(RTLD_NEXT, "gethostbyname_r");
@@ -390,7 +420,7 @@ extern "C" ssize_t write(int fd, const void *buf, size_t count) {
 extern "C" int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
 	if (!eminfo || eminfo->thread()->is_detached()) {
 		if (!shim_select) {
-			shim_select = (selectFnType) dlsym (RTLD_NEXT, "select");
+			shim_select = get_select_fn();
 		}
 		return ((shim_select)(n, readfds, writefds, exceptfds, timeout));
 	}
