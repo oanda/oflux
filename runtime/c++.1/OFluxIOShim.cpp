@@ -32,6 +32,7 @@
 #define OFLUX_SHIM_RETURN(X)
 #endif
 #include <errno.h>
+#include <cstdarg>
 
 #define SHIM_CALL(X) OFLUX_SHIM_CALL(const_cast<char *>(X))
 #define SHIM_WAIT(X) OFLUX_SHIM_WAIT(const_cast<char *>(X))
