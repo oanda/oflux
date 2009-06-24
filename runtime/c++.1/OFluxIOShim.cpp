@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 #ifdef LINUX
 #include <sys/epoll.h>
 #else
@@ -64,7 +65,7 @@ extern "C" {
 
 typedef ssize_t (*readFnType) (int, void *, size_t);
 typedef ssize_t (*writeFnType) (int, const void*, size_t);
-typedef int (*openFnType) (const char*, int);
+typedef int (*openFnType) (const char*, int, ...);
 typedef int (*closeFnType) (int fd);
 typedef unsigned int (*sleepFnType) (unsigned int);
 typedef int (*usleepFnType) (useconds_t);
@@ -341,17 +342,38 @@ extern "C" ssize_t read(int fd, void *buf, size_t count)
 	return ret;
 }
 
-extern "C" int open(const char *pathname, int flags)
+extern "C" int open(const char *pathname, int flags, ...)
 {
-    if (!eminfo) {
+	mode_t mode = 0;
+
+	if (flags & O_CREAT) {
+		va_list varargs;
+		va_start (varargs, flags);
+		mode = va_arg (varargs, mode_t);
+		va_end (varargs);
+	}
+
+	if (!eminfo) {
 		if (!shim_open) {
-			shim_open = (int (*)(const char*, int))dlsym (RTLD_NEXT, "open");
+			shim_open = (openFnType)dlsym (RTLD_NEXT, "open");
 		}
-		return ((shim_open)(pathname, flags));
+
+		if (flags & O_CREAT) {
+			return ((shim_open)(pathname, flags, mode));
+		} else {
+			return ((shim_open)(pathname, flags));
+		}
 	}
 
 
-	int fd = ((*shim_open)(pathname, flags));
+	int fd;
+
+	if (flags & O_CREAT) {
+		fd = ((*shim_open)(pathname, flags, mode));
+	} else {
+		fd = ((*shim_open)(pathname, flags));
+	}
+
 	if(-1 == fd) {
 	    return fd;
 	}
