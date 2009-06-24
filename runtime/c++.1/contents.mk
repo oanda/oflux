@@ -81,7 +81,7 @@ endif
 
 FORCE:
 
-oflux_vers.cpp oflux_vers.h: $(VERSDEPEND)
+oflux_vers.cpp: $(VERSDEPEND)
 	(echo "/* auto-generated - do not modify */" \
 	; echo "" \
 	; echo " namespace oflux { const char * runtime_version = " \
@@ -90,9 +90,6 @@ oflux_vers.cpp oflux_vers.h: $(VERSDEPEND)
 	;cd $(CURDIR) \
 	; echo "; }" \
 	; echo "") > oflux_vers.cpp
-	( echo "/**" \
-	; echo " * @version "`git describe --tags | sed s/v// | sed s/-.*//g` \
-	; echo " */") > oflux_vers.h
 
 OFLUX_DOCUMENTATION += doc/runtime
 
