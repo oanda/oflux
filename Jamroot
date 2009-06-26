@@ -1,0 +1,24 @@
+project oflux
+    ;
+
+path-constant OFLUXDIR : . ;
+
+project runtime1
+    : source-location runtime/c++.1
+    ;
+
+project runtime2
+    : source-location runtime/c++.2
+    ;
+
+project ofluxcompiler
+    : source-location tools
+    ;
+
+use-project /runtime1 : runtime/c++.1 ;
+use-project /runtime2 : runtime/c++.2 ;
+use-project /ofluxcompiler : tools ;
+
+build-project /runtime1 ;
+build-project /runtime2 ;
+build-project /ofluxcompiler ;

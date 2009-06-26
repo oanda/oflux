@@ -1,0 +1,12 @@
+project ofluxcompiler
+    ;
+
+path-constant OFLUXTOP : ../tools/.. ;
+
+make oflux : : @runmakeoflux ;
+actions runmakeoflux
+{
+    make ofluxforbjam
+    cp $(OFLUXTOP)/ofluxforbjam $(<)
+}
+

@@ -1,0 +1,36 @@
+project runtime1
+    : usage-requirements <include>. <target-os>linux:<define>LINUX
+    ;
+
+make oflux_vers.cpp : : @genoflux_vers ;
+actions genoflux_vers
+{
+    (echo "/* auto-generated - do not modify */" \
+    ; echo "" \
+    ; echo " namespace oflux { const char * runtime_version = " \
+    ; echo "\""`git describe --tags`"\"" \
+    ; echo "; }" \
+    ; echo "") > $(<)
+}
+
+lib runtime1
+    :   OFlux.cpp
+        OFluxLogging.cpp
+        OFluxProfiling.cpp
+        OFluxQueue.cpp
+        OFluxOrderable.cpp
+        OFluxFlow.cpp
+        OFluxAtomic.cpp
+        OFluxAtomicInit.cpp
+        OFluxAtomicHolder.cpp
+        OFluxAcquireGuards.cpp
+        OFluxEvent.cpp
+        OFluxRunTimeAbstract.cpp
+        OFluxRunTimeBase.cpp
+        OFluxRunTime.cpp
+        OFluxMeldingRunTime.cpp
+        OFluxXML.cpp
+        OFluxLibrary.cpp
+        oflux_vers.cpp
+    :   <target-os>linux:<define>LINUX
+    ;

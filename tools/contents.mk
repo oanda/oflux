@@ -115,3 +115,9 @@ lexer.cmo: parserTypes.cmi parser.cmi
 lexer.cmx: parserTypes.cmx parser.cmx 
 topLevel.cmx: parser.cmx lexer.cmx
 topLevel.cmo: parser.cmi lexer.cmi
+
+OFLUXGITTOP=`find ../.. | grep ofluxgittop | xargs dirname`
+ofluxforbjam : oflux
+	echo "here: ${OFLUXGITTOP}"
+	cp oflux ${OFLUXGITTOP}/ofluxforbjam
+
