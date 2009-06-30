@@ -92,6 +92,14 @@ let base_type_typedef_for conseq_res sio =
         let nclss = "OFluxUnion"^(string_of_int i)
         in  "typedef "^nclss^" base_type;"
 
+let omit_emit_for pluginopt n =
+	match pluginopt with
+		None -> (has_dot n) || ((List.length(break_namespaced_name n)) != 1) 
+		| (Some pn) -> 
+			(not (string_has_prefix n (pn^".")))
+			||
+			(let nopre = remove_prefix (pn^".") n in has_dot nopre)
+
 let emit_structs conseq_res symbol_table code =
 	let avoids = conseq_res.TypeCheck.full_collapsed_names 
                 @ (List.map (fun (x,_) -> x) conseq_res.TypeCheck.aliases) in
@@ -748,10 +756,7 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
                 "bool have_"^n^"() const { return _"^n^" != NULL; }  " in
 	let accessors ntl = List.map accessor ntl in
 	let possessors ntl = List.map possessor ntl in
-        let omit_emit n =
-                match pluginopt with
-                        None -> has_dot n
-                        | (Some pn) -> not (string_has_prefix n (pn^".")) in
+        let omit_emit n = omit_emit_for pluginopt n in
 	let e_one n nd code =
 	    if omit_emit n then code
 	    else
@@ -811,14 +816,7 @@ let emit_atom_fill pluginopt symtable aliases code =
                 ::("_"^(trim_dot n)^" = ("^atomic_n^" ? reinterpret_cast<"^t
                 ^" *> ("^atomic_n^"->data()) : NULL);")
                 ::cl), i+1 in
-        let omit_emit n =
-                match pluginopt with
-                        None -> has_dot n
-                        | (Some pn) -> 
-                                (not (string_has_prefix n (pn^".")))
-                                ||
-                                (let nopre = remove_prefix (pn^".") n in has_dot nopre)
-                in
+        let omit_emit n = omit_emit_for pluginopt n in
 	let e_one n nd code =
 		try if omit_emit n then code 
 		    else let _ = List.assoc nd.functionname aliases
@@ -882,7 +880,7 @@ let emit_atom_map_map plugin_opt symtable code =
                                 ^"_map_ptr = &"^clean_n^"_map;" ])
 		in
 	let e_two n gd codelist =
-                let omit_emit =
+                let omit_emit = 
                         match plugin_opt with
                                 None -> false
                                 | (Some pn) -> not (string_has_prefix n (pn^".")) in
@@ -1081,11 +1079,11 @@ let emit_node_func_decl plugin_opt is_concrete errorhandlers symtable code =
 	in  SymbolTable.fold_nodes e_one symtable code
 
 let emit_cond_func_decl plugin_opt symtable code =
-        let omit_emit_for n =
-                match plugin_opt with
+        let omit_emit n = omit_emit_for plugin_opt n in
+                (*match plugin_opt with
                         None -> (has_dot n) || ((List.length(break_namespaced_name n)) != 1) 
                         | (Some pn) -> not (string_has_prefix n (pn^"."))
-                in
+                in *)
         let trim_dot =
                 match plugin_opt with
                         None -> (fun x -> x)
@@ -1094,7 +1092,7 @@ let emit_cond_func_decl plugin_opt symtable code =
 	let e_one n cond code =
 		match cond.SymbolTable.arguments with
 			[d] ->
-			    if omit_emit_for n then code
+			    if omit_emit n then code
 			    else
 				let tm = d.ctypemod in
 				let t = d.ctype in
