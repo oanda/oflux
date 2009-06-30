@@ -118,6 +118,5 @@ topLevel.cmo: parser.cmi lexer.cmi
 
 OFLUXGITTOP=`find ../.. | grep ofluxgittop | xargs dirname`
 ofluxforbjam : oflux
-	echo "here: ${OFLUXGITTOP}"
 	cp oflux ${OFLUXGITTOP}/ofluxforbjam
 

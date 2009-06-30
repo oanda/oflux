@@ -22,3 +22,10 @@ use-project /ofluxcompiler : tools ;
 build-project /runtime1 ;
 build-project /runtime2 ;
 build-project /ofluxcompiler ;
+
+alias runtime1 : /runtime1//runtime1 ;
+alias runtime2 : /runtime2//runtime2 ;
+alias ofluxcompiler : /ofluxcompiler//ofluxcompiler ;
+
+import flux ;
+

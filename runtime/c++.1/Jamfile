@@ -33,4 +33,5 @@ lib runtime1
         OFluxLibrary.cpp
         oflux_vers.cpp
     :   <target-os>linux:<define>LINUX
+        <dependency>/ofluxcompiler
     ;

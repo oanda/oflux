@@ -3,7 +3,7 @@ project ofluxcompiler
 
 path-constant OFLUXTOP : ../tools/.. ;
 
-make oflux : : @runmakeoflux ;
+make ofluxcompiler : : @runmakeoflux ;
 actions runmakeoflux
 {
     make ofluxforbjam

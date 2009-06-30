@@ -1,0 +1,56 @@
+import type ;
+type.register FLUX : flux ;
+
+import feature : feature ;
+feature oflux-include : : free ;
+
+import toolset : flags ;
+flags flux.makemodule OFLUXINCS <include> ;
+
+import generators ;
+generators.register-standard flux.makemodule : FLUX : CPP H ;
+actions makemodule
+{
+    outdir=
+    for file in $(<)
+    do
+        outdir=`dirname $file`
+    done
+    bindir=`echo $outdir | sed s/bin.*/bin/`
+
+    modulename=`basename $(>) .flux | sed s/OFluxGenerate_//`
+
+    fluxfile=
+    fluxcompiler=`find | grep ofluxcompiler`
+    incs=
+    index=0
+    for cur in $(>)
+    do
+        filebase=`basename $cur`
+        if [ "$filebase" = "$modulename.flux" ] ; then
+            fluxfile=$cur
+        fi
+
+        incdir=`dirname $cur`
+        incs="$incs -I $incdir"
+
+        index=`expr $index + 1`
+    done
+
+    for inc in $(OFLUXINCS)
+    do
+        incs="$incs -I $inc"
+    done
+
+    base=`basename $fluxfile .flux`
+    echo $(>)
+    #assumes ${>[0]} is the oflux compiler
+    echo "$fluxcompiler -a $modulename $incs $fluxfile"
+    $fluxcompiler -a $modulename $incs $fluxfile
+
+    mv OFluxGenerate_$modulename.cpp $outdir
+    mv OFluxGenerate_$modulename.h $outdir
+    mv $modulename.dot $outdir
+    linkdir=`echo $outdir | sed s/.*bin\\\\///`
+    ln -sf $linkdir $bindir/gen
+}
