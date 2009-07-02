@@ -32,6 +32,8 @@ lib runtime1
         OFluxXML.cpp
         OFluxLibrary.cpp
         oflux_vers.cpp
+        /site-config//dl
+        /site-config//expat
     :   <target-os>linux:<define>LINUX
         <dependency>/ofluxcompiler
     ;

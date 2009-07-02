@@ -1,9 +1,6 @@
 import type ;
 type.register FLUX : flux ;
 
-import feature : feature ;
-feature oflux-include : : free ;
-
 import toolset : flags ;
 flags flux.makemodule OFLUXINCS <include> ;
 
@@ -37,6 +34,21 @@ actions makemodule
         index=`expr $index + 1`
     done
 
+    ofluxflags=-absterm
+    generatedfilename=OFluxGenerate
+
+    grep -w plugin $fluxfile
+    if [ "$?" -eq "0" ]; then
+        ofluxflags="-p $modulename"
+        generatedfilename="OFluxGenerate_$modulename"
+    fi
+
+    grep -w module $fluxfile
+    if [ "$?" -eq "0" ]; then
+        ofluxflags="-a $modulename"
+        generatedfilename="OFluxGenerate_$modulename"
+    fi
+
     for inc in $(OFLUXINCS)
     do
         incs="$incs -I $inc"
@@ -45,12 +57,12 @@ actions makemodule
     base=`basename $fluxfile .flux`
     echo $(>)
     #assumes ${>[0]} is the oflux compiler
-    echo "$fluxcompiler -a $modulename $incs $fluxfile"
-    $fluxcompiler -a $modulename $incs $fluxfile
+    echo "$fluxcompiler $ofluxflags $incs $fluxfile"
+    $fluxcompiler $ofluxflags $incs $fluxfile
 
-    mv OFluxGenerate_$modulename.cpp $outdir
-    mv OFluxGenerate_$modulename.h $outdir
-    mv $modulename.dot $outdir
+    mv $generatedfilename.cpp $outdir
+    mv $generatedfilename.h $outdir
+    mv $modulename*.dot $outdir
     linkdir=`echo $outdir | sed s/.*bin\\\\///`
     ln -sf $linkdir $bindir/gen
 }
