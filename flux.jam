@@ -63,6 +63,9 @@ actions makemodule
     mv $generatedfilename.cpp $outdir
     mv $generatedfilename.h $outdir
     mv $modulename*.dot $outdir
+    if [ -f $modulename.xml ]; then
+        mv $modulename.xml $outdir
+    fi
     linkdir=`echo $outdir | sed s/.*bin\\\\///`
     ln -sf $linkdir $bindir/gen
 }
