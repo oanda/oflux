@@ -16,7 +16,7 @@ public:
         
         /** @brief load the library 
          */
-        bool load( int mode = RTLD_NOW ); 
+        bool load( int mode = RTLD_NOW | RTLD_GLOBAL );
 
         /** @brief grab a typed symbol from the library
          */
