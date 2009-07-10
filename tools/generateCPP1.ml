@@ -534,7 +534,7 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                         in  match pluginopt,break_namespaced_name xtmp with
                                 (None,mn::_::_) -> xtmp,Some mn
                                 | (Some pn,mn::_::_) -> 
-                                        if pn = mn then (nspace^xtmp),None
+                                        if pn = mn then (nspace^xtmp),Some pn
                                         else xtmp,Some mn
                                 | _ -> (nspace^xtmp),None in
                 let t_name',t_nspace = as_name t_name in
