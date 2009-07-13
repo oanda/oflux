@@ -18,6 +18,7 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <set>
 #include <string>
 #include "boost/shared_ptr.hpp"
 
@@ -258,7 +259,7 @@ public:
         inline IOConverter * ioConverter() { return _io_converter; }
         inline void setTargetNode(Node * fn) { _targetnode = fn; }
         inline void setIOConverter(IOConverter * fioc) { _io_converter = fioc; }
-        void pretty_print(int depth);
+        void pretty_print(int depth, std::set<std::string> * visited);
         inline bool isDefault() { return _conditions.size() == 0; }
 private:
         Node *                   _targetnode;
@@ -291,7 +292,7 @@ public:
                 }
                 return res;
         }
-        void pretty_print(int depth);
+        void pretty_print(int depth, std::set<std::string> * visited);
 private:
         std::string        _name;
         std::deque<Case *> _cases;
@@ -324,7 +325,7 @@ public:
                         itr++;
                 }
         }
-        void pretty_print(int depth);
+        void pretty_print(int depth, std::set<std::string> * visited);
 private:
         std::map<std::string, Successor *> _successorlist;
 };
@@ -376,7 +377,7 @@ public:
                 _guard_refs.push_back(fgr); 
         }
         void log_snapshot();
-        void pretty_print(int depth, char context);
+        void pretty_print(int depth, char context, std::set<std::string> * visited);
 #ifdef PROFILING
         inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
         inline TimerStats * oflux_timer_stats() { return &_oflux_timer_stats; }

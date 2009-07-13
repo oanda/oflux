@@ -208,10 +208,10 @@ Case::add(Condition *fc)
 }
 
 void 
-Case::pretty_print(int depth)
+Case::pretty_print(int depth, std::set<std::string> * visited)
 {
         _targetnode->pretty_print(depth,
-                (_conditions.size() == 0 ? 'D' : 'C'));
+                (_conditions.size() == 0 ? 'D' : 'C'), visited);
 }
 
 Successor::Successor(const char * name)
@@ -235,12 +235,12 @@ Successor::add(Case * fc, bool front)
 }
 
 void 
-Successor::pretty_print(int depth)
+Successor::pretty_print(int depth, std::set<std::string> * visited)
 {
         // do not print successor for now
         std::deque<Case *>::iterator itr = _cases.begin();
         while(itr != _cases.end()) {
-                (*itr)->pretty_print(depth+1);
+                (*itr)->pretty_print(depth+1,visited);
                 itr++;
         }
         oflux_log_info("%s..%s\n", create_indention(depth+1).c_str(),_name.c_str());
@@ -263,11 +263,11 @@ SuccessorList::add(Successor * fs)
 }
 
 void 
-SuccessorList::pretty_print(int depth)
+SuccessorList::pretty_print(int depth, std::set<std::string> * visited)
 {
         std::map<std::string, Successor *>::iterator itr = _successorlist.begin();
         while(itr != _successorlist.end()) { 
-                itr->second->pretty_print(depth+1);
+                itr->second->pretty_print(depth+1,visited);
                 ++itr;
         }
         oflux_log_info("%s.\n", create_indention(depth+1).c_str());
@@ -360,13 +360,16 @@ Node::log_snapshot()
 }
 
 void 
-Node::pretty_print(int depth, char context)
+Node::pretty_print(int depth, char context, std::set<std::string> * visited)
 {
         oflux_log_info("%s%c %s\n", create_indention(depth).c_str(),context, _name.c_str());
-        // if a source node is some node's successor(depth>0 && is_source), do not re-print its sucessor list
-        if((depth == 0 ) || (!_is_source)) {
-                _successor_list.pretty_print(depth+1);
-        } 
+        if (visited->find(_name)==visited->end()) {
+                visited->insert(_name);
+                // if a source node is some node's successor(depth>0 && is_source), do not re-print its sucessor list
+                if((depth == 0 ) || (!_is_source)) {
+                        _successor_list.pretty_print(depth+1,visited);
+                }
+        }
 }
 
 Flow::~Flow() 
@@ -406,7 +409,8 @@ void
 Flow::pretty_print()
 {
         for(int i=0; i < (int) _sources.size(); i++) {
-                _sources[i]->pretty_print(0,'S');
+                std::set<std::string> visited;
+                _sources[i]->pretty_print(0,'S',&visited);
         }
         /*
         std::map<std::string, FlowNode *>::iterator mitr = _nodes.begin();
