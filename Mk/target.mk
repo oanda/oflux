@@ -1,4 +1,4 @@
-$(warning Reading target.mk)
+$(info Reading target.mk)
 
 # This is a sample target.mk file, used to jump from a source directory to a
 # target directory.  This version allows for both an optional _common and an

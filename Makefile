@@ -1,4 +1,4 @@
-$(warning Make v:$(MAKE_VERSION) Starting oflux main makefile, goal:$(MAKECMDGOALS))
+$(info Make v:$(MAKE_VERSION) Starting oflux main makefile, goal:$(MAKECMDGOALS))
 
 ifeq (,$(filter _%,$(notdir $(CURDIR))))
 include Mk/target.mk
@@ -22,7 +22,7 @@ all: build
 print-%: ; @echo $* is $($*)
 
 OLD_SHELL := $(SHELL)
-	SHELL = $(warning [$@ ($^)($?)])$(OLD_SHELL)
+	SHELL = $(info [$@ ($^)($?)])$(OLD_SHELL)
 
 #end debug helpers
 

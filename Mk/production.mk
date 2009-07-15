@@ -1,4 +1,4 @@
-$(warning Reading production.mk)
+$(info Reading production.mk)
 
 # Setting for production builds
 # This decision is meant to be _only_ local to oflux

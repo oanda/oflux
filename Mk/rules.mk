@@ -1,6 +1,8 @@
 $(warn Reading rules.mk)
 
 CC := gcc 
+
+ARFLAGS := crv
 #
 # Be paranoid about building archives and delete any prior versions
 # before building new versions.  Not doing this can lead to archives
@@ -8,7 +10,7 @@ CC := gcc
 #
 %.a:
 	$(RM) $@
-	$(AR) -q $@ $^
+	$(AR) $(ARFLAGS) $@ $^
 
 %.gch: $(HEADERS)  
 	$(CXX) $(CPPFLAGS) $^ -o $@

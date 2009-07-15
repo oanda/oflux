@@ -1,4 +1,4 @@
-$(warning reading tests/unit/ex-contents.mk)
+$(info reading tests/unit/ex-contents.mk)
 
 OFLUX_UNIT_TESTS += \
   OFluxOrderable_unittest.cpp \

@@ -1,4 +1,4 @@
-$(warning Reading contents.mk $(COMPONENT_DIR))
+$(info Reading contents.mk $(COMPONENT_DIR))
 
 TOOLS += oflux 
 

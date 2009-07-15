@@ -1,4 +1,4 @@
-$(warning Reading contents.mk)
+$(info Reading contents.mk)
 
 OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
 
@@ -37,9 +37,9 @@ liboflux.a: $(OBJS)
 ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj.o $^
 	$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj.o -o ofluxprobe_glommed.o
-	$(AR) r $@ glommedobj.o ofluxprobe_glommed.o
+	$(AR) $(ARFLAGS) $@ glommedobj.o ofluxprobe_glommed.o
 else
-	$(AR) r $@ $^ 
+	$(AR) $(ARFLAGS) $@ $^ 
 endif
 
 liboflux.so: $(OBJS:%.o=%.pic.o)
