@@ -183,7 +183,9 @@ let remove_reductions prog =
                         ; etype=Concurrent
                         }
                     in  newexpr::remainder
-                with Not_found -> raise (FlattenFailure("reduction statement here has no original expression or it is not unique or its not the right type of expression",pos))
+                with Not_found -> raise (FlattenFailure("reduction statement here has no original expression or it is not unique "
+			^"\n\tor its not the right type of expression"
+			^"\n\t (ensure the hook point node is not choice point and has only a single successor)",pos))
         in  { cond_decl_list=prog.cond_decl_list
             ; atom_decl_list=prog.atom_decl_list
             ; node_decl_list=prog.node_decl_list
@@ -281,7 +283,13 @@ let get_new_subst ip ipn old_subst guardaliases =
                 in  ipn^x,y
         in  (List.map onga guardaliases) @ old_subst
                 
-let prefix_sp pre (s,p1,p2) = (pre^s,p1,p2)
+let prefix_sp pre (s,p1,p2) = 
+	let slen = String.length s
+	in
+	(       (if slen > 0 && s.[0] = '&' then
+			("&"^pre^(String.sub s 1 (slen-1)))
+		else pre^s)
+	,p1,p2)
 
 let prefix pre s = pre^s
 
@@ -464,7 +472,7 @@ let flatten_module module_name pr =
 
 let flatten_plugin' plugin_name prog = 
         (** returns before program, after program *)
-        let prog = remove_reductions prog in
+        (*let prog = remove_reductions prog in*)
         let pre = plugin_name^"." in
         let pref = plugin_name^"::" in
         let for_ref is_en node_str_pos =
@@ -549,12 +557,19 @@ let flatten_plugin' plugin_name prog =
                 ; externalinst = minst.externalinst
                 } in
         let for_terminate = for_ref in
+	let remove_amper_name n =
+		let nlen = String.length n
+		in
+		if nlen > 0 && n.[0] = '&' then
+			String.sub n 1 (nlen-1)
+		else n
+		in
 	let for_program pr =
                 let ext_nodes = List.map (fun n -> strip_position n.nodename) (List.filter (fun n -> n.externalnode) pr.node_decl_list) in
                 let ext_atoms = List.map (fun a -> strip_position a.atomname) (List.filter (fun a -> a.externalatom) pr.atom_decl_list) in
                 let ext_conds = List.map (fun c -> strip_position c.condname) (List.filter (fun c -> c.externalcond) pr.cond_decl_list) in
                 let ext_insts = List.map (fun c -> strip_position c.modinstname) (List.filter (fun c -> c.externalinst) pr.mod_inst_list) in
-                let is_ext_node n = List.mem n ext_nodes in
+                let is_ext_node n = List.mem (remove_amper_name n) ext_nodes in
                 let is_ext_inst i = List.mem i ext_insts in
                 let is_ext_atom a = List.mem a ext_atoms in
                 let is_ext_cond c = List.mem c ext_conds
@@ -571,8 +586,8 @@ let flatten_plugin' plugin_name prog =
                 ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
                 ; order_decl_list = List.map (for_order_decl is_ext_atom) pr.order_decl_list
 		} in
-        let local_prog = remove_reductions prog in
-        let local_prog = for_program local_prog
+        (*let local_prog = remove_reductions prog in*)
+        let local_prog = for_program prog
         in  local_prog
 
 
