@@ -530,11 +530,11 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                         equiv_classes in*)
                         (*(List.mem (x,y) uses_model) 
                         || (List.mem (y,x) uses_model) in*)
-        let omitname = 
+        let omitname, thisname = 
                 match modulenameopt,pluginopt with 
-                        (Some m,_) -> m
-                        | (_,Some p) -> p
-                        | _ -> "" in
+                        (Some m,_) -> m,m
+                        | (_,Some p) -> p,""
+                        | _ -> "","" in
         let bidi_uses = determine_redundant_for_copyto omitname uses_model in
         let is_ignorable x = List.mem (TypeCheck.get_union_from_strio conseq_res x) ignoreis in
         let define_canon_module_pair nsn1 nsn2 =
@@ -611,15 +611,15 @@ let emit_copy_to_functions pluginopt modulenameopt ignoreis conseq_res symtable 
                                         ; "#endif"
                                         ; "" ])
                 in
-        let code = generic_cross_equiv_weak_unify code code_template symtable conseq_res uses_model omitname
+        let code = generic_cross_equiv_weak_unify code code_template symtable conseq_res uses_model thisname
 	in  List.fold_left add_code code [ ""; "};"; "   //namespace" ]
 
 let emit_io_conversion_functions pluginopt modulenameopt conseq_res symtable uses_model code =
-        let omitname = 
+        let omitname,thisname = 
                 match modulenameopt,pluginopt with 
-                        (Some m,_) -> m
-                        | (_,Some p) -> p
-                        | _ -> "" in
+                        (Some m,_) -> m,m
+                        | (_,Some p) -> p,""
+                        | _ -> "","" in
         let code = add_code code "oflux::IOConverterMap __ioconverter_map[] = {" in
         let code_table_entry code (assign_opt,t_name,f_name) =
                 let as_name (x,isin) = x^(if isin then "_in" else "_out")
@@ -635,7 +635,7 @@ let emit_io_conversion_functions pluginopt modulenameopt conseq_res symtable use
                                 let f_u_n_str = string_of_int f_u_n 
                                 in  add_code code ("{ "^f_u_n_str^", "^t_u_n_str^", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" > }, ")
                 in
-        let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res uses_model omitname
+        let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res uses_model thisname
         in  List.fold_left add_code code [ "{ 0, 0, NULL }  " ; "};" ]
         
 
