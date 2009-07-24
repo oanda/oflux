@@ -210,7 +210,8 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
 	let avoids = conseq_res.TypeCheck.full_collapsed_names 
                 @ (List.map (fun (x,_) -> x) conseq_res.TypeCheck.aliases) in
 	let avoid_struct ((n,_) as x) = (List.exists (fun y -> x=y) avoids)
-		|| (has_dot (remove_prefix plugin_dot n))
+		|| not (List.length (break_namespaced_name 
+			(remove_prefix plugin_double_colon n)) = 1)
 		in
 	let rec e_one i ll =
 		match ll with
@@ -316,6 +317,8 @@ let emit_union_forward_decls conseq_res symtable code =
 	let avoid_is = List.map (fun (i,_) -> i) collt_i in
 	let avoid_union i = List.mem i avoid_is in
 	let e_union code ul =
+		if ul = [] then code
+		else
 		let i = TypeCheck.get_union_from_equiv conseq_res ul
 		in  if avoid_union i then code
 		    else add_code code ( "union OFluxUnion"^(string_of_int i)^";" ) in
