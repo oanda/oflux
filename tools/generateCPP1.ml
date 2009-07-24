@@ -202,6 +202,7 @@ let emit_structs conseq_res symbol_table code =
 
 let emit_plugin_structs pluginname conseq_res symbol_table code =
         let plugin_double_colon = pluginname^"::" in
+        let plugin_dot = pluginname^"." in
         let remove_plugin_double_colon = remove_prefix plugin_double_colon in
 	let tos (n,isin) = 
                 let n = remove_plugin_double_colon n
@@ -209,7 +210,7 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
 	let avoids = conseq_res.TypeCheck.full_collapsed_names 
                 @ (List.map (fun (x,_) -> x) conseq_res.TypeCheck.aliases) in
 	let avoid_struct ((n,_) as x) = (List.exists (fun y -> x=y) avoids)
-		|| (has_dot n)
+		|| (has_dot (remove_prefix plugin_dot n))
 		in
 	let rec e_one i ll =
 		match ll with
@@ -224,27 +225,35 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
 			| _ -> []
 			in
 	let e_s n nd code =
+		let nop_n = remove_prefix plugin_dot n in
+		let _ = Debug.dprint_string ("emit_plugin_struct.e_s considering "^n^"\n") in
                 let inpl = nd.nodeinputs in
                 let code =
-                        if avoid_struct (n,true) then code
+                        if avoid_struct (nd.functionname,true) then 
+				let _ = Debug.dprint_string (" emit_plugin_struct avoiding "^n^"_in\n")
+				in  code
                         else    List.fold_left add_code code
-                                ( [ "struct "^(struct_decl (n^"_in"))^" {"
+                                ( [ "struct "^(struct_decl (nop_n^"_in"))^" {"
                                   ]
-                                @ [base_type_typedef_for conseq_res (n,true)]
+                                @ [base_type_typedef_for conseq_res (nd.functionname,true)]
                                 @ (e_one 1 inpl)
                                 @ [ "};"
-                                  ; metadeclbase (n^"_in")
+                                  ; metadeclbase (nop_n^"_in")
                                   ; "" ] )
                 in  match nd.nodeoutputs with
-		    None -> code
+		    None -> 
+			let _ = Debug.dprint_string (" emit_plugin_struct - no outputs\n")
+			in code
 		    | (Some outl) ->
-			if avoid_struct (n,false) then code
+			if avoid_struct (nd.functionname,false) then 
+				let _ = Debug.dprint_string (" emit_plugin_struct avoiding "^n^"_out\n")
+				in code
 			else List.fold_left add_code code
-					( [ "struct "^(struct_decl (n^"_out"))^" {" ]
-                                        @ [base_type_typedef_for conseq_res (n,false)]
+					( [ "struct "^(struct_decl (nop_n^"_out"))^" {" ]
+                                        @ [base_type_typedef_for conseq_res (nd.functionname,false)]
 					@ (e_one 1 outl)
 					@ [ "};"
-                                          ; metadeclbase (n^"_out")
+                                          ; metadeclbase (nop_n^"_out")
                                           ; "" ] )
 		in
 	let code = SymbolTable.fold_nodes e_s symbol_table code in
@@ -313,20 +322,29 @@ let emit_union_forward_decls conseq_res symtable code =
 	let code = TypeCheck.consequences_equiv_fold e_union code conseq_res
 	in  code
 
-let emit_unions conseq_res symtable code =
+let emit_unions nsopt conseq_res symtable code =
+	let break_ns_name_and_shorten nn =
+		match nsopt,break_namespaced_name nn with
+			(Some ns, h::t) -> if h = ns then t else h::t
+			| (_,ll) -> ll in
+	let remove_nsopt s =
+		match nsopt with
+			(Some ns) -> remove_prefix (ns^"::") s
+			| _ -> s in
         let collt_i = conseq_res.TypeCheck.full_collapsed in
 	let avoid_is = List.map (fun (i,_) -> i) collt_i in
 	let avoid_union i = List.mem i avoid_is in
 	let e_one (fl_n,is_in) =
 		let iostr = (if is_in then "_in" else "_out") in
-		let cname = cstyle_name (break_namespaced_name fl_n)
-		in  (fl_n^iostr^" _"^cname^iostr^";") in
+		let cname = cstyle_name (break_ns_name_and_shorten fl_n)
+		in  ((remove_nsopt fl_n)
+			^iostr^" _"^cname^iostr^";") in
 	let e_union code ul =
 		let i = TypeCheck.get_union_from_equiv conseq_res ul
 		in  if avoid_union i then code
 		    else 
 			let nn,nn_isinp = List.hd ul in
-			let cname = cstyle_name (break_namespaced_name nn) in
+			let cname = cstyle_name (break_ns_name_and_shorten nn) in
 			let iostr = if nn_isinp then "_in" else "_out" in
 			let decll = get_decls symtable (nn,nn_isinp) in
 			let gen_mem_fun (j,codelist) df =
@@ -468,14 +486,7 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res u
 
 let determine_redundant_for_copyto omitname um =
         let um = List.filter (fun (x,_) -> not (x=omitname)) um in
-        let uniq ll =
-                let ll = List.sort compare ll in
-                let rec uniq' ll =
-                        match ll with
-                                (h1::h2::t) -> if h1 = h2 then uniq' (h2::t) else h1::(uniq' (h2::t))
-                                | _ -> ll
-                in  uniq' ll in
-        let modlist = uniq ((List.map (fun (x,_) -> x) um) @ (List.map (fun (_,x) -> x) um)) in
+        let modlist = Uniquify.uniq_discard compare ((List.map (fun (x,_) -> x) um) @ (List.map (fun (_,x) -> x) um)) in
         let bigmodel = List.map (fun m -> uses_all um m) modlist in
         let determine a b =
                 List.exists (fun us -> (List.mem a us) && (List.mem b us)) bigmodel
@@ -1161,20 +1172,23 @@ let emit_master_create_map modules code =
 		  ; "" ] 
                 )
 
-let emit_converts modulenameopt ignoreis conseq_res code =
+let emit_converts is_plugin modulenameopt ignoreis conseq_res code =
         let collapsed_types_i = conseq_res.TypeCheck.full_collapsed in
         let aliased_types = conseq_res.TypeCheck.aliases in
 	let nspace =
 		match modulenameopt with
 			None -> ""
-			| (Some nn) -> nn^"::"
+			| (Some nn) -> if is_plugin then "" else nn^"::"
 		in
 	let avoid ll i = 
 		try let _ = List.find (fun (ii,_) -> i=ii) ll
 		    in true
 		with Not_found -> false in
 	let avoid_n x = avoid aliased_types x in
-	let code = List.fold_left add_code code
+	let code = 
+		(*if is_plugin then code
+		else*)
+		List.fold_left add_code code
 		[ "namespace oflux {  "
 		; ""
 		; "#ifndef OFLUX_CONVERT_GENERAL"
@@ -1195,12 +1209,19 @@ let emit_converts modulenameopt ignoreis conseq_res code =
 		; ""
 		] in 
 	let code_template code u_name s_name isderef =
-                let broken_name = break_namespaced_name s_name in
+                let broken_name = 
+			match modulenameopt, break_namespaced_name s_name with
+				(Some p, h::t) -> 
+					if is_plugin && (p=h) then 
+						t
+					else h::t
+				| (_,ll) -> ll in
 		let cs_name = cstyle_name broken_name
-		in  if (List.length broken_name) = 1 then
+		in  if (List.length broken_name) = 1 
+		    then
                         List.fold_left add_code code 
 			[ "template<>"
-			; ("inline "^nspace^s_name^" * convert<"(*^nspace^u_name^", "*)
+			; ("inline "^nspace^s_name^" * convert<"
 				^nspace^s_name^" >( "^nspace^u_name^" * s)")
 			; "{"
 			; ("return "^(if isderef then ("&((*s)._"^cs_name^")")
@@ -1211,7 +1232,11 @@ let emit_converts modulenameopt ignoreis conseq_res code =
                     else code
                 in
 	let convert_ff (code,isdone) ((n,n_isinp),u_n) =
-		let u_name = "OFluxUnion"^(string_of_int u_n)
+		let pluginprefix =
+			match is_plugin, modulenameopt with
+				(true,Some p) -> p^"::"
+				| _ -> "" in
+		let u_name = pluginprefix^"OFluxUnion"^(string_of_int u_n)
 		in      try let _ = List.assoc u_n collapsed_types_i
 			    in  if List.mem u_n isdone then
 					code,isdone
@@ -1426,10 +1451,10 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let h_code = emit_guard_trans_map (true,false,false) 
 			conseq_res stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
-	let h_code = emit_unions conseq_res stable h_code in
+	let h_code = emit_unions (Some pluginname) conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
         let h_code = emit_atomic_key_structs_hashfuns stable h_code (Some pluginname) in
-	let h_code = emit_converts (Some pluginname) ignoreis conseq_res h_code in
+	let h_code = emit_converts true (Some pluginname) ignoreis conseq_res h_code in
         let h_code = emit_copy_to_functions (Some pluginname) None ignoreis conseq_res stable um h_code in
 	let h_code = CodePrettyPrinter.add_code h_code ("#endif // _"^uc_codeprefix) in
 	let cpp_code = CodePrettyPrinter.empty_code in
@@ -1587,10 +1612,10 @@ let emit_cpp modulenameopt br um =
 			conseq_res stable h_code in
 	let h_code = emit_cond_func_decl None stable h_code in
 	let h_code = CodePrettyPrinter.add_cr h_code in
-	let h_code = emit_unions conseq_res stable h_code in
+	let h_code = emit_unions None conseq_res stable h_code in
 	let h_code = namespacefooter h_code in
         let h_code = emit_atomic_key_structs_hashfuns stable h_code modulenameopt in 
-	let h_code = emit_converts modulenameopt ignoreis conseq_res h_code in
+	let h_code = emit_converts false modulenameopt ignoreis conseq_res h_code in
         let h_code = emit_copy_to_functions None modulenameopt ignoreis conseq_res stable um h_code in
 	let h_code = CodePrettyPrinter.add_code h_code ("#endif // _"^uc_codeprefix) in
 	let cpp_code = CodePrettyPrinter.empty_code in

@@ -158,7 +158,7 @@ let get_collapsed_types stable ufs umap =
 		let i = List.assoc (List.hd ul) umap
 		in  match do_one' ul with
 			[singlel] -> ((i,ul)::full_collapsed_i, ul @ full_collapsed_ns, aliases)
-			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl))
+			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl) @ aliases)
 	in  List.fold_left do_one ([],[],[]) ufs
 
 let get_umap ufs =  
@@ -182,6 +182,34 @@ let finish_consequences stable ufs =
             }
 
 let consequences ulist stable = 
+	let get_io_type cls =
+		let git (nf,isin) = 
+			try let nd = SymbolTable.lookup_node_symbol_from_function stable nf
+			    in  (if isin 
+				 then Some nd.SymbolTable.nodeinputs 
+				 else nd.SymbolTable.nodeoutputs )
+			with _ -> None in
+		let rec git_cls cls =
+			match cls with
+				(h::t) -> (match git h with
+						None -> git_cls t
+						| (Some r) -> r)
+				| _ -> raise Not_found in
+		let dfl = git_cls cls in
+		let strip_pos x = ParserTypes.strip_position x in
+		let strip_each df =
+			(strip_pos df.ctypemod)
+			^(strip_pos df.ctype)
+			(*^(strip_pos df.name)*)
+		in  (List.map strip_each dfl, cls) in
+	let compress_by_type_definition ufs =
+		let annotated_ufs = List.map get_io_type ufs in
+		let compare_a_ufs (a,_) (b,_) = compare a b in
+		(*let annotated_ufs = List.sort compare_a_ufs annotated_ufs in*)
+		let annotated_ufs = 
+			let merge (a,al) (b,bl) = (a,al @ bl)
+			in  Uniquify.uniq compare_a_ufs merge annotated_ufs 
+		in  List.map (fun (_,x) -> x) annotated_ufs in
         let union_find_uniq ufs =
                 let rec uniq ll ul =
                         match ul with
@@ -201,6 +229,7 @@ let consequences ulist stable =
                 in
 	let ulist = translate_node_to_function stable ulist in
         let ufs = UnionFind.union_find ulist in  
+	(*let ufs = compress_by_type_definition ufs in -- this is too aggressive*)
         let ufs = union_find_uniq ufs 
         in  finish_consequences stable ufs
 
