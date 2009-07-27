@@ -138,6 +138,15 @@ delete_vector_contents(std::vector<O *> & vo)
 
 template<class O>
 void 
+delete_vector_contents_reversed(std::vector<O *> & vo)
+{
+        for(int i = ((int)vo.size())-1; i >= 0 ; --i) {
+                delete vo[i];
+        }
+}
+
+template<class O>
+void 
 delete_deque_contents(std::deque<O *> & mo)
 {
         typename std::deque<O *>::iterator itr;
@@ -376,7 +385,7 @@ Flow::~Flow()
 { 
         delete_map_contents<std::string,Node>(_nodes); 
         delete_map_contents<std::string,Guard>(_guards); 
-        delete_vector_contents<Library>(_libraries);
+        delete_vector_contents_reversed<Library>(_libraries);
 }
 
 bool 
@@ -467,11 +476,13 @@ Flow::getLibraryNames(std::vector<std::string> & result)
 }
 
 void 
-Flow::addLibrary(Library * lib)
+Flow::addLibrary(Library * lib, void *init_plugin_params)
 {
         _libraries.push_back(lib);
         oflux_log_debug("Flow::addLibrary() %s\n"
                 , lib->getName().c_str());
+	// init plugin
+	lib->init(init_plugin_params);
 }
 
 void 

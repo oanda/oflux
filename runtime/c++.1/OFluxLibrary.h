@@ -33,6 +33,14 @@ public:
 
         const std::string & getName() const { return _name; }
 
+	/** @brief initialize the library (call init__...())
+	 */
+	void init(void * init_plugin_params);
+
+	/** @brief de-initialize the library (call deinit__...())
+	 */
+	void deinit();
+
 private:
         void * _getSymbol(const char * name, bool ignoreError);
         Library();

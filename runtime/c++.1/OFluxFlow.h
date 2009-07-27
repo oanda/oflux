@@ -531,7 +531,7 @@ public:
         /**
          * @brief add a library to this flow
          */
-        void addLibrary(Library * lib);
+        void addLibrary(Library * lib, void * init_plugin_params);
         /**
          * @brief determine if this library is already know to this flow
          */

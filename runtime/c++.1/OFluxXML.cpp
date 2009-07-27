@@ -810,7 +810,8 @@ void Reader::add_library()
         assert(_flow);
 
         if(!_flow->haveLibrary(_library->getName().c_str())) {
-                _flow->addLibrary(_library);
+                _flow->addLibrary(_library, _init_plugin_params);
+		/*
                 // init plugin
                 std::string initfunction = "init__";
                 _library->addSuffix(initfunction);
@@ -819,6 +820,7 @@ void Reader::add_library()
                 if(initfunc) {
                         (*initfunc)(_init_plugin_params);
                 }
+		*/
         }
 }
 

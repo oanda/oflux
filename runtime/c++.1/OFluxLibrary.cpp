@@ -30,9 +30,34 @@ Library::~Library()
 {
         if( _handle )
         {
+		deinit();
                 ::dlclose( _handle );
                 _handle = NULL;
         }
+}
+
+void
+Library::init(void * init_plugin_params)
+{
+	std::string initfunction = "init__";
+	addSuffix(initfunction);
+	InitFunction * initfunc =
+		getSymbol<InitFunction>(initfunction.c_str(), true); // ignore dlerror -- cause the programmer might not define it
+	if(initfunc) {
+		(*initfunc)(init_plugin_params);
+	}
+}
+
+void
+Library::deinit()
+{
+	std::string deinitfunction = "deinit__";
+	addSuffix(deinitfunction);
+	DeInitFunction * deinitfunc =
+		getSymbol<DeInitFunction>(deinitfunction.c_str(), true); // ignore dlerror -- cause the programmer might not define it
+	if(deinitfunc) {
+		(*deinitfunc)();
+	}
 }
 
 bool Library::load( int mode )
