@@ -10,6 +10,7 @@ HEADERS:= \
 	hashString.cmi \
 	docTag.cmi \
 	cycleFind.cmi \
+	uniquify.cmi \
 	unionFind.cmi \
 	codePrettyPrinter.cmi \
 	cmdLine.cmi \
@@ -38,6 +39,7 @@ CODE:= \
 	symbolTable.$(OBJECTEXT) \
 	unify.$(OBJECTEXT) \
 	cycleFind.$(OBJECTEXT) \
+	uniquify.$(OBJECTEXT) \
 	unionFind.$(OBJECTEXT) \
 	typeCheck.$(OBJECTEXT) \
 	flatten.$(OBJECTEXT) \

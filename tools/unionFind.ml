@@ -5,17 +5,9 @@ they are in their equivalence classes *)
 
 
 let union_find_n item_list =
-        let rec uniq ll =
-                match ll with
-                        (a::b::tl) -> 
-                                if 0 = (compare a b) then 
-                                        uniq (b::tl)
-                                else a::(uniq (b::tl))
-                        | _ -> ll
-                in
         let basis = 
                 let al,bl = List.split item_list
-                in  uniq (List.sort compare (al @ bl))
+                in   Uniquify.uniq_discard compare (al @ bl)
                 in
         let n = List.length basis in
         let htable = Hashtbl.create n in
