@@ -222,16 +222,6 @@ let emit_program_xml programname br =
 	let guardlist = SymbolTable.fold_guards get_guard stable [] in 
         let guardlist = List.rev guardlist in
 	let nodelist = Flow.flowmap_fold get_node fmap [] in
-        let uniq ll =
-                let lls = List.sort compare ll in       
-                let rec uniq' ll =
-                        match ll with 
-                                (h1::h2::tl) -> 
-                                        if h1 = h2 then uniq' (h1::tl) 
-                                        else h1::(uniq' (h2::tl))
-                                | _ -> ll
-                in  uniq' lls
-                in
 	let canon_case sol =
 		List.map (fun so ->
 				(match so with
@@ -242,7 +232,7 @@ let emit_program_xml programname br =
 			([],_) -> c2
 			| (_,[]) -> c1
 			| (h1::t1,h2::t2) -> 
-				(uniq (h1@h2))::(and_canon_condition t1 t2) in
+				(Uniquify.uniq_discard compare (h1@h2))::(and_canon_condition t1 t2) in
         let rec negate_canon_condition c = (* returns list of conditions *)
                 match c with
                         [] -> []
@@ -329,14 +319,14 @@ let emit_program_xml programname br =
 		 *       applies to the ith argument
 		 ***********************************)
 		let sfun n _ _ _ = 
-			let pp_ccond ll =
+			(*let pp_ccond ll =
 				let str_c (s,isn) = (if isn then "!" else "")^s in
 				let pp_cs ll = 
 					begin
 					List.iter (fun x -> print_string ((str_c x)^", ")) ll ; 
 					print_string "; "
 					end
-				in  List.iter pp_cs ll in
+				in  List.iter pp_cs ll in*)
 			let u_n = 
 				if (List.length ccond) = (List.length (gdecll n_out_u_n)) 
 				then n_out_u_n 

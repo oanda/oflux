@@ -159,7 +159,7 @@ OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$
 OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).cpp : OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h
 
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) $$($(1)_OFLUX_SO_DEPS) liboflux.so
-	$(CXX) -shared -L. -G $$^ $(OFLUXRTLIBS) -o $$@
+	$(CXX) -shared -L. $$^ $(OFLUXRTLIBS) -o $$@
 
 $$($(1)_OFLUX_FINAL) : $$($(1)_OFLUX_KERNEL_DIR) $$($(1)_OFLUX_SO_TARGET)
 	ln -sf $(CURDIR)/$$($(1)_OFLUX_SO_TARGET) $$($(1)_OFLUX_FINAL)

@@ -155,10 +155,12 @@ let get_collapsed_types stable ufs umap =
 			[] -> []
 			| (h::t) -> List.map (alias h) t in
 	let do_one (full_collapsed_i,full_collapsed_ns,aliases) ul =
+		if ul = [] then (full_collapsed_i,full_collapsed_ns,aliases)
+		else
 		let i = List.assoc (List.hd ul) umap
 		in  match do_one' ul with
 			[singlel] -> ((i,ul)::full_collapsed_i, ul @ full_collapsed_ns, aliases)
-			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl))
+			| resl -> (full_collapsed_i,full_collapsed_ns,List.concat (List.map get_aliases resl) @ aliases)
 	in  List.fold_left do_one ([],[],[]) ufs
 
 let get_umap ufs =  
@@ -182,6 +184,34 @@ let finish_consequences stable ufs =
             }
 
 let consequences ulist stable = 
+	let get_io_type cls =
+		let git (nf,isin) = 
+			try let nd = SymbolTable.lookup_node_symbol_from_function stable nf
+			    in  (if isin 
+				 then Some nd.SymbolTable.nodeinputs 
+				 else nd.SymbolTable.nodeoutputs )
+			with _ -> None in
+		let rec git_cls cls =
+			match cls with
+				(h::t) -> (match git h with
+						None -> git_cls t
+						| (Some r) -> r)
+				| _ -> raise Not_found in
+		let dfl = git_cls cls in
+		let strip_pos x = ParserTypes.strip_position x in
+		let strip_each df =
+			(strip_pos df.ctypemod)
+			^(strip_pos df.ctype)
+			(*^(strip_pos df.name)*)
+		in  (List.map strip_each dfl, cls) in
+	let compress_by_type_definition ufs =
+		let annotated_ufs = List.map get_io_type ufs in
+		let compare_a_ufs (a,_) (b,_) = compare a b in
+		(*let annotated_ufs = List.sort compare_a_ufs annotated_ufs in*)
+		let annotated_ufs = 
+			let merge (a,al) (b,bl) = (a,al @ bl)
+			in  Uniquify.uniq compare_a_ufs merge annotated_ufs 
+		in  List.map (fun (_,x) -> x) annotated_ufs in
         let union_find_uniq ufs =
                 let rec uniq ll ul =
                         match ul with
@@ -201,6 +231,7 @@ let consequences ulist stable =
                 in
 	let ulist = translate_node_to_function stable ulist in
         let ufs = UnionFind.union_find ulist in  
+	(*let ufs = compress_by_type_definition ufs in -- this is too aggressive*)
         let ufs = union_find_uniq ufs 
         in  finish_consequences stable ufs
 
@@ -220,6 +251,8 @@ let make_compatible stable_change conseq_const conseq_change =
         let ufs_const = conseq_const.equiv_classes in
         let ufs = conseq_change.equiv_classes in
         let intersects ec1 ec2 = List.mem (List.hd ec1) ec2 in
+	let is_subset ec1 ec2 = List.for_all (fun x -> List.mem x ec2) ec1 in
+	let remove_all ec1 ec2 = List.find_all (fun x -> not (List.mem x ec2)) ec1 in
         let partfor ec ufs =
                 match List.partition (intersects ec) ufs with
                         ([fd],rem) -> fd,rem
@@ -228,14 +261,27 @@ let make_compatible stable_change conseq_const conseq_change =
                 match ec with  
                         ((s,b)::_) -> s^(if b then "_in" else "_out")
                         | _ -> "<empty>" in
-        let rec compat ufs_const ufs =
+	let rec attempt_inplace_remove' ec ufs =
+		match ufs with 
+			(h::t) -> 
+				if (intersects ec h) && (is_subset ec h) then
+					(remove_all h ec)::t
+				else h::(attempt_inplace_remove' ec ufs)
+			| _ -> raise Not_found in
+	let attempt_inplace_remove ec ufs = ec::(attempt_inplace_remove' ec ufs) in
+        let rec compat sofar ufs_const ufs =
                 match ufs_const, ufs with
-                        ([],_) -> ufs
+                        ([],_) -> (List.rev sofar) @ ufs
                         | (h::t,_) ->
-                                (try let n,ufs = partfor h ufs
-                                    in n::(compat t ufs)
+                                (try 
+					(try let n,ufs = partfor h ufs
+					    in compat (n::sofar) t ufs
+					with Not_found ->
+						compat (attempt_inplace_remove h sofar)
+							t ufs
+					)
                                 with Not_found ->
                                         raise (Failure ("make_compatible failure for class containing "^(ec_tostring h),noposition)))
-        in  finish_consequences stable_change (compat ufs_const ufs)
+        in  finish_consequences stable_change (compat [] ufs_const ufs)
 
 
