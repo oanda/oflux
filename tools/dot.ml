@@ -45,7 +45,13 @@ let mpos_to_url name_opt =
                         in  Some fp
         
 
-let sanitize_name n = string_replace ('.','_') n
+let sanitize_name n = 
+	let n = string_replace ('.','_') n in
+	let nlen = String.length n in
+	let n = if (nlen > 0) && (n.[0] = '&') then
+			String.sub n 1 (nlen-1)
+		else n
+	in  n
 
 let generate_flow flowmap =
 	let rec nspcs n = 
