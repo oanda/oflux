@@ -759,14 +759,16 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 		in  try (remove_plugin_prefix name, lookup_return_type name_canon, is_ro) 
 		    with Not_found -> raise (CppGenFailure ("can't find guard "^name^" at "^"l:"^(string_of_int pos.lineno)^" c:"^(string_of_int pos.characterno)))
 		in
-	let inits nl = List.map (fun n -> "_"^n^"(NULL)") nl in
+	let inits nl = List.map (fun n -> "_"^(clean_dots n)^"(NULL)") nl in
 	let decls ntl = List.map (fun (n,t,_) -> 
-		t^" * _"^n^";") ntl in
+		t^" * _"^(clean_dots n)^";") ntl in
 	let accessor (n,t,iro) =
-		let rop = if iro then ro_prefix else ""
+		let rop = if iro then ro_prefix else "" in
+		let n = clean_dots n
 		in rop^t^(if iro then " " else " & ")^n^"() "
 			^rop^" { return *_"^n^"; }  " in
         let possessor (n,t,iro) =
+		let n = clean_dots n in
                 "bool have_"^n^"() const { return _"^n^" != NULL; }  " in
 	let accessors ntl = List.map accessor ntl in
 	let possessors ntl = List.map possessor ntl in
@@ -823,11 +825,12 @@ let emit_atom_fill pluginopt symtable aliases code =
                         | (Some pn) -> (remove_prefix (pn^"."))
                         in
 	let code_for_one (cl,i) (n,t) =
-                let atomic_n = "atomic_"^(trim_dot n)
+                let atomic_n = "atomic_"^(clean_dots (trim_dot n))
                 in
 		(("oflux::Atomic * "^atomic_n^" = ah->get("
 		^(string_of_int i)^",oflux::AtomicsHolder::HA_get_lexical)->atomic();")
-                ::("_"^(trim_dot n)^" = ("^atomic_n^" ? reinterpret_cast<"^t
+                ::("_"^(clean_dots (trim_dot n))
+			^" = ("^atomic_n^" ? reinterpret_cast<"^t
                 ^" *> ("^atomic_n^"->data()) : NULL);")
                 ::cl), i+1 in
         let omit_emit n = omit_emit_for pluginopt n in
