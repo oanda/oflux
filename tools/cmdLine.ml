@@ -19,6 +19,10 @@ let get_runtime_engine () = !runtime_engine
 
 let noios = ref false
 
+let exclusive_tests = ref false
+
+let get_exclusive_tests() = !exclusive_tests
+
 let code_prefix = ref "OFluxGenerate"
 
 let get_code_prefix () = !code_prefix
@@ -47,6 +51,7 @@ let help_text =
         ^" -oprefix causes the 'OFluxGenerate' code prefix to change\n"
         ^" -rclassic specifies the classic runtime engine (C++) [default]\n"
         ^" -rmelding specifies the melding runtime engine (C++)\n"
+	^" -x  specifies exclusive conditions (no overlap in tests) -- helps efficiency\n"
 
 let parse_argv () =
     let sz = Array.length Sys.argv in
@@ -64,6 +69,7 @@ let parse_argv () =
 			    | ("-duribase",[dub]) -> (uribase_path := dub; [])
 			    | ("-oprefix",[pref]) -> (code_prefix := pref; [])
 			    | ("-d",[]) -> (Debug.debug := true; [])
+			    | ("-x",[]) -> (exclusive_tests := true; [])
 			    | ("-t",[]) -> (Debug.timing_on := true; [])
 			    | ("-absterm",[]) -> (abstract_termination := true; [])
 			    | ("-dnoios",[]) -> (noios := true; [])

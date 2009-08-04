@@ -396,7 +396,11 @@ let emit_program_xml' programname br usesmodel =
                                 let condneg = and_canon_condition condneg negccond'
                                 in  condneg, ((gen_succ' n_out_u_n ccondlocal flr)::sofar) in
 			let _,part_res = List.fold_left onfold (condunit,[]) solfl in
-			let tmp = List.fold_left (prod (fun a -> (fun b -> b @ a))) [[]] part_res 
+			let tmp = List.fold_left 
+					(if CmdLine.get_exclusive_tests() 
+					then List.append 
+					else (prod (fun a -> (fun b -> b @ a))))
+				[[]] part_res 
                         in  tmp in
                 let coefun _ fll = 
                         let tmp = List.concat (List.map (gen_succ' n_out_u_n ccond) fll) 
@@ -411,7 +415,7 @@ let emit_program_xml' programname br usesmodel =
 		if List.mem (ns1,ns2) usesmodel then
 			ns2
 		else ns1 in
-	let make_successor succname caselist =
+	let make_successor imap caselist =
 		let get_ns str =
 			match break_dotted_name str with
 				(h::_::_) -> h
@@ -428,15 +432,25 @@ let emit_program_xml' programname br usesmodel =
 				|(Some ns,[]) -> ns
 				|(None,[]) -> ""
 				| _ -> raise (XMLConversion ("make_successor:unexpected element structure", ParserTypes.noposition)) in
-		let nsprefix = 
-			let ns = find_earliest_ns None caselist
-			in  if (String.length ns) > 0 then (ns^".") else ""
-		in successor (nsprefix^succname) caselist in
+		let get_iv ns = 
+			try let iref = List.assoc ns imap in
+			    let _ = iref := (!iref) +1
+			    in imap,!iref
+			with Not_found -> 
+				((ns,ref 0)::imap),0 in
+		let imap,nsprefix_succname = 
+			let ns = find_earliest_ns None caselist in
+			let imap,i = get_iv ns
+			in  imap,((if (String.length ns) > 0 then (ns^".") else "")^(string_of_int i))
+		in (successor (nsprefix_succname) caselist), imap in
 	let gen_succ n_out_u_n ccond fl =
-                let foldfun (resl,i) s =
-                        (if s = [] then resl else ((make_successor (string_of_int i) s)::resl))
-                        , i+1 in
-                let resl,_ = List.fold_left foldfun ([],0) 
+                let foldfun (resl,imap) s =
+                        if s = [] then resl,imap 
+			else 
+			    let r,imap = make_successor imap s
+			    in (r::resl),imap
+                        in
+                let resl,_ = List.fold_left foldfun ([],[]) 
                         (List.rev (gen_succ' n_out_u_n ccond fl))
                 in resl in
 	let is_error_handler n = List.mem n errhandlers in

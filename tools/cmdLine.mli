@@ -20,6 +20,8 @@ val get_avoid_dot_ios : unit -> bool
 
 val get_timing_on : unit -> bool
 
+val get_exclusive_tests : unit -> bool
+
 val get_weak_unify : unit -> bool
 
 val get_abstract_termination : unit -> bool
