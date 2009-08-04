@@ -202,7 +202,15 @@ let add somethings = Element(xml_add_str,[],somethings)
 
 exception XMLConversion of string * ParserTypes.position
 
-let emit_program_xml programname br = 
+let rec break_dotted_name nsn =
+	try let ind = String.index nsn '.' in
+	    let len = String.length nsn in
+	    let hstr = String.sub nsn 0 ind in
+	    let tstr = String.sub nsn (ind+1) (len-(ind+1))
+	    in  hstr::(break_dotted_name tstr)
+	with Not_found -> [nsn]
+
+let emit_program_xml' programname br usesmodel = 
         let conseq_res = br.Flow.consequences in
         let unionmap_find strio =
                 let u_n = TypeCheck.get_union_from_strio conseq_res strio
@@ -396,9 +404,34 @@ let emit_program_xml programname br =
 		let nfun _ = []
 		in  Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in
+	let min_ns ns1 ns2 =
+		if List.mem (ns1,ns2) usesmodel then
+			ns2
+		else ns1 in
+	let make_successor succname caselist =
+		let get_ns str =
+			match break_dotted_name str with
+				(h::_::_) -> h
+				| _ -> "" in
+		let rec find_earliest_ns nsopt cl =
+			match nsopt,cl with
+				(None,((Element (_,[_,ntargetstr],_))::t)) ->
+					find_earliest_ns
+						(Some (get_ns ntargetstr))
+						t
+				|(Some ns,((Element (_,[_,ntargetstr],_))::t)) ->
+					let ns = min_ns ns (get_ns ntargetstr)
+					in  find_earliest_ns (Some ns) t
+				|(Some ns,[]) -> ns
+				|(None,[]) -> ""
+				| _ -> raise (XMLConversion ("make_successor:unexpected element structure", ParserTypes.noposition)) in
+		let nsprefix = 
+			let ns = find_earliest_ns None caselist
+			in  if (String.length ns) > 0 then (ns^".") else ""
+		in successor (nsprefix^succname) caselist in
 	let gen_succ n_out_u_n ccond fl =
                 let foldfun (resl,i) s =
-                        (if s = [] then resl else ((successor (string_of_int i) s)::resl))
+                        (if s = [] then resl else ((make_successor (string_of_int i) s)::resl))
                         , i+1 in
                 let resl,_ = List.fold_left foldfun ([],0) 
                         (List.rev (gen_succ' n_out_u_n ccond fl))
@@ -483,15 +516,17 @@ let emit_program_xml programname br =
                         @ guardprecedence_elements
                         @ node_elements)
 
+let emit_program_xml programname br = 
+	emit_program_xml' programname br []
 
-let emit_plugin_xml fn dependslist br_bef br_aft =
+let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
         let dependsxml = List.map depend dependslist in
         let get_key xml_node_or_guard = 
                 let name = try List.assoc "name" (Xml.get_attributes xml_node_or_guard)
                         with Not_found -> ""
                 in  (Xml.get_tag xml_node_or_guard)^name in
-        let xml_bef = emit_program_xml "before" br_bef in
-        let xml_aft = emit_program_xml "after" br_aft in
+        let xml_bef = emit_program_xml' "before" br_bef usesmodel in
+        let xml_aft = emit_program_xml' "after" br_aft usesmodel in
         let xml_compare xml1 xml2 = compare (get_key xml1) (get_key xml2) in
         let xml_sort xl = List.sort xml_compare xl in
         let xml_aft_contents = Xml.get_contents xml_aft in

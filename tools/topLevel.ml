@@ -150,7 +150,7 @@ let generate fn deplist br br_aft_opt um =
 	let xmlopt = match CmdLine.get_module_name(),br_aft_opt with
                 (None,None) -> Some (GenerateXML.emit_program_xml fn br)
                 | (None,(Some br_aft)) -> 
-                        Some (GenerateXML.emit_plugin_xml fn deplist br br_aft)
+                        Some (GenerateXML.emit_plugin_xml fn deplist br br_aft um)
                 | _ -> None
 	in  xmlopt,cpp_code,h_code
 
