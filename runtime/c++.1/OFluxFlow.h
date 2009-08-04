@@ -279,6 +279,7 @@ public:
         ~Successor();
         inline const std::string & getName() { return _name; }
         void add(Case * fc, bool front=false);
+	void remove(Case * fc);
         inline Case * get_successor(const void * a) 
         {
                 Case * res = NULL;
@@ -309,6 +310,7 @@ public:
         ~SuccessorList();
         bool empty() { return _successorlist.empty(); }
         void add(Successor * fs);
+        void remove(Successor * fs);
         Successor * get_successor(const char * name)
         {
                 std::map<std::string, Successor *>::iterator itr = _successorlist.find(name);

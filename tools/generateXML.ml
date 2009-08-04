@@ -95,6 +95,7 @@ let xml_errorhandler_str = "errorhandler"
 let xml_plugin_str = "plugin"
 let xml_library_str = "library"
 let xml_add_str = "add"
+let xml_remove_str = "remove"
 let xml_depend_str = "depend"
 let xml_hash_str = "hash"
 let xml_before_str = "before"
@@ -199,6 +200,8 @@ let plugin library nodes_and_guards =
                 ,library::nodes_and_guards)
 
 let add somethings = Element(xml_add_str,[],somethings)
+
+let remove somethings = Element(xml_remove_str,[],somethings)
 
 exception XMLConversion of string * ParserTypes.position
 
@@ -554,14 +557,16 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
                 let cond_add acc ll =
                         match acc with
                                 [] -> ll
-                                | _ -> (add (List.rev acc))::ll 
+                                | _ -> (add (List.rev acc))::ll
                 in match shorter,longer with 
                         (sh::st,lh::lt) -> 
                                 if equal sh lh then 
                                         cond_add accumulated (lh::(add_merge [] st lt))
                                 else add_merge (lh::accumulated) shorter lt
                         | ([],_) -> cond_add ((List.rev longer) @ accumulated) []
-                        | (_,[]) -> raise (XMLConversion ("something <internal> is wrong - add_merge failed",noposition))
+                        | (_,[]) -> 
+				(remove shorter)::(cond_add accumulated [])
+				(*raise (XMLConversion ("something <internal> is wrong - add_merge failed",noposition))*)
                 in
         let diffhandler befxml aftxml =
                 let beftag = Xml.get_tag befxml in

@@ -243,6 +243,22 @@ Successor::add(Case * fc, bool front)
         }
 }
 
+void
+Successor::remove(Case * fc)
+{
+	std::deque<Case *>::iterator itr = _cases.begin();
+	bool fd = false;
+	while(itr != _cases.end()) {
+		if(fc == (*itr)) {
+			_cases.erase(itr);
+			delete fc;
+			break;
+		}
+		++itr;
+	}
+	assert(fd && "Successor::remove failed to find");
+}
+
 void 
 Successor::pretty_print(int depth, std::set<std::string> * visited)
 {
@@ -269,6 +285,16 @@ SuccessorList::add(Successor * fs)
 { 
         std::pair<std::string,Successor *> pr(fs->getName(),fs);
         _successorlist.insert(pr); 
+}
+
+void 
+SuccessorList::remove(Successor * fs) 
+{ 
+        std::map<std::string, Successor *>::iterator itr = 
+		_successorlist.find(fs->getName());
+        assert(fs == (*itr).second);
+	_successorlist.erase(itr);
+	delete fs;
 }
 
 void 

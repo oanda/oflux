@@ -123,9 +123,13 @@ public:
                 AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this);
                 _add_targets.push_back(at);
         }
-        void add_flow_case(bool front=false) 
+        void addremove_flow_case(bool front=false) 
         { 
-                _flow_successor->add(_flow_case, front); 
+		if(isDeletion()) {
+			_flow_successor->remove(_flow_case);
+		} else {
+			_flow_successor->add(_flow_case, front); 
+		}
                 _flow_case = NULL; 
         }
         void new_flow_successor(const char * name) 
@@ -139,10 +143,13 @@ public:
                         _flow_successor = new flow::Successor(name); 
                 }
         }
-        void add_flow_successor() 
+        void addremove_flow_successor() 
         { 
                 if(_is_existing_successor) {
                         _is_existing_successor = false;
+			if(isDeletion()) {
+				_flow_successor_list->remove(_flow_successor);
+			}
                 } else {
                         _flow_successor_list->add(_flow_successor); 
                 }
@@ -226,6 +233,8 @@ public:
         void setIsExternalNode(bool is_external_node) { _is_external_node = is_external_node; }
         bool isAddition() { return _is_add; }
         void setAddition(bool add) { _is_add = add; }
+        bool isDeletion() { return _is_remove; }
+        void setDeletion(bool remove) { _is_remove = remove; }
 protected:
         /**
          * @brief just connect the forward flow node references stored up
@@ -262,6 +271,7 @@ private:
         bool                              _is_external_node;
         bool                              _is_existing_successor;
         bool                              _is_add;
+        bool                              _is_remove;
         flow::Library *                   _library;
         const char *                      _plugin_lib_dir;
         const char *                      _plugin_xml_dir;
@@ -300,6 +310,7 @@ Reader::Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pl
         , _is_external_node(false)
         , _is_existing_successor(false)
         , _is_add(false)
+        , _is_remove(false)
         , _library(NULL)
         , _plugin_lib_dir(pluginlibdir)
         , _plugin_xml_dir(pluginxmldir)
@@ -566,9 +577,9 @@ void Reader::endMainHandler(void *data, const char *el)
         } else if(strcmp(el,"node") == 0) {
                 pthis->add_flow_node();
         } else if(strcmp(el,"case") == 0) {
-                pthis->add_flow_case();
+                pthis->addremove_flow_case();
         } else if(strcmp(el,"successor") == 0) {
-                pthis->add_flow_successor();
+                pthis->addremove_flow_successor();
         } else if(strcmp(el,"successorlist") == 0) {
                 pthis->add_flow_successor_list();
         } else if(strcmp(el,"errorhandler") == 0) {
@@ -692,6 +703,8 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 //pthis->flow_guard_ref_add_argument(argno);
         } else if(strcmp(el,"add") == 0) { 
                 pthis->setAddition(true);
+        } else if(strcmp(el,"remove") == 0) { 
+                pthis->setDeletion(true);
         } else if(strcmp(el,"node") == 0) { 
                 // has attributes: name, function, source, iserrhandler, detached, external
                 // has children: errorhandler, guardref(s), successorlist 
@@ -747,13 +760,15 @@ void Reader::endPluginHandler(void *data, const char *el)
                 // do nothing essentially
                 pthis->add_flow_successor_list(); 
         } else if(strcmp(el,"successor") == 0) { 
-                pthis->add_flow_successor();
+                pthis->addremove_flow_successor();
         } else if(strcmp(el,"case") == 0 && is_ok_to_create) { 
-                pthis->add_flow_case(pthis->isAddition());
+                pthis->addremove_flow_case(pthis->isAddition());
         } else if(strcmp(el,"condition") == 0 && is_ok_to_create) { 
                 // do nothing
         } else if(strcmp(el,"add") == 0) { 
                 pthis->setAddition(false);
+        } else if(strcmp(el,"remove") == 0) { 
+                pthis->setDeletion(false);
         }
 }
 
