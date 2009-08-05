@@ -1,4 +1,4 @@
-$(info reading tests/unit/ex-contents.mk)
+$(info reading ex-contents.mk $(COMPONENT_DIR))
 
 OFLUX_UNIT_TESTS += \
   OFluxOrderable_unittest.cpp \

@@ -22,7 +22,7 @@ all: build
 print-%: ; @echo $* is $($*)
 
 OLD_SHELL := $(SHELL)
-	SHELL = $(info [$@ ($^)($?)])$(OLD_SHELL)
+	SHELL = $(if $@,$(info [$@ ($^)($?)])$(OLD_SHELL),$(OLD_SHELL))
 
 #end debug helpers
 

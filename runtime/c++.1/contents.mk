@@ -1,4 +1,4 @@
-$(info Reading contents.mk)
+$(info Reading contents.mk $(COMPONENT_DIR))
 
 OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
 
