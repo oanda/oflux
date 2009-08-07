@@ -539,8 +539,15 @@ let emit_program_xml programname br =
 let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
         let dependsxml = List.map depend dependslist in
         let get_key xml_node_or_guard = 
-                let name = try List.assoc "name" (Xml.get_attributes xml_node_or_guard)
-                        with Not_found -> ""
+                let name = 
+			let attribs = (Xml.get_attributes xml_node_or_guard)
+			in
+			try List.assoc "name" attribs
+                        with Not_found -> 
+				(try let prec_bef = List.assoc "before" attribs in
+				    let prec_aft = List.assoc "after" attribs
+				    in prec_bef^"<"^prec_aft
+				with Not_found -> "")
                 in  (Xml.get_tag xml_node_or_guard)^name in
         let xml_bef = emit_program_xml' "before" br_bef usesmodel in
         let xml_aft = emit_program_xml' "after" br_aft usesmodel in
