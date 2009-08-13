@@ -43,7 +43,7 @@ let rec break_dotted_name nsn =
 %token <string*ParserTypes.position*ParserTypes.position> IDENTIFIER;
 %token <ParserTypes.position*ParserTypes.position> BOOL, CONST, GUARD;
 %token <ParserTypes.position*ParserTypes.position> CONDITION, NODE, EXCLUSIVE;
-%token <ParserTypes.position*ParserTypes.position> SEQUENCE, POOL, READWRITE;
+%token <ParserTypes.position*ParserTypes.position> SEQUENCE, POOL, READWRITE, FREE;
 %token <ParserTypes.position*ParserTypes.position> HANDLE, ERROR, AS, WHERE;
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
@@ -245,6 +245,8 @@ atom_type:
 	{ "sequence" }
 	| POOL
 	{ "pool" }
+	| FREE
+	{ "free" }
 
 atom_mod:
         UNORDERED

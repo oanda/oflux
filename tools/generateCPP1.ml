@@ -879,6 +879,7 @@ let emit_atom_map_map plugin_opt symtable code =
 			match gd.gtype with
 				"exclusive" -> "oflux::AtomicExclusive"
 				| "readwrite" -> "oflux::AtomicReadWrite"
+				| "free" -> "oflux::AtomicFree"
 				| _ -> raise (CppGenFailure ("unsupported guard type "^gd.gtype))
 		in  (if 0 = (List.length gd.garguments) then
 			("oflux::AtomicMapTrivial<"

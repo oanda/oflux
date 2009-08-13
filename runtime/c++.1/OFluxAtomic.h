@@ -70,6 +70,20 @@ public:
 	static boost::shared_ptr<EventBase> _null_static;
 };
 
+class AtomicFree : public Atomic {
+public:
+	virtual ~AtomicFree() {}
+	virtual void ** data() { return &_data_ptr; }
+	virtual int held() { return 1; } // always free
+	virtual int acquire() { return 1; } // always acquire
+	virtual void release(std::vector<boost::shared_ptr<EventBase> > & ) {}
+	virtual void wait(boost::shared_ptr<EventBase> & ) 
+	{ assert( NULL && "AtomicFree should never wait"); }
+	virtual int waiter_count() { return 0; }
+private:
+	void * _data_ptr;
+};
+
 class AtomicCommon : public Atomic {
 public:
 	enum { None = 0 };
