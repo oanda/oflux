@@ -47,7 +47,7 @@ public:
          * @param n name of the node  
          * @return a function pointer usable to create a new event (smart pointered)
          **/
-        CreateNodeFn lookup_node_function(const char * n);
+        CreateNodeFn lookup_node_function(const char * n) const;
 
         /**
          * @brief lookup a conditional function usable on a particular input
@@ -56,7 +56,7 @@ public:
          * @param unionnumber  OFluxUnionX number
          * @return 
          **/
-        ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
+        ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
         /**
          * @brief lookup a guard translator function
          * @remark these functions can translate an input structure to a guard key structure
@@ -68,20 +68,20 @@ public:
         GuardTransFn lookup_guard_translator(const char * guardname
                 , int union_number
                 , const char * hash
-                , int wtype);
+                , int wtype) const;
 
         /**
          * @brief lookup the atomic map object for the given guard 
          * @param guardname the guard name
          * @return the atomic map object
          */
-        AtomicMapAbstract * lookup_atomic_map(const char * guardname);
+        AtomicMapAbstract * lookup_atomic_map(const char * guardname) const;
 
         /**
          * @brief lookup the conversion from one type union to another
          * @return a generic function that can create an object that does the job
          */
-        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber) const;
 private:
         ConditionalMap *   _cond_map;
         ModularCreateMap * _create_map;

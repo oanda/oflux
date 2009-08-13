@@ -31,7 +31,7 @@ FunctionMaps::FunctionMaps(ConditionalMap cond_map[],
 // linear searches are fast enough -- its just for XML converstion...
 
 CreateNodeFn 
-FunctionMaps::lookup_node_function(const char * n)
+FunctionMaps::lookup_node_function(const char * n) const
 {
         CreateNodeFn res = NULL;
         ModularCreateMap * mcm = _create_map;
@@ -56,7 +56,10 @@ FunctionMaps::lookup_node_function(const char * n)
 }
 
 ConditionFn 
-FunctionMaps::lookup_conditional(const char * n, int argno, int unionnumber)
+FunctionMaps::lookup_conditional(
+	  const char * n
+	, int argno
+	, int unionnumber) const
 {
         ConditionFn res = NULL;
         ConditionalMap * cm = _cond_map;
@@ -73,8 +76,11 @@ FunctionMaps::lookup_conditional(const char * n, int argno, int unionnumber)
 }
 
 GuardTransFn 
-FunctionMaps::lookup_guard_translator(const char * guardname,
-                                int union_number, const char * hash, int wtype)
+FunctionMaps::lookup_guard_translator(
+	  const char * guardname
+	, int union_number
+	, const char * hash
+	, int wtype) const
 {
         GuardTransFn res = NULL;
         GuardTransMap * ptr = _guard_trans_map;
@@ -93,7 +99,7 @@ FunctionMaps::lookup_guard_translator(const char * guardname,
 }
 
 AtomicMapAbstract * 
-FunctionMaps::lookup_atomic_map(const char * guardname)
+FunctionMaps::lookup_atomic_map(const char * guardname) const
 {
         AtomicMapAbstract * res = NULL;
         AtomicMapMap * ptr = _atom_map_map;
@@ -108,7 +114,9 @@ FunctionMaps::lookup_atomic_map(const char * guardname)
 }
 
 FlatIOConversionFun 
-FunctionMaps::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
+FunctionMaps::lookup_io_conversion(
+	  int from_unionnumber
+	, int to_unionnumber) const
 {
         FlatIOConversionFun res = NULL;
         IOConverterMap * ptr = _ioconverter_map;

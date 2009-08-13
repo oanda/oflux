@@ -2,6 +2,7 @@
 #define _OFLUX_LIBRARY
 
 #include <string>
+#include <vector>
 #include <dlfcn.h>
 
 namespace oflux {
@@ -41,6 +42,11 @@ public:
 	 */
 	void deinit();
 
+	const std::vector<std::string> & getDependencies() 
+	{ return _dependencies; }
+	void addDependency(const char * d)
+	{ std::string s(d); _dependencies.push_back(s); }
+
 private:
         void * _getSymbol(const char * name, bool ignoreError);
         Library();
@@ -50,6 +56,7 @@ private:
         std::string _filename;
         std::string _name;
         void * _handle;
+	std::vector<std::string> _dependencies;
 
 }; // class Library
 

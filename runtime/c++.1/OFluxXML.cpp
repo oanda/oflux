@@ -26,16 +26,17 @@ class Reader;
  */
 class AddTarget {
 public:
-        AddTarget(
-            flow::Case *fc, 
-            const char * name,
-            int node_output_unionnumber,
-            Reader * xmlreader)
+        AddTarget(flow::Case * fc 
+		, const char * name
+		, int node_output_unionnumber
+		, Reader * xmlreader
+		, const std::string & scope_name)
         : _fc(fc)
         , _name(name)
         , _node_output_unionnumber(node_output_unionnumber)
         , _target_input_unionnumber(0)
         , _xmlreader(xmlreader)
+	, _scope_name(scope_name)
         {}
         /**
          * @brief links the flow node found in parsed flow to a case
@@ -48,6 +49,7 @@ private:
         int          _node_output_unionnumber;
         int          _target_input_unionnumber;
         Reader *     _xmlreader;
+	std::string  _scope_name;
 };
 
 /**
@@ -82,6 +84,165 @@ protected:
 private:
         std::set<std::string> _depends_set;
 };
+
+class ScopedFunctionMaps {
+public:
+	typedef std::set<flow::FunctionMaps *> Context;
+	class Scope {
+	public:
+		Scope(Context & c)
+			: _c(c)
+		{}
+		
+		CreateNodeFn 
+		lookup_node_function(const char *n);
+
+		ConditionFn 
+		lookup_conditional(
+			  const char * n
+			, int argno
+			, int unionnumber);
+
+		GuardTransFn 
+		lookup_guard_translator(
+			  const char * guardname
+			, int union_number
+			, const char * hash
+			, int wtype);
+
+		AtomicMapAbstract * 
+		lookup_atomic_map(const char * guardname);
+
+		FlatIOConversionFun 
+		lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+	private:
+		Context & _c;
+	};
+
+	boost::shared_ptr<Scope>
+	get(const char * scopename) {
+		std::map<std::string, Context>::iterator itr =
+			_map.find(scopename);
+		assert(itr != _map.end());
+		return boost::shared_ptr<Scope>(new Scope(itr->second));
+	}
+
+	void 
+	add(    
+		  const char * scopename
+		, flow::FunctionMaps * fmaps
+		, const std::vector<std::string> & deps);
+private:
+	static void 
+	_addIntoContext(
+		  Context & c1
+		, const Context & c2)
+	{
+		Context::iterator itr = c2.begin();
+		while(itr != c2.end()) {
+			c1.insert(*itr);
+			++itr;
+		}
+	}
+private:
+	std::map< std::string, Context > _map;
+};
+
+
+void 
+ScopedFunctionMaps::add(    
+	  const char * scopename
+	, flow::FunctionMaps * fmaps
+	, const std::vector<std::string> & deps)
+{
+	std::pair<std::string,ScopedFunctionMaps::Context> pr;
+	pr.first = scopename;
+	pr.second.insert(fmaps);
+	std::vector<std::string>::const_iterator itr = deps.begin();
+	while(itr != deps.end()) {
+		std::map<std::string,Context>::iterator fitr = _map.find(*itr);
+		assert(fitr != _map.end());
+		_addIntoContext(pr.second,fitr->second);
+		++itr;
+	}
+	_map.insert(pr);
+}
+
+CreateNodeFn 
+ScopedFunctionMaps::Scope::lookup_node_function(const char *n)
+{
+        CreateNodeFn res = NULL;
+	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
+        while(res == NULL && itr != _c.end()) {
+                res = (*itr)->lookup_node_function(n);
+		++itr;
+        }
+        return res;
+}
+
+ConditionFn 
+ScopedFunctionMaps::Scope::lookup_conditional(
+	  const char * n
+	, int argno
+	, int unionnumber)
+{
+        ConditionFn res = NULL;
+	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
+        while(res == NULL && itr != _c.end()) {
+                res = (*itr)->lookup_conditional(n,argno,unionnumber);
+		++itr;
+        }
+        return res;
+}
+
+GuardTransFn 
+ScopedFunctionMaps::Scope::lookup_guard_translator(
+	  const char * guardname
+        , int union_number
+        , const char * hash
+        , int wtype)
+{
+        GuardTransFn res = NULL;
+	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
+        while(res == NULL && itr != _c.end()) {
+                res = (*itr)->lookup_guard_translator(
+			  guardname
+                        , union_number
+                        , hash
+                        , wtype);
+		++itr;
+        }
+        return res;
+}
+
+AtomicMapAbstract * 
+ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
+{
+        AtomicMapAbstract * res = NULL;
+	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
+        while(res == NULL && itr != _c.end()) {
+                res = (*itr)->lookup_atomic_map(guardname);
+		++itr;
+        }
+        return res;
+}
+
+FlatIOConversionFun 
+ScopedFunctionMaps::Scope::lookup_io_conversion(
+	  int from_unionnumber
+	, int to_unionnumber)
+{
+        FlatIOConversionFun res = NULL;
+	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
+        while(res == NULL && itr != _c.end()) {
+                res = (*itr)->lookup_io_conversion(
+			  from_unionnumber
+			, to_unionnumber);
+		++itr;
+        }
+        return res;
+}
+
 
 /**
  * @class Reader
@@ -120,7 +281,7 @@ public:
         void new_flow_case(const char * targetnodename, int node_output_unionnumber)
         { 
                 _flow_case = new flow::Case(NULL); 
-                AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this);
+                AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this, _scope_name);
                 _add_targets.push_back(at);
         }
         void addremove_flow_case(bool front=false) 
@@ -174,10 +335,12 @@ public:
         void complete_flow_guard_reference()
         {
                 const char * name = _flow_guard_reference->getName().c_str();
-                GuardTransFn guardfn = lookup_guard_translator(name
-                        , _flow_guard_ref_unionnumber
-                        , _flow_guard_ref_hash.c_str()
-                        , _flow_guard_ref_wtype);
+                GuardTransFn guardfn = 
+			_scoped_fmaps.get(_scope_name.c_str())->lookup_guard_translator(
+				  name
+				, _flow_guard_ref_unionnumber
+				, _flow_guard_ref_hash.c_str()
+				, _flow_guard_ref_wtype);
                 assert(guardfn != NULL); 
                 _flow_guard_reference->setGuardFn(guardfn);
                 _flow_node->addGuard(_flow_guard_reference);
@@ -230,33 +393,33 @@ public:
                 _set_error_handlers.push_back(seh);
         }
         bool isExternalNode() { return _is_external_node; }
-        void setIsExternalNode(bool is_external_node) { _is_external_node = is_external_node; }
+        void setIsExternalNode(bool is_external_node) 
+	{ _is_external_node = is_external_node; }
         bool isAddition() { return _is_add; }
         void setAddition(bool add) { _is_add = add; }
         bool isDeletion() { return _is_remove; }
         void setDeletion(bool remove) { _is_remove = remove; }
+
+	typedef boost::shared_ptr<ScopedFunctionMaps::Scope> ScopePtr;
+
+	ScopePtr fromThisScope(const char * s = NULL) 
+	{ return _scoped_fmaps.get(s ? s : _scope_name.c_str()); }
+
 protected:
         /**
          * @brief just connect the forward flow node references stored up
          */
         void readxmldir();
-        void readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler);
+        void readxmlfile(
+		  const char * filename
+		, XML_StartElementHandler startHandler
+		, XML_EndElementHandler endHandler);
 
         void finalize();
-
-public:
-        // functions for accessing the vector of flowmaps
-        CreateNodeFn lookup_node_function(const char *n);
-        ConditionFn lookup_conditional(const char * n, int argno, int unionnumber);
-        GuardTransFn lookup_guard_translator(const char * guardname
-                , int union_number
-                , const char * hash
-                , int wtype);
-        AtomicMapAbstract * lookup_atomic_map(const char * guardname);
-        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber);
         
 private:
-        std::vector<flow::FunctionMaps *> _fmaps_vec;
+	std::string                       _scope_name;
+        ScopedFunctionMaps                _scoped_fmaps;
         flow::Flow *                      _flow;
         flow::Node *                      _flow_node;
         flow::SuccessorList *             _flow_successor_list;
@@ -285,7 +448,8 @@ void AddTarget::execute(flow::Flow * f)
         assert(fsrc);
         _fc->setTargetNode(fsrc);
         _target_input_unionnumber = fsrc->inputUnionNumber();
-        FlatIOConversionFun fiocf = _xmlreader->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
+        FlatIOConversionFun fiocf = 
+		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
         if(fiocf) {
                 assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
                 _fc->setIOConverter(new flow::IOConverter(fiocf));
@@ -316,7 +480,8 @@ Reader::Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pl
         , _plugin_xml_dir(pluginxmldir)
         , _init_plugin_params(initpluginparams)
 { 
-        _fmaps_vec.push_back(fmaps);
+	std::vector<std::string> emptyvec;
+        _scoped_fmaps.add("",fmaps,emptyvec);
         read(filename);
 }
 
@@ -398,58 +563,6 @@ void Reader::finalize()
         _flow->pretty_print();
 }
 
-CreateNodeFn Reader::lookup_node_function(const char *n)
-{
-        CreateNodeFn res = NULL;
-        for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_node_function(n);
-        }
-        return res;
-}
-
-ConditionFn Reader::lookup_conditional(const char * n, int argno, int unionnumber)
-{
-        ConditionFn res = NULL;
-        for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_conditional(n,argno,unionnumber);
-        }
-        return res;
-}
-
-GuardTransFn Reader::lookup_guard_translator(const char * guardname
-        , int union_number
-        , const char * hash
-        , int wtype)
-{
-        GuardTransFn res = NULL;
-        for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_guard_translator(guardname
-                        , union_number
-                        , hash
-                        , wtype);
-        }
-        return res;
-}
-
-AtomicMapAbstract * Reader::lookup_atomic_map(const char * guardname)
-{
-        AtomicMapAbstract * res = NULL;
-        for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_atomic_map(guardname);
-        }
-        return res;
-}
-
-FlatIOConversionFun Reader::lookup_io_conversion(int from_unionnumber, int to_unionnumber)
-{
-        FlatIOConversionFun res = NULL;
-        for(int i = _fmaps_vec.size() -1; i >= 0 && res == NULL ; i--) {
-                res = _fmaps_vec[i]->lookup_io_conversion(from_unionnumber,to_unionnumber);
-        }
-        return res;
-}
-
-
 void Reader::startMainHandler(void *data, const char *el, const char **attr)
 {
         Reader * pthis = static_cast<Reader *> (data);
@@ -518,7 +631,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         } else if(strcmp(el,"guard") == 0) {
                 // has attributes: name
                 // has no children 
-                AtomicMapAbstract * amap = pthis->lookup_atomic_map(el_name);
+                AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
                 assert(amap);
                 pthis->new_flow_guard(el_name, amap);
         } else if(strcmp(el,"guardprecedence") == 0) {
@@ -534,7 +647,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         } else if(strcmp(el,"condition") == 0) {
                 // has attributes: name, argno, isnegated
                 // has no children
-                ConditionFn condfn = pthis->lookup_conditional(el_name,argno,unionnumber);
+                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
                 assert(condfn != NULL);
                 flow::Condition * fc = new flow::Condition(condfn,is_negated);
                 pthis->flow_case()->add(fc);
@@ -557,7 +670,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         } else if(strcmp(el,"node") == 0) {
                 // has attributes: name, source, inputunionnumber, outputunionnumber
                 // has children: errorhandler, guardref(s), successorlist 
-                CreateNodeFn createfn = pthis->lookup_node_function(el_function);
+                CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
                 assert(createfn != NULL);
                 pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
         }
@@ -684,7 +797,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         } else if(strcmp(el,"guard") == 0) {
                 // has attributes: name
                 // has no children
-                AtomicMapAbstract * amap = pthis->lookup_atomic_map(el_name);
+                AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
                 assert(amap);
                 pthis->new_flow_guard(el_name, amap);
         } else if(strcmp(el,"guardprecedence") == 0) {
@@ -713,7 +826,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                         bool foundNode = pthis->find_flow_node(el_name);
                         assert(foundNode);
                 } else {
-                        CreateNodeFn createfn = pthis->lookup_node_function(el_function);
+                        CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
                         assert(createfn != NULL);
                         pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
                 }
@@ -733,7 +846,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         } else if(strcmp(el,"condition") == 0 && is_ok_to_create) { 
                 // has attributes: name, argno, isnegated
                 // has no children
-                ConditionFn condfn = pthis->lookup_conditional(el_name,argno,unionnumber);
+                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
                 assert(condfn != NULL);
                 flow::Condition * fc = new flow::Condition(condfn,is_negated);
                 pthis->flow_case()->add(fc);
@@ -793,6 +906,7 @@ void Reader::new_depend(const char * dependname)
         depxml += dependname;
         depxml += ".xml";
         flow::Library * lib = _library; // preserve on the stack
+	lib->addDependency(dependname);
         assert(_flow);
         if(!_flow->haveLibrary(dependname)) {
                 if(_depends_visited.isDependency(depxml.c_str())) {
@@ -809,6 +923,7 @@ void Reader::new_depend(const char * dependname)
 void Reader::new_library(const char * filename)
 {
         _library = new flow::Library(_plugin_lib_dir,filename);
+	_library->addDependency("");
 }
 
 void Reader::add_library()
@@ -821,7 +936,11 @@ void Reader::add_library()
         FlowFunctionMapFunction * ffmpfun = 
                 _library->getSymbol<FlowFunctionMapFunction>(flowfunctionmapfunction.c_str());
         assert(ffmpfun);
-        _fmaps_vec.push_back((*ffmpfun)());
+	_scope_name = _library->getName();
+	_scoped_fmaps.add(
+		  _library->getName().c_str()
+		, (*ffmpfun)()
+		, _library->getDependencies());
         assert(_flow);
 
         if(!_flow->haveLibrary(_library->getName().c_str())) {
