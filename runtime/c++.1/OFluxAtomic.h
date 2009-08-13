@@ -72,14 +72,16 @@ public:
 
 class AtomicFree : public Atomic {
 public:
+	AtomicFree(void *) {}
 	virtual ~AtomicFree() {}
 	virtual void ** data() { return &_data_ptr; }
-	virtual int held() { return 1; } // always free
-	virtual int acquire() { return 1; } // always acquire
+	virtual int held() const { return 1; } // always free
+	virtual int acquire(int) { return 1; } // always acquire
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & ) {}
-	virtual void wait(boost::shared_ptr<EventBase> & ) 
+	virtual void wait(boost::shared_ptr<EventBase> &,int ) 
 	{ assert( NULL && "AtomicFree should never wait"); }
 	virtual int waiter_count() { return 0; }
+	virtual void relinquish() {}
 private:
 	void * _data_ptr;
 };
