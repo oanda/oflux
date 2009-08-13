@@ -170,6 +170,12 @@ let remove_reductions prog =
                 try let expr,remainder = 
                         match List.partition (fun e -> (strip_position e.exprname) = ename) ll with 
                                 ([x],y) -> x,y
+				| ([],y) -> { ParserTypes.exprname = (ename,pos,pos)
+					    ; ParserTypes.condbinding = []
+					    ; ParserTypes.successors = []
+					    ; ParserTypes.etype = ParserTypes.Concurrent }
+					, y
+					
                                 | _ -> raise Not_found in
                     let _ = match expr.etype,expr.successors with
                                 (Concurrent, _) -> ()
