@@ -62,7 +62,8 @@ public:
          * @remark these functions can translate an input structure to a guard key structure
          * @param guardname name of the guard
          * @param union_number union number (indicates the input structure)
-         * @param argnos a vector of unique argument numbers used to pick off the fields
+         * @param hash is the hash result of on the expression (compiler's)
+         * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
          * @return the compiled function (pointer to it)
          */
         GuardTransFn lookup_guard_translator(const char * guardname

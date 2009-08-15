@@ -2,7 +2,7 @@
 #define _OFLUX_QUEUE
 
 /**
- * @filename OFluxQueue.h
+ * @file OFluxQueue.h
  * @author Mark Pichora
  * So far this run time only has a FIFO queue.
  */
