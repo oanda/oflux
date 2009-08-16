@@ -15,9 +15,14 @@ ifndef _ARCH
   export _ARCH
 endif
 
+ifndef _PROC
+  _PROC := $(shell uname -p)
+  export _PROC
+endif
+
 RELEASE := production
 
-OBJDIR := builds/_$(_ARCH)_$(RELEASE)
+OBJDIR := builds/_$(_ARCH)_$(_PROC)_$(RELEASE)
 EXTRATARGETS := $(wildcard _common)
 
 
