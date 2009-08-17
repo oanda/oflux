@@ -471,6 +471,8 @@ Reader::Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pl
         , _flow_successor(NULL)
         , _flow_case(NULL)
         , _flow_guard_reference(NULL)
+	, _flow_guard_ref_unionnumber(0)
+	, _flow_guard_ref_wtype(0)
         , _is_external_node(false)
         , _is_existing_successor(false)
         , _is_add(false)
