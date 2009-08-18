@@ -556,10 +556,13 @@ let flatten_plugin' plugin_name prog =
                 { onnodes = List.map (for_ref is_en ) err.onnodes
                 ; handler = for_ref is_en err.handler
                 } in
-        let for_mod_inst is_en minst =
+        let for_mod_inst is_en is_ea minst =
+		let for_guard_alias is_ea (a,b) =
+			(a, for_ref is_ea b)
+		in
                 { modsourcename = minst.modsourcename
                 ; modinstname = for_ref is_en minst.modinstname
-                ; guardaliases = minst.guardaliases
+                ; guardaliases = List.map (for_guard_alias is_ea) minst.guardaliases
                 ; externalinst = minst.externalinst
                 } in
         let for_terminate = for_ref in
@@ -587,7 +590,7 @@ let flatten_plugin' plugin_name prog =
 		; expr_list = List.map (for_expr is_ext_node is_ext_cond) pr.expr_list
 		; err_list = List.map (for_err is_ext_node) pr.err_list
 		; mod_def_list = []
-		; mod_inst_list = List.map (for_mod_inst is_ext_inst) pr.mod_inst_list
+		; mod_inst_list = List.map (for_mod_inst is_ext_inst is_ext_atom) pr.mod_inst_list
                 ; plugin_list = []
                 ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
                 ; order_decl_list = List.map (for_order_decl is_ext_atom) pr.order_decl_list

@@ -100,6 +100,23 @@ let omit_emit_for pluginopt n =
 			||
 			(let nopre = remove_prefix (pn^".") n in has_dot nopre)
 
+let print_aliases ll =
+	let tos (n,isin)= if isin then n^"_in" else n^"_out" in
+	let tos_a (a,b) = ("("^(tos a)^","^(tos b)^")") in
+	let pp_a al = print_string ("  "^(tos_a al)^"\n")
+	in  (print_string "aliases :\n";
+		List.iter pp_a ll;
+		())
+
+let print_full_collapsed fcll =
+	let tos (n,isin)= if isin then n^"_in" else n^"_out" in
+	let pp_s x = print_string ((tos x)^", ") in
+	let pp_fc (i,ll) =
+		(print_string ("  "^(string_of_int i)^" --> ");
+		List.iter pp_s ll;
+		print_string "\n")
+	in  (print_string "full_collapsed :\n"; List.iter pp_fc fcll)
+
 let emit_structs conseq_res symbol_table code =
 	let avoids = conseq_res.TypeCheck.full_collapsed_names 
                 @ (List.map (fun (x,_) -> x) conseq_res.TypeCheck.aliases) in
@@ -197,6 +214,8 @@ let emit_structs conseq_res symbol_table code =
 			@ (List.map (fun x -> metadeclbase (tos x)) ul)
 			@ [ "" ] ) 
 		   , ignoreis in
+	(*let _ = (print_aliases conseq_res.TypeCheck.aliases;
+		print_full_collapsed conseq_res.TypeCheck.full_collapsed) in*)
 	let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
 	in  List.fold_left emit_type_def_union (code,[]) conseq_res.TypeCheck.full_collapsed
 
@@ -265,11 +284,11 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
                                 ; metadeclfrom (tos is) (tos what) ]
 		else code in
 	let emit_type_def_union (code,ignoreis) (i,ul) =
-	    try let nsnio = List.find (fun (x,_) -> not (string_has_prefix x pluginname)) ul in
+	    try let nsnio = List.find (fun (x,_) -> not (string_has_prefix x (pluginname^"::"))) ul in
 		let tosnsnio = tos nsnio in
 		let typedeffun s = ("typedef "^tosnsnio^" "^s^"; // emit_type_def_union (3)") in
 		let typedeflist =
-                        let onlyon =List.filter (fun (yn,_) -> (string_has_prefix yn pluginname)) ul
+                        let onlyon =List.filter (fun (yn,_) -> (string_has_prefix yn (pluginname^"::"))) ul
                         in  (List.map (fun y -> typedeffun (tos y)) onlyon)
                             @ (List.map (fun y -> metadeclfrom (tos y) tosnsnio) onlyon)
 				 in
@@ -309,6 +328,8 @@ let emit_plugin_structs pluginname conseq_res symbol_table code =
 			@ (List.map (fun x -> metadeclbase (tos x)) ul)
 			@ [ "" ] ) 
 		   , ignoreis in
+	(*let _ = (print_aliases conseq_res.TypeCheck.aliases;
+		print_full_collapsed conseq_res.TypeCheck.full_collapsed) in*)
         let code = List.fold_left emit_type_def_alias code conseq_res.TypeCheck.aliases
         in  List.fold_left emit_type_def_union (code,[]) conseq_res.TypeCheck.full_collapsed
 
