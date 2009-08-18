@@ -23,7 +23,7 @@ CPPFLAGS = $(COMPONENT_FLAGS) $(ARCH_FLAGS) $(INCS) -D$(_ARCH) -D_REENTRANT
 # Place things here that will alter how the compilation will occur
 CXXFLAGS = $(BASECXXFLAGS) $(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) $(WARN_FLAGS)
 
-BOOSTDIR := /oanda/system/include/boost-1_34_1
+BOOSTDIR ?= /oanda/system/include/boost-1_34_1
 
 DEBUG_FLAGS := -ggdb
 WARN_FLAGS = -Wall
@@ -33,7 +33,6 @@ OFLUX_RUNTIME = $(SRCDIR)/runtime/c++.1
 
 INCS = \
     -I/oanda/system/include \
-    -I/oanda/system/include/boost-1_34_1 \
     -I$(BOOSTDIR) \
     -I$(SRCDIR)/private_include \
     -I$(SRCDIR)/include \
