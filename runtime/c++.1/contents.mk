@@ -7,6 +7,8 @@ LIBRARIES += liboflux.a libofshim.so
 SHIMOBJS := OFluxRunTimeAbstract.pic.o OFluxIOShim.pic.o
 
 DTRACECALLINGCPPS := $(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f)))
+DTRACE_FLAGS := -G
+
 
 OBJS := \
         OFlux.o \
@@ -36,7 +38,7 @@ $(OBJS) $(OBJS:.o=.pic.o) $(SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM
 liboflux.a: $(OBJS) 
 ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj.o $^
-	$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj.o -o ofluxprobe_glommed.o
+	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj.o -o ofluxprobe_glommed.o
 	$(AR) $(ARFLAGS) $@ glommedobj.o ofluxprobe_glommed.o
 else
 	$(AR) $(ARFLAGS) $@ $^ 
@@ -45,7 +47,7 @@ endif
 liboflux.so: $(OBJS:%.o=%.pic.o)
 ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj_so.o $^
-	$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj_so.o -o ofluxprobe_glommed_so.o
+	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj_so.o -o ofluxprobe_glommed_so.o
 	$(CXX) -shared glommedobj_so.o ofluxprobe_glommed_so.o $(OFLUXRTLIBS) -o $@
 else
 	$(CXX) -shared $^ $(OFLUXRTLIBS) -o $@
@@ -67,7 +69,7 @@ OFLUXRTLIBS= -lposix4 -lexpat -lm -lc -lpthread
 endif
 
 libofshim.so: $(SHIMOBJS) -ldl
-	$(if $(DTRACE),$(DTRACE) -G -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o)
+	$(if $(DTRACE),$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o)
 	$(CXX) -shared -Wl,-z,interpose $^ $(if $(DTRACE),ofluxshimprobe_so.o,) $(OFLUXRTLIBS) -o $@
 
 OFLUX_LIB_VERS_READ:=$(shell test -r $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g)

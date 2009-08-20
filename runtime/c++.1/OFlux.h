@@ -1,7 +1,11 @@
 #ifndef _O_FLUX
 #define _O_FLUX
 #include <boost/shared_ptr.hpp>
+#ifdef Darwin
+#include <boost/tr1/tr1/functional>
+#else
 #include <tr1/functional_hash.h>
+#endif
 
 /**
  * @mainpage OFlux Runtime (and compiler)

@@ -162,11 +162,11 @@ private:
  */
 class Increment {
 public:
-	Increment(int & val, int whoami) 
+	Increment(int & val, _opaque_pthread_t* whoami) 
 		: _valp(&val)
 		{ val++; }
 	~Increment() { if(_valp) (*_valp)--; } // count down one
-	void release(int whoami) 
+	void release(_opaque_pthread_t* whoami) 
 		{ 
 		  if(_valp) { 
 			(*_valp)--;

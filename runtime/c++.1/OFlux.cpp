@@ -37,7 +37,7 @@ hrtime_t  gethrtime(void)
 #endif
 */
 
-#ifdef LINUX
+#if defined LINUX || defined Darwin
 time_t fast_time(time_t *tloc)
 {
 	return time(tloc);
