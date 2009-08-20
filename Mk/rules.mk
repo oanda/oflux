@@ -79,7 +79,7 @@ DOXYGENCOMMAND:= $(shell which doxygen | grep -v no)
 DOXYGEN:=$(if $(DOXYGENCOMMAND),$(DOXYGENCOMMAND), echo "install doxygen ")
 
 # dtrace
-ifneq ($(ARCH),"Darwin")
+ifeq ($(_ARCH),SunOS)
 DTRACE:=$(shell which dtrace | grep -v no)
 ARCH_FLAGS += $(if $(DTRACE),-DHAS_DTRACE,)
 DTRACE_LIB_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
