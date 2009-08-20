@@ -640,7 +640,7 @@ extern "C" int epoll_wait(int epfd, struct epoll_event * events,
 }
 #endif
 
-#ifndef LINUX
+#ifdef SunOS
 extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout) {
 
     oflux::RunTimeAbstract *local_eminfo = eminfo;
