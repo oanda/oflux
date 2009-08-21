@@ -589,6 +589,20 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
 				(remove shorter)::(cond_add accumulated [])
 				(*raise (XMLConversion ("something <internal> is wrong - add_merge failed",noposition))*)
                 in
+	let rec findattribdiff ll1 ll2 =
+		match ll1,ll2 with
+			([],[]) -> raise Not_found
+			| ((a1,v1)::t1,(a2,v2)::t2) ->
+				if not (a1 = a2) then
+					a1,v1,"<unknown1>"
+				else if (a1,v1) = (a2,v2) then
+					findattribdiff t1 t2
+				else a1,v1,v2
+			| ([],(a2,v2)::_) ->
+				a2,"<unknown2>",v2
+			| ((a1,v1)::_,[]) ->
+				a1,v1,"<unknown3>"
+			in
         let diffhandler befxml aftxml =
                 let beftag = Xml.get_tag befxml in
                 let befattribs = Xml.get_attributes befxml in
@@ -596,8 +610,27 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
                 let aftattribs = Xml.get_attributes aftxml in
                 let sort_opt ll = if List.mem beftag ordered_tags then ll
                                 else xml_sort ll in
-                let _ = if not ((beftag=afttag) && (aftattribs = befattribs)) then
-                                raise (XMLConversion ("plugin caused XML tag difference ["^beftag^"/"^afttag^"]",noposition))
+		let get_name_ifthere attribs =
+			(try    let na = List.assoc xml_name_str attribs
+				in ("(name="^na^")")
+			with Not_found -> "") in
+		let bef_name_ifthere = get_name_ifthere befattribs in
+		let aft_name_ifthere = get_name_ifthere aftattribs in
+                let _ = if not (beftag=afttag) then
+                                raise (XMLConversion ("plugin caused XML tag difference ["
+					^beftag^"/"^afttag^"]"
+					^"(name attributes "
+					^bef_name_ifthere^"/"^aft_name_ifthere^")"
+					,noposition))
+			else if not (aftattribs = befattribs) then
+				let attr_name,bef_val,aft_val = 
+					findattribdiff aftattribs befattribs
+                                in  raise (XMLConversion ("plugin caused XML attribute difference on a "
+					^beftag^" tagged node "
+					^bef_name_ifthere
+					^"\n   before/after attribute "^attr_name
+					^" ["^bef_val^"/"^aft_val^"]"
+					,noposition))
                         else ()
                 in  if (beftag = xml_successorlist_str) || (beftag = xml_successor_str) then
                         Element (beftag,befattribs,
