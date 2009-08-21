@@ -26,7 +26,7 @@ class Reader;
  */
 class AddTarget {
 public:
-        AddTarget(flow::Case * fc 
+        AddTarget(flow::Case * fc
 		, const char * name
 		, int node_output_unionnumber
 		, Reader * xmlreader
@@ -93,27 +93,27 @@ public:
 		Scope(Context & c)
 			: _c(c)
 		{}
-		
-		CreateNodeFn 
+
+		CreateNodeFn
 		lookup_node_function(const char *n);
 
-		ConditionFn 
+		ConditionFn
 		lookup_conditional(
 			  const char * n
 			, int argno
 			, int unionnumber);
 
-		GuardTransFn 
+		GuardTransFn
 		lookup_guard_translator(
 			  const char * guardname
 			, int union_number
 			, const char * hash
 			, int wtype);
 
-		AtomicMapAbstract * 
+		AtomicMapAbstract *
 		lookup_atomic_map(const char * guardname);
 
-		FlatIOConversionFun 
+		FlatIOConversionFun
 		lookup_io_conversion(int from_unionnumber, int to_unionnumber);
 	private:
 		Context & _c;
@@ -127,13 +127,13 @@ public:
 		return boost::shared_ptr<Scope>(new Scope(itr->second));
 	}
 
-	void 
-	add(    
+	void
+	add(
 		  const char * scopename
 		, flow::FunctionMaps * fmaps
 		, const std::vector<std::string> & deps);
 private:
-	static void 
+	static void
 	_addIntoContext(
 		  Context & c1
 		, const Context & c2)
@@ -149,8 +149,8 @@ private:
 };
 
 
-void 
-ScopedFunctionMaps::add(    
+void
+ScopedFunctionMaps::add(
 	  const char * scopename
 	, flow::FunctionMaps * fmaps
 	, const std::vector<std::string> & deps)
@@ -168,7 +168,7 @@ ScopedFunctionMaps::add(
 	_map.insert(pr);
 }
 
-CreateNodeFn 
+CreateNodeFn
 ScopedFunctionMaps::Scope::lookup_node_function(const char *n)
 {
         CreateNodeFn res = NULL;
@@ -180,7 +180,7 @@ ScopedFunctionMaps::Scope::lookup_node_function(const char *n)
         return res;
 }
 
-ConditionFn 
+ConditionFn
 ScopedFunctionMaps::Scope::lookup_conditional(
 	  const char * n
 	, int argno
@@ -195,7 +195,7 @@ ScopedFunctionMaps::Scope::lookup_conditional(
         return res;
 }
 
-GuardTransFn 
+GuardTransFn
 ScopedFunctionMaps::Scope::lookup_guard_translator(
 	  const char * guardname
         , int union_number
@@ -215,7 +215,7 @@ ScopedFunctionMaps::Scope::lookup_guard_translator(
         return res;
 }
 
-AtomicMapAbstract * 
+AtomicMapAbstract *
 ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
 {
         AtomicMapAbstract * res = NULL;
@@ -227,7 +227,7 @@ ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
         return res;
 }
 
-FlatIOConversionFun 
+FlatIOConversionFun
 ScopedFunctionMaps::Scope::lookup_io_conversion(
 	  int from_unionnumber
 	, int to_unionnumber)
@@ -279,42 +279,42 @@ public:
         flow::Flow * flow() { return _flow; }
         flow::Case * flow_case() { return _flow_case; }
         void new_flow_case(const char * targetnodename, int node_output_unionnumber)
-        { 
-                _flow_case = new flow::Case(NULL); 
+        {
+                _flow_case = new flow::Case(NULL);
                 AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this, _scope_name);
                 _add_targets.push_back(at);
         }
-        void addremove_flow_case(bool front=false) 
-        { 
+        void addremove_flow_case(bool front=false)
+        {
 		if(isDeletion()) {
 			_flow_successor->remove(_flow_case);
 		} else {
-			_flow_successor->add(_flow_case, front); 
+			_flow_successor->add(_flow_case, front);
 		}
-                _flow_case = NULL; 
+                _flow_case = NULL;
         }
-        void new_flow_successor(const char * name) 
-        { 
+        void new_flow_successor(const char * name)
+        {
                 if(_is_external_node) {
-                        _flow_successor = _flow_successor_list->get_successor(name); 
-                } 
+                        _flow_successor = _flow_successor_list->get_successor(name);
+                }
                 if(_flow_successor) {
                         _is_existing_successor = true;
                 } else {
-                        _flow_successor = new flow::Successor(name); 
+                        _flow_successor = new flow::Successor(name);
                 }
         }
-        void addremove_flow_successor() 
-        { 
+        void addremove_flow_successor()
+        {
                 if(_is_existing_successor) {
                         _is_existing_successor = false;
 			if(isDeletion()) {
 				_flow_successor_list->remove(_flow_successor);
 			}
                 } else {
-                        _flow_successor_list->add(_flow_successor); 
+                        _flow_successor_list->add(_flow_successor);
                 }
-                _flow_successor = NULL; 
+                _flow_successor = NULL;
         }
         void new_flow_successor_list() { }
         void add_flow_successor_list() { }
@@ -326,8 +326,8 @@ public:
                 , int unionnumber
                 , const char * hash
                 , int wtype)
-        { 
-                _flow_guard_reference = new flow::GuardReference(fg,wtype); 
+        {
+                _flow_guard_reference = new flow::GuardReference(fg,wtype);
                 _flow_guard_ref_unionnumber = unionnumber;
                 _flow_guard_ref_hash = hash;
                 _flow_guard_ref_wtype = wtype;
@@ -335,25 +335,25 @@ public:
         void complete_flow_guard_reference()
         {
                 const char * name = _flow_guard_reference->getName().c_str();
-                GuardTransFn guardfn = 
+                GuardTransFn guardfn =
 			_scoped_fmaps.get(_scope_name.c_str())->lookup_guard_translator(
 				  name
 				, _flow_guard_ref_unionnumber
 				, _flow_guard_ref_hash.c_str()
 				, _flow_guard_ref_wtype);
-                assert(guardfn != NULL); 
+                assert(guardfn != NULL);
                 _flow_guard_reference->setGuardFn(guardfn);
                 _flow_node->addGuard(_flow_guard_reference);
                 _flow_guard_reference = NULL;
         }
         //void flow_guard_ref_add_argument(int an) { _flow_guard_ref_args.push_back(an); }
         flow::Node * flow_node() { return _flow_node; }
-        void new_flow_node(const char * name, CreateNodeFn createfn, 
-                        bool is_error_handler, 
+        void new_flow_node(const char * name, CreateNodeFn createfn,
+                        bool is_error_handler,
                         bool is_src,
                         bool is_detached,
                         int input_unionnumber,
-                        int output_unionnumber) 
+                        int output_unionnumber)
         {
                 _flow_node = new flow::Node(
                                         name,
@@ -366,7 +366,7 @@ public:
                 _flow_successor_list = &(_flow_node->successor_list());
         }
         void add_flow_node()
-        { 
+        {
                 if(_is_external_node) {
                         _is_external_node = false;
                 } else {
@@ -393,7 +393,7 @@ public:
                 _set_error_handlers.push_back(seh);
         }
         bool isExternalNode() { return _is_external_node; }
-        void setIsExternalNode(bool is_external_node) 
+        void setIsExternalNode(bool is_external_node)
 	{ _is_external_node = is_external_node; }
         bool isAddition() { return _is_add; }
         void setAddition(bool add) { _is_add = add; }
@@ -402,7 +402,7 @@ public:
 
 	typedef boost::shared_ptr<ScopedFunctionMaps::Scope> ScopePtr;
 
-	ScopePtr fromThisScope(const char * s = NULL) 
+	ScopePtr fromThisScope(const char * s = NULL)
 	{ return _scoped_fmaps.get(s ? s : _scope_name.c_str()); }
 
 protected:
@@ -416,7 +416,7 @@ protected:
 		, XML_EndElementHandler endHandler);
 
         void finalize();
-        
+
 private:
 	std::string                       _scope_name;
         ScopedFunctionMaps                _scoped_fmaps;
@@ -448,7 +448,7 @@ void AddTarget::execute(flow::Flow * f)
         assert(fsrc);
         _fc->setTargetNode(fsrc);
         _target_input_unionnumber = fsrc->inputUnionNumber();
-        FlatIOConversionFun fiocf = 
+        FlatIOConversionFun fiocf =
 		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
         if(fiocf) {
                 assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
@@ -481,7 +481,7 @@ Reader::Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pl
         , _plugin_lib_dir(pluginlibdir)
         , _plugin_xml_dir(pluginxmldir)
         , _init_plugin_params(initpluginparams)
-{ 
+{
 	std::vector<std::string> emptyvec;
         _scoped_fmaps.add("",fmaps,emptyvec);
         read(filename);
@@ -632,7 +632,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 //pthis->flow_guard_ref_add_argument(argno);
         } else if(strcmp(el,"guard") == 0) {
                 // has attributes: name
-                // has no children 
+                // has no children
                 AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
                 assert(amap);
                 pthis->new_flow_guard(el_name, amap);
@@ -671,7 +671,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 pthis->setErrorHandler(el_name);
         } else if(strcmp(el,"node") == 0) {
                 // has attributes: name, source, inputunionnumber, outputunionnumber
-                // has children: errorhandler, guardref(s), successorlist 
+                // has children: errorhandler, guardref(s), successorlist
                 CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
                 assert(createfn != NULL);
                 pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
@@ -786,7 +786,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
 
         if(strcmp(el,"plugin") == 0) {
-                // has attribute: 
+                // has attribute:
                 // has children: node, guard, library
         } else if(strcmp(el,"library") == 0) {
                 // has attribute: name
@@ -816,13 +816,13 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 // has attributes: argno
                 // had no children
                 //pthis->flow_guard_ref_add_argument(argno);
-        } else if(strcmp(el,"add") == 0) { 
+        } else if(strcmp(el,"add") == 0) {
                 pthis->setAddition(true);
-        } else if(strcmp(el,"remove") == 0) { 
+        } else if(strcmp(el,"remove") == 0) {
                 pthis->setDeletion(true);
-        } else if(strcmp(el,"node") == 0) { 
+        } else if(strcmp(el,"node") == 0) {
                 // has attributes: name, function, source, iserrhandler, detached, external
-                // has children: errorhandler, guardref(s), successorlist 
+                // has children: errorhandler, guardref(s), successorlist
                 if(is_external) {
                         pthis->setIsExternalNode(true);
                         bool foundNode = pthis->find_flow_node(el_name);
@@ -832,20 +832,24 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                         assert(createfn != NULL);
                         pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
                 }
-        } else if(strcmp(el,"successorlist") == 0) { 
+        } else if(strcmp(el,"successorlist") == 0) {
                 // has no attribute
                 // has children: successor
                 // do nothing
-        } else if(strcmp(el,"successor") == 0) { 
+        } else if(strcmp(el,"successor") == 0) {
                 // has attribute: name
                 // has children: case
                 pthis->new_flow_successor(el_name); // should find if external
+        } else if(strcmp(el,"errorhandler") == 0) {
+                // has attributes: name
+                // has no children
+                pthis->setErrorHandler(el_name);
         } else if(strcmp(el,"case") == 0 && is_ok_to_create) {
                 // has attributes: nodetarget
                 // has children: condition
                 // no virtual nodetarget allowed in a plugin
                 pthis->new_flow_case(el_nodetarget, pthis->flow_node()->outputUnionNumber());
-        } else if(strcmp(el,"condition") == 0 && is_ok_to_create) { 
+        } else if(strcmp(el,"condition") == 0 && is_ok_to_create) {
                 // has attributes: name, argno, isnegated
                 // has no children
                 ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
@@ -869,21 +873,23 @@ void Reader::endPluginHandler(void *data, const char *el)
                 pthis->complete_flow_guard_reference();
         } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
                 // do nothing
-        } else if(strcmp(el,"node") == 0) { 
+        } else if(strcmp(el,"node") == 0) {
                 pthis->add_flow_node();
-        } else if(strcmp(el,"successorlist") == 0) { 
+        } else if(strcmp(el,"successorlist") == 0) {
                 // do nothing essentially
-                pthis->add_flow_successor_list(); 
-        } else if(strcmp(el,"successor") == 0) { 
+                pthis->add_flow_successor_list();
+        } else if(strcmp(el,"successor") == 0) {
                 pthis->addremove_flow_successor();
-        } else if(strcmp(el,"case") == 0 && is_ok_to_create) { 
+        } else if(strcmp(el,"case") == 0 && is_ok_to_create) {
                 pthis->addremove_flow_case(pthis->isAddition());
-        } else if(strcmp(el,"condition") == 0 && is_ok_to_create) { 
+        } else if(strcmp(el,"condition") == 0 && is_ok_to_create) {
                 // do nothing
-        } else if(strcmp(el,"add") == 0) { 
+        } else if(strcmp(el,"add") == 0) {
                 pthis->setAddition(false);
-        } else if(strcmp(el,"remove") == 0) { 
+        } else if(strcmp(el,"remove") == 0) {
                 pthis->setDeletion(false);
+        } else if(strcmp(el,"errorhandler") == 0) {
+                // do nothing
         }
 }
 
@@ -935,7 +941,7 @@ void Reader::add_library()
         std::string flowfunctionmapfunction = "flowfunctionmaps__";
         _library->addSuffix(flowfunctionmapfunction);
 
-        FlowFunctionMapFunction * ffmpfun = 
+        FlowFunctionMapFunction * ffmpfun =
                 _library->getSymbol<FlowFunctionMapFunction>(flowfunctionmapfunction.c_str());
         assert(ffmpfun);
 	_scope_name = _library->getName();
