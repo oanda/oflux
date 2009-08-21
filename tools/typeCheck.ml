@@ -266,7 +266,7 @@ let make_compatible stable_change conseq_const conseq_change =
 			(h::t) -> 
 				if (intersects ec h) && (is_subset ec h) then
 					(remove_all h ec)::t
-				else h::(attempt_inplace_remove' ec ufs)
+				else h::(attempt_inplace_remove' ec t)
 			| _ -> raise Not_found in
 	let attempt_inplace_remove ec ufs = ec::(attempt_inplace_remove' ec ufs) in
         let rec compat sofar ufs_const ufs =

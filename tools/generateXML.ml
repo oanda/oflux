@@ -344,7 +344,9 @@ let emit_program_xml' programname br usesmodel =
 				else find_union_number (n,true) in
                         let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
                         let _ = if (not ist) && (is_abstract n) then 
-                                        raise (XMLConversion ("the node "^n^" is abstract, but it is not defined", ParserTypes.noposition))
+				    raise (XMLConversion ("the node "
+					^n^" is abstract, but it is not defined"
+					, ParserTypes.noposition))
                                 else ()
 			in  if ist || (is_condition_always_false ccond) then
                                 []
