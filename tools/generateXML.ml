@@ -245,7 +245,7 @@ let explain_union_number br u_n =
 		List.map (fun (x,isi) -> x^(if isi then "_in" else "_out"))
 			synonyms_ios 
 	in  (" synonyms: "^(foldstr (List.map (fun s -> s^", ") synonyms))
-		^"\n containing data memebers: "^(describe_ios_struct synonyms_ios))
+		^"\n containing data members: "^(describe_ios_struct synonyms_ios))
 
 let emit_program_xml' programname br usesmodel = 
         let conseq_res = br.Flow.consequences in

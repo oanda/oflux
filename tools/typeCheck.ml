@@ -212,6 +212,41 @@ let consequences ulist stable =
 			let merge (a,al) (b,bl) = (a,al @ bl)
 			in  Uniquify.uniq compare_a_ufs merge annotated_ufs 
 		in  List.map (fun (_,x) -> x) annotated_ufs in
+	let extract_node_fold s nd ll =
+		let strip_df df =
+			(ParserTypes.strip_position df.ctypemod
+			,ParserTypes.strip_position df.ctype
+			,ParserTypes.strip_position df.name) in
+		let ll = ((nd.SymbolTable.functionname,true)
+				,List.map strip_df nd.SymbolTable.nodeinputs)::ll
+		in  match nd.SymbolTable.nodeoutputs with
+			(Some outs) -> 
+				((nd.SymbolTable.functionname,false)
+					,List.map strip_df outs)::ll
+			| _ -> ll in
+	let compare_stripped_dfs (_,dfs1) (_,dfs2) =
+		let rec compare_zipped ll =
+			match ll with
+				((a,b)::t) -> let r = compare a b
+					in if r = 0 then compare_zipped t else r
+				| _ -> 0 in
+		let len1 = List.length dfs1 in
+		let len2 = List.length dfs2 
+		in  if len1 = len2 then compare_zipped (List.combine dfs1 dfs2)
+			else if len1 < len2 then -1
+			else 1 in
+	let sorted_by_structure =
+		List.sort compare_stripped_dfs 
+			(SymbolTable.fold_nodes extract_node_fold stable []) in
+	let rec find_pairs sbs =
+		let first (x,_) = x
+		in  match sbs with
+			(a::b::t) ->
+				if (compare_stripped_dfs a b) = 0 then
+					(first a,first b)::(find_pairs (b::t))
+				else find_pairs (b::t)
+			| _ -> [] in
+	let pairs = find_pairs sorted_by_structure in
         let union_find_uniq ufs =
                 let rec uniq ll ul =
                         match ul with
@@ -230,7 +265,7 @@ let consequences ulist stable =
                 in  List.map (fun (x,y) -> (to_func x,to_func y)) ulist
                 in
 	let ulist = translate_node_to_function stable ulist in
-        let ufs = UnionFind.union_find ulist in  
+        let ufs = UnionFind.union_find (ulist@pairs) in  
 	(*let ufs = compress_by_type_definition ufs in -- this is too aggressive*)
         let ufs = union_find_uniq ufs 
         in  finish_consequences stable ufs
@@ -247,9 +282,22 @@ let consequences_equiv_fold ffun onobj conseq_res =
 let consequences_umap_fold ffun onobj conseq_res =
         List.fold_left ffun onobj conseq_res.union_map
 
+let pp_ufs ufs =
+	let tos (s,isi) = s^(if isi then "_in" else "_out")^", " in
+	let pp_ec ll =
+		(print_string " [ ";
+		List.iter (fun x -> print_string (tos x)) ll;
+		print_string "]\n")
+	in  (print_string "[\n";
+		List.iter pp_ec ufs;
+		print_string "]\n")
+
 let make_compatible stable_change conseq_const conseq_change =
         let ufs_const = conseq_const.equiv_classes in
         let ufs = conseq_change.equiv_classes in
+	let _ = (print_string "make_compatible (const,change):\n";
+		pp_ufs ufs_const;
+		pp_ufs ufs) in
         let intersects ec1 ec2 = List.mem (List.hd ec1) ec2 in
 	let is_subset ec1 ec2 = List.for_all (fun x -> List.mem x ec2) ec1 in
 	let remove_all ec1 ec2 = List.find_all (fun x -> not (List.mem x ec2)) ec1 in
@@ -281,7 +329,9 @@ let make_compatible stable_change conseq_const conseq_change =
 							t ufs
 					)
                                 with Not_found ->
-                                        raise (Failure ("make_compatible failure for class containing "^(ec_tostring h),noposition)))
-        in  finish_consequences stable_change (compat [] ufs_const ufs)
+                                        raise (Failure ("make_compatible failure for class containing "^(ec_tostring h),noposition))) in
+	let ufs_final = compat [] ufs_const ufs in
+	let _ = (print_string "ufs_final:\n"; pp_ufs ufs_final)
+        in  finish_consequences stable_change ufs_final
 
 
