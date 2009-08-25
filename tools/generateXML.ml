@@ -213,6 +213,40 @@ let rec break_dotted_name nsn =
 	    in  hstr::(break_dotted_name tstr)
 	with Not_found -> [nsn]
 
+let explain_union_number br u_n =
+	(** nice string that tells you the story of u_n *)
+        let conseq_res = br.Flow.consequences in
+	let g_ins  nd = Some nd.SymbolTable.nodeinputs in
+	let g_outs nd = nd.SymbolTable.nodeoutputs in
+	let stable = br.Flow.symtable in
+	let foldstr ll =
+		let strconcat a b = a^b 
+		in  List.fold_left strconcat "" ll in
+	let df_tos df =
+		(ParserTypes.strip_position df.ParserTypes.ctypemod)^" "
+		^(ParserTypes.strip_position df.ParserTypes.ctype)^" "
+		^(ParserTypes.strip_position df.ParserTypes.name)^", " in
+	let rec get_dfl iol =
+		match iol with
+			((h,isi)::t) ->
+				let f = if isi then g_ins else g_outs in
+				(match f (SymbolTable.lookup_node_symbol_from_function 
+					stable h) with
+					(Some dfl) -> dfl
+					| None -> get_dfl t)
+			| _ -> raise Not_found
+		in
+	let describe_ios_struct ios = 
+		foldstr (List.map df_tos (get_dfl ios)) in
+	let synonyms_ios =
+		List.map (fun (x,_) -> x)
+		(List.filter (fun (_,n) -> n = u_n) conseq_res.TypeCheck.union_map) in
+	let synonyms =
+		List.map (fun (x,isi) -> x^(if isi then "_in" else "_out"))
+			synonyms_ios 
+	in  (" synonyms: "^(foldstr (List.map (fun s -> s^", ") synonyms))
+		^"\n containing data memebers: "^(describe_ios_struct synonyms_ios))
+
 let emit_program_xml' programname br usesmodel = 
         let conseq_res = br.Flow.consequences in
         let unionmap_find strio =
@@ -344,7 +378,9 @@ let emit_program_xml' programname br usesmodel =
 				else find_union_number (n,true) in
                         let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
                         let _ = if (not ist) && (is_abstract n) then 
-                                        raise (XMLConversion ("the node "^n^" is abstract, but it is not defined", ParserTypes.noposition))
+				    raise (XMLConversion ("the node "
+					^n^" is abstract, but it is not defined"
+					, ParserTypes.noposition))
                                 else ()
 			in  if ist || (is_condition_always_false ccond) then
                                 []
@@ -589,6 +625,20 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
 				(remove shorter)::(cond_add accumulated [])
 				(*raise (XMLConversion ("something <internal> is wrong - add_merge failed",noposition))*)
                 in
+	let rec findattribdiff ll1 ll2 =
+		match ll1,ll2 with
+			([],[]) -> raise Not_found
+			| ((a1,v1)::t1,(a2,v2)::t2) ->
+				if not (a1 = a2) then
+					a1,v1,"<unknown1>"
+				else if (a1,v1) = (a2,v2) then
+					findattribdiff t1 t2
+				else a1,v1,v2
+			| ([],(a2,v2)::_) ->
+				a2,"<unknown2>",v2
+			| ((a1,v1)::_,[]) ->
+				a1,v1,"<unknown3>"
+			in
         let diffhandler befxml aftxml =
                 let beftag = Xml.get_tag befxml in
                 let befattribs = Xml.get_attributes befxml in
@@ -596,8 +646,39 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
                 let aftattribs = Xml.get_attributes aftxml in
                 let sort_opt ll = if List.mem beftag ordered_tags then ll
                                 else xml_sort ll in
-                let _ = if not ((beftag=afttag) && (aftattribs = befattribs)) then
-                                raise (XMLConversion ("plugin caused XML tag difference ["^beftag^"/"^afttag^"]",noposition))
+		let get_name_ifthere attribs =
+			(try    let na = List.assoc xml_name_str attribs
+				in ("(name="^na^")")
+			with Not_found -> "") in
+		let bef_name_ifthere = get_name_ifthere befattribs in
+		let aft_name_ifthere = get_name_ifthere aftattribs in
+		let is_unionnumber attrib =
+			List.mem attrib [ xml_unionnumber_str
+					; xml_inputunionnumber_str
+					; xml_outputunionnumber_str ] in
+		let explain_un br unstr = 
+			explain_union_number br (int_of_string unstr) in
+                let _ = if not (beftag=afttag) then
+                                raise (XMLConversion ("plugin caused XML tag difference ["
+					^beftag^"/"^afttag^"]"
+					^"(name attributes "
+					^bef_name_ifthere^"/"^aft_name_ifthere^")"
+					,noposition))
+			else if not (aftattribs = befattribs) then
+				let attr_name,bef_val,aft_val = 
+					findattribdiff befattribs aftattribs
+                                in  raise (XMLConversion ("plugin caused XML attribute difference on a "
+					^beftag^" tagged node "
+					^bef_name_ifthere
+					^"\n   before/after attribute "^attr_name
+					^" ["^bef_val^"/"^aft_val^"]"
+					^(if is_unionnumber attr_name then
+						"\nbefore: "^bef_val
+						^"\n"^(explain_un br_bef bef_val)
+						^"\nafter: "^aft_val
+						^"\n"^(explain_un br_aft aft_val)
+					 else "")
+					,noposition))
                         else ()
                 in  if (beftag = xml_successorlist_str) || (beftag = xml_successor_str) then
                         Element (beftag,befattribs,

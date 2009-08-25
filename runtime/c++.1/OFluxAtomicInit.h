@@ -96,8 +96,10 @@ private:
         }
 #define OFLUX_MODULE_DEINIT(MODULENAME,INST) \
         OFLUX_GUARD_CLEAN(INST##_self, MODULENAME::ModuleConfig)
+#define OFLUX_GUARD_WALKER_NS(NS, GUARDNAME,WALKNAME) \
+    oflux::GuardWalker WALKNAME(NS::ofluximpl::GUARDNAME##_map_ptr)
 #define OFLUX_GUARD_WALKER(GUARDNAME,WALKNAME) \
-	oflux::GuardWalker WALKNAME(ofluximpl::GUARDNAME##_map_ptr)
+	OFLUX_GUARD_WALKER_NS(, GUARDNAME,WALKNAME)
 #define OFLUX_GUARD_WALKER_NEXT(WALKNAME,K,V) \
         WALKNAME.next(K,V)
 
