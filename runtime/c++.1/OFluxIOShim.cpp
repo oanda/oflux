@@ -15,7 +15,6 @@
 #include <queue>
 #include <stack>
 #include <sys/types.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -90,6 +89,7 @@ typedef ssize_t (*recvfromFnType)(int,void *,size_t,int,struct sockaddr *,sockle
 
 } // extern "C"
 
+
 static readFnType shim_read = NULL;
 static closeFnType shim_close = NULL;
 static writeFnType shim_write = NULL;
@@ -116,6 +116,8 @@ static int page_size;
 
 #define STRINGIFY(x) XSTRINGIFY(x)
 #define XSTRINGIFY(x) #x
+
+
 
 /**
  * Need to make sure we get the correct implementation of select.
@@ -178,8 +180,9 @@ extern "C" void deinitShim()
 	eminfo = NULL;
 }
 
-extern "C" unsigned int sleep(unsigned int seconds)
+extern "C" unsigned int sleep(unsigned int seconds) 
 {
+	printf("shim sleep %d secs\n", seconds);
 	if (!eminfo || eminfo->thread()->is_detached()) {
 		if (!shim_sleep) {
 			shim_sleep = (unsigned int (*)(unsigned int)) dlsym(RTLD_NEXT, "sleep");
@@ -209,6 +212,7 @@ extern "C" unsigned int sleep(unsigned int seconds)
 
 extern "C" int usleep(useconds_t useconds)
 {
+	printf("shim usleep usecs:%d\n", useconds);
         oflux::RunTimeAbstract *local_eminfo = eminfo;
 	if (!local_eminfo || local_eminfo->thread()->is_detached()) {
 		if (!shim_sleep) {

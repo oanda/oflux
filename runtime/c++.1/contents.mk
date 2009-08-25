@@ -73,7 +73,7 @@ libofshim.so: $(SHIMOBJS)
 ifneq  ($(_ARCH),Darwin)
 	$(CXX) -shared -Wl,-z,interpose $^ $(if $(HAS_DTRACE),ofluxshimprobe_so.o,) $(OFLUXRTLIBS) -o $@
 else
-	$(CXX) -shared -Wl $^ -o $@
+	$(CXX) -flat_namespace -dynamiclib -shared -Wl $^ -o $@
 endif
 OFLUX_LIB_VERS_READ:=$(shell test -r $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g)
 OFLUX_LIB_VERS_EXISTING:=$(shell cd $(OFLUX_LIB_COMPONENT_DIR); git describe --tags; cd $(CURDIR))
