@@ -94,7 +94,7 @@ OFluxGenerate_$(1).cpp : OFluxGenerate_$(1).h
 
 $$($(1)_OFLUX_KERNEL_DIR) : 
 	mkdir -p $$@/xml; \
-	mkdir -p $$@/bin
+	mkdir -p $$@/lib
 
 $$($(1)_OFLUX_SO_TARGET) : $$($(1)_OFLUX_SO_OBJS) liboflux.so
 	$(CXX) -shared $$^ $(OFLUXRTLIBS) -o $$@
@@ -146,14 +146,14 @@ $(1)_OFLUX_INCS+=$$($$($(1)_FROM_PROJECT)_OFLUX_PATH:%=-I %) \
 	$$(foreach P,$$($(1)_DEP_PLUGINS),$$($$(P)_OFLUX_PATH:%=-I %))
 $(1)_OFLUX_SVG:=$$(foreach S,$$($(1)_OFLUX_MAIN:.flux=.svg) $$($(1)_OFLUX_MODULES:.flux=.svg),doc/examples/$$(S))
 
-$(1)_OFLUX_FINAL:=$$($(1)_OFLUX_KERNEL_DIR)/bin/$$($(1)_OFLUX_SO_TARGET)
+$(1)_OFLUX_FINAL:=$$($(1)_OFLUX_KERNEL_DIR)/lib/$$($(1)_OFLUX_SO_TARGET)
 
 OFluxGenerate_$$($(1)_FROM_PROJECT)_%.h : %.flux mImpl_%.h oflux 
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -a $$* $$($(1)_OFLUX_INCS) $$<
 
 OFluxGenerate_$$($(1)_FROM_PROJECT)_%.cpp : OFluxGenerate_$$($(1)_FROM_PROJECT)_%.h
 
-OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).cpp : $$($(1)_OFLUX_MAIN) $$($(1)_OFLUX_PATH)/mImpl_$(1).h $$($(1)_OFLUX_MODULE_CPPS) oflux $$($(1)_OFLUX_KERNEL_DIR) 
+OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).cpp : $$($(1)_OFLUX_MAIN) mImpl_$(1).h $$($(1)_OFLUX_MODULE_CPPS) oflux $$($(1)_OFLUX_KERNEL_DIR) 
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$$($(1)_FROM_PROJECT) -p $(1) $$($(1)_OFLUX_INCS) $$($(1)_OFLUX_MAIN)
 	rm -f $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml
 	ln -sf $(CURDIR)/$(1).xml $$($(1)_OFLUX_KERNEL_DIR)/xml/$(1).xml

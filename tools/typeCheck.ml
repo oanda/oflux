@@ -285,17 +285,17 @@ let consequences_umap_fold ffun onobj conseq_res =
 let pp_ufs ufs =
 	let tos (s,isi) = s^(if isi then "_in" else "_out")^", " in
 	let pp_ec ll =
-		(print_string " [ ";
-		List.iter (fun x -> print_string (tos x)) ll;
-		print_string "]\n")
-	in  (print_string "[\n";
+		(Debug.dprint_string " [ ";
+		List.iter (fun x -> Debug.dprint_string (tos x)) ll;
+		Debug.dprint_string "]\n")
+	in  (Debug.dprint_string "[\n";
 		List.iter pp_ec ufs;
-		print_string "]\n")
+		Debug.dprint_string "]\n")
 
 let make_compatible stable_change conseq_const conseq_change =
         let ufs_const = conseq_const.equiv_classes in
         let ufs = conseq_change.equiv_classes in
-	let _ = (print_string "make_compatible (const,change):\n";
+	let _ = (Debug.dprint_string "make_compatible (const,change):\n";
 		pp_ufs ufs_const;
 		pp_ufs ufs) in
         let intersects ec1 ec2 = List.mem (List.hd ec1) ec2 in
@@ -331,7 +331,7 @@ let make_compatible stable_change conseq_const conseq_change =
                                 with Not_found ->
                                         raise (Failure ("make_compatible failure for class containing "^(ec_tostring h),noposition))) in
 	let ufs_final = compat [] ufs_const ufs in
-	let _ = (print_string "ufs_final:\n"; pp_ufs ufs_final)
+	let _ = (Debug.dprint_string "ufs_final:\n"; pp_ufs ufs_final)
         in  finish_consequences stable_change ufs_final
 
 

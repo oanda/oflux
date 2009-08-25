@@ -1244,13 +1244,24 @@ let emit_converts is_plugin modulenameopt ignoreis conseq_res code =
 						t
 					else h::t
 				| (_,ll) -> ll in
-		let cs_name = cstyle_name broken_name
+		let cs_name = cstyle_name broken_name in
+		let nspace = 
+			let p = match modulenameopt with
+					(Some p) -> p
+					| _ -> ""
+			in  if (nspace = "") && is_plugin && not (string_has_prefix s_name (p^"::"))  then 
+				p^"::"
+			     else nspace
 		in  if (List.length broken_name) = 1 
 		    then
                         List.fold_left add_code code 
 			[ "template<>"
 			; ("inline "^nspace^s_name^" * convert<"
-				^nspace^s_name^" >( "^nspace^u_name^" * s)")
+				^nspace^s_name^" >( "
+				^(if has_namespaced_name u_name then 
+					u_name
+				  else nspace^u_name)
+				^" * s)")
 			; "{"
 			; ("return "^(if isderef then ("&((*s)._"^cs_name^")")
 					else "s")^";")

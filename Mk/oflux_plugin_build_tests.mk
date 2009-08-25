@@ -1,0 +1,38 @@
+
+##OFLUX_PROJECT_NAME:=plugin3
+##OFLUX_PLUGIN_PROJECTS+= $(OFLUX_PROJECT_NAME)
+##$(OFLUX_PROJECT_NAME)_FROM_PROJECT:=kernalex
+##$(OFLUX_PROJECT_NAME)_DEP_PLUGINS:=plugin1
+##OFLUX_TESTS+=$(OFLUX_PROJECT_NAME)_done
+##$(OFLUX_PROJECT_NAME)_OFLUX_MODULES:= mod1.flux
+
+###########################################################################################
+
+$(OFLUX_PROJECT_NAME)_OFLUX_SRC:=mImpl_$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)_$(OFLUX_PROJECT_NAME).cpp 
+   #$(foreach m,$($(OFLUX_PROJECT_NAME)_OFLUX_MODULES:.flux=),mImpl_$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)_$(m).cpp)
+
+$(OFLUX_PROJECT_NAME)_OFLUX_PATH:=$(COMPONENT_DIR)
+$(OFLUX_PROJECT_NAME)_OFLUX_INCS:=-I $($(OFLUX_PROJECT_NAME)_OFLUX_PATH)
+	# no other module directories -- keepin it local
+
+$(OFLUX_PROJECT_NAME)_OFLUX_INCLUDES:=
+
+$(OFLUX_PROJECT_NAME)_OFLUX_MAIN:=$(OFLUX_PROJECT_NAME).flux
+
+$(OFLUX_PROJECT_NAME)_OFLUX_CXXFLAGS:=
+$(OFLUX_PROJECT_NAME)_OFLUX_OPTS:= -x
+
+$(OFLUX_PROJECT_NAME)_OFLUX_GEN_HEADERS:= \
+	OFluxGenerate_$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)_$(OFLUX_PROJECT_NAME).h \
+	$(foreach m,$($(OFLUX_PROJECT_NAME)_OFLUX_MODULES:%.flux=%),OFluxGenerate_$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)_$(m).h)
+
+$($(OFLUX_PROJECT_NAME)_OFLUX_MODULES:%.flux=mImpl_%.h): %.h: $($(OFLUX_PROJECT_NAME)_OFLUX_PATH)/mImpl.h
+	ln -sf $< $@
+
+mImpl_$(OFLUX_PROJECT_NAME).h: $($(OFLUX_PROJECT_NAME)_OFLUX_PATH)/mImpl.h
+	ln -sf $< $@
+
+mImpl_$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)_$(OFLUX_PROJECT_NAME).cpp: OFLUX_BASE_PROJECT:=$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)
+mImpl_$($(OFLUX_PROJECT_NAME)_FROM_PROJECT)_$(OFLUX_PROJECT_NAME).cpp: $($(OFLUX_PROJECT_NAME)_OFLUX_GEN_HEADERS)
+	(cat $? | awk -f $(SRCDIR)/tests/build/create_cpp.awk -v proj=$(OFLUX_BASE_PROJECT)) > $@
+#	(cat $? | awk -f $(SRCDIR)/tests/build/create_cpp.awk -v proj=$(subst mImpl_,,$(basename $@))) > $@
