@@ -180,7 +180,7 @@ extern "C" void deinitShim()
 	eminfo = NULL;
 }
 
-extern "C" unsigned int sleep(unsigned int seconds) 
+extern "C" unsigned int sleep(unsigned int seconds)
 {
 	printf("shim sleep %d secs\n", seconds);
 	if (!eminfo || eminfo->thread()->is_detached()) {

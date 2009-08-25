@@ -29,11 +29,11 @@ hrtime_t  gethrtime(void)
 	ret=clock_gettime(CLOCK_MONOTONIC, &sp);
 #endif
 	if(ret!=0) return 0;
-	v=1000000000LL; // seconds->nanonseconds 
+	v=1000000000LL; // seconds->nanonseconds
 	v*=sp.tv_sec;
 	v+=sp.tv_nsec;
 	return v;
-} 
+}
 #endif
 */
 

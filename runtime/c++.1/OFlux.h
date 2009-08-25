@@ -10,10 +10,10 @@
 /**
  * @mainpage OFlux Runtime (and compiler)
  *   OFlux is an event-based datadriven runtime & compiler
- *   which extends C++.  It is meant to be used to control the flow 
- *   of your (reactive service-oriented) program by managing threads 
+ *   which extends C++.  It is meant to be used to control the flow
+ *   of your (reactive service-oriented) program by managing threads
  *   for you.  Shared data is handled using guards which have various
- *   data structure semantics embedded into them (e.g singleton, map, 
+ *   data structure semantics embedded into them (e.g singleton, map,
  *   pool).
  */
 
@@ -51,8 +51,8 @@ struct hash_ptr {
 // the empty node input type (internal detail)
 struct _E {};
 
-union E { 
-	_E _e; 
+union E {
+	_E _e;
 };
 
 struct BaseOutputStructBase {
@@ -61,11 +61,11 @@ struct BaseOutputStructBase {
 
 template<typename T>
 struct BaseOutputStruct : public BaseOutputStructBase {
-	inline T * push_new() 
-		{ 
+	inline T * push_new()
+		{
 			T * t = new T();
 			__next = t;
-			t->__next = NULL; 
+			t->__next = NULL;
 			return t;
 		}
 	inline T * next() const { return reinterpret_cast<T *>(__next); }
@@ -77,7 +77,7 @@ public:
 	OutputWalker(BaseOutputStructBase * bosb)
 		: _bosb(bosb)
 		{}
-	void * next() 
+	void * next()
 		{
 			BaseOutputStructBase * res = _bosb;
 			if(res) _bosb = reinterpret_cast<BaseOutputStructBase *>(_bosb->__next);
@@ -87,7 +87,7 @@ private:
 	BaseOutputStructBase * _bosb;
 };
 
-/** 
+/**
  * @brief template for tool to automatically push output lazily
  *
  * Performs a push_new() only on the first -> after a next()

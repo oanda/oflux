@@ -94,8 +94,8 @@ public:
 	{
 		oflux_cond_destroy(&_cond);
 	}
-	void wait() 
-	{ 
+	void wait()
+	{
 #ifdef OFLUX_RT_DEBUG
 		oflux_log_debug(" %x : wait() this %x wc %d asc %d\n"
                         , oflux_self()
@@ -112,7 +112,7 @@ public:
 		--_waiter_count;
 	}
 	void signal()
-	{ 
+	{
 #ifdef OFLUX_RT_DEBUG
 		oflux_log_debug(" %x : signal() this %x wc %d asc %d\n"
 			, oflux_self()
@@ -123,12 +123,12 @@ public:
 		if(_waiter_count==0) {
 			_allow_skip_cond = true;
 		}
-		oflux_cond_signal(&_cond); 
+		oflux_cond_signal(&_cond);
 	}
         void turn_off()
         {
                 _allow_skip_cond = true;
-		oflux_cond_broadcast(&_cond); 
+		oflux_cond_broadcast(&_cond);
         }
 	const int & count() const { return (const int &) _waiter_count; }
 	inline C & counter_implementation() { return _waiter_count; }
@@ -145,7 +145,7 @@ private:
  */
 class SetTrue {
 public:
-	SetTrue(bool & val) 
+	SetTrue(bool & val)
 		: _val(val)
 		, _valr(val)
 		{ val = true; }
@@ -167,8 +167,8 @@ public:
 		{ val++; }
 	~Increment() { if(_valp) (*_valp)--; } // count down one
 	void release(oflux_thread_t whoami)
-		{ 
-		  if(_valp) { 
+		{
+		  if(_valp) {
 			(*_valp)--;
 		  }
 		  _valp = NULL;

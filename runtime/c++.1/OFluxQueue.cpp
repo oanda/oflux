@@ -7,35 +7,35 @@
 
 namespace oflux {
 
-const char * 
+const char *
 Queue::element_name(Element & e)
 {
 	return e->flow_node()->getName();
 }
 
-void 
-Queue::push(Element & e) 
+void
+Queue::push(Element & e)
 {
 	_q.push_back(e);
 	_FIFO_PUSH(e.get(),element_name(e));
 }
 
-void 
-Queue::push_priority(Element & e) 
+void
+Queue::push_priority(Element & e)
 {
 	_q.push_front(e);
 	_FIFO_PUSH(e.get(),element_name(e));
 }
-void 
-Queue::push_list(std::vector<Element> & vec) 
+void
+Queue::push_list(std::vector<Element> & vec)
 {
 	for(int i = 0; i < (int)vec.size(); i++) {
 		_q.push_back(vec[i]);
 		_FIFO_PUSH(vec[i].get(),element_name(vec[i]));
 	}
 }
-void 
-Queue::push_list_priority(std::vector<Element> & vec) 
+void
+Queue::push_list_priority(std::vector<Element> & vec)
 {
 	// reverse
 	for(int i = ((int)vec.size())-1; i >= 0; i--) {
@@ -44,8 +44,8 @@ Queue::push_list_priority(std::vector<Element> & vec)
 	}
 }
 
-bool 
-Queue::pop(Element & e) 
+bool
+Queue::pop(Element & e)
 {
 	bool res = _q.size() > 0;
 	if(res) {
@@ -56,7 +56,7 @@ Queue::pop(Element & e)
 	return res;
 }
 
-void 
+void
 Queue::log_snapshot()
 {
 	std::deque<Element>::iterator dqitr = _q.begin();
