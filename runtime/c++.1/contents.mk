@@ -36,7 +36,7 @@ $(DTRACECALLINGCPPS:.cpp=.o) : OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)
 $(OBJS) $(OBJS:.o=.pic.o) $(SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM_PROBE_HEADER)
 
 liboflux.a: $(OBJS) 
-ifneq ($(HAS_DTRACE),)
+ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj.o $^
 	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj.o -o ofluxprobe_glommed.o
 	$(AR) $(ARFLAGS) $@ glommedobj.o ofluxprobe_glommed.o
@@ -45,7 +45,7 @@ else
 endif
 
 liboflux.so: $(OBJS:%.o=%.pic.o)
-ifneq ($(HAS_DTRACE),)
+ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj_so.o $^
 	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj_so.o -o ofluxprobe_glommed_so.o
 	$(CXX) -shared glommedobj_so.o ofluxprobe_glommed_so.o $(OFLUXRTLIBS) -o $@
@@ -54,10 +54,10 @@ else
 endif
 
 $(DTRACE_LIB_PROBE_HEADER): ofluxprobe.d
-	$(if $(HAS_DTRACE), $(DTRACE) -h -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d)
+	$(if $(DTRACE), $(DTRACE) -h -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d)
 
 $(DTRACE_SHIM_PROBE_HEADER): ofluxshimprobe.d
-	$(if $(HAS_DTRACE), $(DTRACE) -h -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d)
+	$(if $(DTRACE), $(DTRACE) -h -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d)
 
 
 .SECONDARY: $(OBJS) $(OBJS:%.o=%.pic.o)
@@ -69,9 +69,9 @@ OFLUXRTLIBS= -lexpat -lm -lc -lpthread
 endif
 
 libofshim.so: $(SHIMOBJS) 
-	$(if $(HAS_DTRACE),$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o)
+	$(if $(DTRACE),$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o)
 ifneq  ($(_ARCH),Darwin)
-	$(CXX) -shared -Wl,-z,interpose $^ $(if $(HAS_DTRACE),ofluxshimprobe_so.o,) $(OFLUXRTLIBS) -o $@
+	$(CXX) -shared -Wl,-z,interpose $^ $(if $(DTRACE),ofluxshimprobe_so.o,) $(OFLUXRTLIBS) -o $@
 else
 	$(CXX) -flat_namespace -dynamiclib -shared -Wl $^ -o $@
 endif
