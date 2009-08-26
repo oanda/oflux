@@ -72,7 +72,7 @@ public:
 
 class AtomicFree : public Atomic {
 public:
-	AtomicFree(void *) {}
+	AtomicFree(void *datap) : _data_ptr(datap) {}
 	virtual ~AtomicFree() {}
 	virtual void ** data() { return &_data_ptr; }
 	virtual int held() const { return 1; } // always free
