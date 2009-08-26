@@ -41,7 +41,7 @@ INCS = \
     -I.
 
 LIBS= -lexpat -lpthread -ldl
-LIBDIRS= -L.
+LIBDIRS= -L. -L/oanda/system/lib
 
 # Include any specific settings for this RELEASE (eg. production, debug, etc)
 -include $(SRCDIR)/Mk/$(RELEASE).mk
