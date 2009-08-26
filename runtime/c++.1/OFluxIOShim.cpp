@@ -182,7 +182,6 @@ extern "C" void deinitShim()
 
 extern "C" unsigned int sleep(unsigned int seconds)
 {
-	printf("shim sleep %d secs\n", seconds);
 	if (!eminfo || eminfo->thread()->is_detached()) {
 		if (!shim_sleep) {
 			shim_sleep = (unsigned int (*)(unsigned int)) dlsym(RTLD_NEXT, "sleep");
