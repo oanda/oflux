@@ -15,11 +15,12 @@
 #include <queue>
 #include <stack>
 #include <sys/types.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef LINUX
+#ifdef Darwin
+#include <sys/event.h>
+#elif defined LINUX
 #include <sys/epoll.h>
 #else
 #include <sys/port.h>
@@ -54,7 +55,8 @@ private:
     T buf_[S];
 };
 
-#ifndef LINUX
+#if defined LINUX || defined Darwin
+#else
 typedef size_t socklen_t;
 #endif
 
@@ -76,7 +78,7 @@ typedef int (*selectFnType) (int, fd_set *, fd_set *, fd_set *, struct timeval *
 typedef ssize_t (*recvFnType) (int, void *, size_t, int);
 typedef ssize_t (*sendFnType) (int, const void *, size_t, int);
 typedef int (*gethostbyname_rFnType) (const char *, struct hostent *, char *, size_t, struct hostent **, int *);
-#ifdef LINUX
+#if defined LINUX || defined Darwin
 typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
 #else
 typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
@@ -86,6 +88,7 @@ typedef int (*port_getnFnType) (int port, port_event_t [],  uint_t, uint_t *, co
 typedef ssize_t (*recvfromFnType)(int,void *,size_t,int,struct sockaddr *,socklen_t *);
 
 } // extern "C"
+
 
 static readFnType shim_read = NULL;
 static closeFnType shim_close = NULL;
@@ -99,7 +102,9 @@ static selectFnType shim_select = NULL;
 static recvFnType shim_recv = NULL;
 static sendFnType shim_send = NULL;
 static gethostbyname_rFnType shim_gethostbyname_r = NULL;
-#ifdef LINUX
+#ifdef Darwin
+
+#elif defined LINUX
 static epoll_waitFnType shim_epoll_wait = NULL;
 #else
 static port_getFnType shim_port_get = NULL;
@@ -111,6 +116,8 @@ static int page_size;
 
 #define STRINGIFY(x) XSTRINGIFY(x)
 #define XSTRINGIFY(x) #x
+
+
 
 /**
  * Need to make sure we get the correct implementation of select.
@@ -157,7 +164,9 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 	shim_recv = (recvFnType) dlsym(RTLD_NEXT, "recv");
 	shim_send = (sendFnType) dlsym(RTLD_NEXT, "send");
 	shim_gethostbyname_r = (gethostbyname_rFnType) dlsym(RTLD_NEXT, "gethostbyname_r");
-#ifdef LINUX
+#ifdef Darwin
+
+#elif defined LINUX
 	shim_epoll_wait = (epoll_waitFnType) dlsym(RTLD_NEXT, "epoll_wait");
 #else
 	shim_port_get = (port_getFnType) dlsym(RTLD_NEXT, "port_get");
@@ -202,6 +211,7 @@ extern "C" unsigned int sleep(unsigned int seconds)
 
 extern "C" int usleep(useconds_t useconds)
 {
+	printf("shim usleep usecs:%d\n", useconds);
         oflux::RunTimeAbstract *local_eminfo = eminfo;
 	if (!local_eminfo || local_eminfo->thread()->is_detached()) {
 		if (!shim_sleep) {
@@ -633,7 +643,7 @@ extern "C" int epoll_wait(int epfd, struct epoll_event * events,
 }
 #endif
 
-#ifndef LINUX
+#ifdef SunOS
 extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout) {
 
     oflux::RunTimeAbstract *local_eminfo = eminfo;

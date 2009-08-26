@@ -29,15 +29,15 @@ hrtime_t  gethrtime(void)
 	ret=clock_gettime(CLOCK_MONOTONIC, &sp);
 #endif
 	if(ret!=0) return 0;
-	v=1000000000LL; // seconds->nanonseconds 
+	v=1000000000LL; // seconds->nanonseconds
 	v*=sp.tv_sec;
 	v+=sp.tv_nsec;
 	return v;
-} 
+}
 #endif
 */
 
-#ifdef LINUX
+#if defined LINUX || defined Darwin
 time_t fast_time(time_t *tloc)
 {
 	return time(tloc);

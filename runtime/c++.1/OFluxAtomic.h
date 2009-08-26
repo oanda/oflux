@@ -3,7 +3,12 @@
 
 #include <deque>
 #include <map>
+
+#ifdef Darwin
+#include <boost/tr1/tr1/unordered_map>
+#else
 #include <tr1/unordered_map>
+#endif
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include "OFlux.h"
