@@ -55,8 +55,7 @@ private:
     T buf_[S];
 };
 
-#if defined LINUX || defined Darwin
-#else
+#ifndef SunOS
 typedef size_t socklen_t;
 #endif
 
@@ -78,7 +77,7 @@ typedef int (*selectFnType) (int, fd_set *, fd_set *, fd_set *, struct timeval *
 typedef ssize_t (*recvFnType) (int, void *, size_t, int);
 typedef ssize_t (*sendFnType) (int, const void *, size_t, int);
 typedef int (*gethostbyname_rFnType) (const char *, struct hostent *, char *, size_t, struct hostent **, int *);
-#if defined LINUX || defined Darwin
+#if defined LINUX
 typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
 #else
 typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
@@ -102,11 +101,9 @@ static selectFnType shim_select = NULL;
 static recvFnType shim_recv = NULL;
 static sendFnType shim_send = NULL;
 static gethostbyname_rFnType shim_gethostbyname_r = NULL;
-#ifdef Darwin
-
-#elif defined LINUX
+#if defined LINUX
 static epoll_waitFnType shim_epoll_wait = NULL;
-#else
+#elif defined SunOS
 static port_getFnType shim_port_get = NULL;
 static port_getnFnType shim_port_getn = NULL;
 #endif
@@ -164,11 +161,9 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 	shim_recv = (recvFnType) dlsym(RTLD_NEXT, "recv");
 	shim_send = (sendFnType) dlsym(RTLD_NEXT, "send");
 	shim_gethostbyname_r = (gethostbyname_rFnType) dlsym(RTLD_NEXT, "gethostbyname_r");
-#ifdef Darwin
-
-#elif defined LINUX
+#if defined LINUX
 	shim_epoll_wait = (epoll_waitFnType) dlsym(RTLD_NEXT, "epoll_wait");
-#else
+#elif defined SunOS
 	shim_port_get = (port_getFnType) dlsym(RTLD_NEXT, "port_get");
         shim_port_getn = (port_getnFnType) dlsym(RTLD_NEXT, "port_getn");
 #endif
