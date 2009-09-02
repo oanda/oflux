@@ -55,7 +55,7 @@ private:
     T buf_[S];
 };
 
-#ifndef SunOS
+#ifdef SunOS
 typedef size_t socklen_t;
 #endif
 
@@ -77,11 +77,11 @@ typedef int (*selectFnType) (int, fd_set *, fd_set *, fd_set *, struct timeval *
 typedef ssize_t (*recvFnType) (int, void *, size_t, int);
 typedef ssize_t (*sendFnType) (int, const void *, size_t, int);
 typedef int (*gethostbyname_rFnType) (const char *, struct hostent *, char *, size_t, struct hostent **, int *);
-#if defined LINUX
-typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
-#else
+#if defined SunOS
 typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
 typedef int (*port_getnFnType) (int port, port_event_t [],  uint_t, uint_t *, const timespec_t *);
+#else
+typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
 #endif
 
 typedef ssize_t (*recvfromFnType)(int,void *,size_t,int,struct sockaddr *,socklen_t *);
