@@ -206,7 +206,6 @@ extern "C" unsigned int sleep(unsigned int seconds)
 
 extern "C" int usleep(useconds_t useconds)
 {
-	printf("shim usleep usecs:%d\n", useconds);
         oflux::RunTimeAbstract *local_eminfo = eminfo;
 	if (!local_eminfo || local_eminfo->thread()->is_detached()) {
 		if (!shim_sleep) {
