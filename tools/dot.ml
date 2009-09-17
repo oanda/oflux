@@ -39,9 +39,15 @@ let mpos_to_url name_opt =
                 None -> None
                 | (Some n) ->
                         let s = String.copy n in
-                        (*let _ = print_string s in*)
                         let ind = String.rindex s '.' in
-                        let fp = (dedoubledot ((CmdLine.get_uribase_path())^(String.sub s 0 ind)))^".svg"
+			let fn = String.sub s 0 ind in
+			let fn = 
+				try let slashind = (String.rindex fn '/')+1
+				    in  String.sub s slashind 
+					((String.length fn)-slashind)
+				with Not_found -> fn
+				in
+                        let fp = (dedoubledot ((CmdLine.get_uribase_path())^fn))^".svg"
                         in  Some fp
         
 

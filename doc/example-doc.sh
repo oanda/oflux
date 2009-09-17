@@ -10,6 +10,7 @@ then
 echo "<tr>"
 echo " <td>"
 echo "  <b>"$name"</b><br/><a href=\""$mainfile".svg\">flow </a><br/>"
+echo "  <a href=\""$mainfile".html\">flux </a><br/>"
 echo "  <br/><a href=\""$mainfile"-flat.svg\">"flattened flow"</a>"
 echo " </td>"
 echo " <td>"

@@ -78,11 +78,12 @@ $(1)_OFLUX_SO_OBJS:= $$($(1)_OFLUX_OBJS:.o=.pic.o)
 $(1)_OFLUX_SO_TARGET:=$$($(1)_OFLUX_KERNEL:%.cpp=lib%.so)
 $(1)_OFLUX_KERNEL_DIR:=$$($(1)_OFLUX_KERNEL:%.cpp=%dir)
 $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.cpp)
-$(1)_OFLUX_OPTS+=$$(if $$($(1)_OFLUX_KERNEL),-absterm,)
+$(1)_OFLUX_OPTS+=$$(if $$($(1)_OFLUX_KERNEL),-absterm,) -duribase ''
 $(1)_OFLUX_MAIN_OBJ_DEP:=$$(if $$($(1)_OFLUX_KERNEL),$$($(1)_OFLUX_KERNEL:%.cpp=%.o),$$($(1)_OFLUX_OBJS))
 $(1)_OFLUX_MAIN_TARGET:=$$($(1)_OFLUX_MAIN:%.flux=%)
 $(1)_RUN_SCRIPT:=$$($(1)_OFLUX_MAIN:%.flux=run-%.sh)
 $(1)_OFLUX_SVG:= $$(foreach S,$$($(1)_OFLUX_MAIN:.flux=.svg) $$($(1)_OFLUX_MAIN:.flux=-flat.svg) $$($(1)_OFLUX_MODULES:.flux=.svg),doc/examples/$$(S))
+$(1)_OFLUX_HTML:= $$(foreach S,$$($(1)_OFLUX_MAIN:.flux=.html) $$($(1)_OFLUX_MODULES:.flux=.html),doc/examples/$$(S))
 
 OFluxGenerate_$(1)_%.h OFluxGenerate_$(1)_%.cpp : %.flux mImpl_%.h oflux 
 	$(OFLUXCOMPILER) $$($(1)_OFLUX_OPTS) -oprefix OFluxGenerate_$(1) -a $$* $$($(1)_OFLUX_INCS) $$<
@@ -121,7 +122,10 @@ $$($(1)_OFLUX_MODULES:.flux=.dot) : %.dot : OFluxGenerate_$(1)_%.h
 $$($(1)_OFLUX_SVG) : doc/examples/%.svg : %.dot doc/examples
 	$(if $(DOT),$(DOT),$(warning has no dot); echo dot) $$^ > $$@
 
-OFLUX_DOCUMENTATION += $$($(1)_OFLUX_SVG)
+$$($(1)_OFLUX_HTML) : doc/examples/%.html : %.flux doc/examples
+	$(SRCDIR)/doc/oflux-doc.sh $$^ > $$@
+
+OFLUX_DOCUMENTATION += $$($(1)_OFLUX_SVG) $$($(1)_OFLUX_HTML)
 
 $$($(1)_OFLUX_KERNEL:%.cpp=%.o) $$($(1)_OFLUX_OBJS) $$($(1)_OFLUX_SO_OBJS): INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
@@ -145,6 +149,8 @@ $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$$($(1)_FROM_
 $(1)_OFLUX_INCS+=$$($$($(1)_FROM_PROJECT)_OFLUX_PATH:%=-I %) \
 	$$(foreach P,$$($(1)_DEP_PLUGINS),$$($$(P)_OFLUX_PATH:%=-I %))
 $(1)_OFLUX_SVG:=$$(foreach S,$$($(1)_OFLUX_MAIN:.flux=.svg) $$($(1)_OFLUX_MODULES:.flux=.svg),doc/examples/$$(S))
+$(1)_OFLUX_HTML:=$$(foreach S,$$($(1)_OFLUX_MAIN:.flux=.html) $$($(1)_OFLUX_MODULES:.flux=.html),doc/examples/$$(S))
+$(1)_OFLUX_OPTS+=-duribase ''
 
 $(1)_OFLUX_FINAL:=$$($(1)_OFLUX_KERNEL_DIR)/lib/$$($(1)_OFLUX_SO_TARGET)
 
@@ -174,8 +180,11 @@ $$($(1)_OFLUX_MAIN:.flux=.dot) : OFluxGenerate_$$($(1)_FROM_PROJECT)_$(1).h
 $$($(1)_OFLUX_SVG) : doc/examples/%.svg : %.dot doc/examples
 	$(if $(DOT),$(DOT),$(warning has no dot); echo dot) $$^ > $$@
 
+$$($(1)_OFLUX_HTML) : doc/examples/%.html : %.flux doc/examples
+	$(SRCDIR)/doc/oflux-doc.sh $$^ > $$@
+
 OFLUX_DOCUMENTATION += \
-  $$($(1)_OFLUX_SVG)
+  $$($(1)_OFLUX_SVG) $$($(1)_OFLUX_HTML)
 
 $$($(1)_OFLUX_SO_OBJS) : INCS = $(INCS) $$($(1)_OFLUX_CXXFLAGS) \
 	$$($(1)_OFLUX_INCS)
