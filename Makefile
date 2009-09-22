@@ -123,7 +123,7 @@ $$($(1)_OFLUX_SVG) : doc/examples/%.svg : %.dot doc/examples
 	$(if $(DOT),$(DOT),$(warning has no dot); echo dot) $$^ > $$@
 
 $$($(1)_OFLUX_HTML) : doc/examples/%.html : %.flux doc/examples
-	$(SRCDIR)/doc/oflux-doc.sh $$^ > $$@
+	$(OFLUX_DOC_COMPONENT_DIR)/oflux-doc.sh $$^ > $$@
 
 OFLUX_DOCUMENTATION += $$($(1)_OFLUX_SVG) $$($(1)_OFLUX_HTML)
 
@@ -181,7 +181,7 @@ $$($(1)_OFLUX_SVG) : doc/examples/%.svg : %.dot doc/examples
 	$(if $(DOT),$(DOT),$(warning has no dot); echo dot) $$^ > $$@
 
 $$($(1)_OFLUX_HTML) : doc/examples/%.html : %.flux doc/examples
-	$(SRCDIR)/doc/oflux-doc.sh $$^ > $$@
+	$(OFLUX_DOC_COMPONENT_DIR)/oflux-doc.sh $$^ > $$@
 
 OFLUX_DOCUMENTATION += \
   $$($(1)_OFLUX_SVG) $$($(1)_OFLUX_HTML)
