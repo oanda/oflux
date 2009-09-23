@@ -1,0 +1,4 @@
+$(info reading $(COMPONENT_DIR))
+
+OFLUX_DOC_COMPONENT_DIR:=$(COMPONENT_DIR)
+
