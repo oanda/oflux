@@ -10,7 +10,8 @@ sed -e 's/ \(as\) \| \(where\) \| \(terminate\) \| \(handle\) \| \(begin\) \| \(
 sed -e 's/ \(guard\) \| \(readwrite\) \| \(sequence\) \| \(pool\) \| \(condition\) \| \(node\) \| \(source\) \| \(error\) \| \(atomic\) \| \(instance\) \| \(module\) \| \(exclusive\) \| \(initial\) \| \(plugin\) \| \(free\) / <font color="#ff2020">&<\/font> /g' | \
 sed -e 's/ \(detached\) \| \(abstract\) \| \(read\) \| \(write\) \| \(external\) \| \(unordered\) / <font color="#2020ff">&<\/font> /g' | \
 sed -e 's/ \(include\) [ ]*\([a-zA-Z_0-9]*\)\.flux/ <font color="#1010ee">include<\/font> <a href="\2.html">\2.flux<\/a>/g' | \
-sed -e 's/ \(=>\)\| \(->\)\| \(=\)\| \(>\)\| \(\&=\)\|\]\|\[\|(\|)\|;\|:/ <font color="#80008f">&<\/font>/g' | \
+sed -e 's/ \(=>\)\| \(->\)\| \(=\)\| \(>\)\| \(\&=\)\|\]\|\[\|(\|)\|;/ <font color="#80008f">&<\/font>/g' | \
+sed -e 's/ : / <font color="#80008f">&<\/font> /g' | \
 sed -e 's/ \(\/\*\)/ <font color="#0000ff">&/g' | \
 sed -e 's/ \(\*\/\)/ &<\/font>/g' | \
 sed -e 's/\([-=]\)>/\1\&gt;/g' | \
