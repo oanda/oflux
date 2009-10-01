@@ -1307,14 +1307,19 @@ let emit_cond_map conseq_res symtable code =
 			let t = d.ctype
 			in  (strip_position tm)^" "^(strip_position t)
 		in  (i+1,if unify d arg then 
-			add_code code ("{ "^(string_of_int unionnumber)
+			let tlen = String.length t in
+			let last_is_amp = endswith '&' t
+			in add_code code ("{ "^(string_of_int unionnumber)
 					^", "^(string_of_int i)
 					^", \""^nf^"\", "
 					^"&oflux::eval_condition_argn"
-					^(if endswith '&' t then "_amp" else "")
+					^(if last_is_amp then "_amp" else "")
 					^"<OFluxUnion"
 					^(string_of_int unionnumber)^", "
-					^t^", "
+					^(if last_is_amp 
+						then String.sub t 0 (tlen-1)
+						else t)
+					^", "
 					^"&"^nf^", "
 					^"&OFluxUnion"^(string_of_int unionnumber)
 					^"::argn"^(string_of_int i)
