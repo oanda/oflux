@@ -312,12 +312,14 @@ void RunTimeThread::start()
 
 		if(_rt->_waiting_to_run.count() > 0) {
 			_rt->_waiting_to_run.signal();
+			ev.reset();
 			wait_in_pool();
 		}
 		if(_rt->_queue.pop(ev)) {
 			handle(ev);
 		} else { // queue is empty - strange case
 			_rt->_waiting_to_run.signal();
+			ev.reset();
 			wait_in_pool();
 		}
 	}

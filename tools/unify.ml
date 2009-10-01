@@ -22,7 +22,13 @@ type unify_result =
 let strip_position3 df = SymbolTable.strip_position3 df
 
 let unify_single (ctm1,t1,_) (ctm2,t2,_) =
-	match (t1 = t2), ctm1, ctm2 with
+	let rec cleanse_amp' l s =
+		if l > 0 && (s.[l-1] = '&') 
+		then cleanse_amp' (l-1) (String.sub s 0 (l-1))
+		else s
+		in
+	let cleanse_amp s = cleanse_amp' (String.length s) s in
+	match ((cleanse_amp t1) = (cleanse_amp t2)), ctm1, ctm2 with
 		(false,_,_) -> Some "mismatched types"
 		| (_,"const","") -> None
 		| (_,"","const") -> Some ("cannot drop const")

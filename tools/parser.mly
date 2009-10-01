@@ -420,6 +420,11 @@ star_list:
 	  let _,pend = $2 in
 	  ses^"*", pend
 	}
+	| star_list AMPERSAND
+	{ let ses,_ = $1 in 
+	  let _,pend = $2 in
+	  ses^"&", pend
+	}
 	| /*epsilon*/
 	{ ("",noposition) }
 

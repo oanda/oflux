@@ -303,7 +303,7 @@ let add_conditionals symtable expr = (* returns a new symtable *)
 							[decl] -> SymbolTable.strip_position3 decl
 							| _ -> raise Not_found in
 					     let sty = SymbolTable.strip_position3 ty
-					     in unify spos sty ty'; (argno+1,symtable)
+					     in unify spos ty' sty; (argno+1,symtable)
 					with Not_found ->
 						(argno+1,SymbolTable.add_conditional symtable { externalcond=false; condname=cond; condfunction=s; condinputs=[ty] }))
 				| (_,Star) -> (argno+1, symtable)

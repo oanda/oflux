@@ -1300,15 +1300,19 @@ let emit_cond_map conseq_res symtable code =
 			(Some _) -> false
 			| _ -> true in
 	let try_arg n nf unionnumber d (i,code) arg =
-		let t =
-			let tm = d.ctypemod in
+		let endswith c str =
+			let len = String.length str
+			in  if len > 0 then c = (str.[len-1]) else false in
+		let t = let tm = d.ctypemod in
 			let t = d.ctype
 			in  (strip_position tm)^" "^(strip_position t)
 		in  (i+1,if unify d arg then 
 			add_code code ("{ "^(string_of_int unionnumber)
 					^", "^(string_of_int i)
 					^", \""^nf^"\", "
-					^"&oflux::eval_condition_argn<OFluxUnion"
+					^"&oflux::eval_condition_argn"
+					^(if endswith '&' t then "_amp" else "")
+					^"<OFluxUnion"
 					^(string_of_int unionnumber)^", "
 					^t^", "
 					^"&"^nf^", "

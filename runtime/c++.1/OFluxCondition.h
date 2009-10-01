@@ -31,13 +31,18 @@ bool eval_condition(const void * t)
  * @param t (anonymous pointer to the object to test)
  * @return true if the test succeeds
  */
+
 template<typename T, typename Y, bool (*testargn)(const Y),const Y & (T::*getargn)() const >
 bool eval_condition_argn(const void * t)
 {
-	//return (*testargn)(((std::reinterpret_cast <T *>(t))->*getargn)());
 	return (*testargn)(((static_cast<const T*> (t))->*getargn)());
 }
 
+template<typename T, typename Y, bool (*testargn)(Y const &),const Y & (T::*getargn)() const >
+bool eval_condition_argn_amp(const void * t)
+{
+	return (*testargn)(((static_cast<const T*> (t))->*getargn)());
+}
 
 }; // namespace
 
