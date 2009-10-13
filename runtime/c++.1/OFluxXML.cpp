@@ -10,7 +10,7 @@
 #include <cassert>
 #include <dirent.h>
 
-#define XML_READER_MAX_LINE 300
+#define XML_READER_MAX_LINE 2048
 
 
 namespace oflux {
