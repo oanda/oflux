@@ -1017,6 +1017,17 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 
 let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
         let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
+	let code = if with_code then
+			let gtfunc = "g_trans_nop" in
+                        let proto = "bool "^gtfunc^"( "
+                                ^"void * out, const void *in)" 
+			in  List.fold_left add_code code
+				[ proto
+				; "{"
+				; "return true;"
+				; "}"
+				] 
+		   else code in
         let e_n nn nd (code,donel) =
                 let nf = nd.functionname in
                 let u_n = get_u_n nf in
@@ -1056,29 +1067,37 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         let proto = "bool "^gtfunc^"( "
                                 ^"void * out, const void *in)"
                                 ^(if with_code then "" else ";") in
-                        let mapline = ("{ \""^gn^"\", "
-                                ^(string_of_int u_n)^", "
-                                ^"\""^hash^"\", "
-                                ^(string_of_int (wtype gr.modifiers))^", "
-                                ^"&"^gtfunc
-                                ^" },  ") in
                         let codell = 
                                 let assignon = List.combine gd.garguments gr.arguments 
                                 in  List.map (assign gn) assignon in
                         let code = if with_proto then
                                         add_code code proto
                                 else code in
-                        let code = if with_code then 
+			let content = 
+				let rt_res = res_test gr.guardcond
+				in  match rt_res,codell with 
+					("",[]) -> []
+					| _ -> rt_res::codell in
+                        let code = if with_code && (content != []) then 
                                         List.fold_left add_code code
                                         ( [ proto
                                           ; "{  "
                                           ] 
-                                        @ [res_test gr.guardcond]
-                                        @ (codell)
+                                        @ content
                                         @ [ "return true;"
                                           ; "}  "
                                           ; "" ] )
                                 else code in
+			let gtfunc = 
+				if content = [] 
+				then "g_trans_nop"
+				else gtfunc in
+                        let mapline = ("{ \""^gn^"\", "
+                                ^(string_of_int u_n)^", "
+                                ^"\""^hash^"\", "
+                                ^(string_of_int (wtype gr.modifiers))^", "
+                                ^"&"^gtfunc
+                                ^" },  ") in
                         let code = if with_map then 
                                         add_code code mapline
                                 else code 
