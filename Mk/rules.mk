@@ -32,8 +32,8 @@ BASECXXFLAGS = -MMD -MF "$(@F:.o=.depend)"
 OFLUX_RUNTIME = $(SRCDIR)/runtime/c++.1
 
 INCS = \
-    -I/oanda/system/include \
     -I$(BOOSTDIR) \
+    -I/oanda/system/include \
     -I$(SRCDIR)/private_include \
     -I$(SRCDIR)/include \
     -I$(SRCDIR)/src \
