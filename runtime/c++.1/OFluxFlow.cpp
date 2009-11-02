@@ -80,7 +80,8 @@ FunctionMaps::lookup_guard_translator(
 	  const char * guardname
 	, int union_number
 	, const char * hash
-	, int wtype) const
+	, int wtype
+	, bool late) const
 {
         GuardTransFn res = NULL;
         GuardTransMap * ptr = _guard_trans_map;
@@ -89,6 +90,7 @@ FunctionMaps::lookup_guard_translator(
                                 && union_number == ptr->union_number
                                 && 0 == strcmp(hash,ptr->hash)
                                 && wtype == ptr->wtype
+                                && late == ptr->late
                                 ) {
                         res = ptr->guardtransfn;
                         break;

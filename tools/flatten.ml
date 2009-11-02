@@ -119,17 +119,23 @@ let program_append keepextatoms pr1 pr2 =
                 let ename,pos,_ = extnode.nodename in
                 try let _ = List.find (fun n-> (strip_position n.nodename) = ename) nodes 
                     in ()
-                with Not_found -> raise (FlattenFailure ("external node reference "^ename^" not found",pos)) in
+                with Not_found -> 
+			raise (FlattenFailure ("external node reference "
+				^ename^" not found",pos)) in
         let check_ext_atom atoms extatom =
                 let ename,pos,_ = extatom.atomname in
                 try let _ = List.find (fun n-> (strip_position n.atomname) = ename) atoms
                 in  ()
-                with Not_found -> raise (FlattenFailure ("external guard reference "^ename^" not found",pos)) in
+                with Not_found -> 
+			raise (FlattenFailure ("external guard reference "
+				^ename^" not found",pos)) in
         let check_ext_inst insts extinst =
                 let ename,pos,_ = extinst.modinstname in
                 try let _ = List.find (fun n-> (strip_position n.modinstname) = ename) insts
                 in  ()
-                with Not_found -> raise (FlattenFailure ("external module instance "^ename^" not found",pos)) in
+                with Not_found -> 
+			raise (FlattenFailure ("external module instance "
+				^ename^" not found",pos)) in
         let _ = List.iter (check_ext_inst inst1) ext_inst2 in
         let _ = List.iter (check_ext_inst inst2) ext_inst1 in
         let _ = List.iter (check_ext_node nodes1) ext_nodes2 in
@@ -368,6 +374,33 @@ let flatten prog =
 		{ onnodes = List.map (prefix_sp pre_mi) err.onnodes
 		; handler = prefix_sp pre_mi err.handler } 
 		in
+	let get_implicit_gr_orderings ndl =
+		let get_one nd =
+			let localgname_map gr =
+				match gr.localgname with
+					(Some n) -> 
+						( strip_position n
+						, gr.guardname)
+					| _ ->  ( strip_position gr.guardname
+						, gr.guardname) in
+			let lgn_map = List.map localgname_map nd.guardrefs in
+			let filt_garg ue =
+				match ue with
+					(GArg ga) -> true
+					| _ -> false in
+			let on_garg gname ue =
+				match ue with
+					(GArg ga) -> 
+						( List.assoc ga lgn_map
+						, gname)
+					| _ -> raise Not_found in
+			let on_gr gr =
+				let orderl = List.map (on_garg gr.guardname)
+					(List.filter filt_garg
+					(List.concat gr.arguments))
+				in  orderl
+			in  List.concat (List.map on_gr nd.guardrefs)
+		in  List.concat (List.map get_one ndl) in
 	let for_program pre_mi pre_md pr =
 		{ cond_decl_list = List.map (for_cond_decl pre_mi pre_md) pr.cond_decl_list
 		; atom_decl_list = List.map (for_atom_decl pre_mi pre_md) pr.atom_decl_list
@@ -379,7 +412,11 @@ let flatten prog =
 		; mod_inst_list = []
                 ; plugin_list = []
                 ; terminate_list = List.map (prefix_sp pre_mi) pr.terminate_list
-                ; order_decl_list = List.map (for_order_decl pre_mi pre_md) pr.order_decl_list
+                ; order_decl_list = 
+			let explicit_odl = pr.order_decl_list in
+			let implicit_odl = get_implicit_gr_orderings pr.node_decl_list
+			in  List.map (for_order_decl pre_mi pre_md) (explicit_odl @ implicit_odl)
+			
 		}
 		in
 	let add_mod_prefix modprefix md = (modprefix, md) in

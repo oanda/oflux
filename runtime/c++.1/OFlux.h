@@ -72,6 +72,40 @@ struct BaseOutputStruct : public BaseOutputStructBase {
 	inline void next(T * n) { __next = n; }
 };
 
+class AHAException {
+public:
+	AHAException(const int ind
+		, const char * function = "") throw()
+		: _ind(ind)
+		, _func(function)
+	{}
+
+	int index() const { return _ind; }
+	const char * func() const { return _func; }
+
+private:
+	int _ind;
+	const char * _func;
+
+};
+		
+
+class AtomicsHolderAbstract {
+public:
+	virtual void * getDataLexical(int i) = 0;
+
+	template<typename T>
+	T getDataLexicalThrowOnNull(int i) {
+		void * vp = getDataLexical(i);
+		if(vp == NULL) {
+			throw AHAException(i,__FUNCTION__);
+		}
+		return reinterpret_cast<T>(vp);
+	}
+};
+
+	
+
 class OutputWalker {
 public:
 	OutputWalker(BaseOutputStructBase * bosb)
@@ -137,7 +171,7 @@ typedef bool (*ConditionFn)(const void *);
 
 typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, flow::Node *);
 
-typedef bool (*GuardTransFn)(void *, const void *);
+typedef bool (*GuardTransFn)(void *, const void *, AtomicsHolderAbstract *);
 
 class AtomicMapAbstract;
 
@@ -164,6 +198,7 @@ struct GuardTransMap {
 	const int union_number;
         const char * hash;
         const int wtype;
+        const bool late;
 	GuardTransFn guardtransfn;
 };
 

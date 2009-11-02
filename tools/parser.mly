@@ -302,25 +302,36 @@ node_target_arg_list:
 node_decl:
 	external_opt NODE node_mod_list namespaced_ident arg_list ARROW node_target_arg_list SEMI
 	{ trace_thing "node_decl"; 
-          let clean_cpp_uninterpreted args =
+          let clean_cpp_uninterpreted args grefs =
                 let strargs = List.map (fun x -> strip_position x.name) args in
-                let rec on_str_list' firstisarg strl = 
+                let strgargs = List.map 
+			(fun (x,_,_,xo,_) -> 
+				strip_position (match xo with
+							(Some x') -> x'
+							| _ -> x)) grefs in
+                let rec on_str_list' firstisarg firstisgarg strl = 
                         match strl with
                                 (h1::h2::tl) ->
-                                        let h2isarg = List.mem h2 strargs
-                                        in  if firstisarg || h2isarg then 
+                                        let h2isarg = List.mem h2 strargs in
+					let h2isgarg = (not h2isarg) &&
+						(List.mem h2 strgargs)
+                                        in  if firstisarg || firstisgarg || h2isarg || h2isgarg then 
                                                 (if firstisarg 
                                                  then Arg h1
-                                                 else Context h1)
-                                                ::(on_str_list' h2isarg (h2::tl))
-                                            else on_str_list' false ((h1^h2)::tl)
+                                                 else if firstisgarg 
+						 then GArg h1
+						 else Context h1)
+                                                ::(on_str_list' h2isarg h2isgarg (h2::tl))
+                                            else on_str_list' false false ((h1^h2)::tl)
                                 | [] -> []
                                 | [x] -> [if firstisarg
                                           then Arg x
-                                          else Context x]
+                                          else if firstisgarg
+					  then GArg x
+					  else Context x]
                         in
                 let on_str_list strl = 
-                        match on_str_list' false (""::strl) with
+                        match on_str_list' false false (""::strl) with
                                 ((Context "")::tl) -> tl
                                 | res -> res
                 in  on_str_list in
@@ -333,12 +344,14 @@ node_decl:
 	  let filtguardref x =(match x with GuardRef i -> i | _ -> raise Not_found) in
 	  let ins = List.map filttyped ins in
 	  let grefs = List.map filtguardref grefs in
-          let grefs = List.map (fun (guardname,arguments,modifiers,localgname,guardcond) -> 
+          let grefs = 
+		let clean_cpp_un x = clean_cpp_uninterpreted ins grefs x
+		in  List.map (fun (guardname,arguments,modifiers,localgname,guardcond) -> 
                         { guardname = guardname
-                        ; arguments = List.map (clean_cpp_uninterpreted ins) arguments
+                        ; arguments = List.map clean_cpp_un arguments
                         ; modifiers = modifiers
                         ; localgname = localgname
-                        ; guardcond = clean_cpp_uninterpreted ins guardcond
+                        ; guardcond = clean_cpp_un guardcond
                         }) grefs in
 	  let is_mut = (List.mem "mutable" $3) in
 	  let is_abs = (List.mem "abstract" $3) ||

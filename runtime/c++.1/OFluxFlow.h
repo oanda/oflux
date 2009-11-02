@@ -14,6 +14,7 @@
 #include "OFluxProfiling.h"
 #include "OFluxIOConversion.h"
 #include "OFluxOrderable.h"
+#include "OFluxLogging.h"
 #include <cassert>
 #include <vector>
 #include <deque>
@@ -66,10 +67,12 @@ public:
          * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
          * @return the compiled function (pointer to it)
          */
-        GuardTransFn lookup_guard_translator(const char * guardname
+        GuardTransFn lookup_guard_translator(
+		  const char * guardname
                 , int union_number
                 , const char * hash
-                , int wtype) const;
+                , int wtype
+		, bool late) const;
 
         /**
          * @brief lookup the atomic map object for the given guard 
@@ -105,6 +108,7 @@ private:
         bool        _is_negated;
 };
 
+
 /**
  * @class Guard
  * @brief holder of a guared (used to implement atomic constraints)
@@ -121,38 +125,64 @@ public:
          * @param key value used to dereference the atomic map
          * @returns key that was permanently allocated on the heap
          */
-        inline const void * get(Atomic * & av_returned, const void * key)
+        inline const void * 
+	get(      Atomic * & av_returned
+		, const void * key)
         { return _amap->get(av_returned,key); }
 
         /**
          * @brief a comparator function for keys (punts to underlying atomic map)
          * @return -1 if <, 0 if ==, +1 if >
          */
-        inline int compare_keys(const void *k1, const void * k2) const 
+        inline int 
+	compare_keys(const void *k1, const void * k2) const 
         { return _amap->compare(k1,k2); }
         /**
          * @brief allocate a new key and return a void pointer to it
          * @return the key pointer
          */
-        inline void * new_key() { return _amap->new_key(); }
+        inline void * 
+	new_key() const { return _amap->new_key(); }
         /**
          * @brief delete the allocated key
          * @param k the key pointer to reclaim
          */
-        inline void delete_key(void * k) { _amap->delete_key(k); }
+        inline void 
+	delete_key(void * k) const { _amap->delete_key(k); }
         /**
          * @brief return the name of the guard
          * @return name of the guard
          */
-        inline const std::string & getName() { return _name; }
+        inline const std::string & 
+	getName() { return _name; }
         /**
          * @brief release all events from this guard's queues
          */
-        void drain();
+        void 
+	drain();
 private:
         AtomicMapAbstract * _amap;
         std::string         _name;
 };
+
+/**
+ * @class GuardLocalKey
+ * @brief hold a local guard key and dispose of it when done
+ */
+class GuardLocalKey {
+public:
+	GuardLocalKey(Guard *g)
+		: _local_key(g->new_key())
+		, _guard(g)
+	{}
+	~GuardLocalKey()
+	{ _guard->delete_key(_local_key); }
+	void * get() { return _local_key; }
+private:
+	void * _local_key;
+	Guard * _guard;
+};
+
 
 /**
  * @class GuardReference
@@ -160,63 +190,80 @@ private:
  */
 class GuardReference {
 public:
-        GuardReference(Guard * fg, int wtype)
+        GuardReference(Guard * fg, int wtype, bool late)
                 : _guardfn(NULL)
                 , _flow_guard(fg)
-                , _local_key(fg->new_key())
+                //, _local_key(fg->new_key())
                 , _wtype(wtype)
+		, _late(late)
                 , _lexical_index(-1)
-                {}
+	{}
         ~GuardReference()
         {
-                if(_local_key) {
+                /*if(_local_key) {
                         _flow_guard->delete_key(_local_key);
-                }
+                }*/
         }
         /**
          * @brief set the guard translator function for this guard instance
          */
-        inline void setGuardFn(GuardTransFn guardfn) { _guardfn = guardfn; }
+        inline void 
+	setGuardFn(GuardTransFn guardfn) { _guardfn = guardfn; }
         /**
-         * @brief used to dereference the atomic map to get the atomic and persistent key
+         * @brief used to dereference the atomic map to get the atomic 
+         *        and persistent key
          * @param a_out output atomic pointer
          * @param node_in the node input structure (used to generate a key)
          */
-        inline const void * get(Atomic * & a_out,const void * node_in)
+        inline const void * 
+	get(      Atomic * & a_out
+		, const void * node_in
+		, AtomicsHolderAbstract * ah)
         { 
                 bool ok = true;
-                if(_guardfn) {
-                        ok = (*_guardfn)(_local_key, node_in);
-                }
-                if(!ok) {
-                        a_out = NULL;
-                        return NULL;
-                }
-                return _flow_guard->get(a_out,_local_key);
+		GuardLocalKey local_key(_flow_guard);
+		try {
+			if(_guardfn) {
+				ok = (*_guardfn)(local_key.get(), node_in, ah);
+			}
+		} catch (AHAException & ahae) {
+			ok = false;
+			oflux_log_warn("oflux::flow::GuardReference::get() threw an AHAException -- so an earlier guard was not aquired %s, guard arg %d\n", ahae.func(), ahae.index());
+		}
+		if(!ok) {
+			a_out = NULL;
+			return NULL;
+		}
+                return _flow_guard->get(a_out,local_key.get());
         }
         /**
          * @brief compare keys (pointers to void)
          */
-        inline int compare_keys(const void * k1, const void * k2)
+        inline int 
+	compare_keys(const void * k1, const void * k2)
         {
                 return _flow_guard->compare_keys(k1,k2);
         }
         /**
          * @brief return the magic number of the guard
          */
-        inline int magic_number() const { return _flow_guard->magic_number(); }
+        inline int 
+	magic_number() const { return _flow_guard->magic_number(); }
         /** 
          * @brief return the name of the guard
          */
         inline const std::string & getName() { return _flow_guard->getName(); }
+
         inline int wtype() const { return _wtype; }
         inline void setLexicalIndex(int i) { _lexical_index = i; }
         inline int getLexicalIndex() const { return _lexical_index; }
+	inline bool late() const { return _late; }
 private:
         GuardTransFn _guardfn;
         Guard *      _flow_guard;
-        void *       _local_key; // not reentrant here
+        //void *       _local_key; // not reentrant here
         int          _wtype;
+	bool         _late;
         int          _lexical_index;
 };
 
