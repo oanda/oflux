@@ -264,6 +264,7 @@ rule token = parse
 	| "atomic" { updatePosInTok lexbuf (fun x -> ATOMIC x) }
 	| "abstract" { updatePosInTok lexbuf (fun x -> ABSTRACT x) }
 	| "mutable" { updatePosInTok lexbuf (fun x -> MUTABLE x) }
+	| "static" { updatePosInTok lexbuf (fun x -> STATIC x) }
 	| "instance" { updatePosInTok lexbuf (fun x -> INSTANCE x) }
 	| "module" { updatePosInTok lexbuf (fun x -> MODULE x) }
 	| "plugin" { updatePosInTok lexbuf (fun x -> PLUGIN x) }

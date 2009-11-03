@@ -7,7 +7,7 @@ let rec find_mod_def modl modnp =
 	in  match modl with 
 		((pre,md)::tl) ->
 			if (strip_position md.modulename) = modn 
-			then pre,md.programdef
+			then pre,md.isstaticmodule,md.programdef
 			else find_mod_def tl modnp
 		| _ -> raise (FlattenFailure ("cannot find module "^modn,p))
 
@@ -44,7 +44,7 @@ let proper_name_space mp =
         else try (String.rindex mp ':') = ((String.length mp)-1)
              with Not_found -> false
 
-let add_atom_decl ip mp pr = 
+let add_atom_decl ip mp issm pr = 
         let _ = if proper_name_space mp then ()
                 else raise (FlattenFailure ("internal - "^mp^" bad namespace", noposition)) in
         let ad =
@@ -58,7 +58,10 @@ let add_atom_decl ip mp pr =
                 ; atommodifiers=[]
                 } 
         in      { cond_decl_list = pr.cond_decl_list
-                ; atom_decl_list = ad::pr.atom_decl_list
+                ; atom_decl_list = 
+			if issm 
+			then pr.atom_decl_list 
+			else ad::pr.atom_decl_list
                 ; node_decl_list = pr.node_decl_list
                 ; mainfun_list = pr.mainfun_list
                 ; expr_list = pr.expr_list
@@ -448,12 +451,15 @@ let flatten prog =
                                         Debug.dprint_string ("  has atom "^(strip_position atom.atomname)^"\n")
                                 in List.iter dpp pr_sofar.atom_decl_list
                                 in
-			let mp,moddefpr = find_mod_def modl mi.modsourcename in
+			let mp,isstaticmod,moddefpr = find_mod_def modl mi.modsourcename in
                         let localize (glocal,(gglobal,gp1,gp2)) =
                                 (glocal,(instprefix^gglobal,gp1,gp2)) in
                         let guardaliases = List.map localize mi.guardaliases in
                         let _ = check_atom_assignment moddefpr.atom_decl_list pr_sofar.atom_decl_list guardaliases in
-			let moddefpr = add_self_guardrefs moddefpr in
+			let moddefpr = 
+				if isstaticmod 
+				then moddefpr 
+				else add_self_guardrefs moddefpr in
 			let ip = instprefix^(strip_position mi.modinstname)^"." in
                         let gsubst = get_new_subst instprefix ip gsubst guardaliases in
 			let mp = srcname^"::"^mp in
@@ -463,7 +469,7 @@ let flatten prog =
                                 in
                         let moddefpr = flt ip mp modl gsubst moddefpr in
                         let moddefpr = apply_guardref_subst gsubst moddefpr
-			in  add_atom_decl ip mp
+			in  add_atom_decl ip mp isstaticmod
 				(program_append true pr_sofar moddefpr)
 			in
 		let modl = (List.map (add_mod_prefix modprefix) pr.mod_def_list) @ modl
@@ -497,20 +503,23 @@ let flatten_module module_name pr =
 		} in
 	let nsnbl = break_namespaced_name module_name in
 	let findfun n md = (strip_position md.modulename) = n in
-	let rec flt ip mp modl pr nbl =
+	let rec flt issm ip mp modl pr nbl =
 		match nbl with
-			[] ->   let pr = add_atom_decl "" (module_name^"::") pr in
-                                let pr = add_self_guardrefs pr 
+			[] ->   let pr = add_atom_decl "" (module_name^"::") issm pr in
+                                let pr = if issm then pr else add_self_guardrefs pr 
                                 in  add_mods modl pr
 			| (h::t) ->
 				let mpos,mneg = List.partition (findfun h) pr.mod_def_list in
                                 let mneg = List.map (fun m -> (strip_position m.modulename,m)) mneg
 				in  (match mpos with
 					[amod] ->
-						flt ip mp (modl @ mneg) amod.programdef t
+						flt amod.isstaticmodule 
+							ip mp 
+							(modl @ mneg) 
+							amod.programdef t
 					| _ -> raise (FlattenFailure ("cannot find module "^h,noposition)))
                 in
-	let pr = flt "" "" [] pr (List.rev nsnbl)
+	let pr = flt false "" "" [] pr (List.rev nsnbl)
         in  flatten pr
 
 let flatten_plugin' plugin_name prog = 

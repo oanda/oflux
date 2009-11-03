@@ -48,7 +48,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
 %token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
-%token <ParserTypes.position*ParserTypes.position> INSTANCE, IF;
+%token <ParserTypes.position*ParserTypes.position> INSTANCE, IF, STATIC;
 %token <ParserTypes.position*ParserTypes.position> UNORDERED;
 %token <ParserTypes.position*ParserTypes.position> BACKARROW, NOTEQUALS, ISEQUALS;
 %token <ParserTypes.position*ParserTypes.position> DOUBLEAMPERSAND;
@@ -160,8 +160,23 @@ guard_identification:
 
 
 mod_decl:
-	MODULE namespaced_ident BEGIN program END
-	{ trace_thing "mod_decl"; { modulename=$2; programdef=$4 } }
+	mod_modifier_list MODULE namespaced_ident BEGIN program END
+	{ trace_thing "mod_decl"; 
+	  { modulename=$3
+	  ; isstaticmodule=List.mem "static" $1
+	  ; programdef=$5 } }
+
+mod_modifier_list:
+	/* nothing */
+	{ [] }
+	| mod_modifier mod_modifier_list
+	{ $1::$2 }
+
+mod_modifier:
+	STATIC
+	{ "static" }
+
+
 
 /*** plugins ***/
 

@@ -116,6 +116,7 @@ type program =
 	}
 and mod_def = 
 	{ modulename : string positioned 
+	; isstaticmodule : bool
 	; programdef : program
 	}
 and plugin_def =
