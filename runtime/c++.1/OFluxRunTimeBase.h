@@ -61,6 +61,7 @@ public:
         virtual bool running() { return _running; }
         virtual void hard_kill() { soft_kill(); }
         virtual void log_snapshot() = 0;
+        virtual void log_snapshot_guard(const char * guardname) = 0;
         virtual void getPluginNames(std::vector<std::string> & result) = 0;
 protected:
 	const RunTimeConfiguration   _rtc;

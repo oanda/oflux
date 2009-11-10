@@ -1,10 +1,78 @@
 #include "OFluxAtomic.h"
+#include "OFluxEvent.h"
+#include "OFluxLogging.h"
 
 namespace oflux {
 
 boost::shared_ptr<EventBase> Atomic::_null_static; // null
 
-void * AtomicPool::get_data()
+static const char *
+convert_wtype_to_string(int wtype)
+{
+	static const char * conv[] =
+		{ "None "
+		, "Read "
+		, "Write"
+		, "Excl."
+		};
+	static const char * fallthrough = "?    ";
+	return (wtype >=0 && (size_t)wtype < (sizeof(conv)/sizeof(fallthrough))
+		? conv[wtype]
+		: fallthrough);
+}
+
+void
+AtomicMapAbstract::log_snapshot(const char * guardname)
+{
+	AtomicMapWalker * w = walker();
+	const void * k = NULL;
+	Atomic * a = NULL;
+	oflux_log_info(" Guard: %s\n",guardname);
+	size_t key_count = 0;
+	while(w->next(k,a)) {
+		assert(a);
+		oflux_log_info("  [%-5u] %s %d %s %c%c\n"
+			, key_count
+			, a->atomic_class()
+			, a->waiter_count()
+			, convert_wtype_to_string(a->wtype())
+			, (*(a->data()) ? '-' : 'N')
+			, (a->held() ? 'H' : '-'));
+		if(a->waiter_count() > 0 && (key_count == 0 || a->atomic_class() != AtomicPooled::atomic_class_str)) {
+			a->log_snapshot_waiters();
+		}
+		++key_count;
+	}
+	oflux_log_info("/Guard: %s\n",guardname);
+	delete w;
+}
+
+void
+AtomicCommon::log_snapshot_waiters() const
+{
+	std::deque<AtomicCommon::AtomicQueueEntry>::const_iterator itr = _waiters.begin();
+	while(itr != _waiters.end()) {
+		oflux_log_debug("   %s %s\n"
+			, convert_wtype_to_string((*itr).wtype)
+			, (*itr).event->flow_node()->getName());
+		++itr;
+	}
+}
+
+const char * AtomicPooled::atomic_class_str = "Pooled   ";
+
+void
+AtomicPool::log_snapshot_waiters() const
+{
+	std::deque<boost::shared_ptr<EventBase> >::const_iterator itr = _q.begin();
+	while(itr != _q.end()) {
+		oflux_log_debug("   None  %s\n", (*itr)->flow_node()->getName());
+		++itr;
+	}
+}
+
+void * 
+AtomicPool::get_data()
 {
         void * ptr = NULL;
         if(_dq.size()) {

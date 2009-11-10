@@ -1,6 +1,8 @@
 #ifndef _OFLUX_SCATTER_GATHER_H
 #define _OFLUX_SCATTER_GATHER_H
 
+#include "OFluxLogging.h"
+
 /**
  * @file OFluxScatterGather.h
  * @author Mark Pichora
@@ -41,7 +43,12 @@ public:
 	 */
 	size_t 
 	decr() 
-	{ return __sync_fetch_and_add(&_ref_count,-1); }
+	{ 
+		if(_ref_count<=0) {
+			oflux_log_error("oflux::Gatherable::decr() passing 0\n");
+		}
+		return __sync_fetch_and_add(&_ref_count,-1); 
+	}
 
 	/**
 	 * @brief get the current reference count
@@ -135,6 +142,7 @@ private:
 			if(!_p->count()) {
 				delete _p;
 			}
+			_p = NULL;
 		}
 	}
 private:

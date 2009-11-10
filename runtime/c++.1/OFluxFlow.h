@@ -149,6 +149,7 @@ public:
          * @brief release all events from this guard's queues
          */
         void drain();
+	void log_snapshot() { if(_amap) _amap->log_snapshot(_name.c_str()); }
 private:
         AtomicMapAbstract * _amap;
         std::string         _name;
@@ -502,6 +503,7 @@ public:
          * this object(flow)
          */
         void log_snapshot();
+        void log_snapshot_guard(const char * gname);
         /**
          * @brief log a "pretty printed" flow DAG (graph) showing the flow
          */

@@ -422,6 +422,13 @@ Flow::~Flow()
         delete_vector_contents_reversed<Library>(_libraries);
 }
 
+void
+Flow::log_snapshot_guard(const char * guardname)
+{
+	std::map<std::string, Guard *>::iterator itr = _guards.find(guardname);
+	(*itr).second->log_snapshot();
+}
+
 bool 
 Flow::haveLibrary(const char * name)
 {

@@ -64,6 +64,7 @@ public:
 	 * the runtime state
 	 */
 	virtual void log_snapshot();
+	virtual void log_snapshot_guard(const char * guardname);
 protected:
 	/**
 	 * @brief determine if we can detach the thread (runtime limits allow it)

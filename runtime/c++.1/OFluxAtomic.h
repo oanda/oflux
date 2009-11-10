@@ -72,6 +72,12 @@ public:
 	*/
 	virtual void relinquish() = 0;
 
+	virtual int wtype() const = 0;
+
+	virtual const char * atomic_class() const = 0;
+
+	virtual void log_snapshot_waiters() const {}
+
 	static boost::shared_ptr<EventBase> _null_static;
 };
 
@@ -87,6 +93,8 @@ public:
 	{ assert( NULL && "AtomicFree should never wait"); }
 	virtual int waiter_count() { return 0; }
 	virtual void relinquish() {}
+	virtual int wtype() const { return 0; }
+	virtual const char * atomic_class() const { return "Free     "; }
 private:
 	void * _data_ptr;
 };
@@ -117,10 +125,12 @@ public:
 		boost::shared_ptr<EventBase> event;
 		int wtype;
 	};
+
+	virtual void log_snapshot_waiters() const;
 protected:
-    void *                              _data_ptr;
-    int                                 _held;
-    std::deque<AtomicQueueEntry>        _waiters;
+	void *                              _data_ptr;
+	int                                 _held;
+	std::deque<AtomicQueueEntry>        _waiters;
 };
 
 class AtomicMapWalker {
@@ -155,6 +165,8 @@ public:
 		AtomicQueueEntry aqe(ev,Exclusive);
 		_waiters.push_back(aqe);
 	}
+	virtual int wtype() const { return 3; }
+	virtual const char * atomic_class() const { return "Exclusive"; }
 };
 
 class AtomicReadWrite : public AtomicCommon { // implements AtomicScaffold
@@ -223,6 +235,8 @@ public:
 		AtomicQueueEntry aqe(ev,wtype);
 		_waiters.push_back(aqe);
 	}
+	virtual int wtype() const { return _mode; }
+	virtual const char * atomic_class() const { return "ReadWrite"; }
 private:
 	int _mode;
 };
@@ -282,6 +296,8 @@ public:
 	 * @brief get a walker for this map
 	 */
 	virtual AtomicMapWalker * walker() = 0;
+
+	virtual void log_snapshot(const char * guardname);
 };
 
 class AtomicPooled;
@@ -316,6 +332,8 @@ public:
 	virtual const void * get(Atomic * & a_out,const void * key);
 	void put(AtomicPooled * ap);
 	virtual AtomicMapWalker * walker() { return new AtomicPoolWalker(_ap_list); }
+protected:
+	void log_snapshot_waiters() const;
 private:
 	std::deque<boost::shared_ptr<EventBase> > _q;
 	std::deque<void *> _dq;
@@ -361,6 +379,10 @@ public:
 		}
 		_pool.put(this);
 	}
+	virtual int wtype() const { return 0; }
+	static const char * atomic_class_str;
+	virtual const char * atomic_class() const { return atomic_class_str; }
+	virtual void log_snapshot_waiters() const { return _pool.log_snapshot_waiters(); }
 public:
 	AtomicPooled * next() { return _next; }
 	void next(AtomicPooled * ap) { _next = ap; }

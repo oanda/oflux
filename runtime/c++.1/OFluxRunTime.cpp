@@ -171,6 +171,11 @@ static void log_snapshot_thread(RunTimeThread * rtt)
 	rtt->log_snapshot();
 }
 
+void RunTime::log_snapshot_guard(const char *guardname)
+{
+	flow()->log_snapshot_guard(guardname);
+}
+
 void RunTime::log_snapshot()
 {
 	oflux_log_info("Runtime snapshot at %d on pid %d (%s)\n", fast_time(NULL), getpid(), (_running ? "running" : "not running"));
