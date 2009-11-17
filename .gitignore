@@ -1,7 +1,7 @@
 *~
 *.swp
 *.dot
-*.xml
+build*/**/*.xml
 *.o
 *.so
 *vers.ml
