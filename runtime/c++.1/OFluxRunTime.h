@@ -113,6 +113,9 @@ public:
 		, _wait_state(RTTWS_running)
 		, _tid(tid)
 		, _flow_node_working(NULL)
+#ifdef PROFILING
+		, _oflux_timer(NULL)
+#endif
 		{}
 	virtual ~RunTimeThread() {}
 	int create();

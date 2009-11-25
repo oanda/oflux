@@ -51,11 +51,34 @@ void
 AtomicCommon::log_snapshot_waiters() const
 {
 	std::deque<AtomicCommon::AtomicQueueEntry>::const_iterator itr = _waiters.begin();
+	size_t repeat_count = 0;
+	const char * this_wtype = NULL;
+	const char * this_name = NULL;
+	const char * last_wtype = "";
+	const char * last_name = "";
 	while(itr != _waiters.end()) {
-		oflux_log_debug("   %s %s\n"
-			, convert_wtype_to_string((*itr).wtype)
-			, (*itr).event->flow_node()->getName());
+		this_wtype = convert_wtype_to_string((*itr).wtype);
+		this_name = (*itr).event->flow_node()->getName();
+		if(this_wtype == last_wtype && this_name == last_name) {
+			// no line emitted
+		} else {
+			if(repeat_count > 1) {
+				oflux_log_debug("       ...(repeated %u times)\n"
+					, repeat_count);
+			}
+			oflux_log_debug("   %s %s\n"
+				, this_wtype
+				, this_name);
+			repeat_count = 0;
+		}
+		++repeat_count;
+		last_wtype = this_wtype;
+		last_name = this_name;
 		++itr;
+	}
+	if(repeat_count > 1) {
+		oflux_log_debug("       ...(repeated %u times)\n"
+			, repeat_count);
 	}
 }
 

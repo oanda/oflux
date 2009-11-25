@@ -49,6 +49,7 @@ template<typename T, size_t S>
 class SafeArray
 {
 public:
+    SafeArray() {}
     T & operator[](size_t index) { assert(index < S); return buf_[index]; }
 
 private:

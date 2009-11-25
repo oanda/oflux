@@ -174,6 +174,7 @@ public:
 	enum { Read = 1, Write = 2 } WType;
 	AtomicReadWrite(void * data)
 		: AtomicCommon(data)
+		, _mode(AtomicCommon::None)
 		{}
 	virtual ~AtomicReadWrite() {}
 	virtual int acquire(int wtype)
@@ -414,7 +415,8 @@ template<typename A=AtomicExclusive>
 class AtomicMapTrivial : public AtomicMapAbstract {
 public:
 	AtomicMapTrivial()
-		: _atomic(NULL)
+		: _something(0)
+		, _atomic(NULL)
 		{}
 	virtual ~AtomicMapTrivial() {}
 	virtual const void * get(Atomic * & a_out,const void * /*key*/)
