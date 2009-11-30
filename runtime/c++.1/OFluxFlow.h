@@ -367,7 +367,8 @@ public:
                 if(return_code != 0) {
                         if(_error_handler_case.targetNode() != NULL) {
                                 successor_nodes.push_back(&_error_handler_case);
-                        } else if(_is_source) {
+                        }
+			if(_is_source) { // even on errors
                                 successor_nodes.push_back(&_this_case);
                         }
                 } else {

@@ -204,7 +204,9 @@ public:
                         , const IOConversionBase<IM> * im_io_convert
                         , flow::Node * flow_node)
 		: EventBase3<IM,OM,AM>(predecessor,im_io_convert,flow_node)
-		, _error_im(* EventBase3<IM,OM,AM>::pr_input_type())
+		, _error_im(EventBase3<IM,OM,AM>::pr_input_type()
+			? * EventBase3<IM,OM,AM>::pr_input_type()
+			: _dont_care_im)
 		{}
 	virtual int execute()
 		{ 
@@ -222,7 +224,11 @@ public:
 		}
 private:
 	IM _error_im;
+	static IM _dont_care_im;
 };
+
+template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
+IM ErrorEvent<IM,OM,AM,node_func>::_dont_care_im;
 
 /**
  * @brief create an Event from a flow::Node
