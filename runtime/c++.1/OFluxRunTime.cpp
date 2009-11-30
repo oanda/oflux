@@ -408,8 +408,11 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 				flow::Node * fn = fsuccessors[i]->targetNode();
 				flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
 				CreateNodeFn createfn = fn->getCreateFn();
+				bool was_source = ev->flow_node()->getIsSource();
 				boost::shared_ptr<EventBase> ev_succ = 
-					(*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn);
+					( was_source
+					? (*createfn)(EventBase::no_event,NULL,fn)
+					: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
 				ev_succ->error_code(return_code);
 				if(AcquireGuards::doit(ev_succ,ev->atomics()) == AcquireGuards::AGR_Success) {
 					successor_events_priority.push_back(ev_succ);
