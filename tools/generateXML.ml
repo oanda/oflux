@@ -453,9 +453,12 @@ let emit_program_xml' programname br usesmodel =
 		else ns1 in
 	let make_successor imap caselist =
 		let get_ns str =
-			match break_dotted_name str with
-				(h::_::_) -> h
-				| _ -> "" in
+			let ns = match break_dotted_name str with
+					(h::_::_) -> h
+					| _ -> "" 
+			in  try let mid = SymbolTable.lookup_module_instance stable ns
+			        in  mid.SymbolTable.modulesource
+			    with Not_found -> ns in
 		let rec find_earliest_ns nsopt cl =
 			match nsopt,cl with
 				(None,((Element (_,[_,ntargetstr],_))::t)) ->
