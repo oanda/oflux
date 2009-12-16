@@ -448,7 +448,8 @@ let emit_program_xml' programname br usesmodel =
 		in  Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in
 	let min_ns ns1 ns2 =
-		if List.mem (ns1,ns2) usesmodel then
+		if (List.mem (ns1,ns2) usesmodel)
+                || ((List.mem (ns1,"") usesmodel) && (List.mem ("",ns2) usesmodel)) then
 			ns2
 		else ns1 in
 	let make_successor imap caselist =
@@ -478,7 +479,7 @@ let emit_program_xml' programname br usesmodel =
 			with Not_found -> 
 				((ns,ref 0)::imap),0 in
 		let imap,nsprefix_succname = 
-			let ns = find_earliest_ns None caselist in
+			let ns = find_earliest_ns None (List.rev caselist) in
 			let imap,i = get_iv ns
 			in  imap,((if (String.length ns) > 0 then (ns^".") else "")^(string_of_int i))
 		in (successor (nsprefix_succname) caselist), imap in
