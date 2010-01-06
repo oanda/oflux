@@ -37,10 +37,16 @@ private:
  * @param directory of XML plugin files
  * @param directory of the .so plugin files
  * @param plugin parameters data object
+ * @param existing_flow that was loaded previously
  * @returns a flow object
  **/
 flow::Flow *
-read(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams);
+read(     const char * filename
+	, flow::FunctionMaps *fmaps
+	, const char * pluginxmldir
+	, const char * pluginlibdir
+	, void * initpluginparams
+	, const flow::Flow * existing_flow);
 
 } // namespace xml
 } // namespace oflux

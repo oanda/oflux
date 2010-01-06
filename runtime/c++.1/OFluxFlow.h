@@ -447,7 +447,11 @@ class Library;
  */
 class Flow {
 public:
-        Flow() : _magic_sorter(this) {}
+        Flow() 
+		: _magic_sorter(this) 
+		, _gaveup_libraries(false)
+	{}
+        Flow(const Flow &);
         ~Flow();
 
         /**
@@ -542,6 +546,7 @@ public:
          * @brief determine if this library is already know to this flow
          */
         bool haveLibrary(const char * name);
+	Library * getPrevLibrary(const char * name);
         /**
          * @brief return the names of the plugin libraries in loaded order
          */
@@ -563,6 +568,8 @@ private:
         std::map<std::string, Guard *> _guards;
         GuardMagicSorter               _magic_sorter;
         std::vector<Library *>         _libraries;
+        std::vector<Library *>         _prev_libraries;
+	mutable bool                   _gaveup_libraries;
 };
 
 } // namespace flow

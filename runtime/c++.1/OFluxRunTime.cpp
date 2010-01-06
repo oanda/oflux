@@ -100,7 +100,11 @@ void RunTime::hard_kill()
         }
 }
 
-void RunTime::load_flow(const char * flname, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
+void RunTime::load_flow(
+	  const char * flname
+	, const char * pluginxmldir
+	, const char * pluginlibdir
+	, void * initpluginparams)
 {
         oflux_log_debug("RunTime::load_flow() called\n");
 	if(*flname == '\0') {
@@ -116,7 +120,13 @@ void RunTime::load_flow(const char * flname, const char * pluginxmldir, const ch
                 initpluginparams = _rtc.init_plugin_params;
         }
 	// read XML file
-        flow::Flow * flow = xml::read(flname, _rtc.flow_maps, pluginxmldir, pluginlibdir, initpluginparams);
+        flow::Flow * flow = xml::read(
+		  flname
+		, _rtc.flow_maps
+		, pluginxmldir
+		, pluginlibdir
+		, initpluginparams
+		, this->flow());
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
 	std::vector<flow::Node *> & sources = flow->sources();

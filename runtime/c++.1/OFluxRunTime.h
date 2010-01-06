@@ -84,7 +84,8 @@ protected:
          */
         virtual void getPluginNames(std::vector<std::string> & result);
 protected:
-	inline flow::Flow * flow() { return _active_flows.front(); }
+	inline flow::Flow * flow() 
+	{ return _active_flows.size() ? _active_flows.front() : NULL; }
 	void remove(RunTimeThread * rtt);
 protected:
 	RunTimeThreadList   _thread_list;

@@ -419,7 +419,9 @@ Flow::~Flow()
 { 
         delete_map_contents<std::string,Node>(_nodes); 
         delete_map_contents<std::string,Guard>(_guards); 
-        delete_vector_contents_reversed<Library>(_libraries);
+        if(!_gaveup_libraries) {
+		delete_vector_contents_reversed<Library>(_libraries);
+	}
 }
 
 void
@@ -427,6 +429,19 @@ Flow::log_snapshot_guard(const char * guardname)
 {
 	std::map<std::string, Guard *>::iterator itr = _guards.find(guardname);
 	(*itr).second->log_snapshot();
+}
+
+Library * 
+Flow::getPrevLibrary(const char * name)
+{
+        Library * prevlib = NULL;
+        for(int i = 0; i <(int)_prev_libraries.size(); i++) {
+                if(_prev_libraries[i]->getName() == name) {
+                        prevlib = _prev_libraries[i];
+                        break;
+                }
+        }
+	return prevlib;
 }
 
 bool 
@@ -506,6 +521,15 @@ MagicNumberable * GuardMagicSorter::getMagicNumberable(const char * c)
         return _flow->getGuard(cs); 
 }
 
+Flow::Flow(const Flow & existing_flow)
+: _magic_sorter(this)
+{
+	for(size_t i = 0; i < existing_flow._libraries.size(); ++i) {
+		_prev_libraries.push_back(existing_flow._libraries[i]);
+	}
+	existing_flow._gaveup_libraries = true;
+}
+
 void
 Flow::getLibraryNames(std::vector<std::string> & result)
 {
@@ -523,7 +547,9 @@ Flow::addLibrary(Library * lib, void *init_plugin_params)
         oflux_log_debug("Flow::addLibrary() %s\n"
                 , lib->getName().c_str());
 	// init plugin
-	lib->init(init_plugin_params);
+	if(!getPrevLibrary(lib->getName().c_str())) {
+		lib->init(init_plugin_params);
+	}
 }
 
 void 

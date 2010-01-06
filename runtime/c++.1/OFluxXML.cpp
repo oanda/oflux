@@ -252,7 +252,12 @@ ScopedFunctionMaps::Scope::lookup_io_conversion(
  */
 class Reader {
 public:
-        Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams);
+        Reader(   const char * filename
+		, flow::FunctionMaps *fmaps
+		, const char * pluginxmldir
+		, const char * pluginlibdir
+		, void * initpluginparams
+		, const flow::Flow * existing_flow);
 
         /**
          * @brief read a file
@@ -464,8 +469,14 @@ void SetErrorHandler::execute(flow::Flow * f)
         _fn->setErrorHandler(fsrc);
 }
 
-Reader::Reader(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
-        : _flow(new flow::Flow())
+Reader::Reader(
+	  const char * filename
+	, flow::FunctionMaps *fmaps
+	, const char * pluginxmldir
+	, const char * pluginlibdir
+	, void * initpluginparams
+	, const flow::Flow * existing_flow)
+        : _flow(existing_flow ? new flow::Flow(*existing_flow) : new flow::Flow())
         , _flow_node(NULL)
         , _flow_successor_list(NULL)
         , _flow_successor(NULL)
@@ -501,7 +512,10 @@ void Reader::read(const char * filename)
         finalize();
 }
 
-void Reader::readxmlfile(const char * filename, XML_StartElementHandler startHandler, XML_EndElementHandler endHandler)
+void Reader::readxmlfile(
+	  const char * filename
+	, XML_StartElementHandler startHandler
+	, XML_EndElementHandler endHandler)
 {
         std::ifstream in(filename);
 
@@ -931,6 +945,11 @@ void Reader::new_depend(const char * dependname)
 void Reader::new_library(const char * filename)
 {
         _library = new flow::Library(_plugin_lib_dir,filename);
+	flow::Library * prev_lib = _flow->getPrevLibrary(_library->getName().c_str());
+	if(prev_lib) {
+		delete _library;
+		_library = prev_lib;
+	}
 	_library->addDependency("");
 }
 
@@ -951,19 +970,7 @@ void Reader::add_library()
 		, _library->getDependencies());
         assert(_flow);
 
-        if(!_flow->haveLibrary(_library->getName().c_str())) {
-                _flow->addLibrary(_library, _init_plugin_params);
-		/*
-                // init plugin
-                std::string initfunction = "init__";
-                _library->addSuffix(initfunction);
-                InitFunction * initfunc =
-                        _library->getSymbol<InitFunction>(initfunction.c_str(), true); // ignore dlerror -- cause the programmer might not define it
-                if(initfunc) {
-                        (*initfunc)(_init_plugin_params);
-                }
-		*/
-        }
+	_flow->addLibrary(_library, _init_plugin_params);
 }
 
 void DependencyTracker::addDependency(const char * fl)
@@ -991,9 +998,19 @@ void DependencyTracker::canonize(std::string & filename)
 
 
 flow::Flow *
-read(const char * filename, flow::FunctionMaps *fmaps, const char * pluginxmldir, const char * pluginlibdir, void * initpluginparams)
+read(     const char * filename
+	, flow::FunctionMaps *fmaps
+	, const char * pluginxmldir
+	, const char * pluginlibdir
+	, void * initpluginparams
+	, const flow::Flow * existing_flow)
 {
-        Reader reader(filename,fmaps,pluginxmldir,pluginlibdir,initpluginparams);
+        Reader reader(    filename
+			, fmaps
+			, pluginxmldir
+			, pluginlibdir
+			, initpluginparams
+			, existing_flow);
         return reader.flow();
 }
 
