@@ -9,7 +9,7 @@ open Flow
   <flow name=... ofluxversion=...>
    <guard name=... magicnumber=.../>
    <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionnumber=... outputunionnumber=...> <!-- name of the node -->
-    <guardref name=... wtype=... hash=.../>
+    <guardref name=... wtype=... hash=... late=.../>
     <errorhandler name=.../>
     <successorlist> <!-- a list of concurrent branches -- all are taken -->
       <successor name=...> <!-- a list of choices -->
@@ -100,6 +100,7 @@ let xml_depend_str = "depend"
 let xml_hash_str = "hash"
 let xml_before_str = "before"
 let xml_after_str = "after"
+let xml_late_str = "late"
 
 let depend el_name =
         Element (xml_depend_str
@@ -130,12 +131,13 @@ let guardprecedence el_before el_after =
                   ]
                 , [])
 
-let guardref el_name el_unionnumber el_hash el_wtype =
+let guardref el_name el_unionnumber el_hash el_wtype el_late =
 	Element (xml_guardref_str
 		, [ xml_name_str, el_name
 		  ; xml_unionnumber_str, el_unionnumber
                   ; xml_hash_str, el_hash
 		  ; xml_wtype_str, el_wtype
+		  ; xml_late_str, el_late
 		  ]
 		, [])
 
@@ -510,14 +512,24 @@ let emit_program_xml' programname br usesmodel =
 			try List.assoc n argmap
 			with Not_found -> raise (XMLConversion (n,ParserTypes.noposition)) in*)
 		let do_gr gr = 
+			let has_gargs = List.exists
+				(fun xl -> List.exists
+					(fun une ->
+						(match une with
+							(ParserTypes.GArg _) -> true
+							| _ -> false)) xl) 
+				(gr.ParserTypes.guardcond::gr.ParserTypes.arguments)
+			in
 			(*let _,gr_pos,_ = gr.ParserTypes.guardname in*)
-			guardref (ParserTypes.strip_position gr.ParserTypes.guardname)
-			(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
-                        (HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
-			(match gr.ParserTypes.modifiers with
-				(ParserTypes.Read::_) -> "1"
-				| (ParserTypes.Write::_) -> "2"
-				| _ -> "3")
+			guardref 
+				(ParserTypes.strip_position gr.ParserTypes.guardname)
+				(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
+				(HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
+				(match gr.ParserTypes.modifiers with
+					(ParserTypes.Read::_) -> "1"
+					| (ParserTypes.Write::_) -> "2"
+					| _ -> "3")
+				(if has_gargs then "true" else "false")
 			in
 		let is_eh = is_error_handler n in 
 		let fl = Flow.flowmap_find n fmap in

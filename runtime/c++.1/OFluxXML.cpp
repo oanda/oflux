@@ -108,7 +108,8 @@ public:
 			  const char * guardname
 			, int union_number
 			, const char * hash
-			, int wtype);
+			, int wtype
+			, bool late);
 
 		AtomicMapAbstract *
 		lookup_atomic_map(const char * guardname);
@@ -200,7 +201,8 @@ ScopedFunctionMaps::Scope::lookup_guard_translator(
 	  const char * guardname
         , int union_number
         , const char * hash
-        , int wtype)
+        , int wtype
+	, bool late)
 {
         GuardTransFn res = NULL;
 	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
@@ -209,7 +211,8 @@ ScopedFunctionMaps::Scope::lookup_guard_translator(
 			  guardname
                         , union_number
                         , hash
-                        , wtype);
+                        , wtype
+			, late);
 		++itr;
         }
         return res;
@@ -330,9 +333,10 @@ public:
         void new_flow_guard_reference(flow::Guard * fg
                 , int unionnumber
                 , const char * hash
-                , int wtype)
+                , int wtype
+		, bool late)
         {
-                _flow_guard_reference = new flow::GuardReference(fg,wtype);
+                _flow_guard_reference = new flow::GuardReference(fg,wtype,late);
                 _flow_guard_ref_unionnumber = unionnumber;
                 _flow_guard_ref_hash = hash;
                 _flow_guard_ref_wtype = wtype;
@@ -345,7 +349,8 @@ public:
 				  name
 				, _flow_guard_ref_unionnumber
 				, _flow_guard_ref_hash.c_str()
-				, _flow_guard_ref_wtype);
+				, _flow_guard_ref_wtype
+				, _flow_guard_reference->late());
                 assert(guardfn != NULL);
                 _flow_guard_reference->setGuardFn(guardfn);
                 _flow_node->addGuard(_flow_guard_reference);
@@ -597,6 +602,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         const char * el_hash = NULL;
         const char * el_before = NULL;
         const char * el_after = NULL;
+        const char * el_late = NULL;
         for(int i = 0; attr[i]; i += 2) {
                 if(strcmp(attr[i],"name") == 0) {
                         el_name = attr[i+1];
@@ -622,6 +628,8 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                         el_after = attr[i+1];
                 } else if(strcmp(attr[i],"before") == 0) {
                         el_before = attr[i+1];
+                } else if(strcmp(attr[i],"late") == 0) {
+                        el_late = attr[i+1];
                 } else if(strcmp(attr[i],"hash") == 0) {
                         el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
@@ -630,6 +638,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                         el_function = attr[i+1];
                 }
         }
+        bool is_late = (el_late ? strcmp(el_late,"true")==0 : false);
         bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
         bool is_negated = (el_isnegated ? strcmp(el_isnegated,"true")==0 : false);
         bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
@@ -659,7 +668,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 // has children: argument(s)
                 flow::Guard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype);
+                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype, is_late);
         } else if(strcmp(el,"condition") == 0) {
                 // has attributes: name, argno, isnegated
                 // has no children
@@ -739,6 +748,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         const char * el_nodetarget = NULL;
 
         // guard attributes
+        const char * el_late = NULL;
         const char * el_before = NULL;
         const char * el_after = NULL;
         const char * el_wtype = NULL;
@@ -777,6 +787,8 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                     	el_after = attr[i+1];
                 } else if(strcmp(attr[i],"before") == 0) {
                     	el_before = attr[i+1];
+                } else if(strcmp(attr[i],"late") == 0) {
+                    	el_late = attr[i+1];
                 } else if(strcmp(attr[i],"hash") == 0) {
                     	el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
@@ -784,6 +796,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 }
         }
 
+        bool is_late = (el_late ? strcmp(el_late,"true")==0 : false);
         bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
         bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
         bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
@@ -825,7 +838,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 // has children: argument(s)
                 flow::Guard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype);
+                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype, is_late);
         } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
                 // has attributes: argno
                 // had no children

@@ -184,7 +184,7 @@ let finish_consequences stable ufs =
             }
 
 let consequences ulist stable = 
-	let get_io_type cls =
+	(*let get_io_type cls =
 		let git (nf,isin) = 
 			try let nd = SymbolTable.lookup_node_symbol_from_function stable nf
 			    in  (if isin 
@@ -202,16 +202,16 @@ let consequences ulist stable =
 		let strip_each df =
 			(strip_pos df.ctypemod)
 			^(strip_pos df.ctype)
-			(*^(strip_pos df.name)*)
+			-*^(strip_pos df.name)*-
 		in  (List.map strip_each dfl, cls) in
 	let compress_by_type_definition ufs =
 		let annotated_ufs = List.map get_io_type ufs in
 		let compare_a_ufs (a,_) (b,_) = compare a b in
-		(*let annotated_ufs = List.sort compare_a_ufs annotated_ufs in*)
+		-*let annotated_ufs = List.sort compare_a_ufs annotated_ufs in*-
 		let annotated_ufs = 
 			let merge (a,al) (b,bl) = (a,al @ bl)
 			in  Uniquify.uniq compare_a_ufs merge annotated_ufs 
-		in  List.map (fun (_,x) -> x) annotated_ufs in
+		in  List.map (fun (_,x) -> x) annotated_ufs in*)
 	let extract_node_fold s nd ll =
 		let strip_df df =
 			(ParserTypes.strip_position df.ctypemod

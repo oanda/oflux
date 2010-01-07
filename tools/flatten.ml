@@ -7,7 +7,7 @@ let rec find_mod_def modl modnp =
 	in  match modl with 
 		((pre,md)::tl) ->
 			if (strip_position md.modulename) = modn 
-			then pre,md.programdef
+			then pre,md.isstaticmodule,md.programdef
 			else find_mod_def tl modnp
 		| _ -> raise (FlattenFailure ("cannot find module "^modn,p))
 
@@ -44,7 +44,7 @@ let proper_name_space mp =
         else try (String.rindex mp ':') = ((String.length mp)-1)
              with Not_found -> false
 
-let add_atom_decl ip mp pr = 
+let add_atom_decl ip mp issm pr = 
         let _ = if proper_name_space mp then ()
                 else raise (FlattenFailure ("internal - "^mp^" bad namespace", noposition)) in
         let ad =
@@ -58,7 +58,10 @@ let add_atom_decl ip mp pr =
                 ; atommodifiers=[]
                 } 
         in      { cond_decl_list = pr.cond_decl_list
-                ; atom_decl_list = ad::pr.atom_decl_list
+                ; atom_decl_list = 
+			if issm 
+			then pr.atom_decl_list 
+			else ad::pr.atom_decl_list
                 ; node_decl_list = pr.node_decl_list
                 ; mainfun_list = pr.mainfun_list
                 ; expr_list = pr.expr_list
@@ -119,17 +122,23 @@ let program_append keepextatoms pr1 pr2 =
                 let ename,pos,_ = extnode.nodename in
                 try let _ = List.find (fun n-> (strip_position n.nodename) = ename) nodes 
                     in ()
-                with Not_found -> raise (FlattenFailure ("external node reference "^ename^" not found",pos)) in
+                with Not_found -> 
+			raise (FlattenFailure ("external node reference "
+				^ename^" not found",pos)) in
         let check_ext_atom atoms extatom =
                 let ename,pos,_ = extatom.atomname in
                 try let _ = List.find (fun n-> (strip_position n.atomname) = ename) atoms
                 in  ()
-                with Not_found -> raise (FlattenFailure ("external guard reference "^ename^" not found",pos)) in
+                with Not_found -> 
+			raise (FlattenFailure ("external guard reference "
+				^ename^" not found",pos)) in
         let check_ext_inst insts extinst =
                 let ename,pos,_ = extinst.modinstname in
                 try let _ = List.find (fun n-> (strip_position n.modinstname) = ename) insts
                 in  ()
-                with Not_found -> raise (FlattenFailure ("external module instance "^ename^" not found",pos)) in
+                with Not_found -> 
+			raise (FlattenFailure ("external module instance "
+				^ename^" not found",pos)) in
         let _ = List.iter (check_ext_inst inst1) ext_inst2 in
         let _ = List.iter (check_ext_inst inst2) ext_inst1 in
         let _ = List.iter (check_ext_node nodes1) ext_nodes2 in
@@ -368,6 +377,33 @@ let flatten prog =
 		{ onnodes = List.map (prefix_sp pre_mi) err.onnodes
 		; handler = prefix_sp pre_mi err.handler } 
 		in
+	let get_implicit_gr_orderings ndl =
+		let get_one nd =
+			let localgname_map gr =
+				match gr.localgname with
+					(Some n) -> 
+						( strip_position n
+						, gr.guardname)
+					| _ ->  ( strip_position gr.guardname
+						, gr.guardname) in
+			let lgn_map = List.map localgname_map nd.guardrefs in
+			let filt_garg ue =
+				match ue with
+					(GArg ga) -> true
+					| _ -> false in
+			let on_garg gname ue =
+				match ue with
+					(GArg ga) -> 
+						( List.assoc ga lgn_map
+						, gname)
+					| _ -> raise Not_found in
+			let on_gr gr =
+				let orderl = List.map (on_garg gr.guardname)
+					(List.filter filt_garg
+					(List.concat gr.arguments))
+				in  orderl
+			in  List.concat (List.map on_gr nd.guardrefs)
+		in  List.concat (List.map get_one ndl) in
 	let for_program pre_mi pre_md pr =
 		{ cond_decl_list = List.map (for_cond_decl pre_mi pre_md) pr.cond_decl_list
 		; atom_decl_list = List.map (for_atom_decl pre_mi pre_md) pr.atom_decl_list
@@ -379,7 +415,11 @@ let flatten prog =
 		; mod_inst_list = []
                 ; plugin_list = []
                 ; terminate_list = List.map (prefix_sp pre_mi) pr.terminate_list
-                ; order_decl_list = List.map (for_order_decl pre_mi pre_md) pr.order_decl_list
+                ; order_decl_list = 
+			let explicit_odl = pr.order_decl_list in
+			let implicit_odl = get_implicit_gr_orderings pr.node_decl_list
+			in  List.map (for_order_decl pre_mi pre_md) (explicit_odl @ implicit_odl)
+			
 		}
 		in
 	let add_mod_prefix modprefix md = (modprefix, md) in
@@ -411,12 +451,15 @@ let flatten prog =
                                         Debug.dprint_string ("  has atom "^(strip_position atom.atomname)^"\n")
                                 in List.iter dpp pr_sofar.atom_decl_list
                                 in
-			let mp,moddefpr = find_mod_def modl mi.modsourcename in
+			let mp,isstaticmod,moddefpr = find_mod_def modl mi.modsourcename in
                         let localize (glocal,(gglobal,gp1,gp2)) =
                                 (glocal,(instprefix^gglobal,gp1,gp2)) in
                         let guardaliases = List.map localize mi.guardaliases in
                         let _ = check_atom_assignment moddefpr.atom_decl_list pr_sofar.atom_decl_list guardaliases in
-			let moddefpr = add_self_guardrefs moddefpr in
+			let moddefpr = 
+				if isstaticmod 
+				then moddefpr 
+				else add_self_guardrefs moddefpr in
 			let ip = instprefix^(strip_position mi.modinstname)^"." in
                         let gsubst = get_new_subst instprefix ip gsubst guardaliases in
 			let mp = srcname^"::"^mp in
@@ -426,7 +469,7 @@ let flatten prog =
                                 in
                         let moddefpr = flt ip mp modl gsubst moddefpr in
                         let moddefpr = apply_guardref_subst gsubst moddefpr
-			in  add_atom_decl ip mp
+			in  add_atom_decl ip mp isstaticmod
 				(program_append true pr_sofar moddefpr)
 			in
 		let modl = (List.map (add_mod_prefix modprefix) pr.mod_def_list) @ modl
@@ -460,20 +503,23 @@ let flatten_module module_name pr =
 		} in
 	let nsnbl = break_namespaced_name module_name in
 	let findfun n md = (strip_position md.modulename) = n in
-	let rec flt ip mp modl pr nbl =
+	let rec flt issm ip mp modl pr nbl =
 		match nbl with
-			[] ->   let pr = add_atom_decl "" (module_name^"::") pr in
-                                let pr = add_self_guardrefs pr 
+			[] ->   let pr = add_atom_decl "" (module_name^"::") issm pr in
+                                let pr = if issm then pr else add_self_guardrefs pr 
                                 in  add_mods modl pr
 			| (h::t) ->
 				let mpos,mneg = List.partition (findfun h) pr.mod_def_list in
                                 let mneg = List.map (fun m -> (strip_position m.modulename,m)) mneg
 				in  (match mpos with
 					[amod] ->
-						flt ip mp (modl @ mneg) amod.programdef t
+						flt amod.isstaticmodule 
+							ip mp 
+							(modl @ mneg) 
+							amod.programdef t
 					| _ -> raise (FlattenFailure ("cannot find module "^h,noposition)))
                 in
-	let pr = flt "" "" [] pr (List.rev nsnbl)
+	let pr = flt false "" "" [] pr (List.rev nsnbl)
         in  flatten pr
 
 let flatten_plugin' plugin_name prog = 

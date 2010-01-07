@@ -1017,14 +1017,64 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 
 let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
         let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
+	let code = if with_code then
+			let code =
+				let gtfunc = "g_trans_nop" in
+				let proto = "bool "^gtfunc^"( "
+					^"void * out, const void *in" 
+					^", oflux::AtomicsHolderAbstract * ah)"
+				in  List.fold_left add_code code
+					[ proto
+					; "{"
+					; "return true;"
+					; "}"
+					] (*in
+			let code =
+				let gtfunc = "g_trans_late" in
+				let proto = "GuardTransEnum "^gtfunc^"( "
+					^"void * out, const void *in)" 
+				in  List.fold_left add_code code
+					[ proto
+					; "{"
+					; "return false;"
+					; "}"
+					]*)
+			in code
+		   else code in
+	let is_garg ue =
+		match ue with
+			(GArg _) -> true
+			| _ -> false in
+	let uniterp_has_garg uel =
+		List.exists is_garg uel in
         let e_n nn nd (code,donel) =
                 let nf = nd.functionname in
                 let u_n = get_u_n nf in
+		let get_lexical_ind_and_type s =
+			let ttos dt =
+				(strip_position dt.dctypemod)
+				^" "^(strip_position dt.dctype) in
+			let get_type gname =
+				let gd = SymbolTable.lookup_guard_symbol symtable (strip_position gname)
+				in  ttos gd.return in
+			let get_local_name h = strip_position
+				(match h.localgname with
+					None -> h.guardname
+					| (Some s) -> s) in
+			let rec get_ind' i ll =
+				match ll with
+					(h::t) -> if s = (get_local_name h) 
+						then (i, get_type h.guardname)
+						else get_ind' (i+1) t
+					| _ -> raise Not_found
+			in get_ind' 0 nd.nodeguardrefs
+			in
                 let fill_expr uel =
                         let on_ue ue =
                                 match ue with
                                         (Arg s) -> ("(reinterpret_cast<const "
                                                 ^nf^"_in *>(in)->"^s^")")
+					| (GArg g) -> g
                                         | (Context s) -> s in
                         let ffun str ue = 
                                 str^(on_ue ue)
@@ -1046,6 +1096,9 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 | (Write::_) -> 2
                                 | _ -> 3 in
                 let e_gr (code,donel) gr =
+			let has_garg = 
+				let uel = (gr.guardcond::(gr.arguments))
+				in  List.exists uniterp_has_garg uel in
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
                         let hash = HashString.hash (gr.arguments, gr.guardcond) in
@@ -1054,31 +1107,58 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 (code,donel)
                         else
                         let proto = "bool "^gtfunc^"( "
-                                ^"void * out, const void *in)"
+                                ^"void * out, const void *in"
+				^", oflux::AtomicsHolderAbstract * ah)"
                                 ^(if with_code then "" else ";") in
-                        let mapline = ("{ \""^gn^"\", "
-                                ^(string_of_int u_n)^", "
-                                ^"\""^hash^"\", "
-                                ^(string_of_int (wtype gr.modifiers))^", "
-                                ^"&"^gtfunc
-                                ^" },  ") in
                         let codell = 
                                 let assignon = List.combine gd.garguments gr.arguments 
                                 in  List.map (assign gn) assignon in
                         let code = if with_proto then
                                         add_code code proto
                                 else code in
-                        let code = if with_code then 
+			let garg_codefun garg =
+				match garg with 
+					(GArg s) ->
+						let i,t = get_lexical_ind_and_type s
+						in
+						t^" "^s^
+						" = ah->getDataLexicalThrowOnNull<"
+						^t^" >("
+						^(string_of_int i)
+						^");"
+					| _ -> ""
+				in
+			let content = 
+				let uel = Uniquify.uniq_discard compare
+					(List.filter is_garg
+					(List.concat (gr.guardcond::(gr.arguments)))) in
+				let garg_codelines =
+					List.map garg_codefun uel in
+				let rt_res = res_test gr.guardcond
+				in  match rt_res,codell with 
+					("",[]) -> []
+					| _ -> garg_codelines @ (rt_res::codell) in
+                        let code = if with_code && (content != []) then 
                                         List.fold_left add_code code
                                         ( [ proto
                                           ; "{  "
                                           ] 
-                                        @ [res_test gr.guardcond]
-                                        @ (codell)
+                                        @ content
                                         @ [ "return true;"
                                           ; "}  "
                                           ; "" ] )
                                 else code in
+			let gtfunc = 
+				if content = [] 
+				then "g_trans_nop"
+				else gtfunc in
+                        let mapline = ("{ \""^gn^"\", "
+                                ^(string_of_int u_n)^", "
+                                ^"\""^hash^"\", "
+                                ^(string_of_int (wtype gr.modifiers))^", "
+				^(if has_garg then "true" else "false")^", "
+                                ^"&"^gtfunc
+                                ^" },  ") in
                         let code = if with_map then 
                                         add_code code mapline
                                 else code 

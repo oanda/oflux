@@ -65,12 +65,14 @@ public:
 	virtual const void * input_type() = 0;
 	void release() { _predecessor = no_event; }
 	virtual int execute() = 0;
-	Atomic * acquire(int & wtype, flow::GuardReference * & fgr, 
-			AtomicsHolder & given_atomics)
+	Atomic * acquire( int & wtype
+			, flow::GuardReference * & fgr
+			, AtomicsHolder & given_atomics)
 		{
-			int res = _atomics.acquire(given_atomics,
-					input_type(),
-					flow_node()->getName());
+			int res = _atomics.acquire(
+					  given_atomics
+					, input_type()
+					, flow_node()->getName());
 			HeldAtomic * ha = (res == -1 ? NULL : _atomics.get(res));
 			wtype = (ha ? ha->wtype() : 0);
 			fgr = (ha ? ha->flow_guard_ref() : NULL);
@@ -97,7 +99,9 @@ protected:
  * This refinement of EventBase actually holds the memory used to 
  * output an event result.
  */
-template<typename IT, typename OT, typename AM>
+template< typename IT
+	, typename OT
+	, typename AM>
 class EventBase2 : public EventBase {
 public:
 	EventBase2(       boost::shared_ptr<EventBase> & predecessor
@@ -126,7 +130,9 @@ protected:
  * Concrete structures are manipulated as input and output.
  * Only the execute implementation is missing.
  */
-template<typename IM,typename OM, typename AM>
+template< typename IM
+	, typename OM
+	, typename AM>
 class EventBase3 : public EventBase2<typename IM::base_type,typename OM::base_type,AM> {
 public:
 	EventBase3(       boost::shared_ptr<EventBase> & predecessor
@@ -168,7 +174,10 @@ private:
  * This highest level of the template hierarchy know the concrete data
  * structures manipulated as input and output.
  */
-template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM *)>
+template< typename IM
+	, typename OM
+	, typename AM
+	, int (*node_func)(const IM *, OM*, AM *)>
 class Event : public EventBase3<IM,OM,AM> {
 public:
 	Event(            boost::shared_ptr<EventBase> & predecessor
@@ -197,7 +206,10 @@ public:
  * This kind of event has a C function associated with it that takes 
  * the error code as the final argument in its parameter list
  */
-template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
+template< typename IM
+	, typename OM
+	, typename AM
+	, int (*node_func)(const IM *, OM*, AM*, int) >
 class ErrorEvent : public EventBase3<IM,OM,AM> {
 public:
 	ErrorEvent(       boost::shared_ptr<EventBase> & predecessor
@@ -239,7 +251,10 @@ IM ErrorEvent<IM,OM,AM,node_func>::_dont_care_im;
  *
  * @return smart pointer to the new event (heap allocated)
  **/
-template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
+template< typename IM
+	, typename OM
+	, typename AM
+	, int (*node_func)(const IM *, OM*, AM*) >
 boost::shared_ptr<EventBase> create(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,flow::Node *fn)
 {
 	return boost::shared_ptr<EventBase>(new Event<IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));
@@ -252,7 +267,10 @@ boost::shared_ptr<EventBase> create(boost::shared_ptr<EventBase> pred_node_ptr, 
  *
  * @return  smart pointer managed new source event (heap allocated)
  **/
-template<typename IM,typename OM, typename AM, int (*node_func)(const IM *, OM*, AM*)>
+template< typename IM
+	, typename OM
+	, typename AM
+	, int (*node_func)(const IM *, OM*, AM*) >
 boost::shared_ptr<EventBase> create_source(flow::Node *fn)
 {
 	return boost::shared_ptr<EventBase>(new Event<IM,OM,AM,node_func>(EventBase::no_event,NULL, fn));
@@ -267,7 +285,10 @@ boost::shared_ptr<EventBase> create_source(flow::Node *fn)
  *
  * @return smart pointer to the new error event (heap allocated)
  **/
-template<typename IM,typename OM,typename AM, int (*node_func)(const IM *, OM*, AM*, int)>
+template< typename IM
+	, typename OM
+	, typename AM
+	, int (*node_func)(const IM *, OM*, AM*, int) >
 boost::shared_ptr<EventBase> create_error(boost::shared_ptr<EventBase> pred_node_ptr, const void * im_io_convert,flow::Node * fn)
 {
 	return boost::shared_ptr<EventBase>(new ErrorEvent<IM,OM,AM,node_func>(pred_node_ptr,reinterpret_cast<const IOConversionBase<IM> *>(im_io_convert),fn));

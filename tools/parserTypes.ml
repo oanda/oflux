@@ -34,8 +34,9 @@ type decl_formal =
 type guardmod = Read | Write
 
 type uninterp_expr =
-        Arg of string
-        | Context of string
+        Arg of string (* normal node argument *)
+        | GArg of string (* guard argument *)
+        | Context of string (* context stuff *)
 
 
 type guardref = { guardname: string positioned
@@ -115,6 +116,7 @@ type program =
 	}
 and mod_def = 
 	{ modulename : string positioned 
+	; isstaticmodule : bool
 	; programdef : program
 	}
 and plugin_def =

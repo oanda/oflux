@@ -19,14 +19,17 @@ namespace oflux {
 /**
  * @file OFluxAtomic.h
  * @author Mark Pichora
- * @brief These classes are used to implement the runtime aspect of atomic guards
+ * @brief These classes are used to implement the runtime aspect of 
+ *        atomic guards
  */
 
 class EventBase;
 
 /**
  * @class Atomic
- * @brief An atomic represents the instance of a guard, and it holds the needed state
+ * @brief An atomic represents the instance of a guard, 
+ *        and it holds the needed state
+ *
  * Atomics also hold a single private data pointer to let this object
  * hold the persistent data associated with this guard and the specific key
  * used to obtain it.
@@ -86,7 +89,7 @@ public:
 	AtomicFree(void *datap) : _data_ptr(datap) {}
 	virtual ~AtomicFree() {}
 	virtual void ** data() { return &_data_ptr; }
-	virtual int held() const { return 1; } // always free
+	virtual int held() const { return 1; } // always available
 	virtual int acquire(int) { return 1; } // always acquire
 	virtual void release(std::vector<boost::shared_ptr<EventBase> > & ) {}
 	virtual void wait(boost::shared_ptr<EventBase> &,int ) 
@@ -288,11 +291,11 @@ public:
 	/**
 	 * @brief allocate a new key
 	 */
-	virtual void * new_key() = 0;
+	virtual void * new_key() const = 0;
 	/**
 	 * @brief deallocate a key
 	 */
-	virtual void delete_key(void *) = 0;
+	virtual void delete_key(void *) const = 0;
 	/**
 	 * @brief get a walker for this map
 	 */
@@ -328,8 +331,8 @@ public:
 	void put_waiter(boost::shared_ptr<EventBase> & ev);
 	int waiter_count() { return _q.size(); }
 	virtual int compare (const void * v_k1, const void * v_k2) const { return 0; }
-	virtual void * new_key() { return NULL; }
-	virtual void delete_key(void *) {}
+	virtual void * new_key() const { return NULL; }
+	virtual void delete_key(void *) const {}
 	virtual const void * get(Atomic * & a_out,const void * key);
 	void put(AtomicPooled * ap);
 	virtual AtomicMapWalker * walker() { return new AtomicPoolWalker(_ap_list); }
@@ -370,8 +373,8 @@ public:
 	}
 	virtual void wait(boost::shared_ptr<EventBase> & ev, int)
 	{ _pool.put_waiter(ev); }
-	virtual void * new_key() { return NULL; }
-	virtual void delete_key(void *) {}
+	virtual void * new_key() const { return NULL; }
+	virtual void delete_key(void *) const {}
 	virtual void relinquish()
 	{
 		if(_data) {
@@ -425,8 +428,8 @@ public:
 		return reinterpret_cast<void *> (&_something);
 	}
 	virtual int compare(const void*, const void*) const { return 0; } // eq
-	virtual void * new_key() { return NULL; }
-	virtual void delete_key(void *) {}
+	virtual void * new_key() const { return NULL; }
+	virtual void delete_key(void *) const {}
 	virtual AtomicMapWalker * walker() { return new TrivialWalker(_atomic); }
 private:
 	int _something;
@@ -550,8 +553,9 @@ public:
 			return 0;
 		}
 	}
-	virtual void * new_key() { return new typename MapPolicy::keytype(); }
-	virtual void delete_key(void * k) 
+	virtual void * new_key() const 
+	{ return new typename MapPolicy::keytype(); }
+	virtual void delete_key(void * k) const
         { delete (reinterpret_cast<const typename MapPolicy::keytype *>(k)); }
 	virtual AtomicMapWalker * walker() 
         { return new AtomicMapStdWalker<MapPolicy>(_map); }
