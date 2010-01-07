@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <stdio.h>
+#include <signal.h>
 
 
 namespace oflux {
@@ -151,6 +152,15 @@ void RunTime::load_flow(
 	_active_flows.push_front(flow);
 };
 
+void * __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
+{
+	int * count = reinterpret_cast<int *>(v_count);
+	oflux_thread_t tt = rtt->tid();
+	int res = oflux_kill_int(tt); // send thread a SIGINT
+	if(!res) {
+		*count++;
+	}
+}
 
 void RunTime::start()
 {
@@ -159,14 +169,19 @@ void RunTime::start()
 	_thread_list.insert_front(rtt);
 	_thread_count++;
 	RunTime::thread_data_key.set(rtt);
+	// running phase
 	rtt->start();
+	// shutdown phase
         while(_thread_count> 0) {
                 AutoLock al(&_manager_lock);
+		int kill_count = 0;
+		// sending SIGINTs to stuck threads 
+		_thread_list.fold(&kill_count,__fold_pthread_kill_int);
         }
         remove(rtt);
         delete rtt;
         deinit_eminfo();
-        oflux_log_info("deinit_eminfo() returning....\n");
+        oflux_log_info("RunTime::start() returning....\n");
 }
 
 void RunTime::remove(RunTimeThread * rtt)
