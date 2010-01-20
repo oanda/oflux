@@ -3,6 +3,7 @@
 #include "OFlux.h"
 #include "OFluxLogging.h"
 #include <stdarg.h>
+#include <stdio.h>
 #include <iostream>
 
 namespace oflux {
