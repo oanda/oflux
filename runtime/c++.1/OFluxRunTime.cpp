@@ -160,6 +160,7 @@ void * __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
 	if(!res) {
 		*count++;
 	}
+	return v_count;
 }
 
 void RunTime::start()
