@@ -108,6 +108,7 @@ void RunTime::load_flow(
 	, void * initpluginparams)
 {
         oflux_log_debug("RunTime::load_flow() called\n");
+	_rtc = _rtc_ref;
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
