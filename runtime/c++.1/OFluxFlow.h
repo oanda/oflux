@@ -58,15 +58,16 @@ public:
          * @return 
          **/
         ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
-        /**
-         * @brief lookup a guard translator function
-         * @remark these functions can translate an input structure to a guard key structure
-         * @param guardname name of the guard
-         * @param union_number union number (indicates the input structure)
-         * @param hash is the hash result of on the expression (compiler's)
-         * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
-         * @return the compiled function (pointer to it)
-         */
+	/**
+	 * @brief lookup a guard translator function
+	 * @remark these functions can translate an input structure to a guard key structure
+	 * @param guardname name of the guard
+	 * @param union_number union number (indicates the input structure)
+	 * @param hash is the hash result of on the expression (compiler's)
+	 * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
+	 * @param late is true when this lookup is done for a late guard acquisition
+	 * @return the compiled function (pointer to it)
+	 */
         GuardTransFn lookup_guard_translator(
 		  const char * guardname
                 , int union_number
@@ -210,13 +211,14 @@ public:
          *        and persistent key
          * @param a_out output atomic pointer
          * @param node_in the node input structure (used to generate a key)
+	 * @param ah the atomic holder for this acquisition
          */
         inline const void * 
 	get(      Atomic * & a_out
 		, const void * node_in
 		, AtomicsHolderAbstract * ah)
-        { 
-                bool ok = true;
+	{ 
+		bool ok = true;
 		GuardLocalKey local_key(_flow_guard);
 		try {
 			if(_guardfn) {
@@ -230,7 +232,7 @@ public:
 			a_out = NULL;
 			return NULL;
 		}
-                return _flow_guard->get(a_out,local_key.get());
+		return _flow_guard->get(a_out,local_key.get());
         }
         /**
          * @brief compare keys (pointers to void)

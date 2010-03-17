@@ -36,7 +36,7 @@ public:
                 { relinquish(); }
 	/**
 	 * @brief init is a pseudo constructor used to tell us which guard
-	 * @param fg the FlowGuardReference indicates the guard instance
+	 * @param fgr the FlowGuardReference indicates the guard instance
 	 */
 	inline void init(flow::GuardReference * fgr)
 		{ _flow_guard_ref = fgr; }
@@ -98,20 +98,21 @@ public:
 	/**
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure
+	 * @param allow_late true for late calls to build (_atom != NULL) can occur
 	 */
 	inline bool build(const void * node_in
 			, AtomicsHolderAbstract * ah
 			, bool allow_late = false)
-		{ 
-                        assert(_atom == NULL || allow_late);
-			if((allow_late || !_flow_guard_ref->late()) && !_atom) {
-				_key = _flow_guard_ref->get(_atom,node_in,ah); 
-			}
-                        //if(_atom == NULL) {
-                                //oflux_log_info("HeldAtomic::build() conditional guard not held %s\n", _flow_guard->getName().c_str());
-                        //}
-                        return _atom != NULL;
-                }
+	{ 
+		assert(_atom == NULL || allow_late);
+		if((allow_late || !_flow_guard_ref->late()) && !_atom) {
+			_key = _flow_guard_ref->get(_atom,node_in,ah); 
+		}
+		//if(_atom == NULL) {
+			//oflux_log_info("HeldAtomic::build() conditional guard not held %s\n", _flow_guard->getName().c_str());
+		//}
+		return _atom != NULL;
+	}
 	/**
 	 * @brief attempt to acquire the atomic (will succeed if no other has it)
 	 * @return true if the atomic is now held
