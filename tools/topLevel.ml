@@ -67,7 +67,7 @@ let rec get_token ls dummy_lexbuf =
                 ls.stack <- (ls.filename, ls.chan, ls.lexbuf) :: ls.stack ;
                 ls.incluses <- (ls.filename,full_fn) :: ls.incluses ;
                 ls.filename <- full_fn ;
-                ls.filenamelist <- full_fn::(ls.filenamelist) ;
+                ls.filenamelist <- fname::(ls.filenamelist) ;
                 ls.chan <- cha;
                 ls.lexbuf <- Lexing.from_channel ls.chan ;
 		end);
