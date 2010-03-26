@@ -528,6 +528,7 @@ let emit_program_xml' programname br usesmodel =
 				(match gr.ParserTypes.modifiers with
 					(ParserTypes.Read::_) -> "1"
 					| (ParserTypes.Write::_) -> "2"
+					| (ParserTypes.Upgradeable::_) -> "4"
 					| _ -> "3")
 				(if has_gargs then "true" else "false")
 			in

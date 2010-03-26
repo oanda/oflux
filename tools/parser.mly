@@ -46,6 +46,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> SEQUENCE, POOL, READWRITE, FREE;
 %token <ParserTypes.position*ParserTypes.position> HANDLE, ERROR, AS, WHERE;
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
+%token <ParserTypes.position*ParserTypes.position> UPGRADEABLE;
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
 %token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE, IF, STATIC;
@@ -544,6 +545,8 @@ guardref_modifier_opt:
 	{ trace_thing "guardref_modifier_opt"; [Read] }
 	| SLASH WRITE
 	{ trace_thing "guardref_modifier_opt"; [Write] }
+	| SLASH UPGRADEABLE
+	{ trace_thing "guardref_modifier_opt"; [Upgradeable] }
 	| /*epsilon*/
 	{ trace_thing "guardref_modifier_opt"; [] }
 
