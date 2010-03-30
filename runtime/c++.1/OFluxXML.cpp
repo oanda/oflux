@@ -52,6 +52,7 @@ private:
 	std::string  _scope_name;
 };
 
+
 /**
  * @class SetErrorHandler
  * @brief
@@ -84,6 +85,7 @@ protected:
 private:
         std::set<std::string> _depends_set;
 };
+
 
 class ScopedFunctionMaps {
 public:
@@ -149,6 +151,505 @@ private:
 	std::map< std::string, Context > _map;
 };
 
+class XMLVocab {
+public:
+	static const char * attr_name;
+	static const char * attr_argno;
+	static const char * attr_nodetarget;
+	static const char * attr_source;
+	static const char * attr_isnegated;
+	static const char * attr_iserrhandler;
+	static const char * attr_detached;
+	static const char * attr_unionnumber;
+	static const char * attr_inputunionnumber;
+	static const char * attr_outputunionnumber;
+	static const char * attr_after;
+	static const char * attr_before;
+	static const char * attr_late;
+	static const char * attr_hash;
+	static const char * attr_wtype;
+	static const char * attr_function;
+	static const char * attr_external;
+	static const char * attr_ofluxversion;
+
+	static const char * element_flow;
+	static const char * element_plugin;
+	static const char * element_library;
+	static const char * element_depend;
+	static const char * element_guard;
+	static const char * element_guardprecedence;
+	static const char * element_guardref;
+	static const char * element_argument;
+	static const char * element_add;
+	static const char * element_remove;
+	static const char * element_node;
+	static const char * element_successorlist;
+	static const char * element_successor;
+	static const char * element_errorhandler;
+	static const char * element_case;
+	static const char * element_condition;
+};
+
+class Attribute {
+public:
+	Attribute()
+		: _v(NULL)
+	{}
+	Attribute(const char *v)
+		: _v(v)
+	{}
+	Attribute(const Attribute & a)
+		: _v(a._v)
+	{}
+
+	Attribute & operator=(const Attribute & a)
+	{
+		_v = a._v;
+		return *this;
+	}
+	int intVal() const { return atoi(_v); }
+	const char * c_str() const { return _v; }
+	bool boolVal() const
+	{
+		static std::string t = "true";
+		return t == _v;
+	}
+private:
+	const char * _v;
+};
+
+
+
+class AttributeMap : public std::map<const char *,Attribute> {
+public:
+	Attribute & getOrThrow(const char * k)
+	{
+		std::map<const char *,Attribute>::iterator itr = find(k);
+		if(itr == end()) {
+			std::string ex_msg = "unfound attribute key ";
+			ex_msg += k;
+			throw ReaderException(ex_msg.c_str());
+		}
+		return (*itr).second;
+	}
+};
+
+//template<typename Child >
+//void pc_add(Child::ParentObjType *, Child *, Reader &);
+
+class Reader;
+
+template<typename Element>
+Element * flow_element_factory(AttributeMap &,Reader &);
+
+class ReaderStateAbstract {
+public:
+	virtual ~ReaderStateAbstract() {}
+	virtual ReaderStateAbstract * parent() = 0;
+	virtual const char * elementName() const = 0;
+	virtual ReaderStateAbstract * self() { return this; }; // dereferencing
+};
+
+class ReaderStateBasic : public ReaderStateAbstract {
+public:
+	ReaderStateBasic(ReaderStateAbstract * prs)
+		: _prs(prs)
+	{}
+	virtual ~ReaderStateBasic() {}
+	virtual ReaderStateAbstract * parent() { return _prs; }
+	virtual const char * elementName() const { return NULL; }
+protected:
+	ReaderStateAbstract * _prs;
+};
+
+class ReaderStateGuardPrecedence : public ReaderStateBasic {
+public:
+	static ReaderStateAbstract * factory(
+		  const char *
+		, AttributeMap & amap
+		, Reader & reader );
+
+	ReaderStateGuardPrecedence(ReaderStateAbstract * prs)
+		: ReaderStateBasic(prs)
+	{}
+	virtual ~ReaderStateGuardPrecedence() {}
+	virtual const char * elementName() const { return XMLVocab::element_guardprecedence; }
+};
+
+class ReaderStateDepend : public ReaderStateBasic {
+public:
+	static ReaderStateAbstract * factory(
+		  const char *
+		, AttributeMap & amap
+		, Reader & reader );
+
+	ReaderStateDepend(ReaderStateAbstract * prs)
+		: ReaderStateBasic(prs)
+	{}
+	virtual ~ReaderStateDepend() {}
+	virtual const char * elementName() const { return XMLVocab::element_depend; }
+};
+
+class TerminalReaderState : public ReaderStateAbstract {
+public:
+	typedef flow::FlowHolder ObjType;
+
+	TerminalReaderState() {}
+	virtual ~TerminalReaderState() {}
+	flow::Flow * flow() { return _fh->flow(); }
+	virtual ReaderStateAbstract * parent() { return NULL; }
+	virtual const char * elementName() const { return ""; }
+private:
+	flow::FlowHolder * _fh;
+};
+
+class ReaderStateRemoval : public ReaderStateAbstract {
+public:
+	static ReaderStateAbstract * factory(
+		  const char *
+		, AttributeMap &
+		, Reader & reader )
+	{
+		throw ReaderException("ReaderStateRemoval not implemented : <remove> tag");
+		return NULL;
+	}
+	ReaderStateRemoval() {}
+	virtual ~ReaderStateRemoval() {}
+	virtual const char * elementName() const
+	{ return XMLVocab::element_remove; }
+	virtual ReaderStateAbstract * self() { return NULL; }
+	virtual ReaderStateAbstract * parent() { return NULL; }
+};
+
+
+template<typename T>
+struct ElementName {
+	static const char * name;
+};
+
+template< typename ThisType >
+class ReaderState;
+
+class Reader {
+public:
+
+	static const char * currentDir;
+
+	// primary interface:
+        Reader(   flow::FunctionMaps *fmaps
+		, const char * pluginxmldir
+		, const char * pluginlibdir
+		, void * initpluginparams
+		, const flow::Flow * existing_flow);
+
+	flow::Flow * read( const char * filename );
+
+	// internal stuff:
+	void readPluginIfUnread(const char * plugin_name)
+	{
+		std::string depxml = _plugin_xml_dir;
+		depxml += "/";
+		depxml += plugin_name;
+		depxml += ".xml";
+		flow::Flow * flow = get<flow::Flow>();
+		if(!flow->haveLibrary(plugin_name)) {
+			if(_depends_visited.isDependency(depxml.c_str())) {
+				depxml += " circular dependency -- already loading";
+				throw ReaderException(depxml.c_str());
+			}
+			_depends_visited.addDependency(depxml.c_str());
+			ReaderStateAbstract * preserve = _reader_state;
+			while(_reader_state && _reader_state->elementName()
+					!= XMLVocab::element_flow) {
+				_reader_state = _reader_state->parent();
+			}
+			if(!_reader_state  || _reader_state->elementName()
+                                        != XMLVocab::element_flow) {
+				throw ReaderException("readPluginIfUnread() failed to find flow reader state");
+			}
+			readxmlfile(depxml.c_str());
+			_reader_state = preserve;
+		}
+	}
+	void addLibrary(flow::Library * l, flow::FunctionMaps * fms)
+	{
+		_scope_name = l->getName();
+
+		_scoped_fmaps.add(
+			  l->getName().c_str()
+			, fms
+			, l->getDependencies());
+		get<flow::Flow>()->addLibrary(l,_init_plugin_params);
+	}
+	void setErrorHandler(const char * eh_name)
+	{
+		if(allow_addition()) {
+			flow::Node * node = get<flow::Node>();
+			SetErrorHandler seh(node,eh_name);
+			_set_error_handlers.push_back(seh);
+		}
+	}
+	void addTarget(flow::Case * c, const char * target_name, int out_unionnumber)
+	{
+                AddTarget at(c,target_name, out_unionnumber, this, _scope_name);
+                _add_targets.push_back(at);
+	}
+
+	typedef boost::shared_ptr<ScopedFunctionMaps::Scope> ScopePtr;
+
+	ScopePtr fromThisScope(const char * s = NULL)
+	{ return _scoped_fmaps.get(s ? s : _scope_name.c_str()); }
+
+	const flow::Flow * existing_flow() const { return _existing_flow; }
+
+	bool allow_addition() { return _allow_addition; }
+	void allow_addition(bool a) { _allow_addition = a; }
+
+	template<typename T>
+	T * get() // find closest reader state object of that type
+	{
+		const char * rsa_el_name = ElementName<T>::name;
+		ReaderStateAbstract * rsa = _reader_state;
+		while(rsa && rsa->elementName() != rsa_el_name) {
+			rsa = rsa->parent();
+		}
+		if(!rsa) return NULL;
+		ReaderState<T> * rsptr = reinterpret_cast<ReaderState<T> *>(rsa);
+		return rsptr->obj();
+	}
+
+	template<typename T>
+	T * find(const char * t_name)
+	{
+		typename T::ParentObjType * pt = get<typename T::ParentObjType>();
+		std::string s = t_name;
+		return (pt ? pt->get<T>(s) : NULL);
+	}
+
+	const char * pluginLibDir() const
+	{ return _plugin_lib_dir; }
+
+	ReaderStateAbstract * getState() { return _reader_state; }
+
+protected:
+	void pushState( const char * element_str, AttributeMap &);
+	ReaderStateAbstract * popState();
+
+	// expat hooks:
+	static void startHandler(void *data, const char *el, const char **attr);
+	static void endHandler(void *data, const char *el);
+        static void dataHandler(void *data, const char *xml_data, int len);
+        static void commentHandler(void *data, const char *comment);
+
+	void readxmlfile(const char * filename);
+	void readxmldir(flow::FlowHolder *);
+
+private:
+	ScopedFunctionMaps _scoped_fmaps;
+	std::string _scope_name;
+	const char * _plugin_lib_dir;
+	const char * _plugin_xml_dir;
+	void * _init_plugin_params;
+	const flow::Flow * _existing_flow;
+	ReaderStateAbstract * _reader_state;
+        DependencyTracker _depends_visited;
+	bool _allow_addition;
+        std::vector<AddTarget> _add_targets;
+        std::vector<SetErrorHandler> _set_error_handlers;
+};
+
+
+
+class ReaderStateAddition : public ReaderStateAbstract {
+public:
+	static ReaderStateAbstract * factory(
+		  const char *
+		, AttributeMap &
+		, Reader & reader )
+	{
+		return new ReaderStateAddition(reader);
+	}
+
+	ReaderStateAddition(Reader & reader)
+		: _rsa(reader.getState())
+		, _reader(reader)
+		, _old_allow_addition(reader.allow_addition())
+	{ reader.allow_addition(true); }
+
+	virtual ~ReaderStateAddition()
+	{ _reader.allow_addition(_old_allow_addition); }
+
+
+	virtual const char * elementName() const
+	{ return XMLVocab::element_add; }
+
+	virtual ReaderStateAbstract * self() { return _rsa; } // defer up
+	virtual ReaderStateAbstract * parent() { return _rsa; }
+
+private:
+	ReaderStateAbstract * _rsa;
+	Reader & _reader;
+	bool _old_allow_addition;
+};
+
+class ReaderStateErrorHandler : public ReaderStateBasic {
+public:
+	static ReaderStateAbstract * factory(
+		  const char *
+		, AttributeMap & amap
+		, Reader & reader )
+	{
+		const char * eh_name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+		reader.setErrorHandler(eh_name);
+		return new ReaderStateErrorHandler(reader.getState());
+	}
+
+	ReaderStateErrorHandler(ReaderStateAbstract * prs)
+		: ReaderStateBasic(prs)
+	{}
+	virtual ~ReaderStateErrorHandler() {}
+	virtual const char * elementName() const { return XMLVocab::element_errorhandler; }
+};
+
+template< typename ThisType >
+class ReaderState : public ReaderStateBasic {
+public:
+	typedef ThisType ObjType;
+
+	static ReaderStateAbstract * factory(
+		  const char * element_str
+		, AttributeMap & map
+		, Reader & reader )
+	{
+		return new ReaderState(
+			  element_str
+			, flow_element_factory<ThisType>(map,reader)
+			, reader.getState()
+			, reader );
+	}
+
+	ReaderState( const char * element_str
+		   , ThisType * fresh_obj
+		   , ReaderStateAbstract * prs
+		   , Reader & reader)
+		: ReaderStateBasic(prs)
+		, _element_name(element_str)
+		, _obj(fresh_obj)
+		, _reader(reader)
+	{}
+
+	virtual ~ReaderState()
+	{
+		if(!parent_obj()) {
+			oflux_log_debug("~ReaderState ditching obj %p for %s %s\n"
+				, obj()
+				, _element_name
+				, _reader.allow_addition()
+					? "true" : "false");
+			delete obj();
+		} else if(obj()) {
+			pc_add(parent_obj(),obj(),_reader);
+		}
+	}
+
+	virtual const char * elementName() const { return _element_name; }
+
+	ThisType * obj() { return _obj; }
+
+	typename ThisType::ParentObjType * parent_obj()
+	{
+		ReaderStateAbstract * prs = (_prs ? _prs->self() : NULL);
+		return  ( prs
+			? dynamic_cast<ReaderState<typename ThisType::ParentObjType > * >(prs)->obj()
+			: NULL);
+	}
+private:
+	const char * _element_name;
+	ThisType * _obj;
+	Reader & _reader;
+};
+
+typedef ReaderStateAbstract * (*ReaderStateFun)(const char *, AttributeMap & , Reader &);
+
+
+
+
+
+
+ReaderStateAbstract *
+ReaderStateGuardPrecedence::factory(
+		  const char *
+		, AttributeMap & amap
+		, Reader & reader )
+{
+	const char * before = amap.getOrThrow(XMLVocab::attr_before).c_str();
+	const char * after = amap.getOrThrow(XMLVocab::attr_after).c_str();
+	reader.get<flow::Flow>()->addGuardPrecedence(before,after);
+	return new ReaderStateGuardPrecedence(reader.getState());
+}
+
+ReaderStateAbstract *
+ReaderStateDepend::factory(
+	  const char *
+	, AttributeMap & amap
+	, Reader & reader )
+{
+	const char * name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+	reader.readPluginIfUnread(name);
+	return new ReaderStateDepend(reader.getState());
+}
+
+
+void
+AddTarget::execute(flow::Flow * f)
+{
+        flow::Node *fsrc = f->get<flow::Node>(_name);
+        assert(fsrc);
+        _fc->setTargetNode(fsrc);
+	oflux_log_debug("AddTarget::execute %p %s\n", _fc,_name.c_str());
+        _target_input_unionnumber = fsrc->inputUnionNumber();
+        FlatIOConversionFun fiocf =
+		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
+        if(fiocf) {
+                assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
+                _fc->setIOConverter(new flow::IOConverter(fiocf));
+        }
+}
+
+void
+SetErrorHandler::execute(flow::Flow * f)
+{
+        flow::Node *fsrc = f->get<flow::Node>(_name);
+        assert(fsrc);
+        assert(fsrc->getIsErrorHandler());
+        _fn->setErrorHandler(fsrc);
+}
+
+void
+DependencyTracker::addDependency(const char * fl)
+{
+        std::string filename = fl;
+        canonize(filename);
+        _depends_set.insert(filename);
+}
+
+bool
+DependencyTracker::isDependency(const char * fl)
+{
+        std::string filename = fl;
+        canonize(filename);
+        return _depends_set.find(filename) != _depends_set.end();
+}
+
+void
+DependencyTracker::canonize(std::string & filename)
+{
+        // just get rid of leading "./"
+        if(filename.length() >= 2 && filename[0] == '.' && filename[1] == '/') {
+                filename.erase(filename.begin());
+                filename.erase(filename.begin());
+        }
+}
 
 void
 ScopedFunctionMaps::add(
@@ -247,280 +748,411 @@ ScopedFunctionMaps::Scope::lookup_io_conversion(
 }
 
 
-/**
- * @class Reader
- * @brief reads an XML flux file given the mappings needed to compile a flow
- * The mappings are used to build a flow with links to the event and
- * conditional function mappings needed to run the flow in the run time.
- */
-class Reader {
-public:
-        Reader(   const char * filename
-		, flow::FunctionMaps *fmaps
-		, const char * pluginxmldir
-		, const char * pluginlibdir
-		, void * initpluginparams
-		, const flow::Flow * existing_flow);
+const char * XMLVocab::attr_name = "name";
+const char * XMLVocab::attr_argno = "argno";
+const char * XMLVocab::attr_nodetarget = "nodetarget";
+const char * XMLVocab::attr_source = "source";
+const char * XMLVocab::attr_isnegated = "isnegated";
+const char * XMLVocab::attr_iserrhandler = "iserrhandler";
+const char * XMLVocab::attr_detached = "detached";
+const char * XMLVocab::attr_unionnumber = "unionnumber";
+const char * XMLVocab::attr_inputunionnumber = "inputunionnumber";
+const char * XMLVocab::attr_outputunionnumber = "outputunionnumber";
+const char * XMLVocab::attr_after = "after";
+const char * XMLVocab::attr_before = "before";
+const char * XMLVocab::attr_late = "late";
+const char * XMLVocab::attr_hash = "hash";
+const char * XMLVocab::attr_wtype = "wtype";
+const char * XMLVocab::attr_function = "function";
+const char * XMLVocab::attr_external = "external";
+const char * XMLVocab::attr_ofluxversion = "ofluxversion";
 
-        /**
-         * @brief read a file
-         *
-         * @param filename  is the file that is being read
-         *
-         **/
-        void read(const char * filename);
+const char * XMLVocab::element_flow = "flow";
+const char * XMLVocab::element_plugin = "plugin";
+const char * XMLVocab::element_library = "library";
+const char * XMLVocab::element_depend = "depend";
+const char * XMLVocab::element_guard = "guard";
+const char * XMLVocab::element_guardprecedence = "guardprecedence";
+const char * XMLVocab::element_guardref = "guardref";
+const char * XMLVocab::element_argument = "argument";
+const char * XMLVocab::element_add = "add";
+const char * XMLVocab::element_remove = "remove";
+const char * XMLVocab::element_node = "node";
+const char * XMLVocab::element_successorlist = "successorlist";
+const char * XMLVocab::element_successor = "successor";
+const char * XMLVocab::element_errorhandler = "errorhandler";
+const char * XMLVocab::element_case = "case";
+const char * XMLVocab::element_condition = "condition";
 
-        static void startMainHandler(void *data, const char *el, const char **attr);
-        static void endMainHandler(void *data, const char *el);
-
-        static void startPluginHandler(void *data, const char *el, const char **attr);
-        static void endPluginHandler(void *data, const char *el);
-
-        static void dataHandler(void *data, const char *xml_data, int len);
-        static void commentHandler(void *data, const char *comment);
-
-        /**
-         * @brief get the result of a successfull reading
-         *
-         * @return smart pointer to the (heap allocated) result flow
-         **/
-        flow::Flow * flow() { return _flow; }
-        flow::Case * flow_case() { return _flow_case; }
-        void new_flow_case(const char * targetnodename, int node_output_unionnumber)
-        {
-                _flow_case = new flow::Case(NULL);
-                AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this, _scope_name);
-                _add_targets.push_back(at);
-        }
-        void addremove_flow_case(bool front=false)
-        {
-		if(isDeletion()) {
-			_flow_successor->remove(_flow_case);
-		} else {
-			_flow_successor->add(_flow_case, front);
-		}
-                _flow_case = NULL;
-        }
-        void new_flow_successor(const char * name)
-        {
-                if(_is_external_node) {
-                        _flow_successor = _flow_successor_list->get_successor(name);
-                }
-                if(_flow_successor) {
-                        _is_existing_successor = true;
-                } else {
-                        _flow_successor = new flow::Successor(name);
-                }
-        }
-        void addremove_flow_successor()
-        {
-                if(_is_existing_successor) {
-                        _is_existing_successor = false;
-			if(isDeletion()) {
-				_flow_successor_list->remove(_flow_successor);
+static void
+fillAttributeMap(
+	  AttributeMap & amap
+	, const char ** attr)
+{
+	static const char * vocab_list[] =
+		{ XMLVocab::attr_name
+		, XMLVocab::attr_argno
+		, XMLVocab::attr_nodetarget
+		, XMLVocab::attr_source
+		, XMLVocab::attr_isnegated
+		, XMLVocab::attr_iserrhandler
+		, XMLVocab::attr_detached
+		, XMLVocab::attr_unionnumber
+		, XMLVocab::attr_inputunionnumber
+		, XMLVocab::attr_outputunionnumber
+		, XMLVocab::attr_after
+		, XMLVocab::attr_before
+		, XMLVocab::attr_late
+		, XMLVocab::attr_hash
+		, XMLVocab::attr_wtype
+		, XMLVocab::attr_function
+		, XMLVocab::attr_external
+		, XMLVocab::attr_ofluxversion
+		, NULL
+		};
+        for(size_t i = 0; attr[i]; i += 2) {
+		Attribute attrib(attr[i+1]);
+		int fd = -1;
+		for(size_t j = 0; vocab_list[j]; ++j) {
+			if(strcmp(vocab_list[j],attr[i]) == 0) {
+				fd = j;
+				break;
 			}
-                } else {
-                        _flow_successor_list->add(_flow_successor);
-                }
-                _flow_successor = NULL;
-        }
-        void new_flow_successor_list() { }
-        void add_flow_successor_list() { }
-        void new_flow_guard(const char * name, AtomicMapAbstract * amap)
-        { _flow->addGuard(new flow::Guard(amap,name)); }
-        void new_flow_guardprecedence(const char * before, const char * after)
-        { _flow->addGuardPrecedence(before,after); }
-        void new_flow_guard_reference(flow::Guard * fg
-                , int unionnumber
-                , const char * hash
-                , int wtype
-		, bool late)
-        {
-                _flow_guard_reference = new flow::GuardReference(fg,wtype,late);
-                _flow_guard_ref_unionnumber = unionnumber;
-                _flow_guard_ref_hash = hash;
-                _flow_guard_ref_wtype = wtype;
-        }
-        void complete_flow_guard_reference()
-        {
-                const char * name = _flow_guard_reference->getName().c_str();
-                GuardTransFn guardfn =
-			_scoped_fmaps.get(_scope_name.c_str())->lookup_guard_translator(
-				  name
-				, _flow_guard_ref_unionnumber
-				, _flow_guard_ref_hash.c_str()
-				, _flow_guard_ref_wtype
-				, _flow_guard_reference->late());
-                assert(guardfn != NULL);
-                _flow_guard_reference->setGuardFn(guardfn);
-                _flow_node->addGuard(_flow_guard_reference);
-                _flow_guard_reference = NULL;
-        }
-        //void flow_guard_ref_add_argument(int an) { _flow_guard_ref_args.push_back(an); }
-        flow::Node * flow_node() { return _flow_node; }
-        void new_flow_node(const char * name, CreateNodeFn createfn,
-                        bool is_error_handler,
-                        bool is_src,
-                        bool is_detached,
-                        int input_unionnumber,
-                        int output_unionnumber)
-        {
-                _flow_node = new flow::Node(
-                                        name,
-                                        createfn,
-                                        is_error_handler,
-                                        is_src,
-                                        is_detached,
-                                        input_unionnumber,
-                                        output_unionnumber);
-                _flow_successor_list = &(_flow_node->successor_list());
-        }
-        void add_flow_node()
-        {
-                if(_is_external_node) {
-                        _is_external_node = false;
-                } else {
-                        _flow->add(_flow_node);
-                }
-                _flow_node = NULL;
-                _flow_successor_list = NULL;
-        }
-        bool find_flow_node(const char * name)
-        {
-                _flow_node = _flow->get(name);
-                if(_flow_node) {
-                        _flow_successor_list = &(_flow_node->successor_list());
-                        return true;
-                }
-                return false;
-        }
-        void new_library(const char * filename);
-        void add_library();
-        void new_depend(const char * depend);
-        void setErrorHandler(const char * err_node_name)
-        {
-                SetErrorHandler seh(_flow_node,err_node_name);
-                _set_error_handlers.push_back(seh);
-        }
-        bool isExternalNode() { return _is_external_node; }
-        void setIsExternalNode(bool is_external_node)
-	{ _is_external_node = is_external_node; }
-        bool isAddition() { return _is_add; }
-        void setAddition(bool add) { _is_add = add; }
-        bool isDeletion() { return _is_remove; }
-        void setDeletion(bool remove) { _is_remove = remove; }
-
-	typedef boost::shared_ptr<ScopedFunctionMaps::Scope> ScopePtr;
-
-	ScopePtr fromThisScope(const char * s = NULL)
-	{ return _scoped_fmaps.get(s ? s : _scope_name.c_str()); }
-
-protected:
-        /**
-         * @brief just connect the forward flow node references stored up
-         */
-        void readxmldir();
-        void readxmlfile(
-		  const char * filename
-		, XML_StartElementHandler startHandler
-		, XML_EndElementHandler endHandler);
-
-        void finalize();
-
-private:
-	std::string                       _scope_name;
-        ScopedFunctionMaps                _scoped_fmaps;
-        flow::Flow *                      _flow;
-        flow::Node *                      _flow_node;
-        flow::SuccessorList *             _flow_successor_list;
-        flow::Successor *                 _flow_successor;
-        flow::Case *                      _flow_case;
-        flow::GuardReference *            _flow_guard_reference;
-        int                               _flow_guard_ref_unionnumber;
-        std::string                       _flow_guard_ref_hash;
-        int                               _flow_guard_ref_wtype;
-        std::vector<AddTarget>            _add_targets;
-        std::vector<SetErrorHandler>      _set_error_handlers;
-        bool                              _is_external_node;
-        bool                              _is_existing_successor;
-        bool                              _is_add;
-        bool                              _is_remove;
-        flow::Library *                   _library;
-        const char *                      _plugin_lib_dir;
-        const char *                      _plugin_xml_dir;
-        DependencyTracker                 _depends_visited;
-        void *                            _init_plugin_params;
-};
-
-void AddTarget::execute(flow::Flow * f)
-{
-        flow::Node *fsrc = f->get(_name);
-        assert(fsrc);
-        _fc->setTargetNode(fsrc);
-        _target_input_unionnumber = fsrc->inputUnionNumber();
-        FlatIOConversionFun fiocf =
-		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
-        if(fiocf) {
-                assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
-                _fc->setIOConverter(new flow::IOConverter(fiocf));
-        }
+		}
+		if(fd < 0) {
+			std::string ex_msg = "Unknown attribute ";
+			ex_msg += attr[i];
+			throw ReaderException(ex_msg.c_str());
+		}
+		amap[vocab_list[fd]] = attrib;
+	}
 }
 
-void SetErrorHandler::execute(flow::Flow * f)
+//
+// a typed stack for building structures from XML:
+//
+
+template<typename Child >
+void
+pc_add(typename Child::ParentObjType *p, Child *c, Reader & reader)
 {
-        flow::Node *fsrc = f->get(_name);
-        assert(fsrc);
-        assert(fsrc->getIsErrorHandler());
-        _fn->setErrorHandler(fsrc);
+	if(reader.allow_addition()) {
+		p->add(c);
+	}
 }
+
+// + specializations that are allowed
+
+template<>
+void
+pc_add<flow::Node>(
+	  flow::Flow * f
+	, flow::Node * n
+	, Reader & reader)
+{
+	if(!f->get<flow::Node>(n->getName())) {
+		f->add(n);
+	}
+}
+
+extern "C" {
+typedef flow::FunctionMaps * FlowFunctionMapFunction ();
+}
+
+template<>
+void
+pc_add<flow::Library>(
+	  flow::Flow * f
+	, flow::Library * l
+	, Reader & reader)
+{
+	if(!l->load()) {
+		std::string msg = "could not load library : ";
+		msg += l->getName();
+		throw ReaderException(msg.c_str());
+	}
+	std::string flowfunctionmapfunction = "flowfunctionmaps__";
+	l->addSuffix(flowfunctionmapfunction);
+	FlowFunctionMapFunction * ffmpfun =
+                l->getSymbol<FlowFunctionMapFunction>(flowfunctionmapfunction.c_str());
+	if(!ffmpfun) {
+		std::string msg = "could not load flowfunctionmapfunction for library : ";
+		msg += l->getName();
+		throw ReaderException(msg.c_str());
+	}
+	reader.addLibrary(l,(*ffmpfun)());
+}
+
+template<>
+void
+pc_add<flow::SuccessorList>(
+	  flow::Node * f
+	, flow::SuccessorList * sl
+	, Reader &)
+{
+	if(!f->successor_list()) {
+		f->successor_list(sl);
+	}
+}
+
+template<>
+void
+pc_add<flow::Case>(
+	  flow::Successor * s
+	, flow::Case * c
+	, Reader & reader)
+{
+	if(reader.allow_addition()) {
+		bool is_front = false;
+		ReaderStateAbstract * rsa = reader.getState();
+		while(rsa) {
+			if(rsa->elementName() == XMLVocab::element_add) {
+				is_front = true;
+				break;
+			}
+			rsa = rsa->parent();
+		}
+		s->add(c,is_front);
+	}
+}
+
+
+template<typename Element>
+Element *
+flow_element_factory(AttributeMap &,Reader &)
+{
+	return NULL; // failure
+}
+
+// specialize some flow_element_factory implementations:
+
+template<>
+flow::Condition *
+flow_element_factory<flow::Condition>(AttributeMap & amap, Reader & reader)
+{
+	const char * condfunction_str =
+		amap.getOrThrow(XMLVocab::attr_name).c_str();
+	bool is_negated = amap.getOrThrow(XMLVocab::attr_isnegated).boolVal();
+	int argno = amap.getOrThrow(XMLVocab::attr_argno).intVal();
+	int unionnumber = amap.getOrThrow(XMLVocab::attr_unionnumber).intVal();
+	ConditionFn condfn = reader.fromThisScope()->lookup_conditional(
+		  condfunction_str
+		, argno
+		, unionnumber );
+	if(!condfn) {
+		std::string ex_msg = "Could not create condition function ";
+		ex_msg += condfunction_str;
+		throw ReaderException(ex_msg.c_str());
+	}
+	return  ( reader.allow_addition()
+		? new flow::Condition(condfn,is_negated)
+		: NULL);
+}
+
+template<>
+flow::Guard *
+flow_element_factory<flow::Guard>(AttributeMap & amap, Reader & reader)
+{
+	const char * name =
+		amap.getOrThrow(XMLVocab::attr_name).c_str();
+	AtomicMapAbstract * atomicmap = reader.fromThisScope()->lookup_atomic_map(name);
+	return new flow::Guard(atomicmap,name);
+}
+
+template<>
+flow::GuardReference *
+flow_element_factory<flow::GuardReference>(AttributeMap & amap, Reader & reader)
+{
+	bool is_late = amap.getOrThrow(XMLVocab::attr_late).boolVal();
+	int wtype = amap.getOrThrow(XMLVocab::attr_wtype).intVal();
+	int unionnumber = amap.getOrThrow(XMLVocab::attr_unionnumber).intVal();
+	const char * hash = amap.getOrThrow(XMLVocab::attr_hash).c_str();
+	const char * guard_name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+	flow::Guard * g = reader.find<flow::Guard>(guard_name);
+	flow::GuardReference * result = NULL;
+	if(reader.allow_addition()) {
+		result = new flow::GuardReference(g,wtype,is_late);
+		GuardTransFn guardfn =
+                        reader.fromThisScope()->lookup_guard_translator(
+                                  guard_name
+                                , unionnumber
+                                , hash
+                                , wtype
+                                , is_late);
+		if(!guardfn) {
+			std::string ex_msg = "guard translator function not found for ";
+			ex_msg += guard_name;
+			throw ReaderException(ex_msg.c_str());
+		}
+		result->setGuardFn(guardfn);
+	}
+	return result;
+}
+
+template<>
+flow::Case *
+flow_element_factory<flow::Case>(AttributeMap & amap, Reader & reader)
+{
+	const char * target_name =
+		amap.getOrThrow(XMLVocab::attr_nodetarget).c_str();
+	flow::Case * result = NULL;
+	flow::Node * from_node = reader.get<flow::Node>();
+	int outputunionnumber = from_node->outputUnionNumber();
+	if(reader.allow_addition()) {
+		result = new flow::Case(target_name);
+		oflux_log_debug("flow_element_factory<flow::Case> %p %s adding t %s\n"
+			, result
+			, from_node->getName()
+			, target_name);
+		reader.addTarget(
+			  result
+			, target_name
+			, outputunionnumber); // + scope_name
+	}
+	return result;
+}
+
+template<>
+flow::Successor *
+flow_element_factory<flow::Successor>(AttributeMap & amap, Reader & reader)
+{
+	const char * name = amap.getOrThrow(XMLVocab::attr_name).c_str(); // throws if failure
+	flow::Successor * result = NULL;
+	if(!reader.allow_addition()) {
+		result = reader.get<flow::SuccessorList>()->get_successor(name);
+			// NULL on failure
+	} else {
+		result = new flow::Successor(name);
+	}
+	return result;
+}
+
+
+template<>
+flow::SuccessorList *
+flow_element_factory<flow::SuccessorList>(AttributeMap &, Reader & reader)
+{
+	flow::SuccessorList * result = NULL;
+	if(!reader.allow_addition()) {
+		flow::Node * n = reader.get<flow::Node>();
+		result = n ? n->successor_list() : NULL;
+	} else {
+		result = new flow::SuccessorList();
+	}
+	return result;
+}
+
+template<>
+flow::Node *
+flow_element_factory<flow::Node>(AttributeMap & amap, Reader & reader)
+{
+	CreateNodeFn createfn =
+		reader.fromThisScope()->lookup_node_function(amap.getOrThrow(XMLVocab::attr_function).c_str());
+	bool is_external = amap.getOrThrow(XMLVocab::attr_external).boolVal();
+	flow::Node * result = NULL;
+	const char * node_name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+
+	if(is_external) {
+		result = reader.find<flow::Node>(node_name);
+		reader.allow_addition(false);
+	} else if(reader.allow_addition()) {
+		result = new flow::Node(
+			  node_name
+			, createfn
+			, amap.getOrThrow(XMLVocab::attr_iserrhandler).boolVal()
+			, amap.getOrThrow(XMLVocab::attr_source).boolVal()
+			, amap.getOrThrow(XMLVocab::attr_detached).boolVal()
+			, amap.getOrThrow(XMLVocab::attr_inputunionnumber).intVal()
+			, amap.getOrThrow(XMLVocab::attr_outputunionnumber).intVal());
+	}
+	return result;
+}
+
+template<>
+flow::Library *
+flow_element_factory<flow::Library>(AttributeMap &amap, Reader & reader)
+{
+	flow::Library * lib =
+		new flow::Library(
+			  reader.pluginLibDir()
+			, amap.getOrThrow(XMLVocab::attr_name).c_str());
+	flow::Library * prev_lib =
+		reader.get<flow::Flow>()->getPrevLibrary(lib->getName().c_str());
+	lib->addDependency("");
+	if(prev_lib) {
+		delete lib;
+		lib = prev_lib;
+	}
+	return lib;
+}
+
+template<>
+flow::Flow *
+flow_element_factory<flow::Flow>(AttributeMap &, Reader & reader)
+{
+	const flow::Flow * ef =
+		reader.existing_flow(); // for SIGHUP
+	flow::Flow * f = reader.get<flow::Flow>(); // for plugins
+	if(reader.allow_addition() && !f) {
+		f = ( ef ? new flow::Flow(*ef) : new flow::Flow());
+	}
+	return f;
+}
+
+template<typename T>
+const char * ElementName<T>::name = "unknown";
+
+template<> const char * ElementName<flow::Flow>::name = XMLVocab::element_flow;
+template<> const char * ElementName<flow::Guard>::name = XMLVocab::element_guard;
+template<> const char * ElementName<flow::GuardReference>::name = XMLVocab::element_guardref;
+template<> const char * ElementName<flow::Node>::name = XMLVocab::element_node;
+template<> const char * ElementName<flow::SuccessorList>::name = XMLVocab::element_successorlist;
+template<> const char * ElementName<flow::Successor>::name = XMLVocab::element_successor;
+template<> const char * ElementName<flow::Case>::name = XMLVocab::element_case;
+
+const char * Reader::currentDir = ".";
 
 Reader::Reader(
-	  const char * filename
-	, flow::FunctionMaps *fmaps
+	  flow::FunctionMaps *fmaps
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
 	, const flow::Flow * existing_flow)
-        : _flow(existing_flow ? new flow::Flow(*existing_flow) : new flow::Flow())
-        , _flow_node(NULL)
-        , _flow_successor_list(NULL)
-        , _flow_successor(NULL)
-        , _flow_case(NULL)
-        , _flow_guard_reference(NULL)
-	, _flow_guard_ref_unionnumber(0)
-	, _flow_guard_ref_wtype(0)
-        , _is_external_node(false)
-        , _is_existing_successor(false)
-        , _is_add(false)
-        , _is_remove(false)
-        , _library(NULL)
-        , _plugin_lib_dir(pluginlibdir)
-        , _plugin_xml_dir(pluginxmldir)
-        , _init_plugin_params(initpluginparams)
+	: _plugin_lib_dir(pluginlibdir ? pluginlibdir : Reader::currentDir)
+	, _plugin_xml_dir(pluginxmldir ? pluginxmldir : Reader::currentDir)
+	, _init_plugin_params(initpluginparams)
+	, _existing_flow(existing_flow)
+	, _reader_state(NULL)
+	, _allow_addition(true)
 {
 	std::vector<std::string> emptyvec;
-        _scoped_fmaps.add("",fmaps,emptyvec);
-        read(filename);
+	_scoped_fmaps.add("",fmaps,emptyvec);
 }
 
-void Reader::read(const char * filename)
+flow::Flow *
+Reader::read( const char * filename )
 {
-        readxmlfile(filename, Reader::startMainHandler, Reader::endMainHandler);
+	flow::FlowHolder *  holder = new flow::FlowHolder();
+	ReaderState<flow::FlowHolder> initial_reader_state("",holder,NULL,*this);
+	_reader_state = &initial_reader_state;
+        readxmlfile(filename);
         _depends_visited.addDependency(filename);
-        if(_plugin_lib_dir == NULL) {
-                _plugin_lib_dir = ".";
+        readxmldir(holder);
+	flow::Flow * flow = holder->flow();
+
+	// finalize the flow:
+        for(int i = 0; i < (int)_add_targets.size(); i++) {
+                _add_targets[i].execute(flow);
         }
-        if(_plugin_xml_dir == NULL) {
-                _plugin_xml_dir = ".";
+        for(int i = 0; i < (int)_set_error_handlers.size(); i++) {
+                _set_error_handlers[i].execute(flow);
         }
-        readxmldir();
-        finalize();
+        flow->pretty_print(); // to the log
+	return flow;
 }
 
-void Reader::readxmlfile(
-	  const char * filename
-	, XML_StartElementHandler startHandler
-	, XML_EndElementHandler endHandler)
+void
+Reader::readxmlfile( const char * filename )
 {
         std::ifstream in(filename);
 
@@ -533,7 +1165,7 @@ void Reader::readxmlfile(
                 throw ReaderException("Cannot create the XML parser!");
         }
         XML_SetUserData(p, this);
-        XML_SetElementHandler(p, startHandler, endHandler);
+        XML_SetElementHandler(p, Reader::startHandler, Reader::endHandler);
         XML_SetCharacterDataHandler(p, Reader::dataHandler);
         XML_SetCommentHandler(p, Reader::commentHandler);
 
@@ -551,7 +1183,7 @@ void Reader::readxmlfile(
         XML_ParserFree(p);
 }
 
-void Reader::readxmldir()
+void Reader::readxmldir(flow::FlowHolder * flow_holder)
 {
         const char * pluginxmldir = _plugin_xml_dir;
         DIR * dir = ::opendir(pluginxmldir);
@@ -560,364 +1192,103 @@ void Reader::readxmldir()
                 return;
         }
         struct dirent * dir_entry;
+	AttributeMap empty_map;
+	//pushState("flow",empty_map);
+	_reader_state = new ReaderState<flow::Flow>(
+		  XMLVocab::element_flow
+		, flow_holder->flow()
+		, getState()
+		, *this);
         while((dir_entry = ::readdir(dir)) != NULL) {
                 std::string filename = dir_entry->d_name;
                 size_t found = filename.find_last_of(".");
                 if(filename.substr(found+1) == "xml" ) {
                         filename = (std::string) pluginxmldir + "/" + filename;
                         if(!_depends_visited.isDependency(filename.c_str())) {
-                                readxmlfile(filename.c_str(), Reader::startPluginHandler, Reader::endPluginHandler);
+                                readxmlfile(filename.c_str());
                         }
                 }
         }
+	delete popState();
         ::closedir(dir);
 }
 
-void Reader::finalize()
+
+void
+Reader::pushState(
+	  const char * element_str
+	, AttributeMap & map)
 {
-        for(int i = 0; i < (int)_add_targets.size(); i++) {
-                _add_targets[i].execute(_flow);
-        }
-        for(int i = 0; i < (int)_set_error_handlers.size(); i++) {
-                _set_error_handlers[i].execute(_flow);
-        }
-        _flow->pretty_print();
+	struct ElementStruct {
+		const char * element_name;
+		ReaderStateFun factory;
+	};
+	static ElementStruct element_lookup[] = {
+		  { XMLVocab::element_flow, ReaderState<flow::Flow>::factory }
+		, { XMLVocab::element_plugin, ReaderStateAddition::factory }
+		, { XMLVocab::element_library, ReaderState<flow::Library>::factory }
+		, { XMLVocab::element_depend, ReaderStateDepend::factory }
+		, { XMLVocab::element_guard, ReaderState<flow::Guard>::factory }
+		, { XMLVocab::element_guardprecedence, ReaderStateGuardPrecedence::factory }
+		, { XMLVocab::element_guardref, ReaderState<flow::GuardReference>::factory }
+		//, { XMLVocab::element_argument, ReaderState<flow::Argument>::factory }
+		, { XMLVocab::element_add, ReaderStateAddition::factory }
+		, { XMLVocab::element_remove, ReaderStateRemoval::factory }
+		, { XMLVocab::element_node, ReaderState<flow::Node>::factory }
+		, { XMLVocab::element_successorlist, ReaderState<flow::SuccessorList>::factory }
+		, { XMLVocab::element_successor, ReaderState<flow::Successor>::factory }
+		, { XMLVocab::element_errorhandler, ReaderStateErrorHandler::factory }
+		, { XMLVocab::element_case, ReaderState<flow::Case>::factory }
+		, { XMLVocab::element_condition, ReaderState<flow::Condition>::factory }
+		, { NULL, NULL }
+	};
+	ElementStruct * esptr = &element_lookup[0];
+	while(esptr->element_name != NULL
+			&& 0 != strcmp(esptr->element_name,element_str)) {
+		++esptr;
+	}
+	if(esptr->element_name == NULL) {
+		std::string ex_msg = "Unknown element ";
+		ex_msg += element_str;
+		throw ReaderException(ex_msg.c_str());
+	}
+	const char * elname = esptr->element_name;
+	if(elname == XMLVocab::element_plugin) {
+		elname = XMLVocab::element_flow;
+	}
+	ReaderStateAbstract * rsa = (*(esptr->factory))(
+		  elname
+		, map
+		, *this);
+	_reader_state = rsa;
 }
 
-void Reader::startMainHandler(void *data, const char *el, const char **attr)
+ReaderStateAbstract *
+Reader::popState()
 {
-        Reader * pthis = static_cast<Reader *> (data);
-        const char * el_name = NULL;
-        const char * el_argno = NULL;
-        const char * el_nodetarget = NULL;
-        const char * el_source = NULL;
-        const char * el_isnegated = NULL;
-        const char * el_iserrhandler = NULL;
-        const char * el_unionnumber = NULL;
-        const char * el_inputunionnumber = NULL;
-        const char * el_outputunionnumber = NULL;
-        const char * el_detached = NULL;
-        const char * el_wtype = NULL;
-        const char * el_function = NULL;
-        const char * el_hash = NULL;
-        const char * el_before = NULL;
-        const char * el_after = NULL;
-        const char * el_late = NULL;
-        for(int i = 0; attr[i]; i += 2) {
-                if(strcmp(attr[i],"name") == 0) {
-                        el_name = attr[i+1];
-                } else if(strcmp(attr[i],"argno") == 0) {
-                        el_argno = attr[i+1];
-                } else if(strcmp(attr[i],"nodetarget") == 0) {
-                        el_nodetarget = attr[i+1];
-                } else if(strcmp(attr[i],"source") == 0) {
-                        el_source = attr[i+1];
-                } else if(strcmp(attr[i],"isnegated") == 0) {
-                        el_isnegated = attr[i+1];
-                } else if(strcmp(attr[i],"iserrhandler") == 0) {
-                        el_iserrhandler = attr[i+1];
-                } else if(strcmp(attr[i],"detached") == 0) {
-                    	el_detached = attr[i+1];
-                } else if(strcmp(attr[i],"unionnumber") == 0) {
-                        el_unionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"inputunionnumber") == 0) {
-                        el_inputunionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"outputunionnumber") == 0) {
-                        el_outputunionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"after") == 0) {
-                        el_after = attr[i+1];
-                } else if(strcmp(attr[i],"before") == 0) {
-                        el_before = attr[i+1];
-                } else if(strcmp(attr[i],"late") == 0) {
-                        el_late = attr[i+1];
-                } else if(strcmp(attr[i],"hash") == 0) {
-                        el_hash = attr[i+1];
-                } else if(strcmp(attr[i],"wtype") == 0) {
-                        el_wtype = attr[i+1];
-                } else if(strcmp(attr[i],"function") == 0) {
-                        el_function = attr[i+1];
-                }
-        }
-        bool is_late = (el_late ? strcmp(el_late,"true")==0 : false);
-        bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
-        bool is_negated = (el_isnegated ? strcmp(el_isnegated,"true")==0 : false);
-        bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
-        bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
-        int argno = (el_argno ? atoi(el_argno) : 0);
-        int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
-        int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
-        int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
-        int wtype = (el_wtype ? atoi(el_wtype) : 0);
-        const char * hash = el_hash;
-        if(strcmp(el,"argument") == 0) {
-                // has attributes: argno
-                // has no children
-                //pthis->flow_guard_ref_add_argument(argno);
-        } else if(strcmp(el,"guard") == 0) {
-                // has attributes: name
-                // has no children
-                AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
-                assert(amap);
-                pthis->new_flow_guard(el_name, amap);
-        } else if(strcmp(el,"guardprecedence") == 0) {
-                // has attributes: before, after
-                // has no children
-                pthis->new_flow_guardprecedence(el_before, el_after);
-        } else if(strcmp(el,"guardref") == 0) {
-                // has attributes: name, unionnumber, wtype
-                // has children: argument(s)
-                flow::Guard * fg = pthis->flow()->getGuard(el_name);
-                assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype, is_late);
-        } else if(strcmp(el,"condition") == 0) {
-                // has attributes: name, argno, isnegated
-                // has no children
-                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
-                assert(condfn != NULL);
-                flow::Condition * fc = new flow::Condition(condfn,is_negated);
-                pthis->flow_case()->add(fc);
-        } else if(strcmp(el,"case") == 0) {
-                // has attributes: nodetarget
-                // has children: condition
-                pthis->new_flow_case(el_nodetarget,pthis->flow_node()->outputUnionNumber());
-        } else if(strcmp(el,"successor") == 0) {
-                // has attribute: name
-                // has children: case
-                pthis->new_flow_successor(el_name);
-        } else if(strcmp(el,"successorlist") == 0) {
-                // has no attributes
-                // has children: successor
-                pthis->new_flow_successor_list();
-        } else if(strcmp(el,"errorhandler") == 0) {
-                // has attributes: name
-                // has no children
-                pthis->setErrorHandler(el_name);
-        } else if(strcmp(el,"node") == 0) {
-                // has attributes: name, source, inputunionnumber, outputunionnumber
-                // has children: errorhandler, guardref(s), successorlist
-                CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
-                assert(createfn != NULL);
-                pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
-        }
+	ReaderStateAbstract * rsa = _reader_state;
+	_reader_state = rsa->parent();
+	if(rsa->elementName() == XMLVocab::element_node) {
+		allow_addition(true); // reset this state in case the node was external
+	}
+	return rsa;
 }
 
-void Reader::endMainHandler(void *data, const char *el)
+
+void
+Reader::startHandler(void *data, const char *el, const char **attr)
 {
-        Reader * pthis = static_cast<Reader *> (data);
-        if(strcmp(el,"argument") == 0) {
-                // do nothing
-        } else if(strcmp(el,"guard") == 0) {
-                // do nothing
-        } else if(strcmp(el,"guardref") == 0) {
-                pthis->complete_flow_guard_reference();
-        } else if(strcmp(el,"condition") == 0) {
-                // do nothing
-        } else if(strcmp(el,"node") == 0) {
-                pthis->add_flow_node();
-        } else if(strcmp(el,"case") == 0) {
-                pthis->addremove_flow_case();
-        } else if(strcmp(el,"successor") == 0) {
-                pthis->addremove_flow_successor();
-        } else if(strcmp(el,"successorlist") == 0) {
-                pthis->add_flow_successor_list();
-        } else if(strcmp(el,"errorhandler") == 0) {
-                // do nothing
-        }
+	Reader * reader = reinterpret_cast<Reader *>(data);
+	AttributeMap map;
+	fillAttributeMap(map,attr);
+	reader->pushState(el,map);
 }
 
-void Reader::startPluginHandler(void *data, const char *el, const char **attr)
+void
+Reader::endHandler(void *data, const char *el)
 {
-        Reader * pthis = static_cast<Reader *> (data);
-
-        // node attributes
-        const char * el_name = NULL;
-        const char * el_function = NULL;
-        const char * el_source = NULL;
-        const char * el_iserrhandler = NULL;
-        const char * el_detached = NULL;
-        const char * el_external = NULL;
-        const char * el_inputunionnumber = NULL;
-        const char * el_outputunionnumber = NULL;
-
-        // condition attributes
-        const char * el_argno = NULL;
-        const char * el_isnegated = NULL;
-        const char * el_unionnumber = NULL;
-
-        // case attribute
-        const char * el_nodetarget = NULL;
-
-        // guard attributes
-        const char * el_late = NULL;
-        const char * el_before = NULL;
-        const char * el_after = NULL;
-        const char * el_wtype = NULL;
-        const char * el_hash = NULL;
-
-        for(int i = 0; attr[i]; i += 2) {
-                // node attributes
-                if(strcmp(attr[i],"name") == 0) {
-                    	el_name = attr[i+1];
-                } else if(strcmp(attr[i],"function") == 0) {
-                    	el_function = attr[i+1];
-                } else if(strcmp(attr[i],"source") == 0) {
-                    	el_source = attr[i+1];
-                } else if(strcmp(attr[i],"iserrhandler") == 0) {
-                    	el_iserrhandler = attr[i+1];
-                } else if(strcmp(attr[i],"detached") == 0) {
-                    	el_detached = attr[i+1];
-                } else if(strcmp(attr[i],"external") == 0) {
-                    	el_external = attr[i+1];
-                } else if(strcmp(attr[i],"inputunionnumber") == 0) {
-                    	el_inputunionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"outputunionnumber") == 0) {
-                    	el_outputunionnumber = attr[i+1];
-                // condition attributes
-                } else if(strcmp(attr[i],"argno") == 0) {
-                    	el_argno = attr[i+1];
-                } else if(strcmp(attr[i],"isnegated") == 0) {
-                    	el_isnegated = attr[i+1];
-                } else if(strcmp(attr[i],"unionnumber") == 0) {
-                    	el_unionnumber = attr[i+1];
-                // case attribute
-                } else if(strcmp(attr[i],"nodetarget") == 0) {
-                    	el_nodetarget = attr[i+1];
-                // guard attributes
-                } else if(strcmp(attr[i],"after") == 0) {
-                    	el_after = attr[i+1];
-                } else if(strcmp(attr[i],"before") == 0) {
-                    	el_before = attr[i+1];
-                } else if(strcmp(attr[i],"late") == 0) {
-                    	el_late = attr[i+1];
-                } else if(strcmp(attr[i],"hash") == 0) {
-                    	el_hash = attr[i+1];
-                } else if(strcmp(attr[i],"wtype") == 0) {
-                    	el_wtype = attr[i+1];
-                }
-        }
-
-        bool is_late = (el_late ? strcmp(el_late,"true")==0 : false);
-        bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
-        bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
-        bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
-        bool is_external = (el_external ? strcmp(el_external,"true")==0 : false);
-        bool is_negated = (el_isnegated ? strcmp(el_isnegated,"true")==0 : false);
-
-        int argno = (el_argno ? atoi(el_argno) : 0);
-        int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
-        int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
-        int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
-        int wtype = (el_wtype ? atoi(el_wtype) : 0);
-        const char * hash = el_hash;
-
-        bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
-
-        if(strcmp(el,"plugin") == 0) {
-                // has attribute:
-                // has children: node, guard, library
-        } else if(strcmp(el,"library") == 0) {
-                // has attribute: name
-                // has children: depend
-                pthis->new_library(el_name);
-        } else if(strcmp(el,"depend") == 0) {
-                // has attributes: name
-                // has no children
-                pthis->new_depend(el_name);
-        } else if(strcmp(el,"guard") == 0) {
-                // has attributes: name
-                // has no children
-                AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
-                assert(amap);
-                pthis->new_flow_guard(el_name, amap);
-        } else if(strcmp(el,"guardprecedence") == 0) {
-                // has attributes: before, after
-                // has no children
-                pthis->new_flow_guardprecedence(el_before, el_after);
-        } else if(strcmp(el,"guardref") == 0 && is_ok_to_create) {
-                // has attributes: name, unionnumber, wtype
-                // has children: argument(s)
-                flow::Guard * fg = pthis->flow()->getGuard(el_name);
-                assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype, is_late);
-        } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
-                // has attributes: argno
-                // had no children
-                //pthis->flow_guard_ref_add_argument(argno);
-        } else if(strcmp(el,"add") == 0) {
-                pthis->setAddition(true);
-        } else if(strcmp(el,"remove") == 0) {
-                pthis->setDeletion(true);
-        } else if(strcmp(el,"node") == 0) {
-                // has attributes: name, function, source, iserrhandler, detached, external
-                // has children: errorhandler, guardref(s), successorlist
-                if(is_external) {
-                        pthis->setIsExternalNode(true);
-                        bool foundNode = pthis->find_flow_node(el_name);
-                        assert(foundNode);
-                } else {
-                        CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
-                        assert(createfn != NULL);
-                        pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
-                }
-        } else if(strcmp(el,"successorlist") == 0) {
-                // has no attribute
-                // has children: successor
-                // do nothing
-        } else if(strcmp(el,"successor") == 0) {
-                // has attribute: name
-                // has children: case
-                pthis->new_flow_successor(el_name); // should find if external
-        } else if(strcmp(el,"errorhandler") == 0) {
-                // has attributes: name
-                // has no children
-                pthis->setErrorHandler(el_name);
-        } else if(strcmp(el,"case") == 0 && is_ok_to_create) {
-                // has attributes: nodetarget
-                // has children: condition
-                // no virtual nodetarget allowed in a plugin
-                pthis->new_flow_case(el_nodetarget, pthis->flow_node()->outputUnionNumber());
-        } else if(strcmp(el,"condition") == 0 && is_ok_to_create) {
-                // has attributes: name, argno, isnegated
-                // has no children
-                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
-                assert(condfn != NULL);
-                flow::Condition * fc = new flow::Condition(condfn,is_negated);
-                pthis->flow_case()->add(fc);
-        }
-}
-
-void Reader::endPluginHandler(void *data, const char *el)
-{
-        Reader * pthis = static_cast<Reader *> (data);
-        bool is_ok_to_create = pthis->isAddition() || (!pthis->isExternalNode());
-        if(strcmp(el,"plugin") == 0) {
-                // do nothing
-        } else if(strcmp(el,"library") == 0) {
-                pthis->add_library();
-        } else if(strcmp(el,"guard") == 0) {
-                // do nothing
-        } else if(strcmp(el,"guardref") == 0 && is_ok_to_create) {
-                pthis->complete_flow_guard_reference();
-        } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
-                // do nothing
-        } else if(strcmp(el,"node") == 0) {
-                pthis->add_flow_node();
-        } else if(strcmp(el,"successorlist") == 0) {
-                // do nothing essentially
-                pthis->add_flow_successor_list();
-        } else if(strcmp(el,"successor") == 0) {
-                pthis->addremove_flow_successor();
-        } else if(strcmp(el,"case") == 0 && is_ok_to_create) {
-                pthis->addremove_flow_case(pthis->isAddition());
-        } else if(strcmp(el,"condition") == 0 && is_ok_to_create) {
-                // do nothing
-        } else if(strcmp(el,"add") == 0) {
-                pthis->setAddition(false);
-        } else if(strcmp(el,"remove") == 0) {
-                pthis->setDeletion(false);
-        } else if(strcmp(el,"errorhandler") == 0) {
-                // do nothing
-        }
+	Reader * reader = reinterpret_cast<Reader *>(data);
+	delete reader->popState();
 }
 
 void Reader::dataHandler(void *data, const char *xml_data, int len)
@@ -930,85 +1301,6 @@ void Reader::commentHandler(void *data, const char *comment)
         // not used
 }
 
-extern "C" {
-typedef flow::FunctionMaps * FlowFunctionMapFunction ();
-}
-
-void Reader::new_depend(const char * dependname)
-{
-        std::string depxml = _plugin_xml_dir;
-        depxml += "/";
-        depxml += dependname;
-        depxml += ".xml";
-        flow::Library * lib = _library; // preserve on the stack
-	lib->addDependency(dependname);
-        assert(_flow);
-        if(!_flow->haveLibrary(dependname)) {
-                if(_depends_visited.isDependency(depxml.c_str())) {
-                        depxml += " circular dependency -- already loading";
-                        throw ReaderException(depxml.c_str());
-                }
-                _depends_visited.addDependency(depxml.c_str());
-                _library = NULL;
-                readxmlfile(depxml.c_str(), Reader::startPluginHandler, Reader::endPluginHandler);
-        }
-        _library = lib; // restore
-}
-
-void Reader::new_library(const char * filename)
-{
-        _library = new flow::Library(_plugin_lib_dir,filename);
-	flow::Library * prev_lib = _flow->getPrevLibrary(_library->getName().c_str());
-	if(prev_lib) {
-		delete _library;
-		_library = prev_lib;
-	}
-	_library->addDependency("");
-}
-
-void Reader::add_library()
-{
-        bool loaded = _library->load();
-        assert(loaded);
-        std::string flowfunctionmapfunction = "flowfunctionmaps__";
-        _library->addSuffix(flowfunctionmapfunction);
-
-        FlowFunctionMapFunction * ffmpfun =
-                _library->getSymbol<FlowFunctionMapFunction>(flowfunctionmapfunction.c_str());
-        assert(ffmpfun);
-	_scope_name = _library->getName();
-	_scoped_fmaps.add(
-		  _library->getName().c_str()
-		, (*ffmpfun)()
-		, _library->getDependencies());
-        assert(_flow);
-
-	_flow->addLibrary(_library, _init_plugin_params);
-}
-
-void DependencyTracker::addDependency(const char * fl)
-{
-        std::string filename = fl;
-        canonize(filename);
-        _depends_set.insert(filename);
-}
-
-bool DependencyTracker::isDependency(const char * fl)
-{
-        std::string filename = fl;
-        canonize(filename);
-        return _depends_set.find(filename) != _depends_set.end();
-}
-
-void DependencyTracker::canonize(std::string & filename)
-{
-        // just get rid of leading "./"
-        if(filename.length() >= 2 && filename[0] == '.' && filename[1] == '/') {
-                filename.erase(filename.begin());
-                filename.erase(filename.begin());
-        }
-}
-
 
 flow::Flow *
 read(     const char * filename
@@ -1018,13 +1310,12 @@ read(     const char * filename
 	, void * initpluginparams
 	, const flow::Flow * existing_flow)
 {
-        Reader reader(    filename
-			, fmaps
+        Reader reader(    fmaps
 			, pluginxmldir
 			, pluginlibdir
 			, initpluginparams
 			, existing_flow);
-        return reader.flow();
+	return reader.read(filename);
 }
 
 } // namespace xml

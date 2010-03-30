@@ -72,7 +72,7 @@ struct BaseOutputStruct : public BaseOutputStructBase {
 	inline void next(T * n) { __next = n; }
 };
 
-class AHAException {
+class AHAException { // AtomicsHolderAbstractException
 public:
 	AHAException(const int ind
 		, const char * function = "") throw()

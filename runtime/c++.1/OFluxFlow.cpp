@@ -204,8 +204,9 @@ Guard::drain()
         }
 }
 
-Case::Case(Node *targetnode, IOConverter *converter)
-        : _targetnode(targetnode)
+Case::Case(const char * targetname, Node *targetnode, IOConverter *converter)
+        : _targetname(targetname)
+	, _targetnode(targetnode)
         , _io_converter(converter ? converter : &IOConverter::standard_converter)
 {
 }
@@ -312,7 +313,8 @@ SuccessorList::pretty_print(int depth, std::set<std::string> * visited)
 {
         std::map<std::string, Successor *>::iterator itr = _successorlist.begin();
         while(itr != _successorlist.end()) { 
-                itr->second->pretty_print(depth+1,visited);
+		Successor * succ = itr->second;
+                succ->pretty_print(depth+1,visited);
                 ++itr;
         }
         oflux_log_info("%s.\n", create_indention(depth+1).c_str());
@@ -332,7 +334,8 @@ Node::Node(const char * name,
         , _is_error_handler(is_error_handler)
         , _is_source(is_source)
         , _is_detached(is_detached)
-        , _this_case(this,NULL)
+	, _successor_list(NULL)
+        , _this_case(name,this,NULL)
         , _input_unionnumber(input_unionnumber)
         , _output_unionnumber(output_unionnumber)
         , _is_guards_completely_sorted(false)
@@ -412,7 +415,7 @@ Node::pretty_print(int depth, char context, std::set<std::string> * visited)
                 visited->insert(_name);
                 // if a source node is some node's successor(depth>0 && is_source), do not re-print its sucessor list
                 if((depth == 0 ) || (!_is_source)) {
-                        _successor_list.pretty_print(depth+1,visited);
+                        if(_successor_list) _successor_list->pretty_print(depth+1,visited);
                 }
         }
 }
@@ -520,7 +523,7 @@ Flow::assignMagicNumbers()
 MagicNumberable * GuardMagicSorter::getMagicNumberable(const char * c)
 { 
         std::string cs(c); 
-        return _flow->getGuard(cs); 
+        return _flow->get<Guard>(cs); 
 }
 
 Flow::Flow(const Flow & existing_flow)

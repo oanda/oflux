@@ -94,12 +94,16 @@ private:
         IOConverterMap *   _ioconverter_map;
 };
 
+class Case;
+
 /**
  * @class Condition
  * @brief holder of a conditional (used to determine event flow)
  */
 class Condition {
 public:
+	typedef Case ParentObjType;
+
         Condition(ConditionFn condfn, bool is_negated);
         inline bool satisfied(const void * a) 
         { return ((*_condfn)(a) ? !_is_negated : _is_negated); }
@@ -108,6 +112,7 @@ private:
         bool        _is_negated;
 };
 
+class Flow;
 
 /**
  * @class Guard
@@ -115,6 +120,8 @@ private:
  */
 class Guard : public MagicNumberable {
 public:
+	typedef Flow ParentObjType;
+
         Guard(AtomicMapAbstract * amap, const char * n)
                 : _amap(amap)
                 , _name(n)
@@ -183,6 +190,7 @@ private:
 	Guard * _guard;
 };
 
+class Node;
 
 /**
  * @class GuardReference
@@ -190,6 +198,8 @@ private:
  */
 class GuardReference {
 public:
+	typedef Node ParentObjType;
+	
         GuardReference(Guard * fg, int wtype, bool late)
                 : _guardfn(NULL)
                 , _flow_guard(fg)
@@ -279,6 +289,8 @@ private:
         FlatIOConversionFun _io_conversion;
 };
 
+class Successor;
+
 /**
  * @class Case
  * @brief given a set of conditions, each case has a node target
@@ -287,7 +299,11 @@ private:
  */
 class Case {
 public:
-        Case(Node *targetnode=NULL, IOConverter * converter=NULL);
+	typedef Successor ParentObjType;
+
+        Case(const char * targetname=""
+		, Node *targetnode=NULL
+		, IOConverter * converter=NULL);
         ~Case();
         void add(Condition *fc);
         inline bool satisfied(const void * a)
@@ -298,6 +314,7 @@ public:
                 }
                 return res;
         }
+	inline const char * targetNodeName() { return _targetname.c_str(); }
         inline Node * targetNode() { return _targetnode; }
         inline IOConverter * ioConverter() { return _io_converter; }
         inline void setTargetNode(Node * fn) { _targetnode = fn; }
@@ -305,10 +322,13 @@ public:
         void pretty_print(int depth, std::set<std::string> * visited);
         inline bool isDefault() { return _conditions.size() == 0; }
 private:
+	std::string              _targetname;
         Node *                   _targetnode;
         IOConverter *            _io_converter;
         std::vector<Condition *> _conditions;
 };
+
+class SuccessorList;
 
 /**
  * @class Successor
@@ -318,11 +338,28 @@ private:
  */
 class Successor {
 public:
+	typedef SuccessorList ParentObjType;
+
         Successor(const char * name);
         ~Successor();
         inline const std::string & getName() { return _name; }
         void add(Case * fc, bool front=false);
 	void remove(Case * fc);
+	inline Case * getByTarget(const char *n)
+	{
+		std::deque<Case *>::iterator itr =
+			_cases.begin();
+		std::string name = n;
+		while(itr != _cases.end()) {
+			if(name == (*itr)->targetNodeName()) {
+				break;
+			}
+			++itr;
+		}
+		return  ( itr == _cases.end()
+			? NULL
+			: *itr );
+	}
         inline Case * get_successor(const void * a) 
         {
                 Case * res = NULL;
@@ -349,6 +386,8 @@ private:
  */
 class SuccessorList {
 public:
+	typedef Node ParentObjType;
+
         SuccessorList();
         ~SuccessorList();
         bool empty() { return _successorlist.empty(); }
@@ -385,6 +424,8 @@ private:
  */
 class Node {
 public:
+	typedef Flow ParentObjType;
+
         friend class NodeCounterIncrementer;
         Node(const char * name,
                 CreateNodeFn createfn,
@@ -395,7 +436,8 @@ public:
                 int output_unionnumber);
         ~Node();
         void setErrorHandler(Node *fn);
-        SuccessorList & successor_list() { return _successor_list; }
+        void successor_list(SuccessorList * sl) { _successor_list = sl; }
+        SuccessorList * successor_list() { return _successor_list; }
         inline const char * getName() { return &(_name[0]); }
         inline bool getIsSource() { return _is_source; }
         inline bool getIsErrorHandler() { return _is_error_handler; }
@@ -413,11 +455,11 @@ public:
                                 successor_nodes.push_back(&_this_case);
                         }
                 } else {
-                        _successor_list.get_successors(successor_nodes,a);
+                        _successor_list->get_successors(successor_nodes,a);
                 }
         }
         inline std::vector<GuardReference *> & guards() { return _guard_refs; }
-        inline void addGuard(GuardReference * fgr) 
+        inline void add(GuardReference * fgr) 
         { 
                 fgr->setLexicalIndex(_guard_refs.size());
                 _guard_refs.push_back(fgr); 
@@ -443,7 +485,7 @@ private:
         bool                          _is_error_handler;
         bool                          _is_source;
         bool                          _is_detached;
-        SuccessorList                 _successor_list;
+        SuccessorList *               _successor_list;
         Case                          _error_handler_case;
         Case                          _this_case;
         std::vector<GuardReference *> _guard_refs;
@@ -482,12 +524,14 @@ private:
 };
 
 class Library;
+class FlowHolder;
 /**
  * @class Flow
  * @brief a flow is a collection of flow nodes (connected internally)
  */
 class Flow {
 public:
+	typedef FlowHolder ParentObjType;
         Flow() 
 		: _magic_sorter(this) 
 		, _gaveup_libraries(false)
@@ -514,33 +558,18 @@ public:
                 }
         }
 
-        /**
-         * @brief obtain a flow node by name
-         * @param name given a name of a flow node
-         * @return the flow node of that name (NULL for not found)
-         **/
-        Node * get(const std::string & name)
-        {
-                std::map<std::string, Node *>::iterator itr = _nodes.find(name);
-                return (itr == _nodes.end() ? NULL : (*itr).second);
-        }
+	template<typename T>
+	inline T* get(const std::string & n)
+	{
+		return NULL;
+	}
 
-        /**
-         * @brief lookup a guard with a particular name
-         * @param name of the guard you are looking for
-         * @return a pointer to the guard (NULL if not found)
-         */
-        Guard * getGuard(const std::string & name)
-        {
-                std::map<std::string, Guard *>::iterator itr = _guards.find(name);
-                return (itr == _guards.end() ? NULL : (*itr).second);
-        }
 
         /**
          * @brief add a guard to the guard map (internal) for lookup
          * @param fg the guard to add to this flow
          */
-        void addGuard(Guard *fg) 
+        void add(Guard *fg) 
         {
                 _guards[fg->getName()] = fg;
         }
@@ -612,6 +641,47 @@ private:
         std::vector<Library *>         _prev_libraries;
 	mutable bool                   _gaveup_libraries;
 };
+
+/**
+ * @brief obtain a flow node by name
+ * @param name given a name of a flow node
+ * @return the flow node of that name (NULL for not found)
+ **/
+template<>
+inline Node * Flow::get<Node>(const std::string & name)
+{
+	std::map<std::string, Node *>::iterator itr = _nodes.find(name);
+	return (itr == _nodes.end() ? NULL : (*itr).second);
+}
+
+/**
+ * @brief lookup a guard with a particular name
+ * @param name of the guard you are looking for
+ * @return a pointer to the guard (NULL if not found)
+ */
+template<>
+inline Guard * Flow::get<Guard>(const std::string & name)
+{
+	std::map<std::string, Guard *>::iterator itr = _guards.find(name);
+	return (itr == _guards.end() ? NULL : (*itr).second);
+}
+
+
+class FlowHolder {
+public:
+	struct ParentObjType {
+		void add(FlowHolder *) {}
+	};
+
+	FlowHolder()
+		: _flow(NULL)
+	{}
+	Flow * flow() { return _flow; }
+	void add(Flow * f) { _flow = f; }
+private:
+	Flow * _flow;
+}; 
+
 
 } // namespace flow
 

@@ -9,9 +9,12 @@ namespace oflux {
 
 namespace flow {
 
-class Library
-{
+class Flow;
+
+class Library {
 public:
+	typedef Flow ParentObjType;
+
         Library( const char * path, const char * filename );
         ~Library();
         
