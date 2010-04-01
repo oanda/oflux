@@ -1,5 +1,5 @@
 #include "OFluxMeldingRunTime.h"
-//#include "OFluxAcquireGuards.h"
+#include "OFluxAtomicHolder.h"
 #include "OFluxFlow.h"
 #include "OFluxEventBase.h"
 #include "OFluxLogging.h"

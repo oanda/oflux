@@ -122,8 +122,8 @@ public:
 	int create();
 	virtual void start();
         void disconnect_from_runtime() { _rt->remove(this); }
-	void handle(boost::shared_ptr<EventBase> & ev);
-	virtual int execute_detached(boost::shared_ptr<EventBase> & ev,
+	void handle(EventBasePtr & ev);
+	virtual int execute_detached(EventBasePtr & ev,
                 int & detached_count_to_increment);
 	virtual bool is_detached() { return _detached; }
 	virtual void set_detached(bool d) { _detached = d; }
@@ -151,7 +151,7 @@ public:
 	inline flow::Node * working_flow_node() { return _flow_node_working; }
 	virtual void wait_state(RTT_WaitState ws) { _wait_state = ws; }
 protected:
-        inline void enqueue_list(std::vector<boost::shared_ptr<EventBase> > & events) { _rt->_queue.push_list(events); }
+        inline void enqueue_list(std::vector<EventBasePtr > & events) { _rt->_queue.push_list(events); }
 protected:
 	RunTime *      _rt;
         bool           _condition_context_switch;

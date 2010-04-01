@@ -100,9 +100,9 @@ public:
 #ifdef PROFILING
 		, _tp(rtt->timer_list())
 #endif
-		{ _rtt->wait_state(RTTWS_blockingcall); }
+	{ _rtt->wait_state(RTTWS_blockingcall); }
 	~WaitingToRunRAII()
-		{ _rtt->wait_state(RTTWS_running); }
+	{ _rtt->wait_state(RTTWS_running); }
 	inline void state_wtr() {  _rtt->wait_state(RTTWS_wtrshim); }
 private:
 	RunTimeThreadAbstract * _rtt;

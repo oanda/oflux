@@ -56,12 +56,12 @@ public:
 	* @return a (shared) pointer to the "next" event to get the atomic
 	* If no event was in the waiting list, then the returned value is NULL
 	*/
-	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev ) = 0;
+	virtual void release(std::vector<EventBasePtr > & rel_ev ) = 0;
 	/**
 	* @brief add an event the waiting list of this atomic
 	* It is assumed that the atomic is held by another event
 	*/
-	virtual void wait(boost::shared_ptr<EventBase> & ev,int) = 0;
+	virtual void wait(EventBasePtr & ev,int) = 0;
 	/**
 	* @brief obtain the size of the waiting list
 	* @return the number of events in the waiting list
@@ -80,7 +80,7 @@ public:
 
 	virtual void log_snapshot_waiters() const {}
 
-	static boost::shared_ptr<EventBase> _null_static;
+	static EventBasePtr _null_static;
 };
 
 class AtomicFree : public Atomic {
@@ -90,8 +90,8 @@ public:
 	virtual void ** data() { return &_data_ptr; }
 	virtual int held() const { return 1; } // always available
 	virtual int acquire(int) { return 1; } // always acquire
-	virtual void release(std::vector<boost::shared_ptr<EventBase> > & ) {}
-	virtual void wait(boost::shared_ptr<EventBase> &,int ) 
+	virtual void release(std::vector<EventBasePtr > & ) {}
+	virtual void wait(EventBasePtr &,int ) 
 	{ assert( NULL && "AtomicFree should never wait"); }
 	virtual int waiter_count() { return 0; }
 	virtual void relinquish() {}
@@ -115,7 +115,7 @@ public:
 	virtual void relinquish() {}
 
 	struct AtomicQueueEntry {
-		AtomicQueueEntry(boost::shared_ptr<EventBase> & ev,
+		AtomicQueueEntry(EventBasePtr & ev,
 		int wt)
 		: event(ev)
 		, wtype(wt)
@@ -124,7 +124,7 @@ public:
 			: event(o.event)
 			, wtype(o.wtype)
 		{}
-		boost::shared_ptr<EventBase> event;
+		EventBasePtr event;
 		int wtype;
 	};
 
@@ -154,7 +154,7 @@ public:
 		_held = 1;
 		return res;
 	}
-	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev )
+	virtual void release(std::vector<EventBasePtr > & rel_ev )
 	{
 		_held = 0;
 		if(_waiters.size()) {
@@ -162,7 +162,7 @@ public:
 			_waiters.pop_front();
 		}
 	}
-	virtual void wait(boost::shared_ptr<EventBase> & ev, int)
+	virtual void wait(EventBasePtr & ev, int)
 	{
 		AtomicQueueEntry aqe(ev,Exclusive);
 		_waiters.push_back(aqe);
@@ -201,7 +201,7 @@ public:
                         //, res);
 		return res;
 	}
-	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
+	virtual void release(std::vector<EventBasePtr > & rel_ev)
 	{
                 //oflux_log_debug(" release() called held:%d mode:%d waiters:%d\n"
                         //, _held
@@ -228,7 +228,7 @@ public:
                         //, _mode
                         //, rel_ev.size());
 	}
-	virtual void wait(boost::shared_ptr<EventBase> & ev, int wtype)
+	virtual void wait(EventBasePtr & ev, int wtype)
 	{
                 //oflux_log_debug(" wait() called wtype:%d held:%d mode:%d waiters:%d\n"
                         //, wtype
@@ -326,8 +326,8 @@ public:
 	virtual ~AtomicPool();
 	void * get_data();
 	void put_data(void *);
-	boost::shared_ptr<EventBase> get_waiter();
-	void put_waiter(boost::shared_ptr<EventBase> & ev);
+	EventBasePtr get_waiter();
+	void put_waiter(EventBasePtr & ev);
 	int waiter_count() { return _q.size(); }
 	virtual int compare (const void * v_k1, const void * v_k2) const { return 0; }
 	virtual void * new_key() const { return NULL; }
@@ -338,7 +338,7 @@ public:
 protected:
 	void log_snapshot_waiters() const;
 private:
-	std::deque<boost::shared_ptr<EventBase> > _q;
+	std::deque<EventBasePtr > _q;
 	std::deque<void *> _dq;
 	AtomicPooled * _ap_list;
 	AtomicPooled * _ap_last;
@@ -359,7 +359,7 @@ public:
 		_data = _pool.get_data();
 		return _data != NULL;
 	}
-	virtual void release(std::vector<boost::shared_ptr<EventBase> > & rel_ev)
+	virtual void release(std::vector<EventBasePtr > & rel_ev)
 	{
 		if(_data) {
                         _pool.put_data(_data);
@@ -370,7 +370,7 @@ public:
 		_data = NULL;
 		_pool.put(this);
 	}
-	virtual void wait(boost::shared_ptr<EventBase> & ev, int)
+	virtual void wait(EventBasePtr & ev, int)
 	{ _pool.put_waiter(ev); }
 	virtual void * new_key() const { return NULL; }
 	virtual void delete_key(void *) const {}

@@ -12,7 +12,6 @@
 
 #include "OFlux.h"
 #include "OFluxFlow.h"
-#include "OFluxAtomicHolder.h"
 #include <vector>
 
 
@@ -45,7 +44,8 @@ public:
 	static AtomicsHolder & empty_ah;
 
 	EventBase(        EventBasePtr & predecessor
-			, flow::Node *flow_node);
+			, flow::Node *flow_node
+			, AtomicsHolder & atomics);
 	virtual ~EventBase();
 	virtual OutputWalker output_type() = 0;
 	virtual const void * input_type() = 0;
@@ -66,15 +66,15 @@ public:
 	void release(std::vector<EventBasePtr> & released_events);
 	inline void error_code(int ec) { _error_code = ec; }
 	inline int error_code() { return _error_code; }
-	inline AtomicsHolder & atomics() { return _atomics; }
+	inline AtomicsHolder & atomics() { return _atomics_ref; }
 	void log_snapshot();
 	inline EventBasePtr & get_predecessor()
 	{ return _predecessor; }
 private:
 	EventBasePtr _predecessor;
 protected:
-	int           _error_code;
-	AtomicsHolder _atomics;
+	int _error_code;
+	AtomicsHolder & _atomics_ref;
 };
 
 } // namespace oflux

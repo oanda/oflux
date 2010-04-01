@@ -4,7 +4,6 @@
 #include "OFluxEventBase.h"
 #include "OFluxAtomic.h"
 #include "OFluxAtomicHolder.h"
-//#include "OFluxAcquireGuards.h"
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
 #include <unistd.h>
@@ -18,12 +17,14 @@ namespace runtime {
 namespace classic {
 
 
-void _thread_local_destructor(void *t)
+void 
+_thread_local_destructor(void *t)
 {
 	RunTimeThread * rtt = static_cast<RunTimeThread *>(t);
 	if(t) {
 		RunTime::thread_data_key.set(NULL);
-		oflux_log_info("runtime thread memory reclaimed for tid %d\n", rtt->tid());
+		oflux_log_info("runtime thread memory reclaimed for tid %d\n"
+			, rtt->tid());
                 rtt->disconnect_from_runtime();
 		delete rtt; // no idea if this is safe
 	}
@@ -67,7 +68,8 @@ RunTime::~RunTime()
         }
 }
 
-static void deinit_eminfo() 
+static void 
+deinit_eminfo() 
 {
 	// deinit the shim
 	if(!RunTimeBase::deinitShim) {
@@ -75,14 +77,17 @@ static void deinit_eminfo()
                         (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
         }
 	if (RunTimeBase::deinitShim == NULL){
-		oflux_log_error("ERROR(deinit) no SHIM file found... exiting\n%s\n",dlerror());
+		oflux_log_error("ERROR(deinit) no SHIM file found... "
+			"exiting\n%s\n"
+			, dlerror());
 		exit(0);
 	}
 	((RunTimeBase::deinitShim)());
         oflux_log_info("deinit_eminfo() returning....\n");
 }
 
-void RunTime::hard_kill()
+void 
+RunTime::hard_kill()
 {
         soft_kill(); // setup a soft kill, then harden it
         RunTimeThreadNode * rtt = _thread_list.first();
@@ -95,12 +100,14 @@ void RunTime::hard_kill()
                 rtt = rtt->next();
         }
         for(std::vector<RunTimeThread *>::iterator itr = vec.begin()
-                        ; itr != vec.end(); ++itr) {
+                        ; itr != vec.end()
+			; ++itr) {
                 (*itr)->hard_die();
         }
 }
 
-void RunTime::load_flow(
+void 
+RunTime::load_flow(
 	  const char * flname
 	, const char * pluginxmldir
 	, const char * pluginlibdir
@@ -130,11 +137,11 @@ void RunTime::load_flow(
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
 	std::vector<flow::Node *> & sources = flow->sources();
-	for(int i = 0; i < (int) sources.size(); i++) {
+	for(int i = 0; i < (int) sources.size(); ++i) {
 		flow::Node * fn = sources[i];
                 oflux_log_info("load_flow pushing %s\n",fn->getName());
 		CreateNodeFn createfn = fn->getCreateFn();
-		boost::shared_ptr<EventBase> ev = (*createfn)(EventBase::no_event,NULL,fn);
+		EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
 		_queue.push(ev);
 	}
 	while(_active_flows.size() > 0) {
@@ -151,7 +158,8 @@ void RunTime::load_flow(
 	_active_flows.push_front(flow);
 };
 
-void * __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
+void * 
+__fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
 {
 	int * count = reinterpret_cast<int *>(v_count);
 	oflux_thread_t tt = rtt->tid();
@@ -162,8 +170,10 @@ void * __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
 	return v_count;
 }
 
-void RunTime::start()
+void 
+RunTime::start()
 {
+	// initialization phase
 	_running = true;
 	RunTimeThread * rtt = new_RunTimeThread(oflux_self());
 	_thread_list.insert_front(rtt);
@@ -184,36 +194,45 @@ void RunTime::start()
         oflux_log_info("RunTime::start() returning....\n");
 }
 
-void RunTime::remove(RunTimeThread * rtt)
+void 
+RunTime::remove(RunTimeThread * rtt)
 {
 	if(_thread_list.remove(rtt)) {
-                _thread_count--;
+                --_thread_count;
         }
 }
 
-static void log_snapshot_thread(RunTimeThread * rtt)
+static void 
+log_snapshot_thread(RunTimeThread * rtt)
 {
 	rtt->log_snapshot();
 }
 
-void RunTime::log_snapshot_guard(const char *guardname)
+void 
+RunTime::log_snapshot_guard(const char *guardname)
 {
 	flow()->log_snapshot_guard(guardname);
 }
 
-void RunTime::log_snapshot()
+void 
+RunTime::log_snapshot()
 {
-	oflux_log_info("Runtime snapshot at %d on pid %d (%s)\n", fast_time(NULL), getpid(), (_running ? "running" : "not running"));
+	oflux_log_info("Runtime snapshot at %d on pid %d (%s)\n"
+		, fast_time(NULL)
+		, getpid()
+		, (_running ? "running" : "not running"));
 	oflux_log_info("Event Queue contents:\n");
 	_queue.log_snapshot();
 	oflux_log_info("Thread(s) state:\n");
 	_thread_list.iter(log_snapshot_thread);
-	oflux_log_info("Thread count: %d (%s %d)\n", _thread_count,
-		(_rtc.max_thread_pool_size ? "maximum " : "no limit/"),
-		_rtc.max_thread_pool_size);
-	oflux_log_info("Detached Event count: %d (%s %d)\n", _detached_count,
-		(_rtc.max_detached_threads ? "maximum " : "no limit/"),
-		_rtc.max_detached_threads);
+	oflux_log_info("Thread count: %d (%s %d)\n"
+		, _thread_count
+		, (_rtc.max_thread_pool_size ? "maximum " : "no limit/")
+		, _rtc.max_thread_pool_size);
+	oflux_log_info("Detached Event count: %d (%s %d)\n"
+		, _detached_count
+		, (_rtc.max_detached_threads ? "maximum " : "no limit/")
+		, _rtc.max_detached_threads);
 	oflux_log_info("Waiting to run count: %d\n", _waiting_to_run.count());
 	oflux_log_info("Waiting in pool: %d\n", _waiting_in_pool.count());
 #ifdef THREAD_COLLECTION
@@ -226,35 +245,40 @@ void RunTime::log_snapshot()
 	flow()->log_snapshot();
 }
 
-RunTimeThreadAbstract * RunTime::thread()
+RunTimeThreadAbstract * 
+RunTime::thread()
 {
 	RunTimeThread * rtt = thread_data_key.get();
 	assert(rtt);
 	return rtt;
 }
 
-bool RunTime::canThreadMore() const
+bool 
+RunTime::canThreadMore() const
 {
 	return _rtc.max_thread_pool_size == 0
 		|| _thread_count < _rtc.max_thread_pool_size;
 }
 
-bool RunTime::canDetachMore() const
+bool 
+RunTime::canDetachMore() const
 {
 	return _rtc.max_detached_threads == 0
 		|| _detached_count < _rtc.max_detached_threads;
 }
 
-RunTimeThread * RunTime::new_RunTimeThread(oflux_thread_t tid)
+RunTimeThread * 
+RunTime::new_RunTimeThread(oflux_thread_t tid)
 {
         return new RunTimeThread(this,tid);
 }
 
-int RunTime::wake_another_thread()
+int 
+RunTime::wake_another_thread()
 {
 	if(_running && _waiting_in_pool.count() == 0 && canThreadMore()) {
 		RunTimeThread * rtt = new_RunTimeThread();
-		_thread_count++;
+		++_thread_count;
 		_thread_list.insert_front(rtt);
 		return rtt->create();
 	} else {
@@ -269,7 +293,8 @@ int RunTime::wake_another_thread()
 	return 0;
 }
 
-static void * RunTimeThread_start_thread(void *pthis)
+static void * 
+RunTimeThread_start_thread(void *pthis)
 {
 	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
 	RunTime::thread_data_key.set(rtt);
@@ -277,7 +302,8 @@ static void * RunTimeThread_start_thread(void *pthis)
 	return NULL;
 }
 
-int RunTimeThread::create()
+int 
+RunTimeThread::create()
 {
 	return oflux_create_thread(
 		  _rt->_rtc.stack_size // stack size
@@ -286,10 +312,12 @@ int RunTimeThread::create()
 		, &_tid); // where to put the thread id
 }
 
-void RunTime::doThreadCollection() 
+void 
+RunTime::doThreadCollection() 
 {
 #ifdef THREAD_COLLECTION
-	WatermarkedCounter & watermarked_counter = _waiting_in_pool.counter_implementation();
+	WatermarkedCounter & watermarked_counter = 
+		_waiting_in_pool.counter_implementation();
 	if(_rtc.min_waiting_thread_collect == 0) {
 		watermarked_counter.next_sample();
 		return;
@@ -309,10 +337,11 @@ void RunTime::doThreadCollection()
 #endif // THREAD_COLLECTION
 }
 
-void RunTimeThread::start()
+void 
+RunTimeThread::start()
 {
 	SetTrue keep_true_during_lifetime(_thread_running);
-	boost::shared_ptr<EventBase> ev;
+	EventBasePtr ev;
 	AutoLock al(&(_rt->_manager_lock));
 
 	if(!_bootstrap) {
@@ -361,7 +390,8 @@ void RunTimeThread::start()
         }
 }
 
-void RunTimeThread::log_snapshot()
+void 
+RunTimeThread::log_snapshot()
 {
 	static const char * _wait_state_string[] =
 		{ "running (app code)"
@@ -384,8 +414,10 @@ void RunTimeThread::log_snapshot()
 		, working_on);
 }
 
-int RunTimeThread::execute_detached(boost::shared_ptr<EventBase> & ev, 
-        int & detached_count_to_increment)
+int 
+RunTimeThread::execute_detached(
+	  EventBasePtr & ev
+	, int & detached_count_to_increment)
 {
         SetTrue st(_detached);
         Increment incr(detached_count_to_increment,_tid);
@@ -402,7 +434,8 @@ int RunTimeThread::execute_detached(boost::shared_ptr<EventBase> & ev,
         return return_code;
 }
 
-void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
+void 
+RunTimeThread::handle(EventBasePtr & ev)
 {
 	_flow_node_working = ev->flow_node();
 	// ------------------ Guards --------------------
@@ -426,9 +459,9 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 #endif
 		}
 	// ----------- Successor processing -------------
-		std::vector<boost::shared_ptr<EventBase> > successor_events;
-		std::vector<boost::shared_ptr<EventBase> > successor_events_priority;
-		std::vector<boost::shared_ptr<EventBase> > successor_events_released;
+		std::vector<EventBasePtr > successor_events;
+		std::vector<EventBasePtr > successor_events_priority;
+		std::vector<EventBasePtr > successor_events_released;
 		if(return_code) { // error encountered
 			std::vector<flow::Case *> fsuccessors;
 			void * ev_output = ev->output_type().next();
@@ -439,7 +472,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 				flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
 				CreateNodeFn createfn = fn->getCreateFn();
 				bool was_source = ev->flow_node()->getIsSource();
-				boost::shared_ptr<EventBase> ev_succ = 
+				EventBasePtr ev_succ = 
 					( was_source
 					? (*createfn)(EventBase::no_event,NULL,fn)
 					: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
@@ -468,7 +501,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					}
 					saw_source = saw_source || is_source;
 					CreateNodeFn createfn = fn->getCreateFn();
-					boost::shared_ptr<EventBase> ev_succ = 
+					EventBasePtr ev_succ = 
 						( is_source
 						? (*createfn)(EventBase::no_event,NULL,fn)
 						: (*createfn)(ev,iocon->convert(ev_output),fn)

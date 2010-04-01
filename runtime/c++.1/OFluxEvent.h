@@ -11,6 +11,7 @@
  */
 
 #include "OFluxEventBase.h"
+#include "OFluxAtomicHolder.h"
 
 namespace oflux {
 
@@ -30,19 +31,25 @@ template<typename H> const H * const_convert(const typename H::base_type *);
 template< typename Detail >
 class EventBaseTyped : public EventBase {
 public:
-	EventBaseTyped(       boost::shared_ptr<EventBase> & predecessor
+	EventBaseTyped(   EventBasePtr & predecessor
 			, const IOConversionBase<typename Detail::In_> *im_io_convert
 			, flow::Node * flow_node)
-		: EventBase(predecessor,flow_node)
+		: EventBase(predecessor,flow_node,_atomics)
 		, _im_io_convert(im_io_convert)
+		, _atomics(flow_node->isGuardsCompletelySorted())
 	{
-	  (convert<typename Detail::Out_>(pr_output_type()))->next(NULL);
+		std::vector<flow::GuardReference *> & vec = 
+			flow_node->guards();
+		for(int i = 0; i < (int) vec.size(); i++) {
+			_atomics.add(vec[i]);
+		}
+		pr_output_type()->next(NULL);
 	}
 	virtual ~EventBaseTyped()
 	{
 		// recover splayed outputs
 		typename Detail::Out_ * output_m = 
-			const_convert<typename Detail::Out_>(pr_output_type())->next();
+			pr_output_type()->next();
 		while(output_m) {
 			typename Detail::Out_ * next_output_m = output_m->next();
 			delete output_m;
@@ -52,7 +59,7 @@ public:
 	}
 	virtual OutputWalker output_type()
 	{ 
-		OutputWalker ow(convert<typename Detail::Out_>(pr_output_type())); 
+		OutputWalker ow(pr_output_type()); 
 		return ow;
 	}
 	virtual const void * input_type() 
@@ -60,16 +67,17 @@ public:
 protected:
 	inline const typename Detail::In_ * pr_input_type() const 
 	{ return _im_io_convert ? _im_io_convert->value() : NULL; }
-	inline typename Detail::Out_::base_type * pr_output_type() 
+	inline typename Detail::Out_ * pr_output_type() 
 	{ return &_ot; }
 	inline typename Detail::Atoms_ * atomics_argument() 
 	{ return &_am; }
 
 protected:
-	typename Detail::Out_::base_type _ot;
+	typename Detail::Out_ _ot;
 	typename Detail::Atoms_ _am;
 private:
 	const IOConversionBase<typename Detail::In_> * _im_io_convert;
+	AtomicsHolder _atomics;
 };
 
 /**
@@ -82,26 +90,27 @@ private:
 template< typename Detail >
 class Event : public EventBaseTyped<Detail> {
 public:
-	Event(            boost::shared_ptr<EventBase> & predecessor
-                        , const IOConversionBase<typename Detail::In_> * im_io_convert
-                        , flow::Node * flow_node)
+	Event(    EventBasePtr & predecessor
+		, const IOConversionBase<typename Detail::In_> * im_io_convert
+		, flow::Node * flow_node)
 		: EventBaseTyped<Detail>(predecessor,im_io_convert,flow_node)
 	{}
 	virtual int execute()
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));
+		const char * ev_name __attribute__((unused)) = 
+			EventBase::flow_node()->getName()
 		PUBLIC_NODE_START(
 			  this
-			, EventBase::flow_node()->getName()
+			, ev_name
 			, EventBase::flow_node()->getIsSource()
 			, EventBase::flow_node()->getIsDetached());
 		int res = (*Detail::nfunc)(
-			EventBaseTyped<Detail>::pr_input_type(),
-			convert<typename Detail::Out_>(EventBaseTyped<Detail>::pr_output_type()),
-			EventBaseTyped<Detail>::atomics_argument()
-			); 
+			  EventBaseTyped<Detail>::pr_input_type()
+			, EventBaseTyped<Detail>::pr_output_type()
+			, EventBaseTyped<Detail>::atomics_argument()); 
 		if (!res) EventBase::release();
-		PUBLIC_NODE_DONE(this,EventBase::flow_node()->getName());
+		PUBLIC_NODE_DONE(this,ev_name);
 		return res;
 	}
 };
@@ -115,7 +124,7 @@ public:
 template< typename Detail >
 class ErrorEvent : public EventBaseTyped<Detail> {
 public:
-	ErrorEvent(       boost::shared_ptr<EventBase> & predecessor
+	ErrorEvent(       EventBasePtr & predecessor
                         , const IOConversionBase<typename Detail::In_> * im_io_convert
                         , flow::Node * flow_node)
 		: EventBaseTyped<Detail>(predecessor,im_io_convert,flow_node)
@@ -126,9 +135,11 @@ public:
 	virtual int execute()
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));
+		const char * ev_name __attribute__((unused)) = 
+			EventBase::flow_node()->getName()
 		PUBLIC_NODE_START(
 			  this
-			, EventBase::flow_node()->getName()
+			, ev_name
 			, EventBase::flow_node()->getIsSource()
 			, EventBase::flow_node()->getIsDetached());
 		int res = (*Detail::nfunc)(
@@ -158,12 +169,12 @@ typename Detail::In_ ErrorEvent<Detail>::_dont_care_im;
  * @return smart pointer to the new event (heap allocated)
  **/
 template< typename Detail >
-boost::shared_ptr<EventBase> 
-create(   boost::shared_ptr<EventBase> pred_node_ptr
+EventBasePtr
+create(   EventBasePtr pred_node_ptr
 	, const void * im_io_convert
 	, flow::Node *fn)
 {
-	return boost::shared_ptr<EventBase>(new Event<Detail>(
+	return EventBasePtr(new Event<Detail>(
 		  pred_node_ptr
 		, reinterpret_cast<const IOConversionBase<typename Detail::In_> *>(im_io_convert)
 		, fn));
@@ -179,13 +190,13 @@ create(   boost::shared_ptr<EventBase> pred_node_ptr
  * @return smart pointer to the new error event (heap allocated)
  **/
 template< typename Detail >
-boost::shared_ptr<EventBase> 
+EventBasePtr 
 create_error(
-	  boost::shared_ptr<EventBase> pred_node_ptr
+	  EventBasePtr pred_node_ptr
 	, const void * im_io_convert
 	, flow::Node * fn)
 {
-	return boost::shared_ptr<EventBase>(new ErrorEvent<Detail>(
+	return EventBasePtr(new ErrorEvent<Detail>(
 		  pred_node_ptr
 		, reinterpret_cast<const IOConversionBase<typename Detail::In_> *>(im_io_convert)
 		, fn));

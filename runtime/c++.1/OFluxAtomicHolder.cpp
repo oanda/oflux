@@ -133,7 +133,7 @@ AtomicsHolder::acquire(
 
 void 
 AtomicsHolder::release(
-	  std::vector<boost::shared_ptr<EventBase> > & released_events)
+	  std::vector<EventBasePtr > & released_events)
 {
 	// reverse order
 	for(int i = _number-1; i >= 0; i--) {

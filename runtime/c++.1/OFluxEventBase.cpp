@@ -58,10 +58,10 @@ void EventBase::log_snapshot()
 #ifdef HAS_DTRACE
 	static int ok_keep_dtrace_symbols __attribute__((unused)) = access_dtrace();
 #endif // HAS_DTRACE
-	int atomics_number = _atomics.number();
+	int atomics_number = _atomics_ref.number();
 	int held_atomics = 0;
 	for(int i= 0; i < atomics_number; i++) {
-		held_atomics += (_atomics.get(i)->haveit() ? 1 : 0);
+		held_atomics += (_atomics_ref.get(i)->haveit() ? 1 : 0);
 	}
 	oflux_log_info(" %s (%d/%d atomics)\n", flow_node()->getName(),
 		held_atomics,
@@ -70,17 +70,13 @@ void EventBase::log_snapshot()
 }
 
 EventBase::EventBase(        EventBasePtr & predecessor
-		, flow::Node *flow_node)
+		, flow::Node *flow_node
+		, AtomicsHolder & atomics)
 	: flow::NodeCounterIncrementer(flow_node)
 	, _predecessor(predecessor)
 	, _error_code(0)
-	, _atomics(flow_node->isGuardsCompletelySorted())
+	, _atomics_ref(atomics)
 {
-	std::vector<flow::GuardReference *> & vec = 
-		flow_node->guards();
-	for(int i = 0; i < (int) vec.size(); i++) {
-		_atomics.add(vec[i]);
-	}
 	PUBLIC_EVENT_BORN(this,flow_node->getName());
 }
 
@@ -92,7 +88,7 @@ EventBase::~EventBase()
 void
 EventBase::release(std::vector<EventBasePtr> & released_events)
 {
-	_atomics.release(released_events);
+	_atomics_ref.release(released_events);
 }
 
 /*
