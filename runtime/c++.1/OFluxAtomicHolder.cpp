@@ -156,4 +156,7 @@ AtomicsHolder::release(
 	}
 }
 
+AtomicsHolder AtomicsHolder::empty_ah;
+
+
 }; // namespace

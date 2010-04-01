@@ -1168,6 +1168,32 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
         let code,_ = SymbolTable.fold_nodes e_n symtable (code,[])
         in  code
 
+let emit_node_detail_defn plugin_opt is_concrete errorhandlers symtable code =
+        let emit_for n =
+                (is_concrete n) &&
+                (match plugin_opt with
+                        None -> (not (has_dot n))
+                        | (Some pn) -> string_has_prefix n (pn^".")
+                                &&(let nopre = remove_prefix (pn^".") n in not (has_dot nopre)))
+                in
+        let trim_dc,trim_dot =
+                match plugin_opt with
+                        None -> (fun x -> x), (fun x -> x)
+                        | (Some pn) -> (remove_prefix (pn^"::")),(remove_prefix (pn^"."))
+                        in
+	let e_one n _ code =
+		let nd = SymbolTable.lookup_node_symbol symtable n
+		in  if emit_for n then
+                        let nt = trim_dot n in
+                        let fnt = trim_dc nd.functionname
+                        in 
+			List.fold_left add_code code
+			[ nt^"Detail::nfunctype "
+				^nt^"Detail::nfunc = & "
+				^fnt^";"
+			]
+		else code
+	in  SymbolTable.fold_nodes e_one symtable code
 
 let emit_node_func_decl plugin_opt is_concrete errorhandlers symtable code =
 	let is_eh n = List.mem n errorhandlers in
@@ -1189,11 +1215,21 @@ let emit_node_func_decl plugin_opt is_concrete errorhandlers symtable code =
                         let nt = trim_dot n in
                         let fnt = trim_dc nd.functionname
                         in 
-			add_code code
-			("int "^fnt^"(const "^nt^"_in *, "^nt
-			^"_out *, "^nt^"_atoms *"
-			^(if is_eh n then ", int" else "")
-			^");")
+			List.fold_left add_code code
+			[ "int "^fnt^"(const "^nt^"_in *, "^nt
+			  ^"_out *, "^nt^"_atoms *"
+			  ^(if is_eh n then ", int" else "")
+			  ^");"
+			; "struct "^nt^"Detail {"
+			; "typedef "^nt^"_in In_;"
+			; "typedef "^nt^"_out Out_;"
+			; "typedef "^nt^"_atoms Atoms_;"
+			; "typedef int (*nfunctype)(const In_ *,Out_ *,Atoms_ *"
+				^(if is_eh n then ", int" else "")
+				^");"
+			; "static nfunctype nfunc;"
+			; "};"
+			]
 		else code
 	in  SymbolTable.fold_nodes e_one symtable code
 
@@ -1232,31 +1268,64 @@ let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
 			^n^" "^(if isin then "input" else "output")))
 		in*)
         let is_abstract n = SymbolTable.is_abstract symtable n in
+	let ignore_emit n = 
+		match plugin_opt with
+			None -> has_dot n
+			| (Some pn) -> not (string_has_prefix n (pn^"."))
+		in
+	(*let e_one n _ code =
+		if ignore_emit n then code 
+		else 
+			let nd = SymbolTable.lookup_node_symbol symtable n in
+                        let nf = nd.functionname in
+			let nfind = (match plugin_opt with
+                                        None -> nf
+                                        | (Some pn) -> remove_prefix (pn^"::") nf)
+				in
+			let complete code (pre,basef) nfind =
+				in List.fold_left add_code code 
+					[ "struct "^pre^basef^"Detail {"
+					; "typedef "^nfind^"_in In_;"
+					; "typedef "^nfind^"_out Out_;"
+					; "typedef "^nfind^"_atoms Atoms_;"
+					; "typedef int ( *nfunctype)(const In_ *,Out_ *,Atoms_ *"
+						^(if is_eh n then ", int" else "")
+						^");"
+					; "static nfunctype nfunc;"
+					; "};"
+					; pre^basef^"Detail::nfunctype "
+						^pre^basef
+						^"Detail::nfunc = & "
+						^nd.functionname^";"
+					]
+			in  if (is_concrete n) && not (is_abstract n) then
+				let pre,basef =
+					match break_namespaced_name nfind with
+						(ns::base_nfind::[]) ->
+							((ns^"__"),base_nfind)
+						| _ -> ("",nfind)
+				in  complete code (pre,basef) nfind
+			else code
+		in
+	let code = SymbolTable.fold_nodes e_one symtable code in *)
 	let e_one n _ code =
-                let ignore_emit = 
-                        match plugin_opt with
-                                None -> has_dot n
-                                | (Some pn) -> not (string_has_prefix n (pn^"."))
-		in  if ignore_emit then code else 
+		if ignore_emit n then code 
+		else 
 			let nd = SymbolTable.lookup_node_symbol symtable n in
                         let nf = nd.functionname in
 			let nfind = (match plugin_opt with
                                         None -> nf
                                         | (Some pn) -> remove_prefix (pn^"::") nf)
 			in if (is_concrete n) && not (is_abstract n) then
-				(*let u_no_in = lookup_union_number (nf,true) in
-				let u_no_out = lookup_union_number (nf,false) 
-				in*)  add_code code ("{ \""^nfind
+				let pre,basef =
+					match break_namespaced_name nfind with
+						(ns::base_nfind::[]) ->
+							((ns^"__"),base_nfind)
+						| _ -> ("",nfind)
+				in  add_code code ("{ \""^nfind
 					^"\", &oflux::create"
 					^(if is_eh n then "_error" else "")
-					(*^"<OFluxUnion"^(string_of_int u_no_in)^", "
-					^"OFluxUnion"^(string_of_int u_no_out)^", "*)
-                                        ^"<"(*^nf^"_in::base_type, "
-                                        ^nf^"_out::base_type, "*)
-					^nf^"_in, "
-					^nf^"_out, "
-					^nf^"_atoms, "
-					^"&"^nd.functionname^" > },  ")
+                                        ^"<"^nfind^"Detail> },  ")
 			else code
 		in
 	let code = List.fold_left add_code code 
@@ -1601,6 +1670,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		; ""
 		] in
 	let cpp_code = namespaceheader cpp_code in
+	let cpp_code = emit_node_detail_defn (Some pluginname) is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
 	let cpp_code = emit_create_map (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
 	let cpp_code = emit_cond_map conseq_res stable cpp_code in
@@ -1761,6 +1831,7 @@ let emit_cpp modulenameopt br um =
 		; ""
 		] in
 	let cpp_code = namespaceheader cpp_code in
+	let cpp_code = emit_node_detail_defn None is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
 	let cpp_code = emit_create_map None is_concrete stable conseq_res ehs cpp_code in
 	let cpp_code = if is_module then cpp_code else emit_master_create_map modules cpp_code in

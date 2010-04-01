@@ -17,5 +17,5 @@ $($(OFLUX_PROJECT_NAME)_OFLUX_KERNEL:%.flux=mImpl_%.h): $($(OFLUX_PROJECT_NAME)_
 	ln -sf $< $@
 
 mImpl_$(OFLUX_PROJECT_NAME).cpp: $($(OFLUX_PROJECT_NAME)_OFLUX_GEN_HEADERS)
-	(cat $? | awk -f $(SRCDIR)/tests/build/create_cpp.awk -v proj=$(subst mImpl_,,$(basename $@))) > $@
+	(cat $^ | awk -f $(SRCDIR)/tests/build/create_cpp.awk -v proj=$(subst mImpl_,,$(basename $@))) > $@
 

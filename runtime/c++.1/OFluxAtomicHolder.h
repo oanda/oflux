@@ -31,25 +31,26 @@ public:
 		, _flow_guard_ref(NULL)
 		, _key(NULL)
 		, _haveit(false)
-		{}
+	{}
         ~HeldAtomic()
-                { relinquish(); }
+	{ relinquish(); }
 	/**
 	 * @brief init is a pseudo constructor used to tell us which guard
 	 * @param fg the FlowGuardReference indicates the guard instance
 	 */
 	inline void init(flow::GuardReference * fgr)
-		{ _flow_guard_ref = fgr; }
+	{ _flow_guard_ref = fgr; }
 	/**
          * @brief the guard type indicates which guard is being used (no key values)
          * @return the integer magic number for the guard
          */
-	inline int guard_type() const { return _flow_guard_ref->magic_number(); }
+	inline int guard_type() const 
+	{ return _flow_guard_ref->magic_number(); }
 	//void set_atomic(Atomic * atom, bool haveit)
 		//{ _atom = atom; _haveit = haveit; }
 	//HeldAtomic & operator=(const HeldAtomic & ha);
 	inline flow::GuardReference * flow_guard_ref() 
-		{ return _flow_guard_ref; }
+	{ return _flow_guard_ref; }
 	/**
 	 * @brief compare is a classical compare function for heldatomics
 	 * @remark key values are taken into account in this ordering
@@ -57,25 +58,25 @@ public:
 	 * @return -1 if <, +1 if > and 0 if ==
 	 */
 	inline int compare(const HeldAtomic & ha) const
-		{ 
-			int gt1 = guard_type();
-			int gt2 = ha.guard_type();
-			int wt1 = wtype();
-			int wt2 = ha.wtype();
-			bool lt1 = _flow_guard_ref->late();
-			bool lt2 = ha._flow_guard_ref->late();
+	{ 
+		int gt1 = guard_type();
+		int gt2 = ha.guard_type();
+		int wt1 = wtype();
+		int wt2 = ha.wtype();
+		bool lt1 = _flow_guard_ref->late();
+		bool lt2 = ha._flow_guard_ref->late();
 #define compare_lates(a,b) \
-	(a == b ? 0 : ( (!a) && b /*a < b*/ ? -1 : 1 ))
-			return (gt1 == gt2 && wt1 == wt2
-					? (!lt1 && !lt2
-						? _flow_guard_ref->compare_keys(_key,ha._key)
-						: compare_lates(lt1,lt2))
-					: (gt1 == gt2 
-						? (wt1 < wt2 ? -1 : 1)
-						: (gt1 < gt2 ? -1 : 1))); 
-		}
+(a == b ? 0 : ( (!a) && b /*a < b*/ ? -1 : 1 ))
+		return (gt1 == gt2 && wt1 == wt2
+				? (!lt1 && !lt2
+					? _flow_guard_ref->compare_keys(_key,ha._key)
+					: compare_lates(lt1,lt2))
+				: (gt1 == gt2 
+					? (wt1 < wt2 ? -1 : 1)
+					: (gt1 < gt2 ? -1 : 1))); 
+	}
 	inline int compare_keys(const void * k)
-		{ return _flow_guard_ref->compare_keys(_key,k); }
+	{ return _flow_guard_ref->compare_keys(_key,k); }
 	/**
 	 * @brief determine if the atomic is held (thus the owner has exclusivity)
 	 * @return true if you have it
@@ -86,15 +87,15 @@ public:
 	 * @param ha the held atomic object to steal the atomic from
 	 */
 	inline void takeit(HeldAtomic & ha) 
-		{
-			assert(ha._atom);
-			assert(ha._haveit);
-                        relinquish();
-			_atom = ha._atom;
-			ha._atom = NULL;
-			_haveit = ha._haveit;
-			ha._haveit = false;
-		}
+	{
+		assert(ha._atom);
+		assert(ha._haveit);
+		relinquish();
+		_atom = ha._atom;
+		ha._atom = NULL;
+		_haveit = ha._haveit;
+		ha._haveit = false;
+	}
 	/**
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure
@@ -102,27 +103,27 @@ public:
 	inline bool build(const void * node_in
 			, AtomicsHolderAbstract * ah
 			, bool allow_late = false)
-		{ 
-                        assert(_atom == NULL || allow_late);
-			if((allow_late || !_flow_guard_ref->late()) && !_atom) {
-				_key = _flow_guard_ref->get(_atom,node_in,ah); 
-			}
-                        //if(_atom == NULL) {
-                                //oflux_log_info("HeldAtomic::build() conditional guard not held %s\n", _flow_guard->getName().c_str());
-                        //}
-                        return _atom != NULL;
-                }
+	{ 
+		assert(_atom == NULL || allow_late);
+		if((allow_late || !_flow_guard_ref->late()) && !_atom) {
+			_key = _flow_guard_ref->get(_atom,node_in,ah); 
+		}
+		//if(_atom == NULL) {
+			//oflux_log_info("HeldAtomic::build() conditional guard not held %s\n", _flow_guard->getName().c_str());
+		//}
+		return _atom != NULL;
+	}
 	/**
 	 * @brief attempt to acquire the atomic (will succeed if no other has it)
 	 * @return true if the atomic is now held
 	 */
 	inline bool acquire() 
-		{
-			assert(_key);
-			assert(_atom);
-			_haveit = _atom->acquire(_flow_guard_ref->wtype());
-			return _haveit;
-		}
+	{
+		assert(_key);
+		assert(_atom);
+		_haveit = _atom->acquire(_flow_guard_ref->wtype());
+		return _haveit;
+	}
 	//inline const void * key() { return _key; }
 	/**
 	 * @brief the underlying atomic object (not necessarily held)
@@ -130,12 +131,12 @@ public:
 	inline Atomic * atomic() { return _atom; }
 	inline void atomic(Atomic * a) { _atom = a; }
 	inline void relinquish()
-                {
-                        if(_atom != NULL) {
-                                _atom->relinquish();
-                        }
-                        _atom = NULL;
-                }
+	{
+		if(_atom != NULL) {
+			_atom->relinquish();
+		}
+		_atom = NULL;
+	}
 	inline int wtype() const { return _flow_guard_ref->wtype(); }
         inline bool skipit() const { return _atom == NULL; }
 private:
@@ -155,6 +156,8 @@ private:
  */
 class AtomicsHolder : public AtomicsHolderAbstract {
 public:
+	static AtomicsHolder empty_ah;
+	
 	AtomicsHolder(bool completelysorted = false)
 		: _number(0)
 		, _is_sorted_and_keyed(false)
@@ -167,12 +170,15 @@ public:
 	 * @remark returns -1 on sucess, otherwise the index where the atomic acquisition failed.
 	 * @return -1 if we succeed
 	 */
-	int acquire( AtomicsHolder & given_atomics, const void * node_in, const char * on_behalf_of_event_name );
+	int acquire(
+		  AtomicsHolder & given_atomics
+		, const void * node_in
+		, const char * on_behalf_of_event_name );
 	/**
 	 * @brief release all the underlying atomics
 	 * @param released_events an output vector of events that have been waiting on the freed stuff
 	 */
-	void release( std::vector<boost::shared_ptr<EventBase> > & released_events);
+	void release(std::vector<EventBasePtr> & released_events);
 	/**
 	 * @return the number of atomics held (only some of them are acquired)
 	 */
@@ -183,21 +189,21 @@ public:
 	 */
         enum HA_get { HA_get_unsorted, HA_get_sorted, HA_get_lexical };
 	inline HeldAtomic * get(int i, HA_get hg = HA_get_sorted) 
-		{ 
-                return (_is_sorted_and_keyed && (hg==HA_get_sorted)
+	{ 
+		return (_is_sorted_and_keyed && (hg==HA_get_sorted)
 				? _sorted[i]
 				: (hg == HA_get_lexical)
-                                        ? _lexical[i]
-                                        : &(_holders[i])); 
-                }
+					? _lexical[i]
+					: &(_holders[i])); 
+	}
 	virtual void * getDataLexical(int i)
-		{ 
-			HeldAtomic * haptr = _lexical[i];
-			Atomic * aptr = (haptr ? haptr->atomic() : NULL);
-			return (aptr
-				? *(aptr->data())
-				: NULL);
-		}
+	{ 
+		HeldAtomic * haptr = _lexical[i];
+		Atomic * aptr = (haptr ? haptr->atomic() : NULL);
+		return (aptr
+			? *(aptr->data())
+			: NULL);
+	}
 		
 protected:
 	bool get_keys_sort(const void * node_in);

@@ -158,6 +158,9 @@ private:
 extern E theE;
 
 class EventBase;
+
+typedef boost::shared_ptr<EventBase> EventBasePtr;
+
 namespace flow {
 class Node;
 } //namespace flow
@@ -169,7 +172,7 @@ typedef void DeInitFunction();
 
 typedef bool (*ConditionFn)(const void *);
 
-typedef boost::shared_ptr<EventBase> (*CreateNodeFn)(boost::shared_ptr<EventBase>,const void *, flow::Node *);
+typedef EventBasePtr (*CreateNodeFn)(EventBasePtr,const void *, flow::Node *);
 
 typedef bool (*GuardTransFn)(void *, const void *, AtomicsHolderAbstract *);
 

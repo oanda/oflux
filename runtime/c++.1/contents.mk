@@ -20,8 +20,7 @@ OBJS := \
         OFluxAtomic.o \
         OFluxAtomicInit.o \
         OFluxAtomicHolder.o \
-        OFluxAcquireGuards.o \
-        OFluxEvent.o \
+        OFluxEventBase.o \
         OFluxRunTimeAbstract.o \
         OFluxRunTimeBase.o \
         OFluxRunTime.o \
@@ -29,6 +28,7 @@ OBJS := \
         OFluxXML.o \
         OFluxLibrary.o \
 	oflux_vers.o
+        #OFluxAcquireGuards.o
 
 # disable optimization for dtrace USDT code (PIC code not affected):
 $(DTRACECALLINGCPPS:.cpp=.o) : OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)

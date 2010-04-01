@@ -1,10 +1,10 @@
 #include "OFluxRunTime.h"
 #include "OFluxFlow.h"
 #include "OFluxXML.h"
-#include "OFluxEvent.h"
+#include "OFluxEventBase.h"
 #include "OFluxAtomic.h"
 #include "OFluxAtomicHolder.h"
-#include "OFluxAcquireGuards.h"
+//#include "OFluxAcquireGuards.h"
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
 #include <unistd.h>
@@ -17,7 +17,6 @@ namespace oflux {
 namespace runtime {
 namespace classic {
 
-//Flow * RunTime::__no_flow_is_some_flow = new Flow();
 
 void _thread_local_destructor(void *t)
 {
@@ -160,6 +159,7 @@ void * __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
 	if(!res) {
 		*count++;
 	}
+	return v_count;
 }
 
 void RunTime::start()
@@ -406,7 +406,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 {
 	_flow_node_working = ev->flow_node();
 	// ------------------ Guards --------------------
-	if(AcquireGuards::doit(ev) == AcquireGuards::AGR_Success) {
+	if(EventBase::acquire_guards(ev)) {
 	// ---------------- Execution -------------------
 		int return_code;
 		{ 
@@ -444,7 +444,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 					? (*createfn)(EventBase::no_event,NULL,fn)
 					: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
 				ev_succ->error_code(return_code);
-				if(AcquireGuards::doit(ev_succ,ev->atomics()) == AcquireGuards::AGR_Success) {
+				if(EventBase::acquire_guards(ev_succ,ev->atomics())) {
 					successor_events_priority.push_back(ev_succ);
 				}
 			}
@@ -474,9 +474,9 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 						: (*createfn)(ev,iocon->convert(ev_output),fn)
 						);
 					ev_succ->error_code(return_code);
-					if(AcquireGuards::doit(ev_succ,is_source
-                                                ? AcquireGuards::empty_ah
-                                                : ev->atomics()) == AcquireGuards::AGR_Success) {
+					if(EventBase::acquire_guards(ev_succ,is_source
+                                                ? EventBase::empty_ah
+                                                : ev->atomics())) {
 						successor_events_priority.push_back(ev_succ);
 					}
 				}
@@ -486,7 +486,7 @@ void RunTimeThread::handle(boost::shared_ptr<EventBase> & ev)
 		// put the released events as priority on the queue
 		ev->atomics().release(successor_events_released);
 		for(int i = 0; i < (int)successor_events_released.size(); i++) {
-			if(AcquireGuards::doit(successor_events_released[i]) == AcquireGuards::AGR_Success) {
+			if(EventBase::acquire_guards(successor_events_released[i])) {
 				successor_events_priority.push_back(successor_events_released[i]);
 			}
 		}

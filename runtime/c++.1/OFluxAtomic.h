@@ -10,7 +10,6 @@
 #include <tr1/unordered_map>
 #endif
 #include <vector>
-#include <boost/shared_ptr.hpp>
 #include "OFlux.h"
 //#include "OFluxLogging.h" // DEBUGGING
 

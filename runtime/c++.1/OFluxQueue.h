@@ -8,7 +8,6 @@
  */
 
 #include "OFlux.h"
-#include "boost/shared_ptr.hpp"
 #include <deque>
 #include <vector>
 
@@ -22,7 +21,7 @@ namespace oflux {
  */
 class Queue {
 public:
-	typedef boost::shared_ptr<EventBase> Element;
+	typedef EventBasePtr Element;
 	Queue() {}
 	~Queue() { _q.clear(); }
 	static const char * element_name(Element &);

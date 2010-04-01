@@ -1,6 +1,16 @@
 #ifndef OFLUX_ORDERABLE
 #define OFLUX_ORDERABLE
 
+/**
+ * @file FluxOrderable.h
+ * @author Mark Pichora
+ *  These classes define the properties things that are
+ *  numberable (in the sense that they can be assigned integral values
+ *  at runtime) based on a given order.
+ *  The sorter is the thing that figures out whether the problem is
+ *  solvable and if so applies its solution (assigning magic numbers)
+ */
+
 #include <vector>
 
 namespace oflux {

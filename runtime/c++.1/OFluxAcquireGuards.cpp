@@ -7,7 +7,7 @@ AtomicsHolder AcquireGuards::empty_ah;
 
 AcquireGuards::Result
 AcquireGuards::doit(
-	  boost::shared_ptr<EventBase> & ev
+	  EventBasePtr & ev
 	, AtomicsHolder & ah)
 {
 	Result res = AGR_Success;
@@ -27,7 +27,7 @@ AcquireGuards::doit(
 			wtype);
 	} else {
                 _NODE_HAVEALLGUARDS(static_cast<void *>(ev.get())
-			,ev->flow_node()->getName());
+			, ev->flow_node()->getName());
         }
 	return res;
 }

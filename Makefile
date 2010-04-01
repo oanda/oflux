@@ -218,10 +218,11 @@ ALL_DOCUMENTATION := $(OFLUX_DOCUMENTATION)
 	clean \
 	doc
 
-$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o liboflux.a
-	$(CXX) $(CXXOPTS) $(INCS) $(LIBDIRS) $^ $(LIBS) -lgtest -o $@
+$(ALL_UNIT_TESTS:%.cpp=%): %_unittest : %_unittest.o liboflux.so
+	$(CXX) -L. $(CXXOPTS) $(INCS) $(LIBDIRS) $(filter-out liboflux.%,$^) $(LIBS) -loflux -lgtest -o $@
 
 $(ALL_UNIT_TESTS:%.cpp=%.xml): %.xml : %
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:. \
 	$(CURDIR)/$< --gtest_output="xml:$(CURDIR)/$@"
 
 
