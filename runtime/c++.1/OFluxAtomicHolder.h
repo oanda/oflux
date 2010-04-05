@@ -86,18 +86,19 @@ public:
 	 * @param ha the held atomic object to steal the atomic from
 	 */
 	inline void takeit(HeldAtomic & ha) 
-		{
-			assert(ha._atom);
-			assert(ha._haveit);
-                        relinquish();
-			_atom = ha._atom;
-			ha._atom = NULL;
-			_haveit = ha._haveit;
-			ha._haveit = false;
-		}
+	{
+		assert(ha._atom);
+		assert(ha._haveit);
+		relinquish();
+		_atom = ha._atom;
+		ha._atom = NULL;
+		_haveit = ha._haveit;
+		ha._haveit = false;
+	}
 	/**
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure
+	 * @param ah is the given atomics holder object
 	 * @param allow_late true for late calls to build (_atom != NULL) can occur
 	 */
 	inline bool build(const void * node_in
