@@ -1,5 +1,5 @@
-#ifndef _OFLUX_LIBRARY
-#define _OFLUX_LIBRARY
+#ifndef _OFLUX_FLOW_LIBRARY
+#define _OFLUX_FLOW_LIBRARY
 
 #include <string>
 #include <vector>

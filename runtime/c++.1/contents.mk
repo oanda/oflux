@@ -17,16 +17,22 @@ OBJS := \
         OFluxQueue.o \
         OFluxOrderable.o \
         OFluxFlow.o \
+        OFluxFlowNode.o \
+        OFluxFlowNodeIncr.o \
+        OFluxFlowCase.o \
+        OFluxFlowGuard.o \
+        OFluxFlowFunctions.o \
+        OFluxFlowLibrary.o \
         OFluxAtomic.o \
         OFluxAtomicInit.o \
         OFluxAtomicHolder.o \
         OFluxEventBase.o \
+        OFluxEventOperations.o \
         OFluxRunTimeAbstract.o \
         OFluxRunTimeBase.o \
         OFluxRunTime.o \
         OFluxMeldingRunTime.o \
         OFluxXML.o \
-        OFluxLibrary.o \
 	oflux_vers.o
         #OFluxAcquireGuards.o
 

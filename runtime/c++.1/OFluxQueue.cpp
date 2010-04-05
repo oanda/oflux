@@ -1,7 +1,6 @@
 #include "OFluxLogging.h"
 #include "OFluxQueue.h"
-#include "OFluxEvent.h"
-
+#include "OFluxEventBase.h"
 #include "OFluxLibDTrace.h"
 
 
@@ -10,7 +9,7 @@ namespace oflux {
 const char *
 Queue::element_name(Element & e)
 {
-	return e->flow_node()->getName();
+	return flow::get_node_name(e->flow_node());
 }
 
 void

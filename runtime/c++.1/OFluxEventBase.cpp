@@ -1,6 +1,8 @@
-#include "OFluxEvent.h"
+#include "OFluxEventBase.h"
+#include "OFluxFlowNode.h"
 #include "OFluxLogging.h"
 #include "OFluxLibDTrace.h"
+#include "OFluxAtomicHolder.h"
 /**
  * @file OFluxEvent.cpp
  */
@@ -34,7 +36,7 @@ void PUBLIC_EVENT_DEATH(const void * E, const char * N)
  * @brief need an event that is sort of the empty event
  * This is used as a predecessor of a successor.
  */
-boost::shared_ptr<EventBase> EventBase::no_event;
+EventBasePtr EventBase::no_event;
 
 #ifdef HAS_DTRACE
 int access_dtrace()
@@ -91,6 +93,13 @@ EventBase::release(std::vector<EventBasePtr> & released_events)
 	_atomics_ref.release(released_events);
 }
 
+bool
+EventBase::getIsDetached()
+{ 
+	return flow_node()->getIsDetached();
+}
+
+
 /*
 inline Atomic * 
 EventBase__acquire( 
@@ -110,47 +119,4 @@ EventBase__acquire(
 }*/
 
 
-int
-EventBase::acquire_guards(
-	  EventBasePtr & ev
-	, AtomicsHolder & ah)
-{
-	enum { AGR_Success = 1, AGR_MustWait = 0 };
-	int res = AGR_Success;
-	EventBase * ev_bptr = ev.get();
-	const char * ev_name = ev_bptr->flow_node()->getName();
-        _NODE_ACQUIREGUARDS(
-		  static_cast<void *>(ev_bptr)
-		, ev_name);
-	AtomicsHolder & atomics = ev_bptr->atomics();
-	int ah_res = atomics.acquire(
-		  ah
-		, ev_bptr->input_type()
-		, ev_name);
-	HeldAtomic * held_atomic = 
-		( ah_res == -1 
-		? NULL
-		: atomics.get(ah_res) );
-	int wtype = (held_atomic ? held_atomic->wtype() : 0);
-	flow::GuardReference * flow_guard_ref __attribute__((unused)) = 
-		(held_atomic ? held_atomic->flow_guard_ref() : NULL);
-	Atomic * must_wait_on_atomic = 
-		(held_atomic ? held_atomic->atomic() : NULL);
-	if(must_wait_on_atomic) {
-		res = AGR_MustWait;
-		must_wait_on_atomic->wait(ev,wtype);
-		_GUARD_WAIT(
-			  flow_guard_ref->getName().c_str()
-			, ev_name
-			, wtype);
-	} else {
-                _NODE_HAVEALLGUARDS(
-			  static_cast<void *>(ev_bptr)
-			, ev_name);
-        }
-	return res;
 }
-
-AtomicsHolder & EventBase::empty_ah = AtomicsHolder::empty_ah;
-
-};

@@ -1,5 +1,5 @@
 #include "OFluxAtomicHolder.h"
-#include "OFluxEvent.h"
+#include "OFluxEventBase.h"
 #include <cassert>
 #include <stdlib.h>
 #include "OFluxLibDTrace.h"

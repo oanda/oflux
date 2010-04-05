@@ -1,6 +1,8 @@
 #include "OFluxMeldingRunTime.h"
 #include "OFluxAtomicHolder.h"
 #include "OFluxFlow.h"
+#include "OFluxFlowCase.h"
+#include "OFluxFlowNode.h"
 #include "OFluxEventBase.h"
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"

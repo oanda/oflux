@@ -11,7 +11,7 @@
  */
 
 #include "OFlux.h"
-#include "OFluxFlow.h"
+#include "OFluxFlowNodeIncr.h"
 #include <vector>
 
 
@@ -41,7 +41,6 @@ void PUBLIC_NODE_DONE(const void *,const char * X);
 class EventBase : public flow::NodeCounterIncrementer {
 public:
 	static EventBasePtr no_event;
-	static AtomicsHolder & empty_ah;
 
 	EventBase(        EventBasePtr & predecessor
 			, flow::Node *flow_node
@@ -51,14 +50,6 @@ public:
 	virtual const void * input_type() = 0;
 	void release() { _predecessor = no_event; }
 	virtual int execute() = 0;
-	/**
-	 * @brief either acquire all guards or enqueue onto the wait-list
-	 *        for the [first] guard you could not get
-	 * @param given the atomics holder from which to canabalized guards
-	 *        from (the predecessor event normally).
-	 * @return 1 on success and 0 on failure
-	 */
-	static int acquire_guards(EventBasePtr &, AtomicsHolder & ah = empty_ah);
 	/**
 	 * @brief obtain the events from releasing your held guards 
 	 *    -- this pulls things off the wait-lists
@@ -70,6 +61,7 @@ public:
 	void log_snapshot();
 	inline EventBasePtr & get_predecessor()
 	{ return _predecessor; }
+	bool getIsDetached();
 private:
 	EventBasePtr _predecessor;
 protected:

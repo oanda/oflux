@@ -1,10 +1,11 @@
 #include "OFluxAtomic.h"
-#include "OFluxEvent.h"
+#include "OFluxFlowNode.h"
+#include "OFluxEventBase.h"
 #include "OFluxLogging.h"
 
 namespace oflux {
 
-boost::shared_ptr<EventBase> Atomic::_null_static; // null
+EventBasePtr Atomic::_null_static; // null
 
 static const char *
 convert_wtype_to_string(int wtype)
@@ -87,7 +88,7 @@ const char * AtomicPooled::atomic_class_str = "Pooled   ";
 void
 AtomicPool::log_snapshot_waiters() const
 {
-	std::deque<boost::shared_ptr<EventBase> >::const_iterator itr = _q.begin();
+	std::deque<EventBasePtr>::const_iterator itr = _q.begin();
 	while(itr != _q.end()) {
 		oflux_log_debug("   None  %s\n", (*itr)->flow_node()->getName());
 		++itr;
@@ -104,13 +105,16 @@ AtomicPool::get_data()
         }
         return ptr;
 }
-void AtomicPool::put_data(void * p)
+
+void 
+AtomicPool::put_data(void * p)
 {
         assert(p);
         _dq.push_back(p);
 }
 
-boost::shared_ptr<EventBase> AtomicPool::get_waiter()
+EventBasePtr 
+AtomicPool::get_waiter()
 {
         boost::shared_ptr<EventBase> r;
         if(_q.size()) {
@@ -119,11 +123,15 @@ boost::shared_ptr<EventBase> AtomicPool::get_waiter()
         }
         return r;
 }
-void AtomicPool::put_waiter(boost::shared_ptr<EventBase> & ev)
+
+void 
+AtomicPool::put_waiter(boost::shared_ptr<EventBase> & ev)
 {
         _q.push_back(ev);
 }
-const void * AtomicPool::get(Atomic * & a_out,const void * key) 
+
+const void * 
+AtomicPool::get(Atomic * & a_out,const void * key) 
 {
         static int _to_use;
         //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
@@ -143,7 +151,8 @@ const void * AtomicPool::get(Atomic * & a_out,const void * key)
         return &_to_use;
 }
 
-void AtomicPool::put(AtomicPooled * ap)
+void 
+AtomicPool::put(AtomicPooled * ap)
 {
         //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
         //assert(ap != _ap_list);

@@ -2,13 +2,13 @@
 #include "OFluxFlow.h"
 #include "OFluxXML.h"
 #include "OFluxEventBase.h"
+#include "OFluxEventOperations.h"
 #include "OFluxAtomic.h"
-#include "OFluxAtomicHolder.h"
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
 #include <unistd.h>
 #include <dlfcn.h>
-#include <stdio.h>
+#include <cstdio>
 #include <signal.h>
 
 
@@ -136,14 +136,9 @@ RunTime::load_flow(
 		, this->flow());
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
-	std::vector<flow::Node *> & sources = flow->sources();
-	for(int i = 0; i < (int) sources.size(); ++i) {
-		flow::Node * fn = sources[i];
-                oflux_log_info("load_flow pushing %s\n",fn->getName());
-		CreateNodeFn createfn = fn->getCreateFn();
-		EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
-		_queue.push(ev);
-	}
+	std::vector<EventBasePtr> events_vec;
+	event::push_initials_and_sources(events_vec, flow);
+	_queue.push_list(events_vec); // no priority
 	while(_active_flows.size() > 0) {
 		flow::Flow * back = _active_flows.back();
 		if(back->sources().size() > 0) {
@@ -403,7 +398,7 @@ RunTimeThread::log_snapshot()
 		};
 	const char * working_on = 
 		(_flow_node_working 
-		? _flow_node_working->getName()
+		? flow::get_node_name(_flow_node_working)
 		: "<none>");
 	oflux_log_info("%d (%c%c%c %s) job:%s\n"
 		, _tid
@@ -438,95 +433,47 @@ void
 RunTimeThread::handle(EventBasePtr & ev)
 {
 	_flow_node_working = ev->flow_node();
-	// ------------------ Guards --------------------
-	if(EventBase::acquire_guards(ev)) {
 	// ---------------- Execution -------------------
-		int return_code;
-		{ 
+	int return_code;
+	{ 
 #ifdef PROFILING
-			TimerStart real_timing_execution(ev->flow_node()->real_timer_stats());
-			TimerStartPausable oflux_timing_execution(ev->flow_node()->oflux_timer_stats(), _timer_list);
-			_oflux_timer = & oflux_timing_execution;
+		TimerStart real_timing_execution(ev->flow_node()->real_timer_stats());
+		TimerStartPausable oflux_timing_execution(ev->flow_node()->oflux_timer_stats(), _timer_list);
+		_oflux_timer = & oflux_timing_execution;
 #endif
-			if( ev->flow_node()->getIsDetached() && _rt->canDetachMore()) {
-                                return_code = execute_detached(ev,_rt->_detached_count);
-				wait_to_run();
-			} else {
-				return_code = ev->execute();
-			}
+		if( ev->getIsDetached() && _rt->canDetachMore()) {
+			return_code = execute_detached(ev,_rt->_detached_count);
+			wait_to_run();
+		} else {
+			return_code = ev->execute();
+		}
 #ifdef PROFILING
-			_oflux_timer = NULL;
+		_oflux_timer = NULL;
 #endif
-		}
-	// ----------- Successor processing -------------
-		std::vector<EventBasePtr > successor_events;
-		std::vector<EventBasePtr > successor_events_priority;
-		std::vector<EventBasePtr > successor_events_released;
-		if(return_code) { // error encountered
-			std::vector<flow::Case *> fsuccessors;
-			void * ev_output = ev->output_type().next();
-			ev->flow_node()->get_successors(fsuccessors, 
-					ev_output, return_code);
-			for(int i = 0; i < (int) fsuccessors.size(); i++) {
-				flow::Node * fn = fsuccessors[i]->targetNode();
-				flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
-				CreateNodeFn createfn = fn->getCreateFn();
-				bool was_source = ev->flow_node()->getIsSource();
-				EventBasePtr ev_succ = 
-					( was_source
-					? (*createfn)(EventBase::no_event,NULL,fn)
-					: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
-				ev_succ->error_code(return_code);
-				if(EventBase::acquire_guards(ev_succ,ev->atomics())) {
-					successor_events_priority.push_back(ev_succ);
-				}
-			}
-		} else { // no error encountered
-			std::vector<flow::Case *> fsuccessors;
-			OutputWalker ev_ow = ev->output_type();
-			void * ev_output = NULL;
-			bool saw_source = false;
-			while((ev_output = ev_ow.next()) != NULL) {
-				fsuccessors.clear();
-				ev->flow_node()->get_successors(fsuccessors, 
-						ev_output, return_code);
-				for(int i = 0; i < (int) fsuccessors.size(); i++) {
-					flow::Node * fn = fsuccessors[i]->targetNode();
-					flow::IOConverter * iocon = fsuccessors[i]->ioConverter();
-					bool is_source = fn->getIsSource();
-					if(is_source && saw_source) {
-						continue;
-						// only one source allowed
-						// even with splaying
-					}
-					saw_source = saw_source || is_source;
-					CreateNodeFn createfn = fn->getCreateFn();
-					EventBasePtr ev_succ = 
-						( is_source
-						? (*createfn)(EventBase::no_event,NULL,fn)
-						: (*createfn)(ev,iocon->convert(ev_output),fn)
-						);
-					ev_succ->error_code(return_code);
-					if(EventBase::acquire_guards(ev_succ,is_source
-                                                ? EventBase::empty_ah
-                                                : ev->atomics())) {
-						successor_events_priority.push_back(ev_succ);
-					}
-				}
-			}
-		}
-	// ------------ Release held atomics --------------
-		// put the released events as priority on the queue
-		ev->atomics().release(successor_events_released);
-		for(int i = 0; i < (int)successor_events_released.size(); i++) {
-			if(EventBase::acquire_guards(successor_events_released[i])) {
-				successor_events_priority.push_back(successor_events_released[i]);
-			}
-		}
-
-		enqueue_list(successor_events_priority); // no priority
-		enqueue_list(successor_events);
 	}
+	// ----------- Successor processing -------------
+	std::vector<EventBasePtr> successor_events;
+	if(return_code) { // error encountered
+		event::successors_on_error(
+			  successor_events // output
+			, ev
+			, return_code);
+	} else { // no error encountered
+		event::successors_on_no_error(
+			  successor_events // output
+			, ev);
+	}
+	// ------------ Release held atomics --------------
+	// put the released events as priority on the queue
+	std::vector<EventBasePtr> successor_events_released;
+	ev->release(successor_events_released);
+	for(int i = 0; i < (int)successor_events_released.size(); i++) {
+		if(event::acquire_guards(successor_events_released[i])) {
+			successor_events.push_back(successor_events_released[i]);
+		}
+	}
+
+	enqueue_list(successor_events); // no priority
 	_flow_node_working = NULL;
 }
 
@@ -540,7 +487,8 @@ RunTime::getPluginNames(std::vector<std::string> & result)
 } //namespace classic
 } //namespace runtime
 
-RunTimeBase * _create_classic_runtime(const RunTimeConfiguration &rtc)
+RunTimeBase * 
+_create_classic_runtime(const RunTimeConfiguration &rtc)
 {
         return new runtime::classic::RunTime(rtc);
 }

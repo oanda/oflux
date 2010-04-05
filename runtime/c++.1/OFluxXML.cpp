@@ -1,7 +1,11 @@
 #include <string.h>
 #include "OFluxXML.h"
 #include "OFluxFlow.h"
-#include "OFluxLibrary.h"
+#include "OFluxFlowNode.h"
+#include "OFluxFlowCase.h"
+#include "OFluxFlowGuard.h"
+#include "OFluxFlowLibrary.h"
+#include "OFluxFlowFunctions.h"
 #include "OFluxLogging.h"
 #include <vector>
 #include <set>

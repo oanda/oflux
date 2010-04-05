@@ -12,6 +12,9 @@
 
 #include "OFluxEventBase.h"
 #include "OFluxAtomicHolder.h"
+#include "OFluxIOConversion.h"
+#include "OFluxFlowNode.h"
+#include "OFluxFlowFunctions.h"
 
 namespace oflux {
 

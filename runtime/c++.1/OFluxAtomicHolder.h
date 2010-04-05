@@ -5,7 +5,7 @@
 #include <vector>
 #include <cassert>
 #include "OFluxAtomic.h"
-#include "OFluxFlow.h"
+#include "OFluxFlowGuard.h"
 
 
 
