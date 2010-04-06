@@ -887,14 +887,15 @@ let emit_atom_map_decl symtable code =
 	
 
 let emit_atom_map_map plugin_opt symtable code =
-	let e_one n gd code =
+	let e_map_decl_std n gd code =
                 if gd.gexternal then code
                 else
                 let clean_n = clean_dots n in
-                List.fold_left add_code code
-		((
+                add_code code
+		("static "^(
                 if gd.gtype = "pool" then
-                        ("oflux::AtomicPool "^clean_n^"_map;")
+                        ("oflux::AtomicPool "^clean_n^"_map; "
+			^clean_n^"_map_ptr = & "^clean_n^"_map;")
                 else
 		let atomic_class_str =
 			match gd.gtype with
@@ -904,7 +905,8 @@ let emit_atom_map_map plugin_opt symtable code =
 				| _ -> raise (CppGenFailure ("unsupported guard type "^gd.gtype))
 		in  (if 0 = (List.length gd.garguments) then
 			("oflux::AtomicMapTrivial<"
-				^atomic_class_str^"> "^clean_n^"_map;")
+				^atomic_class_str^"> "^clean_n^"_map; "
+				^clean_n^"_map_ptr = & "^clean_n^"_map;")
 		    else
                         let mappolicy =
                                 "oflux::"
@@ -914,19 +916,38 @@ let emit_atom_map_map plugin_opt symtable code =
                                 ^"MapPolicy<"^clean_n^"_key> "
                         in
 			("oflux::AtomicMapStdMap<"^mappolicy
-				^","^atomic_class_str^"> "^clean_n^"_map;")
-			))::[ "oflux::AtomicMapAbstract * "^clean_n
-                                ^"_map_ptr = &"^clean_n^"_map;" ])
+				^","^atomic_class_str^"> "^clean_n^"_map; "
+				^clean_n^"_map_ptr = & "^clean_n^"_map;"
+			))))
 		in
-	let e_two n gd codelist =
+	let e_map_ptrs n gd code =
+                if gd.gexternal then code
+                else
+                let clean_n = clean_dots n 
+		in  add_code code 
+			( "oflux::AtomicMapAbstract * "^clean_n
+                                ^"_map_ptr = NULL;" ) in
+	let e_map_entry n gd codelist =
                 let omit_emit = 
                         match plugin_opt with
                                 None -> false
                                 | (Some pn) -> not (string_has_prefix n (pn^".")) in
 		let clean_n = clean_dots n
-		in  if omit_emit then codelist else ("{ \""^n^"\", &"^clean_n^"_map }, ")::codelist in
-	let code = SymbolTable.fold_guards e_one symtable code in
-	let codelist = SymbolTable.fold_guards e_two symtable []
+		in  if omit_emit then codelist else ("{ \""^n^"\", &"^clean_n^"_map_ptr }, ")::codelist in
+	let code = SymbolTable.fold_guards e_map_ptrs symtable code in
+	let e_map_decl_maplist =
+		[ 1 , e_map_decl_std (* can add new stuff for these *)
+		(* ; 2, e_map_decl_lf *)
+		] in
+	let code = add_code code "void init_atomic_maps(int style) {" in
+	let ffun_map_decl code (i_style,fdecl) =
+		let code = add_code code 
+			("if(style =="^(string_of_int i_style)^") {") in
+		let code = SymbolTable.fold_guards fdecl symtable code
+		in  add_code code "}" in
+	let code = List.fold_left ffun_map_decl code e_map_decl_maplist in
+	let code = add_code code "}" in
+	let codelist = SymbolTable.fold_guards e_map_entry symtable []
 	in  List.fold_left add_code code 
 		( [ "oflux::AtomicMapMap __atomic_map_map[] = {"
 		  ]
@@ -1169,8 +1190,9 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
         in  code
 
 let emit_node_detail_defn plugin_opt is_concrete errorhandlers symtable code =
+        let is_abstract n = SymbolTable.is_abstract symtable n in
         let emit_for n =
-                (is_concrete n) &&
+                (is_concrete n) && (not (is_abstract n)) &&
                 (match plugin_opt with
                         None -> (not (has_dot n))
                         | (Some pn) -> string_has_prefix n (pn^".")
@@ -1317,12 +1339,13 @@ let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
                                         None -> nf
                                         | (Some pn) -> remove_prefix (pn^"::") nf)
 			in if (is_concrete n) && not (is_abstract n) then
-				let pre,basef =
+				(*let pre,basef =
 					match break_namespaced_name nfind with
 						(ns::base_nfind::[]) ->
 							((ns^"__"),base_nfind)
 						| _ -> ("",nfind)
-				in  add_code code ("{ \""^nfind
+				in*)  
+				add_code code ("{ \""^nfind
 					^"\", &oflux::create"
 					^(if is_eh n then "_error" else "")
                                         ^"<"^nfind^"Detail> },  ")
@@ -1520,6 +1543,7 @@ let emit_test_main code =
 		; "{"
 		; "assert(argc >= 2);"
 		; "#ifdef HASINIT"
+		; "ofluximpl::init_atomic_maps(1); // get guard maps"
 		; "init(argc-1,&(argv[1]));"
 		; "#endif //HASINIT"
 		; "static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
@@ -1535,6 +1559,7 @@ let emit_test_main code =
 		; ", \"xml\""
 		; ", \"lib\""
 		; ", NULL"
+		; ", ofluximpl::init_atomic_maps"
 		; "};"
 		; "theRT.reset(create_"
                   ^(CmdLine.get_runtime_engine())
@@ -1608,7 +1633,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		] in
 	let namespaceheader code = expand_namespace_decl_start code ns_broken in
 	let namespacefooter code = expand_namespace_decl_end code ns_broken in
-        let ffunmapname = "oflux::flow::FunctionMaps * flowfunctionmaps_"^file_suffix^"()" in
+        let ffunmapname = "oflux::flow::FunctionMaps * flowfunctionmaps_"^file_suffix^"(int style)" in
         let h_code = List.fold_left CodePrettyPrinter.add_code h_code
                 [ ""
                 ; "namespace oflux {"
@@ -1711,6 +1736,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
                   ; "     , "^pluginname^"::ofluximpl::__theGuardTransMap"
                   ; "     , "^pluginname^"::ofluximpl::__atomic_map_map"
                   ; "     , "^pluginname^"::ofluximpl::__ioconverter_map );"
+		  ; pluginname^"::ofluximpl::init_atomic_maps(style);"
                   ; "return &ffm;"
                   ; "}"
                   ; "}"

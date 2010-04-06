@@ -114,7 +114,7 @@ FunctionMaps::lookup_atomic_map(const char * guardname) const
         AtomicMapMap * ptr = _atom_map_map;
         while(ptr->guardname != NULL) {
                 if(strcmp(guardname, ptr->guardname) == 0) {
-                        res = ptr->amap;
+                        res = *(ptr->amap);
                         break;
                 }
                 ptr++;

@@ -38,6 +38,10 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 	, _thread_count(0) // will count the news
 	, _detached_count(0) 
 {
+	if(rtc.initAtomicMapsF) {
+		// create the AtomicMaps (guards)
+		(*(rtc.initAtomicMapsF))(atomics_style());
+	}
 	load_flow();
 	// init the shim
 	if(!RunTimeBase::initShim) {
@@ -133,7 +137,8 @@ RunTime::load_flow(
 		, pluginxmldir
 		, pluginlibdir
 		, initpluginparams
-		, this->flow());
+		, this->flow()
+		, atomics_style());
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
 	std::vector<EventBasePtr> events_vec;

@@ -207,7 +207,7 @@ struct GuardTransMap {
 
 struct AtomicMapMap {
 	const char * guardname;
-	AtomicMapAbstract * amap;
+	AtomicMapAbstract ** amap;
 };
 
 typedef void * (*FlatIOConversionFun)(const void *);

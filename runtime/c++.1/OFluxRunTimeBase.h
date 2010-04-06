@@ -33,6 +33,7 @@ struct RunTimeConfiguration {
 	const char * plugin_xml_dir;    // plugin xml directory
 	const char * plugin_lib_dir;    // plugin lib directory
 	void * init_plugin_params;
+	void (*initAtomicMapsF)(int);
 };
 
 typedef void (*initShimFnType) (RunTimeAbstract *);
@@ -60,6 +61,7 @@ public:
         void soft_kill() { _running = false; }
         virtual bool running() { return _running; }
         virtual void hard_kill() { soft_kill(); }
+	virtual int atomics_style() const { return 1; }
         virtual void log_snapshot() = 0;
         virtual void log_snapshot_guard(const char * guardname) = 0;
         virtual void getPluginNames(std::vector<std::string> & result) = 0;

@@ -38,6 +38,8 @@ private:
  * @param directory of the .so plugin files
  * @param plugin parameters data object
  * @param existing_flow that was loaded previously
+ * @param atomics_style indicates the rev. of the guard structures used by
+ *        this runtime
  * @returns a flow object
  **/
 flow::Flow *
@@ -46,7 +48,9 @@ read(     const char * filename
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
-	, const flow::Flow * existing_flow);
+	, const flow::Flow * existing_flow
+	, int atomics_style
+        );
 
 } // namespace xml
 } // namespace oflux

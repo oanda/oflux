@@ -344,11 +344,13 @@ public:
 		, const char * pluginxmldir
 		, const char * pluginlibdir
 		, void * initpluginparams
-		, const flow::Flow * existing_flow);
+		, const flow::Flow * existing_flow
+		, int atomics_style);
 
 	flow::Flow * read( const char * filename );
 
 	// internal stuff:
+	int style() const { return _atomics_style; }
 	void readPluginIfUnread(const char * plugin_name)
 	{
 		std::string depxml = _plugin_xml_dir;
@@ -460,6 +462,7 @@ private:
 	bool _allow_addition;
         std::vector<AddTarget> _add_targets;
         std::vector<SetErrorHandler> _set_error_handlers;
+	int _atomics_style;
 };
 
 
@@ -860,7 +863,7 @@ pc_add<flow::Node>(
 }
 
 extern "C" {
-typedef flow::FunctionMaps * FlowFunctionMapFunction ();
+typedef flow::FunctionMaps * FlowFunctionMapFunction (int style);
 }
 
 template<>
@@ -884,7 +887,7 @@ pc_add<flow::Library>(
 		msg += l->getName();
 		throw ReaderException(msg.c_str());
 	}
-	reader.addLibrary(l,(*ffmpfun)());
+	reader.addLibrary(l,(*ffmpfun)(reader.style()));
 }
 
 template<>
@@ -1121,13 +1124,15 @@ Reader::Reader(
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
-	, const flow::Flow * existing_flow)
+	, const flow::Flow * existing_flow
+	, int atomics_style)
 	: _plugin_lib_dir(pluginlibdir ? pluginlibdir : Reader::currentDir)
 	, _plugin_xml_dir(pluginxmldir ? pluginxmldir : Reader::currentDir)
 	, _init_plugin_params(initpluginparams)
 	, _existing_flow(existing_flow)
 	, _reader_state(NULL)
 	, _allow_addition(true)
+	, _atomics_style(atomics_style)
 {
 	std::vector<std::string> emptyvec;
 	_scoped_fmaps.add("",fmaps,emptyvec);
@@ -1312,13 +1317,15 @@ read(     const char * filename
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
-	, const flow::Flow * existing_flow)
+	, const flow::Flow * existing_flow
+	, int atomics_style)
 {
         Reader reader(    fmaps
 			, pluginxmldir
 			, pluginlibdir
 			, initpluginparams
-			, existing_flow);
+			, existing_flow
+			, atomics_style);
 	return reader.read(filename);
 }
 
