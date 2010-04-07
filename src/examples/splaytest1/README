@@ -1,0 +1,3 @@
+Splaying is the capability to push multiple outputs (more than the usual 1)
+for a particular node.  This is nice if the event that is executing is giving
+rise to N > 1 events each with their own data.

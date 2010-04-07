@@ -1,0 +1,4 @@
+This is a simple webserver.
+It demonstrates the concept of a small server that runs using oflux.
+The app code (C++) is mostly unadulterated (bugfixes mainly) from the original
+flux-classic webserver example.

@@ -29,14 +29,11 @@ DEBUG_FLAGS := -ggdb
 WARN_FLAGS = -Wall
 
 BASECXXFLAGS = -MMD -MF "$(@F:.o=.depend)"
-OFLUX_RUNTIME = $(SRCDIR)/runtime/c++.1
+OFLUX_RUNTIME = $(SRCDIR)/src/runtime
 
 INCS = \
     -I$(BOOSTDIR) \
     -I/oanda/system/include \
-    -I$(SRCDIR)/private_include \
-    -I$(SRCDIR)/include \
-    -I$(SRCDIR)/src \
     -I$(OFLUX_RUNTIME) \
     -I.
 

@@ -1,0 +1,8 @@
+As of the time of this checkin this test has an issue.
+The node NS will not be run.  It seems that if you
+have an indexed guard with at least 5 elements and one
+node attempts to take this guard more than once with
+different index values it hangs.  Looking at the 
+.xml file the same guardref gets generated for both
+guard instances and I think it hangs trying to acquire
+that "same" guard a second time.

@@ -15,11 +15,11 @@ TEST_F(OFluxEventTests,Execute1) {
         CreateNodeFn createfn_source = n_source.getCreateFn();
         CreateNodeFn createfn_succ = n_succ.getCreateFn();
         CreateNodeFn createfn_next = n_next.getCreateFn();
-        boost::shared_ptr<EventBase> ev_source =
+        EventBasePtr ev_source =
                 (*createfn_source)(EventBase::no_event,NULL,&n_source);
-        boost::shared_ptr<EventBase> ev_succ =
+        EventBasePtr ev_succ =
                 (*createfn_succ)(ev_source,NULL,&n_succ);
-        boost::shared_ptr<EventBase> ev_next =
+        EventBasePtr ev_next =
                 (*createfn_next)(ev_succ,NULL,&n_next);
         g_out1.x = 999;
         g_out1.y = -999;

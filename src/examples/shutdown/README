@@ -1,0 +1,3 @@
+This example shows how to walk a guard on shut down (the return
+from the runtime start() function), to systematically free any
+resources or memory that are in use.

@@ -1,0 +1,18 @@
+This example demonstrates the use of the oflux module system.
+It allows for:
+
+* modules that use others (BMod uses CMod)
+
+* guards that are unified across modules into one in the program 
+  (see the CMod instance)
+
+* libraries (.a s) are the compilation targets so that we can build with
+  C++ in the usual/normal way (efficiently).
+
+* each module's code lives in a namespace of the very same name (AMod's
+  code is in the AMod namespace)
+
+* abstract nodes are explicitly declarable to allow you to hook into 
+  a module's unimplemented node.
+
+* such hooks can be ignored with the terminate command.

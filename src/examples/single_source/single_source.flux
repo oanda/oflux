@@ -1,0 +1,2 @@
+node Start () => ();
+source Start;

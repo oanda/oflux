@@ -1,0 +1,7 @@
+demonstrates how to take the runtime down when there is a
+possibility that some nodes are doing un-timed-out blocking
+system calls (needing to be 'killed' effectively)
+
+$ kill -INT `pgrep bigsleep | tail -1`
+
+is the interesting thing

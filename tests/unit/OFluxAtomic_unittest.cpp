@@ -4,7 +4,7 @@ using namespace oflux;
 
 class OFluxAtomicTests : public OFluxCommonEventTests {
 public:
-	OFluxAtomicTests(Atomic *);
+	OFluxAtomicTests(atomic::Atomic *);
         virtual ~OFluxAtomicTests() {}
 	virtual void SetUp() {}
 	virtual void TearDown() {}
@@ -15,7 +15,7 @@ public:
         CreateNodeFn createfn_succ;
         CreateNodeFn createfn_next;
 
-        Atomic * _atomic_ptr;
+        atomic::Atomic * _atomic_ptr;
 };
 
 void OFluxAtomicTests::checkRelease(boost::shared_ptr<EventBase> & ev)
@@ -28,7 +28,7 @@ void OFluxAtomicTests::checkRelease(boost::shared_ptr<EventBase> & ev)
 }
 
 
-OFluxAtomicTests::OFluxAtomicTests(Atomic * aptr)
+OFluxAtomicTests::OFluxAtomicTests(atomic::Atomic * aptr)
 	: _atomic_ptr(aptr)
 {
         createfn_source = n_source.getCreateFn();
@@ -45,11 +45,11 @@ public:
                 {}
 
         int data_;
-        AtomicExclusive atom;
+        atomic::AtomicExclusive atom;
         static const int excl;
 };
 
-const int OFluxAtomicExclusiveTests::excl = AtomicExclusive::Exclusive;
+const int OFluxAtomicExclusiveTests::excl = atomic::AtomicExclusive::Exclusive;
 
 TEST_F(OFluxAtomicExclusiveTests,ThreeEventsDrain) {
         boost::shared_ptr<EventBase> ev_source =
@@ -91,19 +91,19 @@ public:
                 {}
 
         int data_;
-        AtomicReadWrite atom;
+        atomic::AtomicReadWrite atom;
         static const int read;
         static const int write;
 };
 
-const int OFluxAtomicReadWriteTests::read = AtomicReadWrite::Read;
-const int OFluxAtomicReadWriteTests::write = AtomicReadWrite::Write;
+const int OFluxAtomicReadWriteTests::read = atomic::AtomicReadWrite::Read;
+const int OFluxAtomicReadWriteTests::write = atomic::AtomicReadWrite::Write;
 
 TEST_F(OFluxAtomicReadWriteTests,TwoReadThenOneWrite1) {
-        boost::shared_ptr<EventBase> ev_nothing;
-        boost::shared_ptr<EventBase> ev_any_reader =
+        EventBasePtr ev_nothing;
+        EventBasePtr ev_any_reader =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        boost::shared_ptr<EventBase> ev_writer =
+        EventBasePtr ev_writer =
                 (*createfn_source)(EventBase::no_event,NULL,&n_source);
 
         // 2 readers added:
@@ -133,10 +133,10 @@ TEST_F(OFluxAtomicReadWriteTests,TwoReadThenOneWrite1) {
 }
 
 TEST_F(OFluxAtomicReadWriteTests,ReadWriteRead1) {
-        boost::shared_ptr<EventBase> ev_nothing;
-        boost::shared_ptr<EventBase> ev_reader =
+        EventBasePtr ev_nothing;
+        EventBasePtr ev_reader =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        boost::shared_ptr<EventBase> ev_writer =
+        EventBasePtr ev_writer =
                 (*createfn_source)(EventBase::no_event,NULL,&n_source);
 
         // 1 readers added:
@@ -175,10 +175,10 @@ TEST_F(OFluxAtomicReadWriteTests,ReadWriteRead1) {
 }
 
 TEST_F(OFluxAtomicReadWriteTests,WriteReadRead1) {
-        boost::shared_ptr<EventBase> ev_nothing;
-        boost::shared_ptr<EventBase> ev_reader1 =
+        EventBasePtr ev_nothing;
+        EventBasePtr ev_reader1 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        boost::shared_ptr<EventBase> ev_reader2 =
+        EventBasePtr ev_reader2 =
                 (*createfn_source)(EventBase::no_event,NULL,&n_source);
 
         // 1 writer added:
@@ -244,16 +244,16 @@ public:
 
         int data1_;
         int data2_;
-        Atomic *atom1;
-        Atomic *atom2;
-        AtomicPool pool;
+        atomic::Atomic *atom1;
+        atomic::Atomic *atom2;
+        atomic::AtomicPool pool;
         static const int pl;
 };
 
 class AcquirePoolItem {
 public:
-        AcquirePoolItem(AtomicPool & pool
-                , boost::shared_ptr<EventBase> & ev
+        AcquirePoolItem(atomic::AtomicPool & pool
+                , EventBasePtr & ev
                 , int expect_data)
         {
                 pool.get(a,NULL);
@@ -286,7 +286,7 @@ public:
                 return res;
         }
 
-        Atomic * a;
+        atomic::Atomic * a;
         bool have;
         bool was_held;
 };
@@ -294,12 +294,12 @@ public:
 const int OFluxAtomicPooledTests::pl = 0; // don't care really
 
 TEST_F(OFluxAtomicPooledTests,Simple1) {
-        boost::shared_ptr<EventBase> ev_nothing;
-        boost::shared_ptr<EventBase> ev1 =
+        EventBasePtr ev_nothing;
+        EventBasePtr ev1 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        boost::shared_ptr<EventBase> ev2 =
+        EventBasePtr ev2 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        boost::shared_ptr<EventBase> ev3 =
+        EventBasePtr ev3 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
 
         // initialize pool with 2 things

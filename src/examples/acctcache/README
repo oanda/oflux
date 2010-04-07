@@ -1,0 +1,8 @@
+Demonstrates the guard concept at a very basic level.
+The main/initial idea of guards is to be able to associate data with
+keys in a way that allows for lots of concurrency (no locking on a big
+container).  
+
+This (reasonably contrived) example shows how a cache of account information
+might work.
+

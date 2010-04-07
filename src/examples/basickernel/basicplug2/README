@@ -1,0 +1,6 @@
+This plugin just defines an input hook that takes an integer.
+
+The interesting thing about it is that it uses B2 in an I/O-conversion
+necessary position.  The B2 type will expect (assert otherwise) to only 
+pass NULLs.  This will catch a mistake in the I/O conversion if a
+similar one frmo another plugin is used (by mistake).

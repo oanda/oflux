@@ -1,0 +1,12 @@
+This example was motivated by a bug discovered in boxs plugins.
+Essentially the XML loader at the time was pushing function-maps (which 
+hold I/O conversion function pointers ---among other things) into a vector
+(used as a stack).  The problem was that two plugins P1 and P2
+which only depend on the kernel might define (in their own namespaces)
+OFluxUnion(X+1) etc (the kernal having defined from 1 to X).
+This capture between the two plugins (which _should_ be independently buildable), was making the load of the XML files fail: an I/O conversion of P1 
+got used in both P1 and P2 (erroneously).
+
+The datastructure used to maintain the function-maps was changed to be 
+traversed only in USES-order (so you do not look at the function-maps of
+plugins that you do not use!

@@ -1,0 +1,6 @@
+This example demonstrates oflux-level (i.e. the oflux language) concurrency.
+If you want a node output to be processed by more than one successor node:
+
+ handleNext = handleNext1 & handleNext2;
+
+So handleNext is abstract, and handleNext1 and handleNext2 are both successors.

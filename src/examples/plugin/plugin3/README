@@ -1,0 +1,6 @@
+plugin3 onto the kernalex flow
+
+This plugin demonstrates how to plugin to another plugin.  
+To do this properly the OFlux runtime needs to resolve the order
+of plugin dependencies (loading the plugins in the proper order).
+

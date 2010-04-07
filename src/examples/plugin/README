@@ -1,0 +1,9 @@
+Example kernal flow.
+
+There is a RequestSrc source node which leads into a HandleRequest abstract node.  In turn that node leads to a default concrete Execute node.  That leads to a finalizing Sink node.
+
+Each plugin is presented individually as an "edit" onto the kernal or a previous (dependent) plugin.  At load time the dependencies are resolved and the overall flow is constructed.
+
+Important:  The point of using plugins is that they are 
+independent build artifacts from the central (e.g. kernal) flow.
+This has all kinds of advantages (build independence between unrelated plugins) and packaging of the overall product into a kernal + series of plugin features.

@@ -1,0 +1,3 @@
+Demonstrates a basic error handler.
+The error handler flows to other things (so it is not a terminating
+node).

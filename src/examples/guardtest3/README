@@ -1,0 +1,3 @@
+This test came from J Borg.  It covers the case where
+the same exclusive guard is grabbed at different key values in the
+same node.

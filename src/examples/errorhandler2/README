@@ -1,0 +1,3 @@
+Demonstrates the use of an error handler that requires 
+I/O conversion.  I/O conversion is the feature where operands
+get dropped (via copying) to translate I/O data between nodes.

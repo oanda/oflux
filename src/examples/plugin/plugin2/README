@@ -1,0 +1,4 @@
+plugin2 onto the kernalex example
+
+This is another example plugin which is a bit simpler than plugin1 and it goes in next 
+to any other plugin that might be hooking into abstract node 

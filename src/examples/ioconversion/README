@@ -1,0 +1,6 @@
+This example was used to test the initial implementation
+of I/O conversion.  
+
+I/O conversion happens when there is a node successor/predecessor pair:
+A -> B where A_out has more 'stuff' that the B_in.  This feature makes
+the creation and maintenance of modules easier.

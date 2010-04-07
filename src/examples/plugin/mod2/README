@@ -1,0 +1,2 @@
+This example is a module that is instantiated inside of an external plugin.
+It demonstrates the use of a module inside a plugin.

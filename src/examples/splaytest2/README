@@ -1,0 +1,11 @@
+This test as it stands for the oflux revision it's being checked
+into shows a bug.  It passes a shared pointer from the source
+node to the sucessor NS.  When there is an i/o mismatch, ie. an
+extra output parameter from the source node that the NS
+node isn't specifying in its input node argument list then
+an extra copy of the shared pointer is created and it seems
+it never goes away as the memory the shared_ptr is holding
+never gets deleted.
+
+If you then add int bar to the NS node arguments the bug
+goes away and things work as expected.

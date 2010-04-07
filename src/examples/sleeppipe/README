@@ -1,0 +1,12 @@
+This example shows a flow with highly non-uniform blocking and compute
+behaviour.  It is meant to showcase the idea of detaching nodes and the 
+tradeoffs of this feature. 
+
+The Fibonacci node is highly compute intensive, but also completely without
+side-effect (need for global resources).  Detaching it makes the CPUs work
+harder since more compute jobs are dispatched.
+
+The Sleep node is just a big blocking call.  Detaching it causes more of these 
+nodes to run, but their effect is pretty neglible.
+
+Please do mess with the detached states of the nodes and even try to introduce splaying -- for fun (and learning).

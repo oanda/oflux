@@ -1,0 +1,8 @@
+<plugin name="Plugin2" file="libPlugin2.so">
+    <branch externalnode="Execute">
+        <condition name="IsPlugin2" argno="1" isnegated="false" unionnumber="5?"/>
+        <node name="ExecutePlugin2" function="ExecutePlugin2" virtual="false" source="false" iserrhandler="false" detached="false">
+            <sucessorlist/>
+        </node>
+    </branch>
+</plugin> 

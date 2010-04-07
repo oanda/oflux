@@ -1,0 +1,3 @@
+Demonstrates the use of several guards and the use of a guard populator.
+Also shows how you can reuse (literally) a node function for another node
+code.

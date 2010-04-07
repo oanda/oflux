@@ -1,0 +1,6 @@
+A free guard is one that has no synchronization rules (like mutual
+exclusion).  Such a guard must be handled with great care.
+It should not be asked to grow with new (key,value) pairs once the
+runtime is started.  In addition concurrent access of any
+existing (key,value) pair should be made safe by external means (lock-free
+or other techniques).

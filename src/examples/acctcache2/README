@@ -1,0 +1,3 @@
+Demonstrates the unordered guard modifier.
+This is used to override the guard map implementation which is usually
+std::map, and make it (instead) tr1::unordered_map

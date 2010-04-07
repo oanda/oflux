@@ -1,0 +1,5 @@
+A plugin for the kernalex example.
+
+If the <b>pcond</b> condition holds then the new plugged-in flow is used as the successor of concrete node <b>RequestSrc</b> from the kernal.
+This condition could be picking out values in an incoming message to implement 
+a new request type (for instance).

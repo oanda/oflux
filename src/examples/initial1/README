@@ -1,0 +1,1 @@
+This example demonstrates the initial node type which: runs once and its is scheduled into the event FIFO before the sources.

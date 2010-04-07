@@ -1,0 +1,38 @@
+Initially this looked to be an oflux issue, this is a  small test I used
+to reproduce a problem I was seeing in torrid.  Turns out however that
+the "issue" is not actually an issue and is more of a lesson in using
+the same guard in a source node and its successor.
+
+What happens is the following.  Normally node S (a source node) sleeps 
+for 5s and then when it wakes up allows NS to run, then S runs again
+and goes back to sleep.  However, NS takes guard Ga, that S also takes,
+but it also takes Gb, and the precedence rule states that Gb must
+always be taken before Ga, so NS can't inherit Ga from S.
+
+Here is the scenario now:
+
+1) NS must drop Ga it inherits from S
+
+2) NS attempts to take Gb
+
+3) NR happens to be running and holding Gb, so NS is made to wait
+
+4) S gets to run again, takes Ga and goes to sleep
+
+5) NR releases Gb
+
+6) NS acquires Gb
+
+7) NS attempts to acquire Ga, however S is holding Ga and is asleep
+   so NS must now wait for S to wakeup and release Ga.
+
+8) All NR instances start queueing up blocking on Gb since NS is
+   holding it waiting for S to wakeup
+
+Once this state hits once it will always happen that Gb gets held
+like this for the duration of S's sleep time, adding a delay
+to all users of Gb forever after.
+
+The fix to avoid this condition is to set the precedence rule
+to make Ga < Gb, this way NS doesn't have to drop Ga before
+acquiring Gb.

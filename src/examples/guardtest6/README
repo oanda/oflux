@@ -1,0 +1,3 @@
+This example was contributed by Jason B.  It was used to demonstrate
+a bug in the synchronization of read/write guards.  The asserts would
+catch the program in 'the act' of violating its synchronization rules.

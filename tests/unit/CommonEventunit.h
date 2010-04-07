@@ -1,14 +1,14 @@
 #ifndef COMMONEVENTUNIT_H
 #define COMMONEVENTUNIT_H
 
-#include "OFluxEvent.h"
-#include "OFluxFlow.h"
+#include "event/OFluxEvent.h"
+#include "flow/OFluxFlow.h"
 #include <gtest/gtest.h>
 
 
 class AtomsEmpty {
 public:
-        void fill(oflux::AtomicsHolder * ah) {}
+        void fill(oflux::atomic::AtomicsHolder * ah) {}
 };
 
 class Empty : public oflux::BaseOutputStruct<Empty> { 

@@ -1,0 +1,12 @@
+This example demonstrates guard chaining: this is the feature where
+the content of one guard is used to grab a second guard.  This can be
+done a number of times in a single node.  Prior to this feature
+the guards had to be grabbed one at a time with exposure of the
+values to the flow.
+
+Gotchas: 
+1. the first guard data result is NULL; in this case the second
+guard is not grabbed at all (have_<g>() == false).
+2. having one guard's data used to grab another implies a precedence
+  between those guards -- circular dependencies make the xml unloadable
+  by the runtime.  Another reason to have a load_test in your build.

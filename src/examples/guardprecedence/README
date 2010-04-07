@@ -1,0 +1,4 @@
+Demonstrates the use of guard precedence statements.
+
+These are used to specify the order in which guards are acquired 
+before a node event is executed.
