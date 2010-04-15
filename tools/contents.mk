@@ -68,7 +68,7 @@ oflux.$(LIBRARYEXT): $(CODE)
 	$(OCAMLCOMPILER) -a $(COMPILED_CODE) -o $@
 
 OFLUX_VERS_READ:=$(shell test -r $(CURDIR)/vers.ml && grep "^\"" $(CURDIR)/vers.ml | sed s/\"//g)
-OFLUX_VERS_EXISTING:=$(shell cd $(OFLUX_COMPONENT_DIR); git describe --tags; cd $(CURDIR))
+OFLUX_VERS_EXISTING:=$(shell cd $(OFLUX_COMPONENT_DIR); git describe --tags --match 'v*'; cd $(CURDIR))
 
 ifeq ($(OFLUX_VERS_READ),$(OFLUX_VERS_EXISTING))
   VERSDEPEND=
@@ -79,7 +79,7 @@ endif
 FORCE:
 
 vers.ml: $(VERSDEPEND) 
-	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; cd $(OFLUX_COMPONENT_DIR); echo "\""`git describe --tags`"\""; echo ""; cd $(CURDIR)) > vers.ml
+	(echo "(* auto-generated - do not modify*)"; echo ""; echo "let vers= "; cd $(OFLUX_COMPONENT_DIR); echo "\""`git describe --tags --match 'v*'`"\""; echo ""; cd $(CURDIR)) > vers.ml
 
 # Hack to work around ocamlyacc's limitation of putting results in the
 # same dir as source.
