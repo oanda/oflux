@@ -327,7 +327,7 @@ let emit_program_xml' programname br usesmodel =
                         in  find 1 is 
                 with Not_found -> j
                 in
-	let rec gen_cond t_u_n u_n i ccond =
+	let rec gen_cond' t_u_n u_n i ccond =
 		match ccond with
 			(h::t) ->
 				(List.map (fun (s,neg) -> 
@@ -336,8 +336,10 @@ let emit_program_xml' programname br usesmodel =
                                                 in  string_of_int i) 
                                                 (if neg then "true" else "false")
                                                 (string_of_int u_n)) h)
-				@ (gen_cond t_u_n u_n (i+1) t)
+				@ (gen_cond' t_u_n u_n (i+1) t)
 			| _ -> [] in
+	let gen_cond t_u_n u_n i ccond =
+		List.rev (gen_cond' t_u_n u_n i ccond) in
 	(*let rec prod f ll1 ll2 =
 		match ll2 with
 			(h::t) -> (List.map (fun x -> f x h) ll1)
