@@ -180,8 +180,7 @@ void RunTime::start()
 		// sending SIGINTs to stuck threads 
 		_thread_list.fold(&kill_count,__fold_pthread_kill_int);
         }
-        remove(rtt);
-        delete rtt;
+
         deinit_eminfo();
         oflux_log_info("RunTime::start() returning....\n");
 }
@@ -346,6 +345,10 @@ void RunTimeThread::start()
 			_rt->_waiting_to_run.signal();
 			ev.reset();
 			wait_in_pool();
+
+			if (!_system_running || _request_death) {
+				break;
+			}
 		}
 		if(_rt->_queue.pop(ev)) {
 			handle(ev);
