@@ -175,11 +175,15 @@ void RunTime::start()
 	rtt->start();
 	// shutdown phase
         while(_thread_count> 0) {
-                AutoLock al(&_manager_lock);
-		int kill_count = 0;
-		// sending SIGINTs to stuck threads 
-		_thread_list.fold(&kill_count,__fold_pthread_kill_int);
-        }
+		{
+			AutoLock al(&_manager_lock);
+			int kill_count = 0;
+			// sending SIGINTs to stuck threads
+			_thread_list.fold(&kill_count,__fold_pthread_kill_int);
+		}
+
+		sched_yield();
+	}
 
         deinit_eminfo();
         oflux_log_info("RunTime::start() returning....\n");
