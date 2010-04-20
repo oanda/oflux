@@ -6,6 +6,7 @@
 #include <cassert>
 #include "atomic/OFluxAtomic.h"
 #include "flow/OFluxFlowGuard.h"
+#include "OFluxLibDTrace.h"
 
 
 
@@ -118,11 +119,22 @@ public:
 	 * @brief attempt to acquire the atomic (will succeed if no other has it)
 	 * @return true if the atomic is now held
 	 */
-	inline bool acquire() 
+	inline bool acquire_or_wait(EventBasePtr & ev,const char * ev_name)
 	{
 		assert(_key);
 		assert(_atom);
-		_haveit = _atom->acquire(_flow_guard_ref->wtype());
+		_haveit = _atom->acquire_or_wait(ev,_flow_guard_ref->wtype());
+		if(_haveit) {
+			_GUARD_ACQUIRE(
+				  flow_guard_ref()->getName().c_str()
+				, ev_name
+				, 0); 
+		} else {
+			_GUARD_WAIT(
+				  flow_guard_ref()->getName().c_str()
+				, ev_name
+				, wtype); 
+		}
 		return _haveit;
 	}
 	//inline const void * key() { return _key; }
@@ -168,18 +180,21 @@ public:
 	void add(flow::GuardReference * fg);
 	/**
 	 * @brief given a bunch of held atomics and a node input try to acquire (in order) what you need.
-	 * @remark returns -1 on sucess, otherwise the index where the atomic acquisition failed.
-	 * @return -1 if we succeed
+	 * @remark returns true on sucess
+	 * @param ev that gets 'waited' onto a queue if waiting is necessary
+	 * @param given_atomics (available to be captured
+	 * @return true if we succeed in acquiring all that is needed
 	 */
-	int acquire(
-		  AtomicsHolder & given_atomics
-		, const void * node_in
-		, const char * on_behalf_of_event_name );
+	int acquire_all_or_wait(
+		  EventBasePtr & ev
+		, AtomicsHolder & given_atomics = empty_ah);
 	/**
 	 * @brief release all the underlying atomics
 	 * @param released_events an output vector of events that have been waiting on the freed stuff
 	 */
-	void release(std::vector<EventBasePtr> & released_events);
+	void release(
+		  std::vector<EventBasePtr> & released_events
+		, EventBasePtr & by_ev);
 	/**
 	 * @return the number of atomics held (only some of them are acquired)
 	 */

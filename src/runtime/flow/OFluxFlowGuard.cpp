@@ -23,8 +23,11 @@ Guard::drain()
         boost::shared_ptr<atomic::AtomicMapWalker> walker(_amap->walker());
         const void * v = NULL;
         atomic::Atomic * a = NULL;
+	EventBasePtr nullPtr; 
+		// don't have the original events
+		// Atomic::release needs to handle by_ev == NULL
         while(walker->next(v,a)) {
-                a->release(rel_vector);
+                a->release(rel_vector,nullPtr);
         }
 }
 

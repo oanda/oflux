@@ -50,21 +50,22 @@ public:
 	*/
 	virtual int held() const = 0;
 	/**
-	* @brief attempt to aquire the atomic (will succeed if it is not already held)
-	* @return true if we have succeeded in obtaining the atomic
-	*/
-	virtual int acquire(int) = 0;
-	/**
 	* @brief release the atomic (should be done by the holder)
-	* @return a (shared) pointer to the "next" event to get the atomic
+	* @param rel_ev container for waiters released to run (or acquire more)
+	* @param by_ev is the event that is causing the release
 	* If no event was in the waiting list, then the returned value is NULL
 	*/
-	virtual void release(std::vector<EventBasePtr > & rel_ev ) = 0;
+	virtual void release(std::vector<EventBasePtr> & rel_ev
+		, EventBasePtr & by_ev) = 0;
 	/**
-	* @brief add an event the waiting list of this atomic
-	* It is assumed that the atomic is held by another event
+	* @brief Either acquire it or add an event the waiting list of 
+	* this atomic.
+	* Acquisition fails when the atomic is held by another event.
+	* @param ev event which would wait on failure
+	* @param wtype mode of the acquire
+	* @return 
 	*/
-	virtual void wait(EventBasePtr & ev,int) = 0;
+	virtual bool acquire_or_wait(EventBasePtr & ev,int wtype) = 0;
 	/**
 	* @brief obtain the size of the waiting list
 	* @return the number of events in the waiting list
@@ -92,10 +93,11 @@ public:
 	virtual ~AtomicFree() {}
 	virtual void ** data() { return &_data_ptr; }
 	virtual int held() const { return 1; } // always available
-	virtual int acquire(int) { return 1; } // always acquire
-	virtual void release(std::vector<EventBasePtr > & ) {}
-	virtual void wait(EventBasePtr &,int ) 
-	{ assert( NULL && "AtomicFree should never wait"); }
+	virtual void release(std::vector<EventBasePtr > & 
+		, EventBasePtr &) 
+	{}
+	virtual bool acquire_or_wait(EventBasePtr &,int ) 
+	{ return 1; }
 	virtual int waiter_count() { return 0; }
 	virtual void relinquish() {}
 	virtual int wtype() const { return 0; }
@@ -151,13 +153,8 @@ public:
 		: AtomicCommon(data)
 	{}
 	virtual ~AtomicExclusive() {}
-	virtual int acquire(int)
-	{
-		bool res = !_held;
-		_held = 1;
-		return res;
-	}
-	virtual void release(std::vector<EventBasePtr > & rel_ev )
+	virtual void release(std::vector<EventBasePtr > & rel_ev
+		, EventBasePtr &)
 	{
 		_held = 0;
 		if(_waiters.size()) {
@@ -165,10 +162,15 @@ public:
 			_waiters.pop_front();
 		}
 	}
-	virtual void wait(EventBasePtr & ev, int)
+	virtual bool acquire_or_wait(EventBasePtr & ev, int)
 	{
-		AtomicQueueEntry aqe(ev,Exclusive);
-		_waiters.push_back(aqe);
+		bool res = !_held;
+		_held = 1;
+		if(!res) {
+			AtomicQueueEntry aqe(ev,Exclusive);
+			_waiters.push_back(aqe);
+		}
+		return res;
 	}
 	virtual int wtype() const { return 3; }
 	virtual const char * atomic_class() const { return "Exclusive"; }
@@ -182,29 +184,8 @@ public:
 		, _mode(AtomicCommon::None)
 		{}
 	virtual ~AtomicReadWrite() {}
-	virtual int acquire(int wtype)
-	{
-                int res = 0;
-                //oflux_log_debug(" acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
-                        //, wtype
-                        //, _held
-                        //, _mode
-                        //, _waiters.size());
-		if(_held == 0) {
-			_held = 1;
-			_mode = wtype;
-			res = 1;
-		} else if(wtype == Read && _mode == Read && _waiters.size() == 0) {
-			_held++;
-			res = 1;
-		}
-                //oflux_log_debug(" acquire() finished held:%d mode:%d res:%d\n"
-                        //, _held
-                        //, _mode
-                        //, res);
-		return res;
-	}
-	virtual void release(std::vector<EventBasePtr > & rel_ev)
+	virtual void release(std::vector<EventBasePtr > & rel_ev
+		, EventBasePtr &)
 	{
                 //oflux_log_debug(" release() called held:%d mode:%d waiters:%d\n"
                         //, _held
@@ -231,15 +212,36 @@ public:
                         //, _mode
                         //, rel_ev.size());
 	}
-	virtual void wait(EventBasePtr & ev, int wtype)
+	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
+                int res = 0;
+                //oflux_log_debug(" acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
+                        //, wtype
+                        //, _held
+                        //, _mode
+                        //, _waiters.size());
+		if(_held == 0) {
+			_held = 1;
+			_mode = wtype;
+			res = 1;
+		} else if(wtype == Read && _mode == Read && _waiters.size() == 0) {
+			_held++;
+			res = 1;
+		}
+                //oflux_log_debug(" acquire() finished held:%d mode:%d res:%d\n"
+                        //, _held
+                        //, _mode
+                        //, res);
                 //oflux_log_debug(" wait() called wtype:%d held:%d mode:%d waiters:%d\n"
                         //, wtype
                         //, _held
                         //, _mode
                         //, _waiters.size());
-		AtomicQueueEntry aqe(ev,wtype);
-		_waiters.push_back(aqe);
+		if(!res) {
+			AtomicQueueEntry aqe(ev,wtype);
+			_waiters.push_back(aqe);
+		}
+		return res;
 	}
 	virtual int wtype() const { return _mode; }
 	virtual const char * atomic_class() const { return "ReadWrite"; }
@@ -357,12 +359,8 @@ public:
 	virtual void ** data() { return &_data; }
 	virtual int held() const { return _data != NULL; }
 	virtual int waiter_count() { return _pool.waiter_count(); }
-	virtual int acquire(int)
-	{
-		_data = _pool.get_data();
-		return _data != NULL;
-	}
-	virtual void release(std::vector<EventBasePtr > & rel_ev)
+	virtual void release(std::vector<EventBasePtr > & rel_ev
+		, EventBasePtr &)
 	{
 		if(_data) {
                         _pool.put_data(_data);
@@ -373,8 +371,15 @@ public:
 		_data = NULL;
 		_pool.put(this);
 	}
-	virtual void wait(EventBasePtr & ev, int)
-	{ _pool.put_waiter(ev); }
+	virtual bool acquire_or_wait(EventBasePtr & ev, int)
+	{ 
+		_data = _pool.get_data();
+		bool res = (_data != NULL);
+		if(!res) {
+			_pool.put_waiter(ev); 
+		}
+		return res;
+	}
 	virtual void * new_key() const { return NULL; }
 	virtual void delete_key(void *) const {}
 	virtual void relinquish()

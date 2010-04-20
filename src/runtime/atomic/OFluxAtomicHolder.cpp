@@ -1,5 +1,6 @@
 #include "atomic/OFluxAtomicHolder.h"
 #include "event/OFluxEventBase.h"
+#include "flow/OFluxFlowNode.h"
 #include <cassert>
 #include <stdlib.h>
 #include "OFluxLibDTrace.h"
@@ -82,24 +83,32 @@ AtomicsHolder::get_keys_sort(const void * node_in)
 }
 
 int 
-AtomicsHolder::acquire(
-	  AtomicsHolder & given_atomics
-	, const void * node_in
-	, const char * for_event_name)
+AtomicsHolder::acquire_all_or_wait(
+	  EventBasePtr & ev
+	, AtomicsHolder & given_atomics)
+	  //AtomicsHolder & given_atomics
+	//, const void * node_in
+	//, const char * for_event_name)
 {
+	EventBase * ev_bptr = ev.get();
+	const char * ev_name = ev_bptr->flow_node()->getName();
+	_NODE_ACQUIREGUARDS(
+		  static_cast<void *>(ev_bptr);
+		, ev_name);
+	const void * node_in = ev_bptr->input_type();
 	if(!_is_sorted_and_keyed) {
 		get_keys_sort(node_in);
 	}
 	assert(given_atomics._is_sorted_and_keyed
 		|| given_atomics._number == 0);
 
-	int result = -1;
+	int blocking_index = -1;
 	HeldAtomic * given_ha = NULL;
 	HeldAtomic * my_ha = NULL;
 	AtomicsHolderTraversal given_aht(given_atomics);
 	AtomicsHolderTraversal my_aht(*this,_working_on);
 	bool more_given = given_aht.next(given_ha);
-	while(result == -1 && my_aht.next(my_ha)) {
+	while(blocking_index == -1 && my_aht.next(my_ha)) {
 		my_ha->build(node_in,this,true);
 		while(more_given 
                                 && (!given_ha->haveit() 
@@ -115,26 +124,30 @@ AtomicsHolder::acquire(
 			my_ha->takeit(*given_ha);
 			_GUARD_ACQUIRE(
 				  my_ha->flow_guard_ref()->getName().c_str()
-				, for_event_name
+				, ev_name
 				, 1);
 		} else {
-			if(!my_ha->acquire()) {
-				result = my_aht.index()-1; // next-1
-			} else {
-				_GUARD_ACQUIRE(
-					  my_ha->flow_guard_ref()->getName().c_str()
-					, for_event_name
-					, 0);
+			if(!my_ha->acquire_or_wait(ev,ev_name)) {
+				// event is now queued
+				// for waiting
+				blocking_index = my_aht.index()-1; // next-1
 			}
 		}
 	}
-        _working_on = std::max(result,_working_on);
-	return result;
+        _working_on = std::max(blocking_index,_working_on);
+	if(blocking_index == -1) {
+		_NODE_HAVEALLGUARDS(
+			  static_cast<void *>(ev_bptr)
+			, ev_name);
+	}
+	return blocking_index == -1;
+	// return true when all guards are acquired
 }
 
 void 
 AtomicsHolder::release(
-	  std::vector<EventBasePtr > & released_events)
+	  std::vector<EventBasePtr> & released_events
+	, EventBasePtr & by_ev)
 {
 	// reverse order
 	for(int i = _number-1; i >= 0; i--) {
@@ -145,7 +158,7 @@ AtomicsHolder::release(
 #ifdef HAS_DTRACE
 			int pre_sz = released_events.size();
 #endif // HAS_DTRACE
-			a->release(released_events);
+			a->release(released_events,by_ev);
                         ha->atomic(NULL);
 #ifdef HAS_DTRACE
 			int post_sz = released_events.size();

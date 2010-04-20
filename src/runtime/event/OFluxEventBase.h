@@ -56,7 +56,7 @@ public:
 	 * @brief obtain the events from releasing your held guards 
 	 *    -- this pulls things off the wait-lists
 	 */
-	void release(std::vector<EventBasePtr> & released_events);
+	//void release(std::vector<EventBasePtr> & released_events);
 	inline void error_code(int ec) { _error_code = ec; }
 	inline int error_code() { return _error_code; }
 	inline atomic::AtomicsHolder & atomics() { return _atomics_ref; }

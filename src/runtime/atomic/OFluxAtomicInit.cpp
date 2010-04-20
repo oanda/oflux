@@ -8,9 +8,10 @@ namespace atomic {
 
 GuardInserter::~GuardInserter()
 {
-        std::vector<boost::shared_ptr<EventBase> > vec;
+        std::vector<EventBasePtr> vec;
+	EventBasePtr nullPtr;
         for(int i = 0; i < (int)_to_release.size(); i++) {
-                _to_release[i]->release(vec);
+                _to_release[i]->release(vec,nullPtr);
         }
         assert(vec.size() == 0);
 }

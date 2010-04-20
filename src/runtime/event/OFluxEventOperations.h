@@ -16,17 +16,6 @@ namespace flow {
 
 namespace event {
 
-extern atomic::AtomicsHolder & empty_ah;
-
-/**
- * @brief either acquire all guards or enqueue onto the wait-list
- *        for the [first] guard you could not get
- * @param given the atomics holder from which to canabalized guards
- *        from (the predecessor event normally).
- * @return 1 on success and 0 on failure
- */
-int acquire_guards(EventBasePtr &, atomic::AtomicsHolder & ah = empty_ah);
-
 void
 successors_on_no_error(
 	  std::vector<EventBasePtr> & successor_events

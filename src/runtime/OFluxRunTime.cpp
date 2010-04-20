@@ -4,6 +4,7 @@
 #include "event/OFluxEventBase.h"
 #include "event/OFluxEventOperations.h"
 #include "atomic/OFluxAtomic.h"
+#include "atomic/OFluxAtomicHolder.h"
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
 #include <unistd.h>
@@ -156,7 +157,7 @@ RunTime::load_flow(
 		_active_flows.pop_back();
 	};
 	_active_flows.push_front(flow);
-};
+}
 
 void * 
 __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
@@ -471,9 +472,10 @@ RunTimeThread::handle(EventBasePtr & ev)
 	// ------------ Release held atomics --------------
 	// put the released events as priority on the queue
 	std::vector<EventBasePtr> successor_events_released;
-	ev->release(successor_events_released);
+	ev->atomics().release(successor_events_released,ev);
 	for(int i = 0; i < (int)successor_events_released.size(); i++) {
-		if(event::acquire_guards(successor_events_released[i])) {
+		EventBasePtr & succ_ev = successor_events_released[i];
+		if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
 			successor_events.push_back(successor_events_released[i]);
 		}
 	}

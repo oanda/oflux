@@ -87,11 +87,13 @@ EventBase::~EventBase()
 	PUBLIC_EVENT_DEATH(this,flow_node()->getName());
 }
 
+/*
 void
 EventBase::release(std::vector<EventBasePtr> & released_events)
 {
 	_atomics_ref.release(released_events);
 }
+*/
 
 bool
 EventBase::getIsDetached()

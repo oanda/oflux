@@ -12,48 +12,15 @@
 namespace oflux {
 namespace event {
 
-int
+inline int
 acquire_guards(
 	  EventBasePtr & ev
-	, atomic::AtomicsHolder & ah)
+	, atomic::AtomicsHolder & given_ah)
 {
-	enum { AGR_Success = 1, AGR_MustWait = 0 };
-	int res = AGR_Success;
-	EventBase * ev_bptr = ev.get();
-	const char * ev_name = ev_bptr->flow_node()->getName();
-        _NODE_ACQUIREGUARDS(
-		  static_cast<void *>(ev_bptr)
-		, ev_name);
-	atomic::AtomicsHolder & atomics = ev_bptr->atomics();
-	int ah_res = atomics.acquire(
-		  ah
-		, ev_bptr->input_type()
-		, ev_name);
-	atomic::HeldAtomic * held_atomic = 
-		( ah_res == -1 
-		? NULL
-		: atomics.get(ah_res) );
-	int wtype = (held_atomic ? held_atomic->wtype() : 0);
-	flow::GuardReference * flow_guard_ref __attribute__((unused)) = 
-		(held_atomic ? held_atomic->flow_guard_ref() : NULL);
-	atomic::Atomic * must_wait_on_atomic = 
-		(held_atomic ? held_atomic->atomic() : NULL);
-	if(must_wait_on_atomic) {
-		res = AGR_MustWait;
-		must_wait_on_atomic->wait(ev,wtype);
-		_GUARD_WAIT(
-			  flow_guard_ref->getName().c_str()
-			, ev_name
-			, wtype);
-	} else {
-                _NODE_HAVEALLGUARDS(
-			  static_cast<void *>(ev_bptr)
-			, ev_name);
-        }
-	return res;
+	return ev->atomics().acquire_all_or_wait(
+		  ev
+		, given_ah);
 }
-
-atomic::AtomicsHolder & empty_ah = atomic::AtomicsHolder::empty_ah;
 
 void
 successors_on_no_error(
@@ -90,7 +57,7 @@ successors_on_no_error(
 			ev_succ->error_code(0);
 			if(event::acquire_guards(ev_succ
 					, is_source
-					? empty_ah
+					? atomic::AtomicsHolder::empty_ah
 					: ev->atomics())) {
 				successor_events.push_back(ev_succ);
 			}
@@ -135,7 +102,7 @@ push_initials_and_sources(
                 oflux_log_info("load_flow pushing %s\n",fn->getName());
 		CreateNodeFn createfn = fn->getCreateFn();
 		EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
-		if(event::acquire_guards(ev)) {
+		if(event::acquire_guards(ev, atomic::AtomicsHolder::empty_ah)) {
 			events_vec.push_back(ev);
 		}
 	}
