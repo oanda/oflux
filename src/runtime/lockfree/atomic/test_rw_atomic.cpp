@@ -20,7 +20,7 @@ struct Event {
 		, type(0)
 		, readrel(false)
 		, next(NULL) 
-		, rnext(NULL)
+		//, rnext(NULL)
 	{}
 
 	int has;
@@ -29,7 +29,6 @@ struct Event {
 	int type;
 	bool readrel;
 	Event * next;
-	Event * rnext; // used for rlists
 };
 
 
@@ -82,36 +81,36 @@ struct RWEventList { // thread safe
 	RWEventList() 
 		: head(new Event(0))
 		, tail(head) 
-		, rlist(NULL)
+		, rcount(0)
 	{ set_one(head->next); }
 	bool push(Event *e, int type);
 	void pop(Event * & el, Event * by_e);
 
 	Event * head;
 	Event * tail;
-	Event * rlist;
+	int rcount;
 	// state encoding:
 	// 
 	// 1. (empty      : 0 readers, 0 writer, 0 waiters) 
 	// 	elist { head == tail && head->next = 0x1 }
-	// 	rlist { head == NULL }
+	// 	rcount == 0
 	// 2. (exclusive0 : 0 readers, 1 writer, 0 waiters)
 	// 	elist { head == tail && head->next = 0x0 }
-	// 	rlist { head == NULL }
+	// 	rcount == 0
 	// 3. (readingN0  : N readers, 0 writer, 0 waiters)
 	// 	elist { head == tail && head->next = 0x3 }
-	// 	rlist { head != NULL }
+	// 	rcount > 0
 	// 4. (exclusiveM : 0 readers, 1 writer, M waiters)
 	// 	elist { head != tail && head->next !in {0x0,0x1,0x3} }
-	// 	rlist { head == NULL }
+	// 	rcount == 0
 	// 5. (readingNM  : N readers, 0 writer, M waiters)
 	// 	elist { head != tail && head->next !in {0x0,0x1,0x3 } }
-	// 	rlist { head != NULL }
+	// 	rcount > 0
 	// 
 	// predicates:
-	//  in_R() = head->next == 0x3 || rlist.head != NULL
+	//  in_R() = head->next == 0x3 || rcount > 0
 	//  in_W() = (head->next == 0x0  || head->next > 0x3)
-	//              && rlist.head == NULL
+	//              && rcount == 0
 
 };
 
@@ -119,10 +118,6 @@ bool
 RWEventList::push(Event * e, int type)
 {
 	e->next = NULL;
-	//e->rnext = NULL; 
-	//  can't because: might just stopped reading
-	//  but your flock of readers might not be done
-	//
 	e->readrel = false;
 	e->type = None;
 	Event * t = NULL;
@@ -138,7 +133,7 @@ RWEventList::push(Event * e, int type)
 		Event * h = head;
 		Event * hn = h->next;
 		int hi = h->id;
-		Event * rl = rlist;
+		int rc = rcount;
 		if(type == Write 
 				&& is_one(hn) 
 				&& __sync_bool_compare_and_swap(
@@ -152,18 +147,17 @@ RWEventList::push(Event * e, int type)
 			e->type = type;
 			return true;
 		} else if(type == Read
-				&& rl == NULL
+				&& rc == 0
 				&& is_one(hn)
 				&& __sync_bool_compare_and_swap(
 				  &(head->next)
 				, 0x0001
 				, 0x0003)) {
 			// 1->3
-			set_one(e->rnext);
 			__sync_bool_compare_and_swap(
-				  &rlist
-				, rl
-				, e);
+				  &rcount
+				, rc
+				, 1);
 			e->id = id;
 			e->waiting_on = w_on;
 			e->has = hs;
@@ -182,12 +176,11 @@ RWEventList::push(Event * e, int type)
 			return false;
 		} else if(is_three(hn)
 				&& type == Read
-				&& rl != NULL
-				&& (e->rnext = rl) // assignment on purp
+				&& rc > 0
 				&& __sync_bool_compare_and_swap(
-				  &rlist
-				, rl
-				, e)) {
+				  &rcount
+				, rc
+				, rc+1)) {
 			assert(!is_three(e));
 			// 3->3
 			e->id = id;
@@ -230,6 +223,7 @@ RWEventList::push(Event * e, int type)
 	return false;
 }
 
+/*
 inline void clear_nexts_rlist(Event * & rl)
 {
 	Event *rp = rl;
@@ -269,28 +263,32 @@ inline bool mark_reader_done(Event * & rl,Event * e)
 	}
 	return rl && rl->readrel && all_rel;
 }
+*/
 
 void
 RWEventList::pop(Event * &el, Event * by_e)
 {
 	Event * h = NULL;
 	Event * hn = NULL;
-	Event * rl = NULL;
+	int rc = rcount;
+	int orig_rc = rc;
 	int ht;
 	int hi;
-	bool is_last_reader = 
-		rlist ? mark_reader_done(rlist,by_e) : true;
-	assert(by_e->type == Read || !rlist);
-	assert(by_e->type == Write || rlist);
 	el = NULL;
+	assert(by_e->type == Read || rcount == 0);
+	assert(by_e->type == Write || rcount > 0);
+	bool is_last_reader = 
+		( rc > 0
+		? __sync_fetch_and_sub(&rcount,1) == 1
+		: true);
 	while(1) {
 		h = head;
 		hn = h->next;
 		ht = h->type;
 		hi = h->id;
-		rl = rlist;
+		rc = rcount;
 		if(hn == NULL
-				&& rl == NULL
+				&& orig_rc == 0
 				&& __sync_bool_compare_and_swap(
 					  &(head->next)
 					, hn
@@ -298,21 +296,15 @@ RWEventList::pop(Event * &el, Event * by_e)
 			// 2->1
 			break;
 		} else if(is_three(hn)
-				&& rl != NULL) {
-			if( is_last_reader
-				&& __sync_bool_compare_and_swap(
-					  &rlist
-					, rl
-					, NULL)) {
+				&& orig_rc > 0) {
+			if( is_last_reader ) {
 				// 3->1
-				clear_nexts_rlist(rl);
-				//if(rl->next == NULL && 
 				__sync_bool_compare_and_swap(&(head->next),0x0003,0x0001);
 			}
 			break;
 		} else if(!is_one(hn) && !is_three(hn) && hn != NULL
 				&& ht == Write
-				&& is_last_reader
+				&& (is_last_reader || orig_rc ==0)
 				&& __sync_bool_compare_and_swap(
 					  &head
 					, h
@@ -321,46 +313,39 @@ RWEventList::pop(Event * &el, Event * by_e)
 			if(hn->id ==0) {
 				tail = head;
 			}
-			__sync_bool_compare_and_swap(
-				  &rlist
-				, rl
-				, NULL);
-			clear_nexts_rlist(rl);
 			h->next = NULL;
 			el = h;
 			break;
 		} else if(!is_one(hn) && !is_three(hn) && hn != NULL
-				&& rl != NULL) {
+				&& orig_rc > 0) {
 			if(is_last_reader) {
 				// 5->(5,3)
-				clear_nexts_rlist(rl);
-				rlist = NULL;
-				rl = rlist;
+				el = NULL;
 				while(ht == Read && hi
 					&& !is_one(hn) && !is_three(hn) && hn != NULL
 					&& __sync_bool_compare_and_swap(
 						  &head
 						, h
 						, hn)) {
-					h->rnext = rl;
-					h->next = NULL;
 					__sync_bool_compare_and_swap(
-						  &rlist
-						, rl
-						, h);
+						  &rcount
+						, rc
+						, std::min(0,rc-1));
+					h->next = el;
+					el = h;
 					h = head;
 					hn = h->next;
 					ht = h->type;
 					hi = h->id;
-					rl = rlist;
+					rc = rcount;
 				}
-				el = rlist;
 			}
 			break;
 		} else if(!is_one(hn) && !is_three(hn) && hn != NULL
 				&& ht == Read
-				&& rl == NULL) {
+				&& rc == 0) {
 			// 4->(5,3)
+			el = NULL;
 			while(ht == Read && hi
 				&& !is_one(hn) && !is_three(hn) && hn != NULL
 				&& __sync_bool_compare_and_swap(
@@ -370,23 +355,15 @@ RWEventList::pop(Event * &el, Event * by_e)
 				if(hn->id == 0) {
 					tail = hn;
 				}
-				if(rl) {
-					h->rnext = rl;
-				} else {
-					set_one(h->rnext);
-				}
-				h->next = NULL;
-				__sync_bool_compare_and_swap(
-					  &rlist
-					, rl
-					, h);
+				h->next = el;
+				el = h;
 				h = head;
+				__sync_fetch_and_add(&rcount,1);
 				hn = h->next;
 				ht = h->type;
 				hi = h->id;
-				rl = rlist;
+				rc = rcount;
 			}
-			el=rlist;
 			if(hn == NULL && __sync_bool_compare_and_swap(&(head->next),hn,0x0003)) {}
 			break;
 		}
@@ -420,7 +397,7 @@ ReadWrite::dump()
 			"empty      [1]"
 		: (event::is_three(waiters.head->next) ? 
 			"readingN0  [3]"
-		: (!waiters.rlist ? 
+		: (!waiters.rcount ? 
 			"exclusiveM [4]" : 
 			"readingNM  [5]"))));
 	printf(" atomic[%d] in state %s\n"
@@ -441,20 +418,8 @@ ReadWrite::dump()
 	} else {
 		printf("\n");
 	}
-	printf("  tail = %d\n",waiters.tail->id);
-	printf("  rlist = ");
-	e = waiters.rlist;
-	while(event::unmk(e)) {
-		printf("%d%s->",e->id,(e->readrel ? "r" : ""));
-		e = e->rnext;
-	}
-	if(e == NULL) {
-		printf("(0x0)\n");
-	} else if(is_one(e)) {
-		printf("(0x1)\n");
-	} else {
-		printf("\n");
-	}
+	printf("  tail = %d\n", waiters.tail->id);
+	printf("  rcount = %u\n", waiters.rcount);
 }
 
 
@@ -467,7 +432,7 @@ ReadWrite::release(event::Event * & el,event::Event * by_e)
 	while(event::unmk(e)) { 
 		e->has = index;
 		e->waiting_on = -1;
-		e = e->rnext;
+		e = e->next;
 	}
 	by_e->has = -1;
 }
@@ -542,9 +507,9 @@ void * run_thread(void *vp)
 	pthread_barrier_wait(&barrier);
 	for(size_t j = 0; j < iterations; ++j) {
 		printf("------iteration----- %d\n",j);
-#define DUMPATOMICS \
-
-   //for(size_t i = 0; i < num_atomics; ++i) { atomics[i].dump(); }
+#define _DUMPATOMICS \
+   for(size_t i = 0; i < num_atomics; ++i) { atomics[i].dump(); }
+#define DUMPATOMICS //_DUMPATOMICS
 		DUMPATOMICS
 		if(!running_evl[j%2].size()) {
 			++no_op_iterations;
@@ -566,7 +531,7 @@ void * run_thread(void *vp)
 					printf("%d]%d} %d event came out with %s\n"
 						, *ip, a_index , rel_ev->id, str_type(rel_ev->type));
 					++release_count[rel_ev->type];
-					rel_ev = rel_ev->rnext;
+					rel_ev = rel_ev->next;
 					++rel_count;
 				}
 				if(rel_count) {
@@ -581,14 +546,14 @@ void * run_thread(void *vp)
 			target_atomic = (target_atomic+1)%num_atomics;
 			id = e->id;
 			type = (rand()%2 ? event::Read : event::Write);
-			if(e->rnext) {
+			/*if(e->rnext) {
 				// limitation of the rnext solution
 				// which needs to be fixed once this
 				// is not a prototype
 				printf("%d]   %d skipped\n",*ip,id);
 				running_evl[(j+1)%2].push_back(e);
 				continue;
-			}
+			}*/
 			DUMPATOMICS
 			if(atomics[a_index].acquire_or_wait(e,type)) {
 				// got it right away (no competing waiters)
