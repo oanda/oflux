@@ -187,7 +187,7 @@ public:
 	 */
 	int acquire_all_or_wait(
 		  EventBasePtr & ev
-		, AtomicsHolder & given_atomics = empty_ah);
+		, EventBasePtr & pred_ev = EventBase::no_event);
 	/**
 	 * @brief release all the underlying atomics
 	 * @param released_events an output vector of events that have been waiting on the freed stuff

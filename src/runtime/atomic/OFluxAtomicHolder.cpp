@@ -85,11 +85,12 @@ AtomicsHolder::get_keys_sort(const void * node_in)
 int 
 AtomicsHolder::acquire_all_or_wait(
 	  EventBasePtr & ev
-	, AtomicsHolder & given_atomics)
-	  //AtomicsHolder & given_atomics
-	//, const void * node_in
-	//, const char * for_event_name)
+	, EventBasePtr & pred_ev)
 {
+	AtomicsHolder & given_atomics =
+		( pred_ev.get() 
+		? empty_ah
+		: pred_ev->atomics());
 	EventBase * ev_bptr = ev.get();
 	const char * ev_name = ev_bptr->flow_node()->getName();
 	_NODE_ACQUIREGUARDS(

@@ -71,6 +71,7 @@ protected:
 	atomic::AtomicsHolder & _atomics_ref;
 };
 
+
 } // namespace oflux
 
 #endif // _OFLUX_EVENTBASE_H

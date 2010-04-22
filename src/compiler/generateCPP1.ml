@@ -887,6 +887,38 @@ let emit_atom_map_decl symtable code =
 	
 
 let emit_atom_map_map plugin_opt symtable code =
+	let get_atomic_class_str ns_opt gtype =
+		match gtype with
+			"exclusive" -> ("oflux::"^ns_opt
+				^"atomic::AtomicExclusive")
+			| "readwrite" -> ("oflux::"^ns_opt
+				^"atomic::AtomicReadWrite")
+			| "free" -> ("oflux::"^ns_opt
+				^"atomic::AtomicFree")
+			| _ -> raise (CppGenFailure ("unsupported guard type "^gtype))
+		in
+	let e_map_decl_lf n gd code =
+                if gd.gexternal then code
+                else
+		let ns = "lockfree::" in
+                let clean_n = clean_dots n in
+                add_code code
+		("static "^(
+                if gd.gtype = "pool" then
+                        ("oflux::"^ns^"atomic::AtomicPool "^clean_n^"_map; "
+			^clean_n^"_map_ptr = & "^clean_n^"_map;")
+                else if 0 = (List.length gd.garguments) then
+			("oflux::"^ns^"atomic::AtomicMapTrivial<"
+				^(get_atomic_class_str ns gd.gtype)^"> "
+				^clean_n^"_map; "
+				^clean_n^"_map_ptr = & "^clean_n^"_map;")
+		    else
+			("oflux::"^ns^"atomic::AtomicMapUnordered<"
+				^clean_n^"_key"
+				^","^(get_atomic_class_str ns gd.gtype)
+				^"> "^clean_n^"_map; "
+				^clean_n^"_map_ptr = & "^clean_n^"_map;"
+			))) in
 	let e_map_decl_std n gd code =
                 if gd.gexternal then code
                 else
@@ -896,16 +928,10 @@ let emit_atom_map_map plugin_opt symtable code =
                 if gd.gtype = "pool" then
                         ("oflux::atomic::AtomicPool "^clean_n^"_map; "
 			^clean_n^"_map_ptr = & "^clean_n^"_map;")
-                else
-		let atomic_class_str =
-			match gd.gtype with
-				"exclusive" -> "oflux::atomic::AtomicExclusive"
-				| "readwrite" -> "oflux::atomic::AtomicReadWrite"
-				| "free" -> "oflux::atomic::AtomicFree"
-				| _ -> raise (CppGenFailure ("unsupported guard type "^gd.gtype))
-		in  (if 0 = (List.length gd.garguments) then
+                else if 0 = (List.length gd.garguments) then
 			("oflux::atomic::AtomicMapTrivial<"
-				^atomic_class_str^"> "^clean_n^"_map; "
+				^(get_atomic_class_str "" gd.gtype)^"> "
+				^clean_n^"_map; "
 				^clean_n^"_map_ptr = & "^clean_n^"_map;")
 		    else
                         let mappolicy =
@@ -916,10 +942,10 @@ let emit_atom_map_map plugin_opt symtable code =
                                 ^"MapPolicy<"^clean_n^"_key> "
                         in
 			("oflux::atomic::AtomicMapStdMap<"^mappolicy
-				^","^atomic_class_str^"> "^clean_n^"_map; "
+				^","^(get_atomic_class_str "" gd.gtype)
+				^"> "^clean_n^"_map; "
 				^clean_n^"_map_ptr = & "^clean_n^"_map;"
-			))))
-		in
+			))) in
 	let e_map_ptrs n gd code =
                 if gd.gexternal then code
                 else
@@ -936,8 +962,9 @@ let emit_atom_map_map plugin_opt symtable code =
 		in  if omit_emit then codelist else ("{ \""^n^"\", &"^clean_n^"_map_ptr }, ")::codelist in
 	let code = SymbolTable.fold_guards e_map_ptrs symtable code in
 	let e_map_decl_maplist =
-		[ 1 , e_map_decl_std (* can add new stuff for these *)
-		(* ; 2, e_map_decl_lf *)
+		[ 1, e_map_decl_std (* classic and its variants *)
+		; 2, e_map_decl_lf (* lockfree *)
+		(* more might be added later *)
 		] in
 	let code = add_code code "void init_atomic_maps(int style) {" in
 	let ffun_map_decl code (i_style,fdecl) =

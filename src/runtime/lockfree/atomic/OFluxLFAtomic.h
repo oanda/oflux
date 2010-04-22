@@ -10,6 +10,8 @@ namespace oflux {
 namespace lockfree {
 namespace atomic {
 
+typedef ::oflux::atomic::AtomicFree AtomicFree;
+
 template<const size_t v, typename T>
 inline bool is_val(const T * p)
 {

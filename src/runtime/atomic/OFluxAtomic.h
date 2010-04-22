@@ -70,7 +70,7 @@ public:
 	* @brief obtain the size of the waiting list
 	* @return the number of events in the waiting list
 	*/
-	virtual int waiter_count() = 0;
+	virtual size_t waiter_count() = 0;
 
 	/**
 	* @brief let go of this object -- a shorter release when you know
@@ -98,7 +98,7 @@ public:
 	{}
 	virtual bool acquire_or_wait(EventBasePtr &,int ) 
 	{ return 1; }
-	virtual int waiter_count() { return 0; }
+	virtual size_t waiter_count() { return 0; }
 	virtual void relinquish() {}
 	virtual int wtype() const { return 0; }
 	virtual const char * atomic_class() const { return "Free     "; }
@@ -116,7 +116,7 @@ public:
 	virtual ~AtomicCommon() {}
 	virtual void ** data() { return &_data_ptr; }
 	virtual int held() const { return _held; }
-	virtual int waiter_count() { return _waiters.size(); }
+	virtual size_t waiter_count() { return _waiters.size(); }
 	virtual void relinquish() {}
 
 	struct AtomicQueueEntry {
@@ -333,7 +333,7 @@ public:
 	void put_data(void *);
 	EventBasePtr get_waiter();
 	void put_waiter(EventBasePtr & ev);
-	int waiter_count() { return _q.size(); }
+	size_t waiter_count() { return _q.size(); }
 	virtual int compare (const void * v_k1, const void * v_k2) const { return 0; }
 	virtual void * new_key() const { return NULL; }
 	virtual void delete_key(void *) const {}
@@ -358,7 +358,7 @@ public:
 	{}
 	virtual void ** data() { return &_data; }
 	virtual int held() const { return _data != NULL; }
-	virtual int waiter_count() { return _pool.waiter_count(); }
+	virtual size_t waiter_count() { return _pool.waiter_count(); }
 	virtual void release(std::vector<EventBasePtr > & rel_ev
 		, EventBasePtr &)
 	{
@@ -510,6 +510,25 @@ private:
 	typename MapPolicy::iterator _end;
 };
 
+template<typename K>
+int
+compare(const void * v_k1, const void * v_k2) 
+{
+	if (v_k1 && v_k2) {
+		const K * k1 = 
+			reinterpret_cast<const K *>(v_k1);
+		const K * k2 = 
+			reinterpret_cast<const K *>(v_k2);
+		return (*k1 < *k2 ? -1 : (*k2 < *k1 ? 1 : 0));
+	} else if (!v_k1 && v_k2) {
+		return -1;
+	} else if (v_k1 && !v_k2) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 /**
  * @class AtomicMapStdMap
  * @brief this is the standard atom map
@@ -545,21 +564,7 @@ public:
 		return reinterpret_cast<const void *>((*mitr).first);
 	}
 	virtual int compare(const void * v_k1, const void * v_k2) const
-	{
-		if (v_k1 && v_k2) {
-			const typename MapPolicy::keytype * k1 = 
-                                reinterpret_cast<const typename MapPolicy::keytype *>(v_k1);
-			const typename MapPolicy::keytype * k2 = 
-                                reinterpret_cast<const typename MapPolicy::keytype *>(v_k2);
-			return (*k1 < *k2 ? -1 : (*k2 < *k1 ? 1 : 0));
-		} else if (!v_k1 && v_k2) {
-			return -1;
-		} else if (v_k1 && !v_k2) {
-			return 1;
-		} else {
-			return 0;
-		}
-	}
+	{ return compare<MapPolicy::keytype>(v_k1,v_k2); }
 	virtual void * new_key() const 
 	{ return new typename MapPolicy::keytype(); }
 	virtual void delete_key(void * k) const

@@ -4,6 +4,7 @@
 #include <cassert>
 #include "lockfree/atomic/DistributedCounter.h"
 #include "lockfree/atomic/Enumerator.h"
+#include "lockfree/atomic/OFluxMachineSpecific.h"
 
 //
 // This hash table is originally attributable to Cliff Click's
@@ -136,9 +137,9 @@ public:
 	 * @brief hold the constants that are needed by the implementation
 	 */
 	enum    //                          presumed log-size of a cache line
-		{ Cache_Line_Scale          = 6
+		{ Cache_Line_Scale          = MachineSpecific::Cache_Line_Scale
 		//                          presumed size of a cache line
-		, Cache_Line_Size           = (1 << Cache_Line_Scale) 
+		, Cache_Line_Size           = MachineSpecific::Cache_Line_Size
 		//                          number of entries in each bucket
 		, Entries_Per_Bucket        = Cache_Line_Size/sizeof(Entry)
 		//                          number of copyEntry()s per helpCopy

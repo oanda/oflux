@@ -15,11 +15,11 @@ namespace event {
 inline int
 acquire_guards(
 	  EventBasePtr & ev
-	, atomic::AtomicsHolder & given_ah)
+	, EventBasePtr & pred_ev = EventBase::no_event)
 {
 	return ev->atomics().acquire_all_or_wait(
 		  ev
-		, given_ah);
+		, pred_ev);
 }
 
 void
@@ -57,8 +57,8 @@ successors_on_no_error(
 			ev_succ->error_code(0);
 			if(event::acquire_guards(ev_succ
 					, is_source
-					? atomic::AtomicsHolder::empty_ah
-					: ev->atomics())) {
+					? EventBase::no_event
+					: ev)) {
 				successor_events.push_back(ev_succ);
 			}
 		}
@@ -85,7 +85,7 @@ successors_on_error(
 			? (*createfn)(EventBase::no_event,NULL,fn)
 			: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
 		ev_succ->error_code(return_code);
-		if(event::acquire_guards(ev_succ,ev->atomics())) {
+		if(event::acquire_guards(ev_succ,ev)) {
 			successor_events.push_back(ev_succ);
 		}
 	}
@@ -102,7 +102,7 @@ push_initials_and_sources(
                 oflux_log_info("load_flow pushing %s\n",fn->getName());
 		CreateNodeFn createfn = fn->getCreateFn();
 		EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
-		if(event::acquire_guards(ev, atomic::AtomicsHolder::empty_ah)) {
+		if(event::acquire_guards(ev)) {
 			events_vec.push_back(ev);
 		}
 	}
