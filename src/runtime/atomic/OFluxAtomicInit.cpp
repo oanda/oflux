@@ -28,7 +28,9 @@ bool GuardInserter::insert(const void * key, void * value)
 	} else {
 		res = false;
 	}
-        _to_release.push_back(aptr);
+        if(aptr->is_pool_like()) {
+		_to_release.push_back(aptr);
+	}
 	return res;
 }
 
@@ -41,7 +43,9 @@ void * GuardInserter::swap(const void * key, void * newvalue)
 	void ** d = aptr->data();
 	oldvalue = *d;
 	*d = newvalue;
-        _to_release.push_back(aptr);
+        if(aptr->is_pool_like()) {
+		_to_release.push_back(aptr);
+	}
 	return oldvalue;
 }
 

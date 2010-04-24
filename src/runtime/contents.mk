@@ -9,6 +9,11 @@ SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
 DTRACECALLINGCPPS := $(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f)))
 DTRACE_FLAGS := -G
 
+LF_OBJS := \
+	OFluxThreadNumber.o \
+	OFluxLFAtomic.o \
+	OFluxLockfreeRunTimeThread.o \
+	OFluxLockfreeRunTime.o
 
 OBJS := \
         OFlux.o \
@@ -32,9 +37,9 @@ OBJS := \
         OFluxRunTimeBase.o \
         OFluxRunTime.o \
         OFluxMeldingRunTime.o \
+	$(LF_OBJS) \
         OFluxXML.o \
 	oflux_vers.o
-        #OFluxAcquireGuards.o
 
 # disable optimization for dtrace USDT code (PIC code not affected):
 $(DTRACECALLINGCPPS:.cpp=.o) : OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)

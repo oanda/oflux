@@ -2,20 +2,12 @@
 #define OFLUX_DISTRIBUTED_COUNTER_H
 
 #include <cstdlib>
+#include "lockfree/OFluxThreadNumber.h"
 
 #define DEFAULT_MEMPOOL_MAX_THREADS  10
 
 namespace oflux {
-
-class ThreadNumber {
-public:
-        static size_t num_threads;
-        size_t index;
-};
-
-extern __thread ThreadNumber _tn;
-
-extern void init_ThreadNumber(ThreadNumber & tn);
+namespace lockfree {
 
 template< typename CT
 	, size_t num_threads=DEFAULT_MEMPOOL_MAX_THREADS>
@@ -60,6 +52,7 @@ private:
 	volatile CT _v[num_threads];
 };
 
+} // namespace lockfree
 } // namespace oflux
 
 #endif

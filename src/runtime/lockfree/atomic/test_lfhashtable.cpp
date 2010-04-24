@@ -1,5 +1,5 @@
-#include "OFluxLFHashTable.h"
-#include "DistributedCounter.h"
+#include "lockfree/atomic/OFluxLFHashTable.h"
+#include "lockfree/OFluxDistributedCounter.h"
 #include <pthread.h>
 #include <cstdlib>
 #include <cstdio>

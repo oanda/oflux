@@ -908,7 +908,7 @@ let emit_atom_map_map plugin_opt symtable code =
                         ("oflux::"^ns^"atomic::AtomicPool "^clean_n^"_map; "
 			^clean_n^"_map_ptr = & "^clean_n^"_map;")
                 else if 0 = (List.length gd.garguments) then
-			("oflux::"^ns^"atomic::AtomicMapTrivial<"
+			("oflux::atomic::AtomicMapTrivial<"
 				^(get_atomic_class_str ns gd.gtype)^"> "
 				^clean_n^"_map; "
 				^clean_n^"_map_ptr = & "^clean_n^"_map;")
@@ -1569,10 +1569,6 @@ let emit_test_main code =
 		; "int main(int argc, char * argv[])"
 		; "{"
 		; "assert(argc >= 2);"
-		; "#ifdef HASINIT"
-		; "ofluximpl::init_atomic_maps(1); // get guard maps"
-		; "init(argc-1,&(argv[1]));"
-		; "#endif //HASINIT"
 		; "static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
@@ -1583,18 +1579,19 @@ let emit_test_main code =
 		; ", 1000 // thread collection sample period (every N node execs)"
 		; ", argv[1] // XML file"
 		; ", &ffmaps"
-		; ", \"xml\""
-		; ", \"lib\""
+		; ", \"xml\" // xml subdir for plugins"
+		; ", \"lib\" // lib subdir for plugins"
 		; ", NULL"
 		; ", ofluximpl::init_atomic_maps"
 		; "};"
-		; "theRT.reset(create_"
-                  ^(CmdLine.get_runtime_engine())
-                  ^"_runtime(rtc));"
-		; "signal(SIGHUP,handlesighup); // install SIGHUP handling"
 		; "logging::toStream(std::cout); // comment out if no oflux logging is desired"
-		; "const char * oflux_config=getenv(\"OFLUX_CONFIG\");"
-                ; "if(oflux_config == NULL || NULL==strstr(oflux_config,\"nostart\")) {"
+		; "EnvironmentVar env(runtime::Factory::"^(CmdLine.get_runtime_engine())^");"
+		; "theRT.reset(runtime::Factory::create(env.runtime_number, rtc));"
+		; "#ifdef HASINIT"
+		; "init(argc-1,&(argv[1])); // init _after_ runtime object is created -- so that init_atomic_maps has been called"
+		; "#endif //HASINIT"
+		; "signal(SIGHUP,handlesighup); // install SIGHUP handling"
+                ; "if(!env.nostart) {"
 		; "theRT->start();"
                 ; "}"
 		; "#ifdef HASDEINIT"
@@ -1620,6 +1617,21 @@ let get_module_file_suffix modulenameopt =
 		else ""
 	in  const_ns
 
+let cpp_header_includes lc_codeprefix file_suffix =
+	[ "#include \""^lc_codeprefix^file_suffix^".h\""
+	; "#include \"flow/OFluxFlow.h\""
+	; "#include \"atomic/OFluxAtomic.h\""
+	; "#include \"lockfree/atomic/OFluxLFAtomicMaps.h\""
+	; "#include \"atomic/OFluxAtomicHolder.h\""
+	; "#include \"OFluxRunTimeBase.h\""
+	; "#include \"OFluxIOConversion.h\""
+	; "#include \"OFluxLogging.h\""
+	; "#include <boost/shared_ptr.hpp>"
+	; "#include <iostream>"
+	; ""
+	; "// ---------- OFlux generated header (do not edit by hand) ------------"
+	; ""
+	]
 
 let emit_plugin_cpp pluginname brbef braft um deplist =
 	let stable = braft.Flow.symtable in
@@ -1708,19 +1720,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let h_code = CodePrettyPrinter.add_code h_code ("#endif // _"^uc_codeprefix) in
 	let cpp_code = CodePrettyPrinter.empty_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code
-		[ "#include \""^lc_codeprefix^file_suffix^".h\""
-		; "#include \"flow/OFluxFlow.h\""
-		; "#include \"atomic/OFluxAtomic.h\""
-		; "#include \"atomic/OFluxAtomicHolder.h\""
-		; "#include \"OFluxRunTimeBase.h\""
-		; "#include \"OFluxIOConversion.h\""
-		; "#include \"OFluxLogging.h\""
-		; "#include <boost/shared_ptr.hpp>"
-		; "#include <iostream>"
-		; ""
-		; "// ---------- OFlux generated header (do not edit by hand) ------------"
-		; ""
-		] in
+		(cpp_header_includes lc_codeprefix file_suffix) in
 	let cpp_code = namespaceheader cpp_code in
 	let cpp_code = emit_node_detail_defn (Some pluginname) is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
@@ -1871,18 +1871,7 @@ let emit_cpp modulenameopt br um =
 	let h_code = CodePrettyPrinter.add_code h_code ("#endif // _"^uc_codeprefix) in
 	let cpp_code = CodePrettyPrinter.empty_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code
-		[ "#include \""^lc_codeprefix^file_suffix^".h\""
-		; "#include \"flow/OFluxFlow.h\""
-		; "#include \"atomic/OFluxAtomic.h\""
-		; "#include \"atomic/OFluxAtomicHolder.h\""
-		; "#include \"OFluxRunTime.h\""
-		; "#include \"OFluxIOConversion.h\""
-		; "#include \"OFluxLogging.h\""
-		; "#include <iostream>"
-		; ""
-		; "// ---------- OFlux generated header (do not edit by hand) ------------"
-		; ""
-		] in
+		(cpp_header_includes lc_codeprefix file_suffix) in
 	let cpp_code = namespaceheader cpp_code in
 	let cpp_code = emit_node_detail_defn None is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in

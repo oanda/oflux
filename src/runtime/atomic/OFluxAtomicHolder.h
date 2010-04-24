@@ -170,6 +170,7 @@ private:
 class AtomicsHolder : public AtomicsHolderAbstract {
 public:
 	static AtomicsHolder empty_ah;
+	static EventBasePtr & no_event;
 	
 	AtomicsHolder(bool completelysorted = false)
 		: _number(0)
@@ -187,7 +188,7 @@ public:
 	 */
 	int acquire_all_or_wait(
 		  EventBasePtr & ev
-		, EventBasePtr & pred_ev = EventBase::no_event);
+		, EventBasePtr & pred_ev = no_event);
 	/**
 	 * @brief release all the underlying atomics
 	 * @param released_events an output vector of events that have been waiting on the freed stuff

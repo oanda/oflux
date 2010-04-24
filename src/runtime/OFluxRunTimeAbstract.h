@@ -28,6 +28,14 @@ struct RunTimeConfiguration {
 	void (*initAtomicMapsF)(int);
 };
 
+struct EnvironmentVar {
+public:
+	EnvironmentVar(int = 0);
+
+	bool nostart;
+	int  runtime_number;
+};
+
 class RunTimeAbstract {
 public:
 	virtual ~RunTimeAbstract() {}
@@ -45,6 +53,20 @@ public:
 	virtual void log_snapshot_guard(const char * guardname) = 0;
 };
 
+namespace runtime {
+
+class Factory {
+public:
+	enum {    classic  = 0
+		, melding  = 1
+		, lockfree = 4 
+	};
+
+	static RunTimeAbstract * create(int type, const RunTimeConfiguration & rtc);
+};
+
+
+} // namespace runtime
 
 } // namespace oflux
 

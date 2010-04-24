@@ -1,7 +1,7 @@
 #ifndef OFLUX_LF_ATOMIC_MAPS
 #define OFLUX_LF_ATOMIC_MAPS
 
-#include "lockfree/atomic/OFluxAtomic.h"
+#include "lockfree/atomic/OFluxLFAtomic.h"
 #include "lockfree/atomic/OFluxLFHashTable.h"
 
 namespace oflux {
@@ -13,33 +13,40 @@ namespace atomic {
 
 
 template< typename K
-	, typename A=AtomicExclusive >
-class AtomicMapUnorderedWalker : public AtomicMapWalker {
+	, typename A=oflux::lockfree::atomic::AtomicExclusive >
+class AtomicMapUnorderedWalker : public oflux::atomic::AtomicMapWalker {
 public:
 	AtomicMapUnorderedWalker(KVEnumeratorRef<K,A> & enumRef)
 		: _enumRef(enumRef)
 	{}
 	virtual ~AtomicMapUnorderedWalker() {}
-	virtual bool next(const void * & key,Atomic * &atom)
+	virtual bool next(const void * & key,oflux::atomic::Atomic * &atom)
 	{
-		return _enumRef.next(key,atom);
+		const A * aref = NULL;
+		bool res = _enumRef.next(
+			  reinterpret_cast<const K * &>(key)
+			, aref );
+		atom = const_cast<A *>(aref);
+		return res;
 	}
 private:
 	KVEnumeratorRef<K,A> _enumRef;
 };
 
 template< typename K
-	, typename A=AtomicExclusive >
-class AtomicMapUnordered : public AtomicMapAbstract {
+	, typename A=oflux::lockfree::atomic::AtomicExclusive >
+class AtomicMapUnordered : public oflux::atomic::AtomicMapAbstract {
 public:
 	typedef HashTable<K,A,16 /*for now*/ > Table;
 	AtomicMapUnordered() {}
 	virtual ~AtomicMapUnordered() {}
 
-	virtual const void *get(Atomic * &atomic, const void * key)
+	virtual const void *get(
+		  oflux::atomic::Atomic * &atomic
+		, const void * key)
 	{
-		K * k = reinterpret_cast<const K *>(k);
-		const A * res = _table.get(*k);
+		const K * k = reinterpret_cast<const K *>(key);
+		A * res = const_cast<A *>(_table.get(*k));
 		if(res == Table::HTC::Does_Not_Exist) {
 			// insert it
 			res = new A(NULL);
@@ -48,20 +55,23 @@ public:
 				, Table::HTC::Does_Not_Exist
 				, res);
 			if(Table::HTC::Does_Not_Exist != cas_res) { // cas succeeds
-				res = _table.get(*k);
+				res = const_cast<A *>(_table.get(*k));
 			}
 		}
 		atomic = res;
-		return dunno; // FIXME
+		return _table.getPersistentKey(res);
 	}
 	virtual int compare(const void * v_k1, const void * v_k2) const
-	{ return atomic::compare<K>(v_k1,v_k2); }
+	{ return oflux::atomic::k_compare<K>(v_k1,v_k2); }
 	virtual void * new_key() const
 	{ return new K(); }
 	virtual void delete_key(void *o) const
 	{ delete reinterpret_cast<K *>(o); }
-	virtual AtomicMapWalker * walker()
-	{ return new AtomicMapUnorderedWalker<K,A>(_table.getKeyValues()); }
+	virtual oflux::atomic::AtomicMapWalker * walker()
+	{
+		KVEnumeratorRef<K,A> enumref = _table.getKeyValues();
+		return new AtomicMapUnorderedWalker<K,A>(enumref);
+	}
 private:
 	Table _table;
 };

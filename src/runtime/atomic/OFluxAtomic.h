@@ -84,6 +84,8 @@ public:
 
 	virtual void log_snapshot_waiters() const {}
 
+	virtual bool is_pool_like() const { return false; }
+
 	static EventBasePtr _null_static;
 };
 
@@ -356,6 +358,7 @@ public:
 		, _pool(pool)
 		, _next(NULL)
 	{}
+	virtual bool is_pool_like() const { return true; }
 	virtual void ** data() { return &_data; }
 	virtual int held() const { return _data != NULL; }
 	virtual size_t waiter_count() { return _pool.waiter_count(); }
@@ -511,8 +514,8 @@ private:
 };
 
 template<typename K>
-int
-compare(const void * v_k1, const void * v_k2) 
+inline int
+k_compare(const void * v_k1, const void * v_k2) 
 {
 	if (v_k1 && v_k2) {
 		const K * k1 = 
@@ -564,7 +567,7 @@ public:
 		return reinterpret_cast<const void *>((*mitr).first);
 	}
 	virtual int compare(const void * v_k1, const void * v_k2) const
-	{ return compare<MapPolicy::keytype>(v_k1,v_k2); }
+	{ return k_compare<typename MapPolicy::keytype>(v_k1,v_k2); }
 	virtual void * new_key() const 
 	{ return new typename MapPolicy::keytype(); }
 	virtual void delete_key(void * k) const

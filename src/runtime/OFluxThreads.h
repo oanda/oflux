@@ -77,6 +77,7 @@ namespace oflux {
 # define oflux_get_specific(X) pthread_getspecific(X)
 # define oflux_set_specific(X,Y) pthread_setspecific(X,Y)
 # define oflux_cancel(X) pthread_cancel(X)
+# define oflux_join(X,Y) pthread_join(X,Y)
 # define oflux_kill_int(X) pthread_kill(X,SIGINT)
 namespace oflux {
   inline int oflux_create_thread(size_t stack_size, void *(*start_routine) (void *), void * data_arg, oflux_thread_t * thr) { 

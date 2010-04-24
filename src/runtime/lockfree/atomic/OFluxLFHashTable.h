@@ -2,9 +2,11 @@
 #define OFLUX_LF_HASHTABLE_H
 
 #include <cassert>
-#include "lockfree/atomic/DistributedCounter.h"
-#include "lockfree/atomic/Enumerator.h"
-#include "lockfree/atomic/OFluxMachineSpecific.h"
+#include <cstddef>
+#include "OFlux.h" // for the hash stuff
+#include "lockfree/OFluxEnumerator.h"
+#include "lockfree/OFluxMachineSpecific.h"
+#include "lockfree/OFluxDistributedCounter.h"
 
 //
 // This hash table is originally attributable to Cliff Click's
@@ -129,9 +131,16 @@ public:
 	struct Entry {
 		Entry() : key(NULL) , value(NULL) {}
 
-		K * key; // must implement a: size_t K::hash() const {...}
+		K * key; // use the has_ptr template
 		V * value;
 	};
+
+	static const K * key_from_value(const V *v) {
+		static const Entry e;
+		static const size_t offset = reinterpret_cast<size_t>(&e.value)
+			- reinterpret_cast<size_t>(&e);
+		return reinterpret_cast<const K *>(reinterpret_cast<const char *>(v)-offset);
+	}
 
 	/**
 	 * @brief hold the constants that are needed by the implementation
@@ -462,7 +471,7 @@ protected:
 		}
 		K * ent_key = ent->key;
 		if(k_hash == 0) {
-			k_hash = ent_key->hash();
+			k_hash = hash_ptr<K>()(ent_key);
 		}
 		bool nht_ent_is_empty;
 		volatile Entry * nht_ent = nht->lookUp(
@@ -612,7 +621,7 @@ public:
 			|| v == HTC::Does_Not_Exist 
 			|| v == HTC::TombStone);
 		if(v == HTC::Copied_Value) {
-			size_t h = k->hash();
+			size_t h = hash_ptr<K>()(k);
 			v = _impl->_next->get(*k,h);
 			if(v == HTC::Does_Not_Exist) {
 				return next(k,v);
@@ -687,7 +696,15 @@ public:
 	//
 	inline const V *
 	get(const K & k) {
-		return _impl->get(k,k.hash());
+		return _impl->get(k,hash<K>()(k));
+	}
+
+	// getPersistentKey ____________________________________________
+	//  gets us the internal key when the get() return value is
+	//  a real value
+	inline const K *
+	getPersistentKey(const V * v) {
+		return Implementation::key_from_value(v);
 	}
 
 	// remove() ____________________________________________________
@@ -695,7 +712,7 @@ public:
 	inline const V *
 	remove(const K & k) {
 		const V * val;
-		size_t k_hash = k.hash();
+		size_t k_hash = hash<K>()(k);
 		Implementation * impl = _impl;
 		do {
 			val = impl->compareAndSwap(
@@ -738,7 +755,7 @@ public:
 			}
 		}
 		const V * old_val;
-		size_t k_hash = k.hash();
+		size_t k_hash = hash<K>()(k);
 		while(impl && (old_val = impl->compareAndSwap(
 				  k
 				, expected_val

@@ -12,7 +12,7 @@ namespace atomic {
 #define set_three set_val<0x0003>
 
 
-boost::shared_ptr<Allocator<EventBaseHolder> > AtomicCommon::allocator;
+boost::shared_ptr<Allocator<EventBaseHolder> > AtomicCommon::allocator(new Allocator<EventBaseHolder>(new MallocAllocatorImplementation<sizeof(EventBaseHolder)>()));
 
 static const char *
 convert_wtype_to_string(int wtype)
@@ -28,6 +28,9 @@ convert_wtype_to_string(int wtype)
 		? conv[wtype]
 		: fallthrough);
 }
+
+AtomicCommon::~AtomicCommon()
+{}
 
 void
 AtomicCommon::_log_snapshot_waiters(const WaiterList * wlp)

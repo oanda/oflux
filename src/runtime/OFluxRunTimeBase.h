@@ -52,19 +52,7 @@ protected:
 // list of runtime factory functions:
 extern RunTimeBase * _create_classic_runtime(const RunTimeConfiguration &);
 extern RunTimeBase * _create_melding_runtime(const RunTimeConfiguration &);
-
-inline RunTimeAbstract * create_classic_runtime(const RunTimeConfiguration & rtc)
-{
-        RunTimeBase::initShim = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
-        RunTimeBase::deinitShim = (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
-        return _create_classic_runtime(rtc);
-}
-inline RunTimeAbstract * create_melding_runtime(const RunTimeConfiguration & rtc)
-{
-        RunTimeBase::initShim = (initShimFnType)dlsym (RTLD_NEXT, "initShim");
-        RunTimeBase::deinitShim = (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
-        return _create_melding_runtime(rtc);
-}
+extern RunTimeAbstract * _create_lockfree_runtime(const RunTimeConfiguration &);
 
 } // namespace oflux
 

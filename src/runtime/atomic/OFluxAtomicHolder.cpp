@@ -9,6 +9,9 @@
 namespace oflux {
 namespace atomic {
 
+EventBasePtr &
+AtomicsHolder::no_event = EventBase::no_event;
+
 void 
 AtomicsHolder::add(flow::GuardReference * fg)
 {
@@ -89,8 +92,8 @@ AtomicsHolder::acquire_all_or_wait(
 {
 	AtomicsHolder & given_atomics =
 		( pred_ev.get() 
-		? empty_ah
-		: pred_ev->atomics());
+		? pred_ev->atomics()
+		: empty_ah);
 	EventBase * ev_bptr = ev.get();
 	const char * ev_name = ev_bptr->flow_node()->getName();
 	_NODE_ACQUIREGUARDS(

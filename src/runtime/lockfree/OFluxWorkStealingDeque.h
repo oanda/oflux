@@ -64,7 +64,9 @@ public:
 	{}
 
 	~CircularWorkStealingDeque()
-	{ delete _active_array; }
+	{ 
+		delete _active_array; 
+	}
 
 	inline bool cas_top(long oldVal,long newVal)
 	{ return __sync_bool_compare_and_swap(&_top,oldVal,newVal); }
@@ -77,9 +79,7 @@ public:
 		long size= b-t;
 		if(size >= a->size()-1) {
 			a = a->grow(b,t);
-			CircularArray<T> * old_array = _active_array;
 			_active_array = a;
-			// old_array is not deleted
 		}
 		a->put(b,e);
 		_bottom = b+1;
