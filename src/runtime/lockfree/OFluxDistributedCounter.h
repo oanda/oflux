@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include "lockfree/OFluxThreadNumber.h"
 
-#define DEFAULT_MEMPOOL_MAX_THREADS  10
+#define DEFAULT_MEMPOOL_MAX_THREADS  1024
 
 namespace oflux {
 namespace lockfree {

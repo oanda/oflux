@@ -17,7 +17,7 @@ template< typename K
 class AtomicMapUnorderedWalker : public oflux::atomic::AtomicMapWalker {
 public:
 	//AtomicMapUnorderedWalker(KVEnumeratorRef<K,A> & enumRef)
-	AtomicMapUnorderedWalker(KeyValueHashTableEnumerator<K,A,16> * enumer)
+	AtomicMapUnorderedWalker(KeyValueHashTableEnumerator<K,A> * enumer)
 		//: _enumRef(enumRef)
 		: _enumer(enumer)
 	{}
@@ -34,14 +34,14 @@ public:
 	}
 private:
 	//KVEnumeratorRef<K,A> _enumRef;
-	KeyValueHashTableEnumerator<K,A,16> * _enumer;
+	KeyValueHashTableEnumerator<K,A> * _enumer;
 };
 
 template< typename K
 	, typename A=oflux::lockfree::atomic::AtomicExclusive >
 class AtomicMapUnordered : public oflux::atomic::AtomicMapAbstract {
 public:
-	typedef HashTable<K,A,16 /*for now*/ > Table;
+	typedef HashTable<K,A> Table;
 	AtomicMapUnordered() {}
 	virtual ~AtomicMapUnordered() {}
 
@@ -73,7 +73,7 @@ public:
 	{ delete reinterpret_cast<K *>(o); }
 	virtual oflux::atomic::AtomicMapWalker * walker()
 	{
-		KeyValueHashTableEnumerator<K,A,16> * enumer =
+		KeyValueHashTableEnumerator<K,A> * enumer =
 		//KVEnumeratorRef<K,A> enumref = 
 			_table.getKeyValues();
 		return new AtomicMapUnorderedWalker<K,A>(enumer);

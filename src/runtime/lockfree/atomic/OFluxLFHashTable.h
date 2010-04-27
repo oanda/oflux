@@ -98,31 +98,27 @@ const V * HashTableConstants<V>::Cas_Expect::Does_Not_Exist
 
 // forward declaration
 template< typename K
-	, typename V
-	, size_t num_threads >
+	, typename V >
 class HashTable;
 
 // forward declaration
 template< typename K
 	, typename V 
-	, typename EB 
-	, size_t num_threads >
+	, typename EB >
 class HashTableEnumeratorBase;
 
 // forward declaration
 template< typename K
-	, typename V 
-	, size_t num_threads >
+	, typename V >
 class KeyValueHashTableEnumerator;
 
 template< typename K
-	, typename V
-	, size_t num_threads >
+	, typename V >
 class HashTableImplementation {
 public:
-	friend class HashTable<K,V,num_threads>;
-	friend class HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V>,num_threads>;
-	friend class HashTableEnumeratorBase<K,V,EnumeratorRef<K>,num_threads>;
+	friend class HashTable<K,V>;
+	friend class HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V> >;
+	friend class HashTableEnumeratorBase<K,V,EnumeratorRef<K> >;
 
 	typedef HashTableConstants<V> HTC;
 	/**
@@ -191,7 +187,7 @@ public:
 	}
 
 	~HashTableImplementation() {
-		HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V>,num_threads> enumr(this,true);
+		HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V> > enumr(this,true);
 		const K * kp;
 		const V * vp;
 		while(enumr.next(kp,vp)) {
@@ -424,11 +420,11 @@ protected:
 		newscale += (count > (1ULL << (_scale - 1))) 
 			|| (count > (1ULL << (_scale - 2)) 
 				+ (1ULL << (_scale - 3)));
-		HashTableImplementation<K,V,num_threads> * next =
-			new HashTableImplementation<K,V,num_threads>(
+		HashTableImplementation<K,V> * next =
+			new HashTableImplementation<K,V>(
 				  _htb
 				, newscale);
-		HashTableImplementation<K,V,num_threads> * old_next =
+		HashTableImplementation<K,V> * old_next =
 			__sync_val_compare_and_swap(
 				  &_next
 				, NULL
@@ -447,7 +443,7 @@ protected:
 	bool
 	copyEntry(volatile Entry * ent // entry from hash table 1 to move into 2
 		, size_t k_hash 
-		, HashTableImplementation<K,V,num_threads> * nht // hash table 2
+		, HashTableImplementation<K,V> * nht // hash table 2
 		) {
 		assert(_next);
 		assert(nht);
@@ -564,7 +560,7 @@ private:
 	HashTableBase &                _htb;
 	volatile Entry *               _table;
 protected:
-	HashTableImplementation<K,V,num_threads> * _next;
+	HashTableImplementation<K,V> * _next;
 	Stats                          _stats;
 	size_t                         _probe;
 	int                            _ref_count;
@@ -572,11 +568,10 @@ protected:
 
 template< typename K
 	, typename V 
-	, typename EB 
-	, size_t num_threads >
+	, typename EB >
 class HashTableEnumeratorBase : public EB::UnderEnumerator {
 public:
-	typedef HashTableImplementation<K,V,num_threads> Implementation;
+	typedef HashTableImplementation<K,V> Implementation;
 	typedef HashTableConstants<V> HTC;
 
 	HashTableEnumeratorBase(
@@ -636,23 +631,21 @@ protected:
 };
 
 template< typename K
-	, typename V 
-	, size_t num_threads >
-class KeyValueHashTableEnumerator : public HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V>,num_threads > {
+	, typename V >
+class KeyValueHashTableEnumerator : public HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V> > {
 public:
-	KeyValueHashTableEnumerator(HashTableImplementation<K,V,num_threads> * impl) 
-		: HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V>,num_threads>(impl)
+	KeyValueHashTableEnumerator(HashTableImplementation<K,V> * impl) 
+		: HashTableEnumeratorBase<K,V,KVEnumeratorRef<K,V> >(impl)
 	{}
 };
 
 template< typename K
-	, typename V 
-	, size_t num_threads >
-class KeyHashTableEnumerator : public HashTableEnumeratorBase<K,V,EnumeratorRef<K>,num_threads > {
+	, typename V >
+class KeyHashTableEnumerator : public HashTableEnumeratorBase<K,V,EnumeratorRef<K> > {
 public:
 
-	KeyHashTableEnumerator(HashTableImplementation<K,V,num_threads> * impl) 
-		: HashTableEnumeratorBase<K,V,EnumeratorRef<K>,num_threads>(impl)
+	KeyHashTableEnumerator(HashTableImplementation<K,V> * impl) 
+		: HashTableEnumeratorBase<K,V,EnumeratorRef<K> >(impl)
 	{}
 	virtual bool next(const K * & kp) {
 		const V * vp = NULL;
@@ -661,11 +654,10 @@ public:
 };
 
 template< typename K
-	, typename V
-	, size_t num_threads >
+	, typename V >
 class HashTable : public HashTableBase {
 public:
-	typedef HashTableImplementation<K,V,num_threads> Implementation;
+	typedef HashTableImplementation<K,V> Implementation;
 	typedef HashTableConstants<V> HTC;
 
 	HashTable()
@@ -770,19 +762,19 @@ public:
 	}
 
 	//EnumeratorRef<K>
-	KeyHashTableEnumerator<K,V,num_threads> *
+	KeyHashTableEnumerator<K,V> *
 	getKeys() {
 		//return EnumeratorRef<K>(
-		return new KeyHashTableEnumerator<K,V,num_threads>(_impl);
+		return new KeyHashTableEnumerator<K,V>(_impl);
 		//);
 	}
 
 	//KVEnumeratorRef<K,V>
-	KeyValueHashTableEnumerator<K,V,num_threads> *
+	KeyValueHashTableEnumerator<K,V> *
 	getKeyValues() {
 		//return KVEnumeratorRef<K,V>(
 		return
-			new KeyValueHashTableEnumerator<K,V,num_threads>(_impl);
+			new KeyValueHashTableEnumerator<K,V>(_impl);
 		//);
 	}
 private:
