@@ -114,7 +114,7 @@ RunTime::load_flow(
 	, const char * pluginlibdir
 	, void * initpluginparams)
 {
-        oflux_log_debug("RunTime::load_flow() called\n");
+        oflux_log_trace("RunTime::load_flow() called\n");
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
@@ -190,7 +190,7 @@ void __runtime_sigint_handler(int)
 void
 RunTime::start()
 {
-	oflux_log_debug("RunTime::start() called\n");
+	oflux_log_trace("RunTime::start() called\n");
 	RunTimeThread * this_rtt = _threads; 
 		// [0] indexed thread is the initial thread.
 	if(!this_rtt) return; // no threads allocated
@@ -213,7 +213,7 @@ RunTime::start()
 	}
 	// start thread 0
 	this_rtt->start();
-	oflux_log_debug("thread index %d finished\n",this_rtt->index());
+	oflux_log_trace("thread index %d finished\n",this_rtt->index());
 	// tear down phase
 	rtt = _threads;
 	rtt = rtt->_next;

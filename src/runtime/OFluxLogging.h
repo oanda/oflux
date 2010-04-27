@@ -14,7 +14,8 @@ namespace logging {
  */
 
 enum Level 
-	{ LL_debug = 0
+	{ LL_trace = 0
+	, LL_debug = LL_trace+1
         , LL_info  = LL_debug+1
 	, LL_warn  = LL_info +1
 	, LL_error = LL_warn +1
@@ -69,6 +70,8 @@ private:
  */
 void toStream(std::ostream & os); // only call this once!
 
+#define oflux_log_trace(...) \
+        oflux::logging::logger->oflux_log(oflux::logging::LL_trace,__VA_ARGS__)
 #define oflux_log_debug(...) \
         oflux::logging::logger->oflux_log(oflux::logging::LL_debug,__VA_ARGS__)
 #define oflux_log_info(...) \

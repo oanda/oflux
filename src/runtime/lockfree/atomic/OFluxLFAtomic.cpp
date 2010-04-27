@@ -1,4 +1,5 @@
 #include "lockfree/atomic/OFluxLFAtomic.h"
+#include "lockfree/allocator/OFluxLFMemoryPool.h"
 #include "flow/OFluxFlowNode.h"
 #include "OFluxLogging.h"
 
@@ -12,7 +13,7 @@ namespace atomic {
 #define set_three set_val<0x0003>
 
 
-boost::shared_ptr<Allocator<EventBaseHolder> > AtomicCommon::allocator(new Allocator<EventBaseHolder>(new MallocAllocatorImplementation<sizeof(EventBaseHolder)>()));
+Allocator<EventBaseHolder> AtomicCommon::allocator(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
 
 static const char *
 convert_wtype_to_string(int wtype)
@@ -48,10 +49,10 @@ AtomicCommon::_log_snapshot_waiters(const WaiterList * wlp)
 			// no line emitted
 		} else {
 			if(repeat_count > 1) {
-				oflux_log_debug("       ...(repeated %u times)\n"
+				oflux_log_trace("       ...(repeated %u times)\n"
 					, repeat_count);
 			}
-			oflux_log_debug("   %s %s\n"
+			oflux_log_trace("   %s %s\n"
 				, this_wtype
 				, this_name);
 			repeat_count = 0;
@@ -62,7 +63,7 @@ AtomicCommon::_log_snapshot_waiters(const WaiterList * wlp)
 		e = e->next;
 	}
 	if(repeat_count > 1) {
-		oflux_log_debug("       ...(repeated %u times)\n"
+		oflux_log_trace("       ...(repeated %u times)\n"
 			, repeat_count);
 	}
 }
@@ -440,7 +441,7 @@ ReadWriteWaiterList::dump()
 void
 AtomicReadWrite::log_snapshot_waiters() const
 {
-	oflux_log_debug(" rcount:%d _wtype:%d\n", _waiters.rcount, _wtype);
+	oflux_log_trace(" rcount:%d _wtype:%d\n", _waiters.rcount, _wtype);
 	_log_snapshot_waiters(&_waiters); 
 }
 

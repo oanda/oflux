@@ -28,7 +28,7 @@ public:
 	};
 	typedef CircularWorkStealingDeque<WSQElement> WorkStealingDeque;
 
-	static boost::shared_ptr<Allocator<WSQElement> > allocator;
+	static Allocator<WSQElement> allocator;
 
 	RunTimeThread(RunTime & rt, int index, oflux_thread_t tid);
 	~RunTimeThread();
@@ -40,7 +40,7 @@ public:
 		if(e && e != &WorkStealingDeque::empty 
 				&& e != &WorkStealingDeque::abort) {
 			ebptr.swap(e->ev);
-			allocator->put(e);
+			allocator.put(e);
 		}
 		return ebptr;
 	}
@@ -59,13 +59,13 @@ private:
 		WSQElement * e = _queue.popBottom();
 		if(e && e != &WorkStealingDeque::empty) {
 			ebptr.swap(e->ev);
-			allocator->put(e);
+			allocator.put(e);
 		}
 		return ebptr;
 	}
 	inline void pushLocal(EventBasePtr & ev)
 	{
-		WSQElement * e = allocator->get(ev);
+		WSQElement * e = allocator.get(ev);
 		_queue.pushBottom(e);
 	}
 	int handle(EventBasePtr & ev);

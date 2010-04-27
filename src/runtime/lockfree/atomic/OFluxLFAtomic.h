@@ -50,7 +50,7 @@ class WaiterList;
 
 class AtomicCommon : public oflux::atomic::Atomic {
 public:
-	static boost::shared_ptr<Allocator<EventBaseHolder> > allocator;
+	static Allocator<EventBaseHolder> allocator;
 
 	AtomicCommon(void * d)
 		: _data_ptr(d)
@@ -69,7 +69,7 @@ public:
 	typedef EventBaseHolder::WType WType;
 
 	WaiterList()
-		: _head(AtomicCommon::allocator->get(EventBase::no_event, EventBaseHolder::None))
+		: _head(AtomicCommon::allocator.get(EventBase::no_event, EventBaseHolder::None))
 		, _tail(_head)
 	{ set_val<0x0001>(_head->next); }
 	inline bool empty() const { return is_val<0x0001>(_head->next); }
@@ -113,15 +113,15 @@ public:
 		EventBaseHolder * ebh = _waiters.pop();
 		if(ebh) {
 			rel_ev.push_back(ebh->ev);
-			allocator->put(ebh);
+			allocator.put(ebh);
 		}
 	}
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
-		EventBaseHolder * ebh = allocator->get(ev,wtype);
+		EventBaseHolder * ebh = allocator.get(ev,wtype);
 		bool acqed = _waiters.push(ebh);
 		if(acqed) {
-			allocator->put(ebh); // not in use - return it to pool
+			allocator.put(ebh); // not in use - return it to pool
 		}
 		return acqed;
 	}
@@ -155,12 +155,12 @@ public:
 	{ return "lockfree::AtomicReadWrite"; }
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
-		EventBaseHolder * ebh = allocator->get(ev,wtype);
+		EventBaseHolder * ebh = allocator.get(ev,wtype);
 		bool acqed = _waiters.push(ebh,wtype);
 		if(acqed) {
 			_wtype = wtype;
 			if(wtype == EventBaseHolder::Read) {
-				allocator->put(ebh); 
+				allocator.put(ebh); 
 			}
 		}
 		return acqed;
@@ -177,7 +177,7 @@ public:
 			n_e = e->next;
 			_wtype = e->type;
 			rel_ev.push_back(e->ev);
-			allocator->put(e);
+			allocator.put(e);
 			e = n_e;
 		}
 	}
