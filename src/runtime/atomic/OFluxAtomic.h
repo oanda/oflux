@@ -162,6 +162,7 @@ public:
 		if(_waiters.size()) {
 			rel_ev.push_back(_waiters.front().event);
 			_waiters.pop_front();
+			_held = 1; // released ev has acquired
 		}
 	}
 	virtual bool acquire_or_wait(EventBasePtr & ev, int)
@@ -198,12 +199,14 @@ public:
 			_mode = AtomicCommon::None;
 			if(_waiters.size()) {
 				AtomicQueueEntry & aqe = _waiters.front();
-				_mode = aqe.wtype;
 				rel_ev.push_back(aqe.event);
+				_mode = aqe.wtype;
+				++_held;
 				_waiters.pop_front();
 				if(_mode == Read) {
 					while(_waiters.size() && _waiters.front().wtype == Read) {
 						rel_ev.push_back(_waiters.front().event);
+						++_held;
 						_waiters.pop_front();
 					}
 				}
@@ -365,13 +368,12 @@ public:
 	virtual void release(std::vector<EventBasePtr > & rel_ev
 		, EventBasePtr &)
 	{
-		if(_data) {
-                        _pool.put_data(_data);
-                }
 		if(_pool.waiter_count()) {
                         rel_ev.push_back(_pool.get_waiter());
-		}
-		_data = NULL;
+		} else if(_data) { // return it to the pool
+                        _pool.put_data(_data);
+			_data = NULL;
+                }
 		_pool.put(this);
 	}
 	virtual bool acquire_or_wait(EventBasePtr & ev, int)

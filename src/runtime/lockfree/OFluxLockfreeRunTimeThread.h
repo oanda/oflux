@@ -45,22 +45,8 @@ public:
 		return ebptr;
 	}
 	int index() const { return _index; }
-	void wake() { oflux_cond_signal(&_cond); }
-	bool die()
-	{
-		_request_stop = true;
-		if(asleep()) {
-			wake();
-		}
-		oflux_mutex_unlock(&_lck);
-		size_t retries = 4;
-		int res = 0;
-		while(oflux_self() != _tid && _running && retries && res == 0) {
-			res = oflux_kill_int(_tid);
-			if(_running) usleep(50000); // 50 ms rest
-		}
-		return !_running;
-	}
+	void wake();
+	bool die();
 	bool asleep() const { return _asleep; }
 	oflux_thread_t self() const { return _tid; }
 protected:

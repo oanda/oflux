@@ -38,13 +38,11 @@ struct EventBaseHolder {
 			, int a_type = None)
 		: ev(a_ev)
 		, next(NULL)
-		, readrel(false)
 		, type(a_type)
 	{}
 
 	EventBasePtr ev;
 	EventBaseHolder * next;
-	bool readrel;
 	int type;
 };
 
@@ -135,6 +133,8 @@ private:
 
 class ReadWriteWaiterList : public WaiterList {
 public:
+	ReadWriteWaiterList() : rcount(0) {}
+
 	bool push(EventBaseHolder * e, int type);
 	void pop(EventBaseHolder * & el, EventBasePtr & by_e);
 	void dump();
@@ -172,7 +172,7 @@ public:
 		EventBaseHolder * el = NULL;
 		_waiters.pop(el,by_e);
 		EventBaseHolder * e = el;
-		EventBaseHolder * n_e = e->next;
+		EventBaseHolder * n_e = NULL;
 		while(e) {
 			n_e = e->next;
 			_wtype = e->type;
@@ -181,8 +181,7 @@ public:
 			e = n_e;
 		}
 	}
-	virtual void log_snapshot_waiters() const
-	{ _log_snapshot_waiters(&_waiters); }
+	virtual void log_snapshot_waiters() const;
 private:
 	ReadWriteWaiterList _waiters;
 	int _wtype;

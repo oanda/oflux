@@ -88,10 +88,14 @@ public:
 	EnumeratorRef(RefCountable< Enumerator<K> > * e)
 		: EnumeratorRefBase< RefCountable< Enumerator<K> > >(e)
 	{}
+	EnumeratorRef(const EnumeratorRef<K> & er)
+	{
+		*this = er;
+	}
 	inline EnumeratorRef<K> & 
 	operator=(const EnumeratorRef<K> & er)
 	{
-		EnumeratorRefBase<K>::clone(er);
+		EnumeratorRefBase< RefCountable< Enumerator<K> > >::clone(er);
 		return *this;
 	}
 	inline bool
@@ -131,6 +135,15 @@ public:
 	KVEnumeratorRef(RefCountable< KeyValueEnumerator<K,V> > * e)
 		: EnumeratorRefBase< RefCountable< KeyValueEnumerator<K,V> > >(e)
 	{}
+	KVEnumeratorRef(const KVEnumeratorRef<K,V> & er)
+		: EnumeratorRefBase< RefCountable< KeyValueEnumerator<K,V> > >(er._enumerator)
+	{}
+	inline KVEnumeratorRef<K,V> & 
+	operator=(const KVEnumeratorRef<K,V> & er)
+	{
+		EnumeratorRefBase< RefCountable< KeyValueEnumerator<K,V> > >::clone(er);
+		return *this;
+	}
 	inline bool
 	next(const K * & kp, const V * & vp) {
 		if(EnumeratorRefBase< RefCountable< KeyValueEnumerator<K,V> > >::_enumerator) {

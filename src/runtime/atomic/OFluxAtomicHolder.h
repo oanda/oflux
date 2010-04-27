@@ -98,6 +98,11 @@ public:
 		_haveit = ha._haveit;
 		ha._haveit = false;
 	}
+	inline void halftakeit(HeldAtomic & ha) 
+	{
+		_atom = ha._atom;
+		_haveit = ha._haveit;
+	}
 	/**
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure
@@ -221,6 +226,8 @@ public:
 			? *(aptr->data())
 			: NULL);
 	}
+
+	int working_on() const { return _working_on; }
 		
 protected:
 	bool get_keys_sort(const void * node_in);

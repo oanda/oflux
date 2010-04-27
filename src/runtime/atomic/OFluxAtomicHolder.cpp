@@ -163,7 +163,28 @@ AtomicsHolder::release(
 			int pre_sz = released_events.size();
 #endif // HAS_DTRACE
 			a->release(released_events,by_ev);
+			// acquisition happens here for released events
+			bool should_relinquish = false;
+			for(std::vector<EventBasePtr>::iterator itr = released_events.begin(); itr != released_events.end(); ++itr) {
+				should_relinquish = true;
+				AtomicsHolder & rel_atomics = (*itr)->atomics();
+				bool fd = false;
+				HeldAtomic * rel_ha_ptr = NULL;
+				for(int j = rel_atomics.working_on(); j < rel_atomics.number(); ++j) {
+					rel_ha_ptr = rel_atomics.get(i);
+					if(rel_ha_ptr && rel_ha_ptr->atomic() == a) {
+						rel_ha_ptr->halftakeit(*ha);
+						fd = true;
+						break;
+					}
+				}
+				assert(fd && "should have found a held atomic for this released event");
+			}
+			if(should_relinquish) {
+				ha->relinquish();
+			}
                         ha->atomic(NULL);
+
 #ifdef HAS_DTRACE
 			int post_sz = released_events.size();
 #endif // HAS_DTRACE

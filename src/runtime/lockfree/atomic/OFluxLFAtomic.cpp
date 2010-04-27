@@ -206,7 +206,6 @@ ReadWriteWaiterList::push(
 	, int type)
 {
 	e->next = NULL;
-	e->readrel = false;
 	EventBaseHolder * t = NULL;
 
 	EventBasePtr ev;
@@ -246,6 +245,8 @@ ReadWriteWaiterList::push(
 				, e)) {
 			// 2->4
 			h->ev.swap(ev);
+			h->type = e->type;
+			e->type = EventBaseHolder::None;
 			return false;
 		} else if(is_three(hn)
 				&& type == EventBaseHolder::Read
@@ -266,6 +267,8 @@ ReadWriteWaiterList::push(
 				, e)) {
 			// 3->5
 			h->ev.swap(ev);
+			h->type = e->type;
+			e->type = EventBaseHolder::None;
 			return false;
 		} else if(!is_three(hn) 
 				&& hn != NULL 
@@ -281,6 +284,8 @@ ReadWriteWaiterList::push(
 						,NULL
 						,e)) {
 				t->ev.swap(ev);
+				t->type = e->type;
+				e->type = EventBaseHolder::None;
 				_tail = e;
 				break;
 			}
@@ -432,6 +437,12 @@ ReadWriteWaiterList::dump()
         printf("  rcount = %d\n", rcount);
 }
 
+void
+AtomicReadWrite::log_snapshot_waiters() const
+{
+	oflux_log_debug(" rcount:%d _wtype:%d\n", _waiters.rcount, _wtype);
+	_log_snapshot_waiters(&_waiters); 
+}
 
 } // namespace atomic
 } // namespace lockfree

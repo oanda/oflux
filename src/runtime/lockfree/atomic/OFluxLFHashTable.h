@@ -769,16 +769,21 @@ public:
 			: old_val;
 	}
 
-	EnumeratorRef<K>
+	//EnumeratorRef<K>
+	KeyHashTableEnumerator<K,V,num_threads> *
 	getKeys() {
-		return EnumeratorRef<K>(
-			new KeyHashTableEnumerator<K,V,num_threads>(_impl));
+		//return EnumeratorRef<K>(
+		return new KeyHashTableEnumerator<K,V,num_threads>(_impl);
+		//);
 	}
 
-	KVEnumeratorRef<K,V>
+	//KVEnumeratorRef<K,V>
+	KeyValueHashTableEnumerator<K,V,num_threads> *
 	getKeyValues() {
-		return KVEnumeratorRef<K,V>(
-			new KeyValueHashTableEnumerator<K,V,num_threads>(_impl));
+		//return KVEnumeratorRef<K,V>(
+		return
+			new KeyValueHashTableEnumerator<K,V,num_threads>(_impl);
+		//);
 	}
 private:
 	Implementation * _impl;

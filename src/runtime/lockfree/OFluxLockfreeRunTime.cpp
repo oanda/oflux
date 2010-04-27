@@ -4,6 +4,7 @@
 #include "xml/OFluxXML.h"
 #include "OFluxLogging.h"
 #include <dlfcn.h>
+#include <signal.h>
 
 namespace oflux {
 
@@ -170,6 +171,22 @@ RunTime::decr_sleepers()
 	__sync_fetch_and_sub(&_sleep_count,1);
 }
 
+struct sigaction __oldsigaction;
+volatile bool __ignore_sig_int = false;
+
+void __runtime_sigint_handler(int)
+{
+	oflux_log_info("Runtime sigint handler on thread %d %s\n"
+		, _tn.index
+		, (__ignore_sig_int ? "ignoring" : "default behaviour"));
+	if(!__ignore_sig_int) {
+		// default behaviour if we have not ask that the default be
+		// temporarily ignored with __ignore_sig_int
+		sigaction(SIGINT,&__oldsigaction,NULL);
+		kill(0,SIGINT);
+	}
+}
+
 void
 RunTime::start()
 {
@@ -179,6 +196,16 @@ RunTime::start()
 	if(!this_rtt) return; // no threads allocated
 	// setup all the threads after thread 0
 	RunTimeThread * rtt = this_rtt->_next;
+	// signal handler for SIGINT
+	if(sigaction(SIGINT,NULL,&__oldsigaction) >= 0 
+			&& (__oldsigaction.sa_handler == SIG_DFL
+				|| __oldsigaction.sa_handler == SIG_IGN)) {
+		struct sigaction newaction;
+		sigemptyset(&newaction.sa_mask);
+		newaction.sa_handler = __runtime_sigint_handler;
+		sigaction(SIGINT,&newaction,NULL);
+	}
+	// start threads > 0
 	int res = 0;
 	while(rtt) {
 		res = res || rtt->create();
@@ -186,6 +213,7 @@ RunTime::start()
 	}
 	// start thread 0
 	this_rtt->start();
+	oflux_log_debug("thread index %d finished\n",this_rtt->index());
 	// tear down phase
 	rtt = _threads;
 	rtt = rtt->_next;
@@ -204,8 +232,9 @@ RunTime::log_snapshot()
 }
 
 void
-RunTime::log_snapshot_guard(const char *)
-{ // FIXME
+RunTime::log_snapshot_guard(const char *guardname)
+{ 
+	flow()->log_snapshot_guard(guardname);
 }
 
 } // namespace lockfree

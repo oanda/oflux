@@ -30,8 +30,8 @@ RunTimeThread::RunTimeThread(RunTime & rt, int index, oflux_thread_t tid)
 
 RunTimeThread::~RunTimeThread()
 {
-	//oflux_mutex_destroy(&_lck);
-	//oflux_cond_destroy(&_cond);
+	oflux_mutex_destroy(&_lck);
+	oflux_cond_destroy(&_cond);
 }
 
 static void *
@@ -40,7 +40,30 @@ RunTimeThread_start_thread(void *pthis)
         RunTimeThread * rtt = static_cast<RunTimeThread*>(pthis);
 	ThreadNumber::init(rtt->index());
         rtt->start();
+	oflux_log_debug("thread index %d finished\n",rtt->index());
         return NULL;
+}
+
+extern bool __ignore_sig_int;
+
+bool 
+RunTimeThread::die()
+{
+	_request_stop = true;
+	if(asleep()) {
+		wake();
+	}
+	oflux_mutex_unlock(&_lck);
+	size_t retries = 4;
+	int res = 0;
+	__ignore_sig_int = true;
+	while(oflux_self() != _tid && _running && retries && res == 0) {
+		oflux_log_debug("OFluxLockfreeRunTimeThread::die() sending tid %d (index %d) a SIGINT from %d (%d)\n", _tid, index(), pthread_self(), _tn.index);
+		res = oflux_kill_int(_tid);
+		if(_running) usleep(50000); // 50 ms rest
+	}
+	__ignore_sig_int = false;
+	return !_running;
 }
 
 int
@@ -84,8 +107,7 @@ RunTimeThread::start()
 			no_ev_iterations = 0;
 			int num_new_evs = handle(ev);
 			int num_alive_threads = _rt.nonsleepers();
-			int threads_to_wake = std::max( (num_new_evs>1 ? 1 : 0)
-					, num_alive_threads*num_alive_threads - num_new_evs);
+			int threads_to_wake = num_new_evs;
 			oflux_log_debug("RunTimeThread::start() calling handle %d wt: %d\n",index(),threads_to_wake);
 			_rt.wake_threads(threads_to_wake);
 			// attempt to avoid a thundering herd here
@@ -96,12 +118,15 @@ RunTimeThread::start()
 			oflux_log_debug("RunTimeThread::start() sleeping %d\n",index());
 			oflux_cond_wait(&_cond, &_lck);
 			_asleep = false;
+			oflux_log_debug("RunTimeThread::start() woke up  %d\n",index());
 			_rt.decr_sleepers();
 			no_ev_iterations = 0;
 		} else if(no_ev_iterations > NO_EV_CRITICAL*2
 				&& _rt.all_asleep_except_me()) {
 			_asleep = false;
 			oflux_log_warn("RunTimeThread::start() exiting... seem to be out of events to run\n");
+			_rt.log_snapshot_guard("Ga");
+			_rt.log_snapshot_guard("Gb");
 			_rt.soft_kill();
 			break;
 		}
@@ -109,10 +134,20 @@ RunTimeThread::start()
 	}
 }
 
+void
+RunTimeThread::wake()
+{ 
+	oflux_log_debug("RunTimeThread::wake() on %d\n",index());
+	oflux_cond_signal(&_cond); 
+}
+
 int
 RunTimeThread::handle(EventBasePtr & ev)
 {
 	_flow_node_working = ev->flow_node();
+	oflux_log_debug("RunTimeThread::handle() on %s %p\n"
+		, _flow_node_working->getName()
+		, ev.get());
 	// ---------------- Execution -------------------
 	int return_code = ev->execute();
         // ----------- Successor processing -------------
@@ -135,14 +170,21 @@ RunTimeThread::handle(EventBasePtr & ev)
                 EventBasePtr & succ_ev = successor_events_released[i];
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
                         successor_events.push_back(successor_events_released[i]);
-                }
+                } else {
+			oflux_log_debug("acquire_all_or_wait() failure for "
+				"%s %p on guards acquisition"
+				, succ_ev->flow_node()->getName()
+				, succ_ev.get());
+		}
         }
         for(size_t i = 0; i < successor_events.size(); ++i) {
-		oflux_log_debug(" %u handle: %s (%d) succcessor %s pushed %d\n"
+		oflux_log_debug(" %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
 			, index()
 			, _flow_node_working->getName()
+			, ev.get()
 			, i
 			, successor_events[i]->flow_node()->getName()
+			, successor_events[i].get()
 			, return_code);
 		pushLocal(successor_events[i]);
 	}

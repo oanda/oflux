@@ -1572,7 +1572,7 @@ let emit_test_main code =
 		; "static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
-		; ", 1 // initial threads (ignored really)"
+		; ", 4 // initial threads (ignored really)"
 		; ", 0 // max threads"
 		; ", 0 // max detached"
 		; ", 0 // thread collection threshold"

@@ -17,9 +17,16 @@ acquire_guards(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev = EventBase::no_event)
 {
-	return ev->atomics().acquire_all_or_wait(
+	bool res = ev->atomics().acquire_all_or_wait(
 		  ev
 		, pred_ev);
+	if(!res) {
+		oflux_log_debug("event::acquire_guards() failure for "
+			"%s %p on guards acquisition\n"
+			, ev->flow_node()->getName()
+			, ev.get());
+	}
+	return res;
 }
 
 void

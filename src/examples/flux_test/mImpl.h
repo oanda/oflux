@@ -1,14 +1,18 @@
-#include "OFluxRunTime.h"
+#ifndef MIMPL_H
+#define MIMPL_H
+
+#include "OFluxRunTimeAbstract.h"
+#include <boost/shared_ptr.hpp>
 
 int init(int argc, char ** argv);
 
 // fwd decl all that is needed
 
 namespace oflux {
-class RunTime;
+class RunTimeBase;
 };
 
-extern oflux::RunTime * theRT;
+extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 #define OFLUX_SNAPSHOT theRT->log_snapshot();
 
@@ -23,3 +27,5 @@ extern unsigned int nodeCount_Select;
 extern unsigned int nodeCount_Read;
 extern unsigned int nodeCount_Route;
 extern unsigned int nodeCount_Send;
+
+#endif // MIMPL_H
