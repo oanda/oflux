@@ -97,7 +97,7 @@ AtomicsHolder::acquire_all_or_wait(
 	EventBase * ev_bptr = ev.get();
 	const char * ev_name = ev_bptr->flow_node()->getName();
 	_NODE_ACQUIREGUARDS(
-		  static_cast<void *>(ev_bptr);
+		  ev_bptr
 		, ev_name);
 	const void * node_in = ev_bptr->input_type();
 	if(!_is_sorted_and_keyed) {

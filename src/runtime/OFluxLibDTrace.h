@@ -40,7 +40,7 @@
 #define _NODE_HAVEALLGUARDS(E,X) \
     OFLUX_NODE_HAVEALLGUARDS(const_cast<void *>(E),const_cast<char *>(X))
 #define _NODE_ACQUIREGUARDS(E,X) \
-    OFLUX_NODE_ACQUIREGUARDS(const_cast<void *>(E),const_cast<char *>(X))
+    OFLUX_NODE_ACQUIREGUARDS(static_cast<void *>(E),const_cast<char *>(X))
 
 
 #define _GUARD_ACQUIRE(X,Y,Z) \

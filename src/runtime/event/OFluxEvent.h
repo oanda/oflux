@@ -102,7 +102,7 @@ public:
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));
 		const char * ev_name __attribute__((unused)) = 
-			EventBase::flow_node()->getName()
+			EventBase::flow_node()->getName();
 		PUBLIC_NODE_START(
 			  this
 			, ev_name
@@ -139,7 +139,7 @@ public:
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));
 		const char * ev_name __attribute__((unused)) = 
-			EventBase::flow_node()->getName()
+			EventBase::flow_node()->getName();
 		PUBLIC_NODE_START(
 			  this
 			, ev_name

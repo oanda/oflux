@@ -21,9 +21,6 @@ namespace ofluximpl {
 int pmain(int argc, char * argv[])
 {
     assert(argc >= 2);
-    #ifdef HASINIT
-    init(argc-1,&(argv[1]));
-    #endif //HASINIT
     int initPluginParams = 237;
     static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);
     RunTimeConfiguration rtc = {
@@ -41,7 +38,11 @@ int pmain(int argc, char * argv[])
 	, ofluximpl::init_atomic_maps
     };
     logging::toStream(std::cout); // comment out if no oflux logging is desired
-    theRT.reset(create_classic_runtime(rtc));
+    EnvironmentVar env(runtime::Factory::classic);
+    theRT.reset(runtime::Factory::create(env.runtime_number, rtc));
+    #ifdef HASINIT
+    init(argc-1,&(argv[1]));
+    #endif //HASINIT
     return 0;
 }
 

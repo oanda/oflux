@@ -13,7 +13,7 @@ namespace atomic {
 #define set_three set_val<0x0003>
 
 
-Allocator<EventBaseHolder> AtomicCommon::allocator(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
+Allocator<EventBaseHolder> AtomicCommon::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
 
 static const char *
 convert_wtype_to_string(int wtype)

@@ -130,12 +130,13 @@ int Send(const Send_in * in, Send_out * out, Send_atoms *)
 #endif
     ++count;
     ++nodeCount_Send;
-    if(::time(0) != last) {
+    time_t ntime = ::time(0);
+    if(ntime != last) {
         cout << "Send - " << count << " times per second\n";
         cout << "Total nodes per second : " << nodeCount() << endl;
         reset_nodeCount();
         count = 0;
-        last = ::time(0);
+        last = ntime;
     }
     
     return 0;

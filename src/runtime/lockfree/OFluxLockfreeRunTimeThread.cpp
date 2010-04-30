@@ -13,7 +13,7 @@ namespace oflux {
 namespace lockfree {
 
 Allocator<RunTimeThread::WSQElement>
-RunTimeThread::allocator(new allocator::MemoryPool<sizeof(RunTimeThread::WSQElement)>());
+RunTimeThread::allocator; //(new allocator::MemoryPool<sizeof(RunTimeThread::WSQElement)>());
 
 RunTimeThread::RunTimeThread(RunTime & rt, int index, oflux_thread_t tid)
 	: _next(NULL)

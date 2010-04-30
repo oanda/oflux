@@ -131,14 +131,14 @@ public:
 		_haveit = _atom->acquire_or_wait(ev,_flow_guard_ref->wtype());
 		if(_haveit) {
 			_GUARD_ACQUIRE(
-				  flow_guard_ref()->getName().c_str()
+				  _flow_guard_ref->getName().c_str()
 				, ev_name
 				, 0); 
 		} else {
 			_GUARD_WAIT(
-				  flow_guard_ref()->getName().c_str()
+				  _flow_guard_ref->getName().c_str()
 				, ev_name
-				, wtype); 
+				, _flow_guard_ref->wtype()); 
 		}
 		return _haveit;
 	}
