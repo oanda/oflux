@@ -297,6 +297,7 @@ atomic::Pool atomics[1024];
 #define DUMPATOMICS_ \
 	for(size_t i = 0; i < std::min(1u,num_atomics); ++i) { atomics[i].dump(); }
 #define DUMPATOMICS //DUMPATOMICS_
+#define dprintf //printf
 
 #define _DQ_INTERNAL \
      while(_e) { \
@@ -342,11 +343,11 @@ void * run_thread(void *vp)
 		id = e->con.id;
 		if(atomics[id].acquire_or_wait(e)) {
 			// got it right away (no competing waiters)
-			printf("%d]%d}- %d acquired\n",*ip, id,id);
+			dprintf("%d]%d}- %d acquired\n",*ip, id,id);
 			running_evl[1].push(e);
 			++acquire_count;
 		} else {
-			printf("%d]%d}- %d waited\n",*ip, id, id);
+			dprintf("%d]%d}- %d waited\n",*ip, id, id);
 			++wait_count;
 		}
 		DUMPATOMICS
@@ -361,7 +362,7 @@ void * run_thread(void *vp)
 		while(e = running_evl[j%2].pop()) {
 			no_op_iterations = 0;
 			int a_index = e->con.id;
-			printf("%d]   %d running {%s\n"
+			dprintf("%d]   %d running {%s\n"
 				, *ip
 				, e->con.id
 				, e->captured_item ? "r" : "");
@@ -369,7 +370,7 @@ void * run_thread(void *vp)
 			if(a_index >=0 && atomics[a_index].resource) {
 				DUMPATOMICS
 				DUMPRUNQUEUE(j)
-				printf("%d]%d} %d releasing\n",*ip,a_index,e->con.id);
+				dprintf("%d]%d} %d releasing\n",*ip,a_index,e->con.id);
 				event::Event * oldtail = running_evl[(j+1)%2].tail;
 				event::Event *  rel_ev = NULL;
 				e->captured_item = NULL;
@@ -379,9 +380,9 @@ void * run_thread(void *vp)
 					running_evl[(j+1)%2].push(rel_ev);
 				}
 				if(running_evl[(j+1)%2].tail && running_evl[(j+1)%2].tail != oldtail) {
-					printf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].tail->con.id);
+					dprintf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].tail->con.id);
 				} else {
-					printf("%d]%d} nothing came out\n",*ip,a_index);
+					dprintf("%d]%d} nothing came out\n",*ip,a_index);
 				}
 				e->has = -1;
 				++release_count;
@@ -397,11 +398,11 @@ void * run_thread(void *vp)
 			DUMPRUNQUEUE(j)
 			if(atomics[a_index].acquire_or_wait(e)) {
 				// got it right away (no competing waiters)
-				printf("%d]%d} %d acquired\n",*ip,a_index, id);
+				dprintf("%d]%d} %d acquired\n",*ip,a_index, id);
 				running_evl[(j+1)%2].push(e);
 				++acquire_count;
 			} else {
-				printf("%d]%d} %d waited\n",*ip,a_index, id);
+				dprintf("%d]%d} %d waited\n",*ip,a_index, id);
 				++wait_count;
 			}
 		}
