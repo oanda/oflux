@@ -1,4 +1,5 @@
 #include "CommonEventunit.h"
+#include "lockfree/atomic/OFluxLFAtomic.h"
 
 using namespace oflux;
 
@@ -24,6 +25,7 @@ public:
 
         atomic::Atomic * _atomic_ptr;
 };
+
 void
 OFluxAtomicTests::checkRelease(EventBasePtr & ev)
 {
@@ -65,22 +67,23 @@ OFluxAtomicTests::OFluxAtomicTests(atomic::Atomic * aptr)
         createfn_next = n_next.getCreateFn();
 }
 
-class OFluxAtomicExclusiveTests : public OFluxAtomicTests {
+class OFluxLFAtomicExclusiveTests : public OFluxAtomicTests {
 public:
-        OFluxAtomicExclusiveTests() 
+        OFluxLFAtomicExclusiveTests() 
                 : OFluxAtomicTests(&atom)
                 , data_(0)
                 , atom(&data_)
                 {}
 
         int data_;
-        atomic::AtomicExclusive atom;
+        oflux::lockfree::atomic::AtomicExclusive atom;
         static const int excl;
 };
 
-const int OFluxAtomicExclusiveTests::excl = atomic::AtomicExclusive::Exclusive;
+const int OFluxLFAtomicExclusiveTests::excl = 
+	oflux::atomic::AtomicExclusive::Exclusive;
 
-TEST_F(OFluxAtomicExclusiveTests,ThreeEventsDrain) {
+TEST_F(OFluxLFAtomicExclusiveTests,ThreeEventsDrain) {
         EventBasePtr ev_source =
                 (*createfn_source)(EventBase::no_event,NULL,&n_source);
         EventBasePtr ev_succ =
@@ -110,24 +113,26 @@ TEST_F(OFluxAtomicExclusiveTests,ThreeEventsDrain) {
         EXPECT_EQ(atom.waiter_count(),0);
 }
 
-class OFluxAtomicReadWriteTests : public OFluxAtomicTests {
+class OFluxLFAtomicReadWriteTests : public OFluxAtomicTests {
 public:
-        OFluxAtomicReadWriteTests() 
+        OFluxLFAtomicReadWriteTests() 
                 : OFluxAtomicTests(&atom)
                 , data_(0)
                 , atom(&data_)
                 {}
 
         int data_;
-        atomic::AtomicReadWrite atom;
+        oflux::lockfree::atomic::AtomicReadWrite atom;
         static const int read;
         static const int write;
 };
 
-const int OFluxAtomicReadWriteTests::read = atomic::AtomicReadWrite::Read;
-const int OFluxAtomicReadWriteTests::write = atomic::AtomicReadWrite::Write;
+const int OFluxLFAtomicReadWriteTests::read = 
+	oflux::atomic::AtomicReadWrite::Read;
+const int OFluxLFAtomicReadWriteTests::write = 
+	oflux::atomic::AtomicReadWrite::Write;
 
-TEST_F(OFluxAtomicReadWriteTests,TwoReadThenOneWrite1) {
+TEST_F(OFluxLFAtomicReadWriteTests,TwoReadThenOneWrite1) {
         EventBasePtr ev_nothing;
         EventBasePtr ev_any_reader1 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
@@ -164,7 +169,7 @@ TEST_F(OFluxAtomicReadWriteTests,TwoReadThenOneWrite1) {
         EXPECT_EQ(1,atom.held());
 }
 
-TEST_F(OFluxAtomicReadWriteTests,ReadWriteRead1) {
+TEST_F(OFluxLFAtomicReadWriteTests,ReadWriteRead1) {
         EventBasePtr ev_nothing;
         EventBasePtr ev_reader1 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
@@ -201,7 +206,7 @@ TEST_F(OFluxAtomicReadWriteTests,ReadWriteRead1) {
         EXPECT_EQ(0,atom.held());
 }
 
-TEST_F(OFluxAtomicReadWriteTests,WriteReadRead1) {
+TEST_F(OFluxLFAtomicReadWriteTests,WriteReadRead1) {
         EventBasePtr ev_nothing;
         EventBasePtr ev_reader1 =
                 (*createfn_next)(EventBase::no_event,NULL,&n_next);
@@ -235,6 +240,8 @@ TEST_F(OFluxAtomicReadWriteTests,WriteReadRead1) {
         checkRelease(ev_reader2);
         EXPECT_EQ(0,atom.held());
 }
+
+/*
 
 class OFluxAtomicPooledTests : public OFluxAtomicTests {
 public:
@@ -334,8 +341,9 @@ TEST_F(OFluxAtomicPooledTests,Simple1) {
         EventBasePtr ev_r1 = api1.release(ev1);
         EXPECT_EQ(ev_r1,ev3);
         AcquirePoolItem api3a(pool,ev3,1);
-        EXPECT_FALSE(api3a.have);
+        EXPECT_TRUE(api3a.have);
 }
+*/
 
 int main(int argc, char **argv) {
 	testing::InitGoogleTest(&argc, argv);

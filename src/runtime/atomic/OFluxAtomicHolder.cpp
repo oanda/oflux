@@ -176,6 +176,12 @@ AtomicsHolder::release(
 						rel_ha_ptr->halftakeit(*ha);
 						fd = true;
 						break;
+					} else if(a->is_pool_like() 
+							&& rel_ha_ptr
+							&& rel_ha_ptr->compare(*ha) ==0) {
+						rel_ha_ptr->swap(*ha);
+						fd = true;
+						break;
 					}
 				}
 				assert(fd && "should have found a held atomic for this released event");

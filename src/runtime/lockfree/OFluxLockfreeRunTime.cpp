@@ -3,6 +3,7 @@
 #include "flow/OFluxFlow.h"
 #include "xml/OFluxXML.h"
 #include "OFluxLogging.h"
+#include "OFluxWrappers.h"
 #include <dlfcn.h>
 #include <signal.h>
 
@@ -138,9 +139,11 @@ RunTime::load_flow(
 		, atomics_style());
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
-	std::vector<EventBasePtr> events_vec;
-	event::push_initials_and_sources(events_vec, flow);
-	distribute_events(_threads,events_vec); 
+	if(_running) {
+		std::vector<EventBasePtr> events_vec;
+		event::push_initials_and_sources(events_vec, flow);
+		distribute_events(_threads,events_vec); 
+	}
 	ActiveFlow * aflow = new ActiveFlow(flow);
 	aflow->next = _active_flow;
 	_active_flow = aflow;
@@ -191,6 +194,12 @@ void
 RunTime::start()
 {
 	oflux_log_trace("RunTime::start() called\n");
+	SetTrue st(_running);
+	{
+		std::vector<EventBasePtr> events_vec;
+		event::push_initials_and_sources(events_vec, flow());
+		distribute_events(_threads,events_vec); 
+	}	
 	RunTimeThread * this_rtt = _threads; 
 		// [0] indexed thread is the initial thread.
 	if(!this_rtt) return; // no threads allocated

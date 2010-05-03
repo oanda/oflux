@@ -142,9 +142,11 @@ RunTime::load_flow(
 		, atomics_style());
         flow->assignMagicNumbers(); // for guard ordering
 	// push the sources (first time)
-	std::vector<EventBasePtr> events_vec;
-	event::push_initials_and_sources(events_vec, flow);
-	_queue.push_list(events_vec); // no priority
+	if(_running) {
+		std::vector<EventBasePtr> events_vec;
+		event::push_initials_and_sources(events_vec, flow);
+		_queue.push_list(events_vec); // no priority
+	}
 	while(_active_flows.size() > 0) {
 		flow::Flow * back = _active_flows.back();
 		if(back->sources().size() > 0) {
@@ -155,7 +157,7 @@ RunTime::load_flow(
 		} 
 		delete back;
 		_active_flows.pop_back();
-	};
+	}
 	_active_flows.push_front(flow);
 }
 
@@ -174,6 +176,11 @@ __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
 void 
 RunTime::start()
 {
+	{ // push sources etc
+		std::vector<EventBasePtr> events_vec;
+		event::push_initials_and_sources(events_vec, flow());
+		_queue.push_list(events_vec); // no priority
+	}
 	// initialization phase
 	_running = true;
 	RunTimeThread * rtt = new_RunTimeThread(oflux_self());

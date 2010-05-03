@@ -103,6 +103,15 @@ public:
 		_atom = ha._atom;
 		_haveit = ha._haveit;
 	}
+	inline void swap(HeldAtomic & ha) 
+	{
+		Atomic * atom = _atom;
+		bool hi = _haveit;
+		_atom = ha._atom;
+		_haveit = ha._haveit;
+		ha._atom = atom;
+		ha._haveit = hi;
+	}
 	/**
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure

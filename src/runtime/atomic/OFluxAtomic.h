@@ -370,11 +370,13 @@ public:
 	{
 		if(_pool.waiter_count()) {
                         rel_ev.push_back(_pool.get_waiter());
-		} else if(_data) { // return it to the pool
-                        _pool.put_data(_data);
+		} else {
+			if(_data) { // return it to the pool
+				_pool.put_data(_data);
+			}
 			_data = NULL;
+			_pool.put(this);
                 }
-		_pool.put(this);
 	}
 	virtual bool acquire_or_wait(EventBasePtr & ev, int)
 	{ 

@@ -4,6 +4,7 @@ OFLUX_UNIT_TESTS += \
   OFluxOrderable_unittest.cpp \
   OFluxEvent_unittest.cpp \
   OFluxLinkedList_unittest.cpp \
+  OFluxLFAtomic_unittest.cpp \
   OFluxAtomic_unittest.cpp
 
-OFluxEvent_unittest OFluxAtomic_unittest : CommonEventunit.o
+OFluxEvent_unittest OFluxAtomic_unittest OFluxLFAtomic_unittest: CommonEventunit.o

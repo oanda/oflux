@@ -102,7 +102,7 @@ struct PoolEventList { // thread safe
 	//
 	// 1. (resourcesN) !mkd(head) && head = { next != NULL, id > 0 }
 	// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 }
-	// 3. (waitingM) mkd(head) && unmkd(head) = { mkd(next) , next != NULL, id > 0 }
+	// 3. (waitingM) mkd(head) && unmk(head) = { mkd(next) , unmk(next) != NULL, id > 0 }
 	// Note: in (3) all non-NULL next links are mkd()
 };
 
@@ -296,14 +296,14 @@ atomic::Pool atomics[1024];
 
 #define DUMPATOMICS_ \
 	for(size_t i = 0; i < std::min(1u,num_atomics); ++i) { atomics[i].dump(); }
-#define DUMPATOMICS DUMPATOMICS_
+#define DUMPATOMICS //DUMPATOMICS_
 
 #define _DQ_INTERNAL \
      while(_e) { \
 	printf("%d%c,",_e->con.id,(_e->captured_item ? 'r':' ')); \
        _e = _e->next; \
      } 
-#define DUMPRUNQUEUE(I) \
+#define DUMPRUNQUEUE_(I) \
    { \
      printf("  RQ:"); \
      event::Event * _e = running_evl[I%2].head; \
@@ -312,6 +312,7 @@ atomic::Pool atomics[1024];
      _DQ_INTERNAL \
      printf("\n"); \
    } 
+#define DUMPRUNQUEUE(I)// DUMPRUNQUEUE_(I)
 
 void * run_thread(void *vp)
 {
