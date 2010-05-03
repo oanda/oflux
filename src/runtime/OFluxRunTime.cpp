@@ -79,7 +79,7 @@ deinit_eminfo()
 	// deinit the shim
 	if(!RunTimeBase::deinitShim) {
                 RunTimeBase::deinitShim = 
-                        (deinitShimFnType)dlsym (RTLD_NEXT, "deinitShim");
+                        (deinitShimFnType)dlsym (RTLD_DEFAULT, "deinitShim");
         }
 	if (RunTimeBase::deinitShim == NULL){
 		oflux_log_error("ERROR(deinit) no SHIM file found... "

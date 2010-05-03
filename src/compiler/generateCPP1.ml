@@ -905,7 +905,7 @@ let emit_atom_map_map plugin_opt symtable code =
                 add_code code
 		("static "^(
                 if gd.gtype = "pool" then
-                        ("oflux::"^ns^"atomic::AtomicPool "^clean_n^"_map; "
+                        ("oflux::"^"atomic::AtomicPool "^clean_n^"_map; "
 			^clean_n^"_map_ptr = & "^clean_n^"_map;")
                 else if 0 = (List.length gd.garguments) then
 			("oflux::atomic::AtomicMapTrivial<"

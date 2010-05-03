@@ -148,7 +148,8 @@ public:
 		: AtomicCommon(data)
 	{}
 	virtual ~AtomicReadWrite() {}
-	virtual int held() const { return ! _waiters.empty(); }
+	virtual int held() const 
+	{ return _waiters.rcount ? _waiters.rcount : !_waiters.empty(); }
 	virtual size_t waiter_count() { return _waiters.count(); }
 	virtual int wtype() const { return _wtype; }
 	virtual const char * atomic_class() const

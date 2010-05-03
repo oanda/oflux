@@ -12,7 +12,6 @@ namespace atomic {
 #define set_one   set_val<0x0001>
 #define set_three set_val<0x0003>
 
-
 Allocator<EventBaseHolder> AtomicCommon::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
 
 static const char *
@@ -89,8 +88,12 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 	EventBaseHolder * t = NULL;
 	EventBasePtr ev; // hold the event locally
 	ev.swap(e->ev);
+	EventBaseHolder * h = NULL;
+	EventBaseHolder * hn = NULL;
 	while(1) {
-		if(is_one(_head->next) 
+		h = _head;
+		hn = h->next;
+		if(is_one(hn) 
 				&& __sync_bool_compare_and_swap(
 				  &(_head->next)
 				, 0x0001
@@ -100,11 +103,11 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 			return true;
 		} else {
 			// 2->3
-			while(_tail->next) {
-				_tail = _tail->next;
-			}
 			t = _tail;
-			if(__sync_bool_compare_and_swap(&(t->next),NULL,e)) {
+			while(unmk(t) && t->next) {
+				t = t->next;
+			}
+			if(unmk(t) && __sync_bool_compare_and_swap(&(t->next),NULL,e)) {
 				t->ev.swap(ev);
 				_tail = e;
 				break;

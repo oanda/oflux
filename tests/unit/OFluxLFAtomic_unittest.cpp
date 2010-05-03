@@ -52,9 +52,16 @@ OFluxAtomicTests::checkRelease(
         _atomic_ptr->release(test_rel_ev,ev);
 	EXPECT_EQ(test_rel_ev.size(),rel_ev.size())
 		<< " number of released events";
-	for(size_t i = 0 ; i < std::min(test_rel_ev.size(),rel_ev.size()); ++i) {
-		EXPECT_EQ(test_rel_ev[i].get(),rel_ev[i].get())
-			<< " released event " << i << " comparison";
+	for(size_t i = 0 ; i < test_rel_ev.size(); ++i) {
+		bool fd = false;
+		for(size_t j = 0; j < rel_ev.size(); ++j) {
+			if(test_rel_ev[i].get() == rel_ev[j].get()) {
+				fd = true;
+				break;
+			}
+		}
+		EXPECT_TRUE(fd)
+			<< " released event " << i << "th comparison";
 	}
 }
 

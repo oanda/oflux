@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <unistd.h>
 
+#define dprintf //printf
 
 namespace event {
 struct Event {
@@ -154,8 +155,12 @@ EventList::push(Event * e)
 	e->id = 0;
 	e->waiting_on = -1;
 	e->has = -1;
+	Event * h = NULL;
+	Event * hn = NULL;
 	while(1) {
-		if(is_one(head->next) && __sync_bool_compare_and_swap(
+		h = head;
+		hn = h->next;
+		if(is_one(hn) && __sync_bool_compare_and_swap(
 				  &(head->next)
 				, 0x0001
 				, NULL)) {
@@ -166,11 +171,11 @@ EventList::push(Event * e)
 			return true;
 		} else {
 			//2->3
-			while(tail->next) {
-				tail = tail->next;
-			}
 			t = tail;
-			if(__sync_bool_compare_and_swap(&(t->next),NULL,e)) {
+			while(unmk(t) && t->next) {
+				t = t->next;
+			}
+			if(unmk(t) && __sync_bool_compare_and_swap(&(t->next),NULL,e)) {
 				t->id = id;
 				t->waiting_on = w_on;
 				t->has = hs;
@@ -326,11 +331,11 @@ void * run_thread(void *vp)
 		id = e->id;
 		if(atomics[a].acquire_or_wait(e)) {
 			// got it right away (no competing waiters)
-			printf("%d]%d}- %d acquired\n",*ip, (*ip)%num_atomics,id);
+			dprintf("%d]%d}- %d acquired\n",*ip, (*ip)%num_atomics,id);
 			running_evl[1].push(e);
 			++acquire_count;
 		} else {
-			printf("%d]%d}- %d waited\n",*ip,(*ip)%num_atomics, id);
+			dprintf("%d]%d}- %d waited\n",*ip,(*ip)%num_atomics, id);
 			++wait_count;
 		}
 	}
@@ -343,16 +348,16 @@ void * run_thread(void *vp)
 		while(e = running_evl[j%2].pop()) {
 			no_op_iterations = 0;
 			int a_index = e->has;
-			printf("%d]   %d running\n",*ip,e->id);
+			dprintf("%d]   %d running\n",*ip,e->id);
 			if(a_index >=0) {
 				DUMPATOMICS
-				printf("%d]%d} %d releasing\n",*ip,a_index,e->id);
+				dprintf("%d]%d} %d releasing\n",*ip,a_index,e->id);
 				event::Event * oldtail = running_evl[(j+1)%2].tail;
 				atomics[a_index].release(running_evl[(j+1)%2]);
 				if(running_evl[(j+1)%2].tail && running_evl[(j+1)%2].tail != oldtail) {
-					printf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].tail->id);
+					dprintf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].tail->id);
 				} else {
-					printf("%d]%d} nothing came out\n",*ip,a_index);
+					dprintf("%d]%d} nothing came out\n",*ip,a_index);
 				}
 				e->has = -1;
 				++release_count;
@@ -363,11 +368,11 @@ void * run_thread(void *vp)
 			DUMPATOMICS
 			if(atomics[a_index].acquire_or_wait(e)) {
 				// got it right away (no competing waiters)
-				printf("%d]%d} %d acquired\n",*ip,a_index, id);
+				dprintf("%d]%d} %d acquired\n",*ip,a_index, id);
 				running_evl[(j+1)%2].push(e);
 				++acquire_count;
 			} else {
-				printf("%d]%d} %d waited\n",*ip,a_index, id);
+				dprintf("%d]%d} %d waited\n",*ip,a_index, id);
 				++wait_count;
 			}
 		}
