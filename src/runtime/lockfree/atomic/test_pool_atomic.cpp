@@ -100,10 +100,10 @@ struct PoolEventList { // thread safe
 	Event * tail;
 	// state encoding:
 	//
-	// 1. (resourcesN) !mkd(head) && head = { next != NULL, id > 0 }
+	// 1. (resourcesN) mkd(head) && unmk(head) = { mkd(next) && unmk(next) != NULL, id > 0 }
 	// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 }
-	// 3. (waitingM) mkd(head) && unmk(head) = { mkd(next) , unmk(next) != NULL, id > 0 }
-	// Note: in (3) all non-NULL next links are mkd()
+	// 3. (waitingM) !mkd(head) && head = { unmk(next) != NULL, id > 0 }
+	// Note: in (1) all non-NULL next links are mkd()
 };
 
 Resource *
@@ -123,36 +123,38 @@ PoolEventList::push(Event * e)
 	while(1) {
 		h = head;
 		hn = unmk(h)->next;
-		while(tail->next) {
-			tail = tail->next;
-		}
 		t = tail;
+		while(t->next) {
+			t = t->next;
+		}
 		if(	// condition:
-			!mkd(h)
+			mkd(h)
 			&& hn != NULL
 			// action:
-			&& __sync_bool_compare_and_swap(&head,h,hn)
+			&& __sync_bool_compare_and_swap(&head,h,unmk(hn)->con.item ? hn : unmk(hn))
 			) {
 			// 1->(1,2)
-			return h;
+			unmk(h)->next = NULL;
+			return unmk(h);
 		} else if( //condition
 			!mkd(h)
 			&& !hn
 			// action:
 			&& (e->next = h)
-			&& __sync_bool_compare_and_swap(&head,h,mk(e))
+			&& __sync_bool_compare_and_swap(&head,h,e)
 			) {
 			// 2->3
 			return NULL;
 		} else if( //condition:
-			mkd(h)
-			&& unmk(hn)
+			!mkd(h)
+			&& hn
 			// action:
-			&& (e->next = mk(h))
-			&& __sync_bool_compare_and_swap(&head,h,mk(e))
+			&& (e->next = h)
+			&& __sync_bool_compare_and_swap(&head,h,e)
 			) {
 			// 3->3
 			// parking it on the head (not starvation free!)
+			// TODO: stop starving
 			return NULL;
 		}
 	}
@@ -168,20 +170,30 @@ PoolEventList::pop(Resource * r)
 		h = head;
 		hn = unmk(h)->next;
 		if(	// condition:
-			!mkd(h)
+			mkd(h)
 			&& (!hn || h->con.item != NULL)
 			// action:
-			&& (r->next = h)
-			&& __sync_bool_compare_and_swap(&head,h,r)) {
-			// (1,2)->1
+			&& (r->next = mk(h))
+			&& __sync_bool_compare_and_swap(&head,h,mk(r))) {
+			// 1->1
 			return NULL;
 		} else if(
 			// condition:
-			mkd(h)
-			&& unmk(h)->con.id > 0
+			!mkd(h)
+			&& !hn
+			// action:
+			&& (r->next = mk(h))
+			&& __sync_bool_compare_and_swap(&head,h,mk(r))
+			) {
+			// 2->1
+			return NULL;
+		} else if(
+			// condition:
+			!mkd(h)
+			&& h->con.id > 0
 			&& unmk(hn) != NULL
 			// action:
-			&& __sync_bool_compare_and_swap(&head,h,unmk(hn)->con.id > 0 ? mk(hn) : unmk(hn))) {
+			&& __sync_bool_compare_and_swap(&head,h,unmk(hn))) {
 			// 3->(2,3)
 			h->next = NULL;
 			return unmk(h);
@@ -224,21 +236,21 @@ Pool::dump()
 		( waiters.head == 0 ?
 			"undefined  [0]"
 		: (event::mkd(waiters.head) ?
-			"waitingM   [3]"
+			"resourcesN [1]"
 		: (waiters.head->next == NULL ?
 			"empty      [2]" :       
-			"resourcesN [1]")));
+			"waitingM   [3]" )));
 
 	printf(" atomic[%d] in state %s\n"
 		, index
 		, state);
 	printf(" %s head = ", mkd(waiters.head) ? "m" : " ");
 	event::Event * e = waiters.head;
-	while(e != NULL) {
-		if(mkd(e)) {
-			printf("%d->",unmk(e)->con.id);
+	while(unmk(e) != NULL) {
+		if(!mkd(e)) {
+			printf("%c%d->",mkd(e) ? 'm' : ' ',unmk(e)->con.id);
 		} else {
-			printf("%p->",unmk(e)->con.item);
+			printf("%c%p->",mkd(e) ? 'm' : ' ',unmk(e)->con.item);
 		}
 		e  = unmk(e)->next;
 	}
@@ -296,8 +308,8 @@ atomic::Pool atomics[1024];
 
 #define DUMPATOMICS_ \
 	for(size_t i = 0; i < std::min(1u,num_atomics); ++i) { atomics[i].dump(); }
-#define DUMPATOMICS //DUMPATOMICS_
-#define dprintf //printf
+#define DUMPATOMICS DUMPATOMICS_
+#define dprintf printf
 
 #define _DQ_INTERNAL \
      while(_e) { \
