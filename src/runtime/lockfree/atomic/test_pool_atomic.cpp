@@ -1,3 +1,7 @@
+// working on:
+// ./test_pool_atomic 2 7 2 1
+
+
 #include <pthread.h>
 #include <cstdio>
 #include <cstdlib>
@@ -10,10 +14,18 @@ int * items = NULL;
 
 namespace event {
 struct Event {
-	Event(int i) : has(-1), waiting_on(-1), next(NULL) 
+	Event(int i, Event ** rl) 
+		: has(-1)
+		, waiting_on(-1)
+		, resource_loc(rl)
+		, next(NULL) 
 	{ con.id = i; }
 
-	Event(int * it) : has(-1), waiting_on(-1), next(NULL)
+	Event(int * it) 
+		: has(-1)
+		, waiting_on(-1)
+		, resource_loc(NULL)
+		, next(NULL)
 	{ con.item = it; }
 
 	int has;
@@ -22,7 +34,7 @@ struct Event {
 		int id;     // id of event
 		int * item; // ptr to resource for storing Resources
 	} con;
-	Event * captured_item; // for events
+	Event ** resource_loc; // location to write the resource ptr
 	Event * next;
 };
 
@@ -86,15 +98,11 @@ inline bool is_one(T* p)
 }
 
 struct PoolEventList { // thread safe
-	PoolEventList() : head(new Event(0)), tail(head) 
+	PoolEventList() : head(new Event(0,0)), tail(head) 
 	{}
-	Resource * push(Event *e); // acquire a pool item
-		// (when successful event->captured_item is a resource
+	bool push(Event *e); // acquire a pool item
 
 	Event * pop(Resource * r); //release a pool item
-
-	inline bool marked() const 
-	{ return is_one(head->next); }
 
 	Event * head;
 	Event * tail;
@@ -106,9 +114,16 @@ struct PoolEventList { // thread safe
 	// Note: in (1) all non-NULL next links are mkd()
 };
 
-Resource *
+
+// push(Event * e) _________________________________________________________
+//   Either:
+//    return true and *(e->resource_loc) is written with a free resource
+//   Or
+//    return false and park e in the internal waiters data structure
+bool
 PoolEventList::push(Event * e)
 {
+	*(e->resource_loc) = NULL;
 	e->next = NULL;
 	Event * t = NULL;
 
@@ -131,11 +146,13 @@ PoolEventList::push(Event * e)
 			mkd(h)
 			&& hn != NULL
 			// action:
+			&& (*(e->resource_loc) = unmk(h))
 			&& __sync_bool_compare_and_swap(&head,h,unmk(hn)->con.item ? hn : unmk(hn))
 			) {
 			// 1->(1,2)
 			unmk(h)->next = NULL;
-			return unmk(h);
+			e->next = NULL;
+			return true;
 		} else if( //condition
 			!mkd(h)
 			&& !hn
@@ -144,7 +161,7 @@ PoolEventList::push(Event * e)
 			&& __sync_bool_compare_and_swap(&head,h,e)
 			) {
 			// 2->3
-			return NULL;
+			return false;
 		} else if( //condition:
 			!mkd(h)
 			&& hn
@@ -155,12 +172,17 @@ PoolEventList::push(Event * e)
 			// 3->3
 			// parking it on the head (not starvation free!)
 			// TODO: stop starving
-			return NULL;
+			return false;
 		}
 	}
 	return NULL;
 }
 
+// pop(Resource * r) _____________________________________________________
+//   Either
+//    return re != NULL released event with *(re->release_loc) = r
+//   Or
+//    return NULL and park resource r in the pool of free resources
 Event *
 PoolEventList::pop(Resource * r)
 {
@@ -196,8 +218,10 @@ PoolEventList::pop(Resource * r)
 			&& __sync_bool_compare_and_swap(&head,h,unmk(hn))) {
 			// 3->(2,3)
 			h->next = NULL;
-			return unmk(h);
+			*(h->resource_loc) = r;
+			return h;
 		}
+		r->next = NULL;
 	}
 	return NULL;
 }
@@ -211,6 +235,7 @@ struct Pool {
 
 	Pool(event::PoolEventList & pel = default_pel)
 		: waiters(pel) // shared
+		, resource(NULL)
 	{}
 	void release(event::Event * & rel_ev);
 	bool acquire_or_wait(event::Event * e);
@@ -244,23 +269,26 @@ Pool::dump()
 	printf(" atomic[%d] in state %s\n"
 		, index
 		, state);
-	printf(" %s head = ", mkd(waiters.head) ? "m" : " ");
+	char buff[5000];
+	size_t at = 0;
+	at += snprintf(buff+at,5000," %s head = ", mkd(waiters.head) ? "m" : " ");
 	event::Event * e = waiters.head;
 	while(unmk(e) != NULL) {
 		if(!mkd(e)) {
-			printf("%c%d->",mkd(e) ? 'm' : ' ',unmk(e)->con.id);
+			at += snprintf(buff+at,5000,"%c%d->",mkd(e) ? 'm' : ' ',unmk(e)->con.id);
 		} else {
-			printf("%c%p->",mkd(e) ? 'm' : ' ',unmk(e)->con.item);
+			at += snprintf(buff+at,5000,"%c%p->",mkd(e) ? 'm' : ' ',unmk(e)->con.item);
 		}
 		e  = unmk(e)->next;
 	}
 	if(e == NULL) {
-		printf("(0x0)\n");
+		at += snprintf(buff+at,5000,"(0x0)\n");
 	} else if(event::is_one(e)) {
-		printf("(0x1)\n");
+		at += snprintf(buff+at,5000,"(0x1)\n");
 	} else {
-		printf("\n");
+		at += snprintf(buff+at,5000,"\n");
 	}
+	printf("%s",buff);
 	printf("   tail = %d/%p\n"
 		, waiters.tail->con.id
 		, waiters.tail->con.item);
@@ -270,13 +298,14 @@ void
 Pool::release(event::Event * & rel_ev)
 {
 	// give the resource back
-	rel_ev = waiters.pop(resource);
+	event::Resource * r = resource;
+	resource = NULL;
+	rel_ev = waiters.pop(r);
 	if(rel_ev) { 
-		rel_ev->captured_item = resource;
+		assert(*(rel_ev->resource_loc) == r);
 		rel_ev->has = index;
 		rel_ev->waiting_on = -1;
 	}
-	resource = NULL;
 }
 
 bool
@@ -284,9 +313,9 @@ Pool::acquire_or_wait(event::Event * e)
 {
 	e->waiting_on = index;
 	e->has = -1;
-	resource = waiters.push(e); // try to acquire the resource
-	if(resource) {
-		e->captured_item = resource;
+	bool acqed = waiters.push(e); // try to acquire the resource
+	if(acqed) {
+		assert(resource);
 		e->waiting_on = -1;
 		e->has = index;
 	}
@@ -308,24 +337,27 @@ atomic::Pool atomics[1024];
 
 #define DUMPATOMICS_ \
 	for(size_t i = 0; i < std::min(1u,num_atomics); ++i) { atomics[i].dump(); }
-#define DUMPATOMICS DUMPATOMICS_
-#define dprintf printf
 
 #define _DQ_INTERNAL \
      while(_e) { \
-	printf("%d%c,",_e->con.id,(_e->captured_item ? 'r':' ')); \
+	_at += snprintf(_buff + _at,5000,"%d%c,",_e->con.id,(atomics[_e->con.id].resource ? 'r':' ')); \
        _e = _e->next; \
      } 
 #define DUMPRUNQUEUE_(I) \
    { \
-     printf("  RQ:"); \
+     char _buff[5000]; \
+     size_t _at = 0; \
+     _at += snprintf(_buff+_at,5000,"  RQ:"); \
      event::Event * _e = running_evl[I%2].head; \
      _DQ_INTERNAL \
      _e = running_evl[(I+1)%2].head; \
      _DQ_INTERNAL \
-     printf("\n"); \
+     printf("%s\n",_buff); \
    } 
-#define DUMPRUNQUEUE(I)// DUMPRUNQUEUE_(I)
+// comment these out to drop most of the I/O:
+#define DUMPATOMICS DUMPATOMICS_
+#define dprintf printf
+#define DUMPRUNQUEUE(I) DUMPRUNQUEUE_(I)
 
 void * run_thread(void *vp)
 {
@@ -338,7 +370,11 @@ void * run_thread(void *vp)
 	event::LocalEventList running_evl[2];
 	//event::LocalEventList * from_other_thread = NULL;
 	for(size_t i = 0 ; i < num_events_per_thread; ++i) {
-		running_evl[0].push(new event::Event(1+ num_events_per_thread * (*ip) + i));
+		int id = 1+ num_events_per_thread * (*ip) + i;
+		running_evl[0].push(
+			new event::Event(
+				  id
+				, &(atomics[id].resource)));
 	}
 
 	int target_atomic = 0;
@@ -377,18 +413,16 @@ void * run_thread(void *vp)
 			dprintf("%d]   %d running {%s\n"
 				, *ip
 				, e->con.id
-				, e->captured_item ? "r" : "");
-			assert(atomics[a_index].resource == e->captured_item);
+				, atomics[a_index].resource ? "r" : "");
+			assert(&atomics[a_index].resource == e->resource_loc);
 			if(a_index >=0 && atomics[a_index].resource) {
 				DUMPATOMICS
 				DUMPRUNQUEUE(j)
 				dprintf("%d]%d} %d releasing\n",*ip,a_index,e->con.id);
 				event::Event * oldtail = running_evl[(j+1)%2].tail;
 				event::Event *  rel_ev = NULL;
-				e->captured_item = NULL;
 				atomics[a_index].release(rel_ev);
 				if(rel_ev) {
-					atomics[rel_ev->con.id].resource = rel_ev->captured_item;
 					running_evl[(j+1)%2].push(rel_ev);
 				}
 				if(running_evl[(j+1)%2].tail && running_evl[(j+1)%2].tail != oldtail) {
@@ -495,10 +529,6 @@ int main(int argc, char  * argv[])
                 }
         }
 	size_t a_count = 0;
-	//for(size_t i = 0; i < num_atomics; ++i) {
-		//a_count += (atomics[i].waiters.marked() ? 1 : 0);
-	//}
-	//printf("program ac: %u\n",a_count);
 	DUMPATOMICS_ // always
 	fflush(stdout);
 
