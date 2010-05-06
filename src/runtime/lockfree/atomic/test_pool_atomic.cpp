@@ -123,7 +123,7 @@ struct PoolEventList { // thread safe
 bool
 PoolEventList::push(Event * e)
 {
-	*(e->resource_loc) = NULL;
+	//*(e->resource_loc) = NULL;
 	e->next = NULL;
 	Event * t = NULL;
 
@@ -138,10 +138,12 @@ PoolEventList::push(Event * e)
 	while(1) {
 		h = head;
 		hn = unmk(h)->next;
+		/* not used currently:
 		t = tail;
 		while(t->next) {
 			t = t->next;
 		}
+		*/
 		if(	// condition:
 			mkd(h)
 			&& hn != NULL
@@ -154,7 +156,8 @@ PoolEventList::push(Event * e)
 			e->next = NULL;
 			return true;
 		} else if( //condition
-			!mkd(h)
+			h
+			&& !mkd(h)
 			&& !hn
 			// action:
 			&& (e->next = h)
@@ -163,7 +166,8 @@ PoolEventList::push(Event * e)
 			// 2->3
 			return false;
 		} else if( //condition:
-			!mkd(h)
+			h 
+			&& !mkd(h)
 			&& hn
 			// action:
 			&& (e->next = h)
@@ -184,8 +188,10 @@ PoolEventList::push(Event * e)
 //   Or
 //    return NULL and park resource r in the pool of free resources
 Event *
-PoolEventList::pop(Resource * r)
+PoolEventList::pop(Event * by_ev)
 {
+	Resource * r = *(by_ev->resource_loc);
+	*(by_ev->resource_loc) = NULL;
 	Event * h = NULL;
 	Event * hn = NULL;
 	while(1) {
@@ -219,6 +225,7 @@ PoolEventList::pop(Resource * r)
 			// 3->(2,3)
 			h->next = NULL;
 			*(h->resource_loc) = r;
+			r->next = NULL;
 			return h;
 		}
 		r->next = NULL;
@@ -237,7 +244,7 @@ struct Pool {
 		: waiters(pel) // shared
 		, resource(NULL)
 	{}
-	void release(event::Event * & rel_ev);
+	void release(event::Event * & rel_ev, event::Event * by_ev);
 	bool acquire_or_wait(event::Event * e);
 
 	int * data()
@@ -271,22 +278,22 @@ Pool::dump()
 		, state);
 	char buff[5000];
 	size_t at = 0;
-	at += snprintf(buff+at,5000," %s head = ", mkd(waiters.head) ? "m" : " ");
+	at += snprintf(buff+at,5000-at," %s head = ", mkd(waiters.head) ? "m" : " ");
 	event::Event * e = waiters.head;
 	while(unmk(e) != NULL) {
 		if(!mkd(e)) {
-			at += snprintf(buff+at,5000,"%c%d->",mkd(e) ? 'm' : ' ',unmk(e)->con.id);
+			at += snprintf(buff+at,5000-at,"%c%d->",mkd(e) ? 'm' : ' ',unmk(e)->con.id);
 		} else {
-			at += snprintf(buff+at,5000,"%c%p->",mkd(e) ? 'm' : ' ',unmk(e)->con.item);
+			at += snprintf(buff+at,5000-at,"%c%p->",mkd(e) ? 'm' : ' ',unmk(e)->con.item);
 		}
 		e  = unmk(e)->next;
 	}
 	if(e == NULL) {
-		at += snprintf(buff+at,5000,"(0x0)\n");
+		at += snprintf(buff+at,5000-at,"(0x0)\n");
 	} else if(event::is_one(e)) {
-		at += snprintf(buff+at,5000,"(0x1)\n");
+		at += snprintf(buff+at,5000-at,"(0x1)\n");
 	} else {
-		at += snprintf(buff+at,5000,"\n");
+		at += snprintf(buff+at,5000-at,"\n");
 	}
 	printf("%s",buff);
 	printf("   tail = %d/%p\n"
@@ -295,12 +302,12 @@ Pool::dump()
 }
 
 void
-Pool::release(event::Event * & rel_ev)
+Pool::release(event::Event * & rel_ev, event::Event * by_ev)
 {
 	// give the resource back
 	event::Resource * r = resource;
-	resource = NULL;
-	rel_ev = waiters.pop(r);
+	assert(*(by_ev->resource_loc) == r);
+	rel_ev = waiters.pop(by_ev);
 	if(rel_ev) { 
 		assert(*(rel_ev->resource_loc) == r);
 		rel_ev->has = index;
@@ -340,14 +347,14 @@ atomic::Pool atomics[1024];
 
 #define _DQ_INTERNAL \
      while(_e) { \
-	_at += snprintf(_buff + _at,5000,"%d%c,",_e->con.id,(atomics[_e->con.id].resource ? 'r':' ')); \
+	_at += snprintf(_buff + _at,5000-_at,"%d%c,",_e->con.id,(atomics[_e->con.id].resource ? 'r':' ')); \
        _e = _e->next; \
      } 
 #define DUMPRUNQUEUE_(I) \
    { \
      char _buff[5000]; \
      size_t _at = 0; \
-     _at += snprintf(_buff+_at,5000,"  RQ:"); \
+     _at += snprintf(_buff+_at,5000-_at,"%d]  RQ:", *ip); \
      event::Event * _e = running_evl[I%2].head; \
      _DQ_INTERNAL \
      _e = running_evl[(I+1)%2].head; \
@@ -355,8 +362,8 @@ atomic::Pool atomics[1024];
      printf("%s\n",_buff); \
    } 
 // comment these out to drop most of the I/O:
-#define DUMPATOMICS DUMPATOMICS_
-#define dprintf printf
+#define DUMPATOMICS     DUMPATOMICS_
+#define dprintf         printf
 #define DUMPRUNQUEUE(I) DUMPRUNQUEUE_(I)
 
 void * run_thread(void *vp)
@@ -389,6 +396,7 @@ void * run_thread(void *vp)
 			; a+= num_threads) {
 		e = running_evl[0].pop();
 		id = e->con.id;
+		assert( *(e->resource_loc) == NULL);
 		if(atomics[id].acquire_or_wait(e)) {
 			// got it right away (no competing waiters)
 			dprintf("%d]%d}- %d acquired\n",*ip, id,id);
@@ -408,6 +416,7 @@ void * run_thread(void *vp)
 			++no_op_iterations;
 		}
 		while(e = running_evl[j%2].pop()) {
+			assert(e->con.id);
 			no_op_iterations = 0;
 			int a_index = e->con.id;
 			dprintf("%d]   %d running {%s\n"
@@ -421,7 +430,9 @@ void * run_thread(void *vp)
 				dprintf("%d]%d} %d releasing\n",*ip,a_index,e->con.id);
 				event::Event * oldtail = running_evl[(j+1)%2].tail;
 				event::Event *  rel_ev = NULL;
-				atomics[a_index].release(rel_ev);
+				assert( *(e->resource_loc) != NULL && (*(e->resource_loc))->next == NULL);
+				atomics[a_index].release(rel_ev,e);
+				assert( *(e->resource_loc) == NULL);
 				if(rel_ev) {
 					running_evl[(j+1)%2].push(rel_ev);
 				}
@@ -442,7 +453,10 @@ void * run_thread(void *vp)
 			id = e->con.id;
 			DUMPATOMICS
 			DUMPRUNQUEUE(j)
+			assert( *(e->resource_loc) == NULL);
 			if(atomics[a_index].acquire_or_wait(e)) {
+				assert( *(e->resource_loc) != NULL
+					&& (*(e->resource_loc))->next == NULL);
 				// got it right away (no competing waiters)
 				dprintf("%d]%d} %d acquired\n",*ip,a_index, id);
 				running_evl[(j+1)%2].push(e);
@@ -507,9 +521,13 @@ int main(int argc, char  * argv[])
 	// items
 	int r_items[num_items];
 	items = &(r_items[0]);
+	event::Event dummy_ev(0,0);
+	event::Resource * dummy_rs=NULL;
+	dummy_ev.resource_loc = &dummy_rs;
 	for(size_t i = 0; i < num_items; ++i) {
 		// put the initial pool of resources in place
-		atomic::Pool::default_pel.pop(new event::Resource(&items[i]));
+		dummy_rs = new event::Resource(&items[i]);
+		atomic::Pool::default_pel.pop(&dummy_ev);
 	}
 	// atomics
 	for(size_t a = 0; a < num_atomics; ++a) {
@@ -529,6 +547,7 @@ int main(int argc, char  * argv[])
                 }
         }
 	size_t a_count = 0;
+	__sync_synchronize();
 	DUMPATOMICS_ // always
 	fflush(stdout);
 
