@@ -146,37 +146,41 @@ PoolEventList::push(Event * e)
 		*/
 		if(	// condition:
 			mkd(h)
-			&& hn != NULL
+			&& unmk(hn) != NULL) {
 			// action:
-			&& (*(e->resource_loc) = unmk(h))
-			&& __sync_bool_compare_and_swap(&head,h,unmk(hn)->con.item ? hn : unmk(hn))
-			) {
-			// 1->(1,2)
-			unmk(h)->next = NULL;
-			e->next = NULL;
-			return true;
+			*(e->resource_loc) = unmk(h);
+			if(__sync_bool_compare_and_swap(&head,h,unmk(hn)->con.item ? hn : unmk(hn))
+				) {
+				// 1->(1,2)
+				unmk(h)->next = NULL;
+				e->next = NULL;
+				return true;
+			}
+			*(e->resource_loc) = NULL;
 		} else if( //condition
 			h
 			&& !mkd(h)
-			&& !hn
+			&& !hn) {
 			// action:
-			&& (e->next = h)
-			&& __sync_bool_compare_and_swap(&head,h,e)
-			) {
-			// 2->3
-			return false;
+			e->next = h;
+			if(__sync_bool_compare_and_swap(&head,h,e)) {
+				// 2->3
+				return false;
+			}
+			e->next = NULL;
 		} else if( //condition:
 			h 
 			&& !mkd(h)
-			&& hn
+			&& hn) {
 			// action:
-			&& (e->next = h)
-			&& __sync_bool_compare_and_swap(&head,h,e)
-			) {
-			// 3->3
-			// parking it on the head (not starvation free!)
-			// TODO: stop starving
-			return false;
+			e->next = h;
+			if(__sync_bool_compare_and_swap(&head,h,e)) {
+				// 3->3
+				// parking it on the head (not starvation free!)
+				// TODO: stop starving
+				return false;
+			}
+			e->next = NULL;
 		}
 	}
 	return NULL;
@@ -199,36 +203,39 @@ PoolEventList::pop(Event * by_ev)
 		hn = unmk(h)->next;
 		if(	// condition:
 			mkd(h)
-			&& (!hn || h->con.item != NULL)
+			&& (!hn || h->con.item != NULL)) {
 			// action:
-			&& (r->next = mk(h))
-			&& __sync_bool_compare_and_swap(&head,h,mk(r))) {
-			// 1->1
-			return NULL;
+			r->next = mk(h);
+			if(__sync_bool_compare_and_swap(&head,h,mk(r))) {
+				// 1->1
+				return NULL;
+			}
+			r->next = NULL;
 		} else if(
 			// condition:
 			!mkd(h)
-			&& !hn
+			&& !hn) {
 			// action:
-			&& (r->next = mk(h))
-			&& __sync_bool_compare_and_swap(&head,h,mk(r))
-			) {
-			// 2->1
-			return NULL;
+			r->next = mk(h);
+			if(__sync_bool_compare_and_swap(&head,h,mk(r))) {
+				// 2->1
+				return NULL;
+			}
+			r->next = NULL;
 		} else if(
 			// condition:
 			!mkd(h)
 			&& h->con.id > 0
-			&& unmk(hn) != NULL
+			&& unmk(hn) != NULL) {
 			// action:
-			&& __sync_bool_compare_and_swap(&head,h,unmk(hn))) {
-			// 3->(2,3)
-			h->next = NULL;
-			*(h->resource_loc) = r;
-			r->next = NULL;
-			return h;
+			if(__sync_bool_compare_and_swap(&head,h,unmk(hn))) {
+				// 3->(2,3)
+				h->next = NULL;
+				*(h->resource_loc) = r;
+				r->next = NULL;
+				return h;
+			}
 		}
-		r->next = NULL;
 	}
 	return NULL;
 }
@@ -326,7 +333,7 @@ Pool::acquire_or_wait(event::Event * e)
 		e->waiting_on = -1;
 		e->has = index;
 	}
-	return resource != NULL;
+	return acqed;
 }
 
 
@@ -437,7 +444,11 @@ void * run_thread(void *vp)
 					running_evl[(j+1)%2].push(rel_ev);
 				}
 				if(running_evl[(j+1)%2].tail && running_evl[(j+1)%2].tail != oldtail) {
-					dprintf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].tail->con.id);
+					dprintf("%d]%d} %d came out (%p)\n"
+						, *ip
+						, a_index
+						, running_evl[(j+1)%2].tail->con.id
+						, (*(running_evl[(j+1)%2].tail->resource_loc))->con.item);
 				} else {
 					dprintf("%d]%d} nothing came out\n",*ip,a_index);
 				}
@@ -458,7 +469,8 @@ void * run_thread(void *vp)
 				assert( *(e->resource_loc) != NULL
 					&& (*(e->resource_loc))->next == NULL);
 				// got it right away (no competing waiters)
-				dprintf("%d]%d} %d acquired\n",*ip,a_index, id);
+				dprintf("%d]%d} %d acquired (%p)\n"
+					,*ip, a_index, id, (*(e->resource_loc))->con.item);
 				running_evl[(j+1)%2].push(e);
 				++acquire_count;
 			} else {
@@ -528,6 +540,7 @@ int main(int argc, char  * argv[])
 		// put the initial pool of resources in place
 		dummy_rs = new event::Resource(&items[i]);
 		atomic::Pool::default_pel.pop(&dummy_ev);
+		r_items[i]=i;
 	}
 	// atomics
 	for(size_t a = 0; a < num_atomics; ++a) {
