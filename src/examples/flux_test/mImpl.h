@@ -16,7 +16,7 @@ extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 #define OFLUX_SNAPSHOT theRT->log_snapshot();
 
-#define DO_OUTPUT
+//#define DO_OUTPUT
 
 extern unsigned int nodeCount_One;
 extern unsigned int nodeCount_Two;

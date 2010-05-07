@@ -124,20 +124,27 @@ int Send(const Send_in * in, Send_out * out, Send_atoms *)
 {
     static unsigned int count = 0;
     static time_t last = ::time(0);
+    static int count_down = 1000;
 
 #ifdef DO_OUTPUT
     cout << "Send\n";
 #endif
     ++count;
     ++nodeCount_Send;
-    time_t ntime = ::time(0);
-    if(ntime != last) {
-        cout << "Send - " << count << " times per second\n";
-        cout << "Total nodes per second : " << nodeCount() << endl;
-        reset_nodeCount();
-        count = 0;
-        last = ntime;
+    if(count_down-- < 0) {
+        time_t ntime = ::time(0);
+        if(ntime != last) {
+            cout << "Send - " << count << " times per second\n";
+            cout << "Total nodes per second : " << nodeCount() << endl;
+	    count_down = count/2;
+            reset_nodeCount();
+            count = 0;
+            last = ntime;
+	} else {
+		count_down = 100;
+	}
     }
+
     
     return 0;
 }
