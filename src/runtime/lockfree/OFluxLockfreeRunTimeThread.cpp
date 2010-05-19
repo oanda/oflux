@@ -35,6 +35,16 @@ RunTimeThread::~RunTimeThread()
 	oflux_cond_destroy(&_cond);
 }
 
+RunTimeThread::WSQElement::~WSQElement()
+{}
+/*{
+	if(ev.get())  {
+		oflux_log_debug("~WSQE %s %d\n"
+			, ev->flow_node()->getName()
+			, ev.use_count());
+	}
+}*/
+
 static void *
 RunTimeThread_start_thread(void *pthis)
 {
@@ -132,13 +142,23 @@ RunTimeThread::start()
 			break;
 		}
 		_asleep = false;
+		/*oflux_log_trace("RunTimeThread::start (about to reset) "
+			"ev %d %s ev.pred %d %s\n"
+			, ev.use_count()
+			, ev->flow_node()->getName()
+			, ev->get_predecessor() 
+				? ev->get_predecessor().use_count()
+				: 0
+			, ev->get_predecessor()
+				? ev->get_predecessor()->flow_node()->getName()					: "<none>" );*/
+		ev.reset();
 	}
 }
 
 void
 RunTimeThread::wake()
 { 
-	oflux_log_trace("RunTimeThread::wake() on %d\n",index());
+	oflux_log_debug("RunTimeThread::wake() on %d\n",index());
 	oflux_cond_signal(&_cond); 
 }
 
@@ -178,16 +198,43 @@ RunTimeThread::handle(EventBasePtr & ev)
 				, succ_ev.get());
 		}
         }
+
+#define CRITICAL_Q_SIZE 1024
+	if(_queue_allowance<=0) {
+		_queue_allowance = CRITICAL_Q_SIZE - _queue.size();
+	} else {
+		--_queue_allowance;
+	}
+	bool push_sources_first = (_queue_allowance < 0);
+	
+	size_t ind =0;
         for(size_t i = 0; i < successor_events.size(); ++i) {
-		oflux_log_trace(" %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
-			, index()
-			, _flow_node_working->getName()
-			, ev.get()
-			, i
-			, successor_events[i]->flow_node()->getName()
-			, successor_events[i].get()
-			, return_code);
-		pushLocal(successor_events[i]);
+		if(push_sources_first == successor_events[i]->flow_node()->getIsSource()) {
+			oflux_log_trace(" %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
+				, index()
+				, _flow_node_working->getName()
+				, ev.get()
+				, ind
+				, successor_events[i]->flow_node()->getName()
+				, successor_events[i].get()
+				, return_code);
+			pushLocal(successor_events[i]);
+			++ind;
+		}
+	}
+        for(size_t i = 0; i < successor_events.size(); ++i) {
+		if(push_sources_first != successor_events[i]->flow_node()->getIsSource()) {
+			oflux_log_trace(" %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
+				, index()
+				, _flow_node_working->getName()
+				, ev.get()
+				, ind
+				, successor_events[i]->flow_node()->getName()
+				, successor_events[i].get()
+				, return_code);
+			pushLocal(successor_events[i]);
+			++ind;
+		}
 	}
 	_flow_node_working = NULL;
 	return successor_events.size();

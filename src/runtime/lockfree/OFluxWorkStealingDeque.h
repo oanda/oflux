@@ -131,6 +131,7 @@ public:
 			printf(" [%ld] = %p\n",i-t,_active_array.get(i));
 		}
 	}
+	inline long size() const { return _bottom - _top; }
 
 private:
 	long _bottom;

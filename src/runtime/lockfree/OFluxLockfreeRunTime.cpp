@@ -6,6 +6,7 @@
 #include "OFluxWrappers.h"
 #include <dlfcn.h>
 #include <signal.h>
+#include <cstring>
 
 namespace oflux {
 
@@ -42,17 +43,23 @@ RunTime::RunTime(const RunTimeConfiguration &rtc)
 	if(RunTime::deinitShim) {
 		((RunTime::deinitShim)());
 	}
-	_num_threads = std::max(
-		  _rtc.max_thread_pool_size
-		, _rtc.initial_thread_pool_size);
+	load_flow();
 	// create the initial thread list
+	_num_threads = _rtc.initial_thread_pool_size;
+	if(_num_threads <= flow()->sources_count()) {
+		oflux_log_warn("RunTime::RunTime() forced bump up"
+			"in thread count from %u to %u "
+			"due to the number of sources\n"
+			, _num_threads
+			, flow()->sources_count()+1);
+		_num_threads = flow()->sources_count()+1;
+	}
 	RunTimeThread ** rtt = &_threads;
 	for(size_t i = 0; i < (size_t)_num_threads; ++i) {
 		*rtt = new RunTimeThread(*this,i,(i ? 0 : oflux_self()));
 		rtt = &((*rtt)->_next);
 	}
 	*rtt = NULL;
-	load_flow();
 }
 
 RunTime::~RunTime()
@@ -210,6 +217,7 @@ RunTime::start()
 			&& (__oldsigaction.sa_handler == SIG_DFL
 				|| __oldsigaction.sa_handler == SIG_IGN)) {
 		struct sigaction newaction;
+		memset(&newaction,0,sizeof(newaction));
 		sigemptyset(&newaction.sa_mask);
 		newaction.sa_handler = __runtime_sigint_handler;
 		sigaction(SIGINT,&newaction,NULL);

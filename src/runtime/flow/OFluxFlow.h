@@ -114,6 +114,7 @@ public:
         inline void addGuardPrecedence(const char * before, const char * after)
         { _magic_sorter.addInequality(before,after); }
         void drainGuardsOfEvents();
+	int sources_count() const { return _sources.size(); }
 private:
         std::map<std::string, Node *>  _nodes;
         std::vector<Node *>            _sources;

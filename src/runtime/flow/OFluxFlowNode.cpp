@@ -169,6 +169,7 @@ Node::~Node()
         delete_vector_contents<GuardReference>(_guard_refs);
 	delete _this_case;
 	delete _error_handler_case;
+	delete _successor_list;
 }
 
 struct CompareGuardsInNode {
