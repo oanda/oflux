@@ -1,5 +1,45 @@
-// working on:
-// ./test_pool_atomic 2 7 2 1
+//
+// state:
+//  resourcesN [1]
+//   mkd(head)
+//   && mkd(unmk(head)->next)
+//   && unmk(unmk(head)->next) != NULL
+// trans:
+//  push.1->(1,2)
+//  pop.1->1
+//
+// state:
+//  empty [2]
+//   !mkd(head)
+//   && head->next == NULL
+//   && head->con.id == 0
+// trans:
+//  push.2->3
+//  push.3->3  (really the same as 2->3)
+//  pop.2->1
+//  pop.3->(2,3) 
+//          h->con.id == 0 on the sentinal
+//          unmk(hn) != NULL
+//
+// state:
+//  waitingM [3]
+//   !mkd(head)
+//   && !mkd(head->next)
+//   && head->next != NULL
+//   && head->con.id > 0
+// trans:
+//  push.3->3
+//  push.2->3  (really the same as 3->3)
+//  pop.3->(2,3)
+//  pop.2->1
+//            h->con.id == 0
+//
+//
+//
+//
+//
+//
+//
 
 
 #include <pthread.h>
@@ -7,6 +47,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <algorithm>
+#include <deque>
 #include <cassert>
 
 size_t num_items = 5;
@@ -40,6 +81,7 @@ struct Event {
 
 typedef Event Resource;
 
+/*
 struct LocalEventList { // use in a single thread
 	LocalEventList() : head(NULL), tail(NULL) {}
 
@@ -70,6 +112,7 @@ struct LocalEventList { // use in a single thread
 	Event * head;
 	Event * tail;
 };
+*/
 
 template<typename T>
 inline T * mk(T * p)
@@ -98,7 +141,7 @@ inline bool is_one(T* p)
 }
 
 struct PoolEventList { // thread safe
-	PoolEventList() : head(new Event(0,0)), tail(head) 
+	PoolEventList() : head(new Event(0,0)), tail(head), sentinel(head)
 	{}
 	bool push(Event *e); // acquire a pool item
 
@@ -106,10 +149,11 @@ struct PoolEventList { // thread safe
 
 	Event * head;
 	Event * tail;
+	Event * sentinel;
 	// state encoding:
 	//
 	// 1. (resourcesN) mkd(head) && unmk(head) = { mkd(next) && unmk(next) != NULL, id > 0 }
-	// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 }
+	// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 } && head == sentinel
 	// 3. (waitingM) !mkd(head) && head = { unmk(next) != NULL, id > 0 }
 	// Note: in (1) all non-NULL next links are mkd()
 };
@@ -124,7 +168,7 @@ bool
 PoolEventList::push(Event * e)
 {
 	//*(e->resource_loc) = NULL;
-	e->next = NULL;
+	//e->next = NULL;
 	Event * t = NULL;
 
 	//int id = e->con.id;
@@ -146,31 +190,41 @@ PoolEventList::push(Event * e)
 		*/
 		if(	// condition:
 			mkd(h)
+			&& mkd(hn)
 			&& unmk(hn) != NULL) {
 			// action:
 			*(e->resource_loc) = unmk(h);
-			if(__sync_bool_compare_and_swap(&head,h,unmk(hn)->con.item ? hn : unmk(hn))
+			if(__sync_bool_compare_and_swap(
+					  &head
+					, h
+					, unmk(hn)->con.item ? hn : unmk(hn))
 				) {
 				// 1->(1,2)
-				unmk(h)->next = NULL;
-				e->next = NULL;
+				//unmk(h)->next = NULL;
+				//e->next = NULL;
 				return true;
 			}
 			*(e->resource_loc) = NULL;
 		} else if( //condition
 			h
+			&& (h == sentinel)
 			&& !mkd(h)
 			&& !hn) {
 			// action:
 			e->next = h;
 			if(__sync_bool_compare_and_swap(&head,h,e)) {
+				printf("  ::pushed(1) head from %d to %d\n"
+					, h->con.id
+					, e->con.id);
 				// 2->3
 				return false;
 			}
-			e->next = NULL;
+			//e->next = NULL;
 		} else if( //condition:
 			h 
+			&& (h != sentinel)
 			&& !mkd(h)
+			&& !mkd(hn)
 			&& hn) {
 			// action:
 			e->next = h;
@@ -178,9 +232,12 @@ PoolEventList::push(Event * e)
 				// 3->3
 				// parking it on the head (not starvation free!)
 				// TODO: stop starving
+				printf("  ::pushed(1) head from %d to %d\n"
+					, h->con.id
+					, e->con.id);
 				return false;
 			}
-			e->next = NULL;
+			//e->next = NULL;
 		}
 	}
 	return NULL;
@@ -203,17 +260,21 @@ PoolEventList::pop(Event * by_ev)
 		hn = unmk(h)->next;
 		if(	// condition:
 			mkd(h)
-			&& (!hn || h->con.item != NULL)) {
+			&& mkd(hn)
+			&& unmk(hn) != NULL
+			&& (h->con.item != NULL)) {
 			// action:
 			r->next = mk(h);
 			if(__sync_bool_compare_and_swap(&head,h,mk(r))) {
 				// 1->1
 				return NULL;
 			}
-			r->next = NULL;
+			//r->next = NULL;
 		} else if(
 			// condition:
 			!mkd(h)
+			&& (h == sentinel)
+			&& h->con.id == 0
 			&& !hn) {
 			// action:
 			r->next = mk(h);
@@ -221,18 +282,24 @@ PoolEventList::pop(Event * by_ev)
 				// 2->1
 				return NULL;
 			}
-			r->next = NULL;
+			//r->next = NULL;
 		} else if(
 			// condition:
 			!mkd(h)
+			&& (h != sentinel)
+			&& !mkd(hn)
 			&& h->con.id > 0
 			&& unmk(hn) != NULL) {
 			// action:
 			if(__sync_bool_compare_and_swap(&head,h,unmk(hn))) {
 				// 3->(2,3)
-				h->next = NULL;
+				assert(h->con.id);
+				//h->next = NULL;
 				*(h->resource_loc) = r;
-				r->next = NULL;
+				//r->next = NULL;
+				printf("  ::pop head from %d to %d\n"
+					, h->con.id
+					, hn->con.id);
 				return h;
 			}
 		}
@@ -257,7 +324,7 @@ struct Pool {
 	int * data()
 	{ return (  resource ? resource->con.item : NULL); }
 
-	void dump();
+	void dump(int);
 
 	event::PoolEventList & waiters;
 
@@ -269,7 +336,7 @@ event::PoolEventList Pool::default_pel;
 
 
 void
-Pool::dump()
+Pool::dump(int ip)
 {
 	const char * state =
 		( waiters.head == 0 ?
@@ -280,19 +347,25 @@ Pool::dump()
 			"empty      [2]" :       
 			"waitingM   [3]" )));
 
-	printf(" atomic[%d] in state %s\n"
+	printf("%d] atomic[%d] in state %s\n"
+		, ip
 		, index
 		, state);
 	char buff[5000];
 	size_t at = 0;
-	at += snprintf(buff+at,5000-at," %s head = ", mkd(waiters.head) ? "m" : " ");
+	at += snprintf(buff+at,5000-at,"%d] %s head = "
+		, ip
+		, mkd(waiters.head) ? "m" : " ");
 	event::Event * e = waiters.head;
 	while(unmk(e) != NULL) {
 		if(!mkd(e)) {
-			at += snprintf(buff+at,5000-at,"%c%d->",mkd(e) ? 'm' : ' ',unmk(e)->con.id);
+			at += snprintf(buff+at,5000-at,"%c%d->"
+				, mkd(e) ? 'm' : ' ',unmk(e)->con.id);
 		} else {
-			at += snprintf(buff+at,5000-at,"%c%p->",mkd(e) ? 'm' : ' ',unmk(e)->con.item);
+			at += snprintf(buff+at,5000-at,"%c%p->"
+				, mkd(e) ? 'm' : ' ',unmk(e)->con.item);
 		}
+		if(at >= 5000) return; \
 		e  = unmk(e)->next;
 	}
 	if(e == NULL) {
@@ -303,7 +376,8 @@ Pool::dump()
 		at += snprintf(buff+at,5000-at,"\n");
 	}
 	printf("%s",buff);
-	printf("   tail = %d/%p\n"
+	printf("%d]   tail = %d/%p\n"
+		, ip
 		, waiters.tail->con.id
 		, waiters.tail->con.item);
 }
@@ -317,6 +391,7 @@ Pool::release(event::Event * & rel_ev, event::Event * by_ev)
 	rel_ev = waiters.pop(by_ev);
 	if(rel_ev) { 
 		assert(*(rel_ev->resource_loc) == r);
+		assert(rel_ev != by_ev);
 		rel_ev->has = index;
 		rel_ev->waiting_on = -1;
 	}
@@ -350,22 +425,26 @@ pthread_barrier_t end_barrier;
 atomic::Pool atomics[1024];
 
 #define DUMPATOMICS_ \
-	for(size_t i = 0; i < std::min(1u,num_atomics); ++i) { atomics[i].dump(); }
+	for(size_t i = 0; i < std::min(1u,num_atomics); ++i) { atomics[i].dump(*ip); }
 
-#define _DQ_INTERNAL \
-     while(_e) { \
+#define _DQ_INTERNAL(RQ) \
+   { \
+     std::deque<event::Event*>::iterator _qitr = RQ.begin(); \
+     std::deque<event::Event*>::iterator _qitr_end = RQ.end(); \
+     while(_qitr != _qitr_end) { \
+	event::Event * _e = *_qitr; \
 	_at += snprintf(_buff + _at,5000-_at,"%d%c,",_e->con.id,(atomics[_e->con.id].resource ? 'r':' ')); \
-       _e = _e->next; \
-     } 
+	if(_at >= 5000) break; \
+        ++_qitr; \
+     } \
+   }
 #define DUMPRUNQUEUE_(I) \
    { \
      char _buff[5000]; \
      size_t _at = 0; \
      _at += snprintf(_buff+_at,5000-_at,"%d]  RQ:", *ip); \
-     event::Event * _e = running_evl[I%2].head; \
-     _DQ_INTERNAL \
-     _e = running_evl[(I+1)%2].head; \
-     _DQ_INTERNAL \
+     _DQ_INTERNAL(running_evl[I%2]) \
+     _DQ_INTERNAL(running_evl[(I+1)%2]) \
      printf("%s\n",_buff); \
    } 
 // comment these out to drop most of the I/O:
@@ -381,11 +460,10 @@ void * run_thread(void *vp)
 	long release_count = 0;
 	long no_op_iterations = 0;
 
-	event::LocalEventList running_evl[2];
-	//event::LocalEventList * from_other_thread = NULL;
+	std::deque<event::Event*> running_evl[2];
 	for(size_t i = 0 ; i < num_events_per_thread; ++i) {
 		int id = 1+ num_events_per_thread * (*ip) + i;
-		running_evl[0].push(
+		running_evl[0].push_back(
 			new event::Event(
 				  id
 				, &(atomics[id].resource)));
@@ -399,15 +477,16 @@ void * run_thread(void *vp)
 	// try to distribute to each thread all the atomics
 	// this is uncontended acquisition
 	for(size_t a = *ip
-			; a < num_items && running_evl[0].head != NULL
+			; a < num_items && running_evl[0].size() > 0
 			; a+= num_threads) {
-		e = running_evl[0].pop();
+		e = running_evl[0].front();
+		running_evl[0].pop_front();
 		id = e->con.id;
 		assert( *(e->resource_loc) == NULL);
 		if(atomics[id].acquire_or_wait(e)) {
 			// got it right away (no competing waiters)
 			dprintf("%d]%d}- %d acquired\n",*ip, id,id);
-			running_evl[1].push(e);
+			running_evl[1].push_back(e);
 			++acquire_count;
 		} else {
 			dprintf("%d]%d}- %d waited\n",*ip, id, id);
@@ -419,10 +498,12 @@ void * run_thread(void *vp)
 	
 	pthread_barrier_wait(&barrier);
 	for(size_t j = 0; j < iterations; ++j) {
-		if(!running_evl[j%2].head) {
+		if(running_evl[j%2].size() == 0) {
 			++no_op_iterations;
 		}
-		while(e = running_evl[j%2].pop()) {
+		while(running_evl[j%2].size()) {
+			e = running_evl[j%2].front();
+			running_evl[j%2].pop_front();
 			assert(e->con.id);
 			no_op_iterations = 0;
 			int a_index = e->con.id;
@@ -435,20 +516,17 @@ void * run_thread(void *vp)
 				DUMPATOMICS
 				DUMPRUNQUEUE(j)
 				dprintf("%d]%d} %d releasing\n",*ip,a_index,e->con.id);
-				event::Event * oldtail = running_evl[(j+1)%2].tail;
 				event::Event *  rel_ev = NULL;
-				assert( *(e->resource_loc) != NULL && (*(e->resource_loc))->next == NULL);
+				assert( *(e->resource_loc) != NULL); // && (*(e->resource_loc))->next == NULL);
 				atomics[a_index].release(rel_ev,e);
 				assert( *(e->resource_loc) == NULL);
 				if(rel_ev) {
-					running_evl[(j+1)%2].push(rel_ev);
-				}
-				if(running_evl[(j+1)%2].tail && running_evl[(j+1)%2].tail != oldtail) {
+					running_evl[(j+1)%2].push_back(rel_ev);
 					dprintf("%d]%d} %d came out (%p)\n"
 						, *ip
 						, a_index
-						, running_evl[(j+1)%2].tail->con.id
-						, (*(running_evl[(j+1)%2].tail->resource_loc))->con.item);
+						, rel_ev->con.id
+						, (*(rel_ev->resource_loc))->con.item);
 				} else {
 					dprintf("%d]%d} nothing came out\n",*ip,a_index);
 				}
@@ -456,7 +534,7 @@ void * run_thread(void *vp)
 				++release_count;
 			}
 			if(rand()%2) { 
-				running_evl[(j+1)%2].push(e);
+				running_evl[(j+1)%2].push_back(e);
 				continue;
 			}
 			a_index = e->con.id;
@@ -466,12 +544,12 @@ void * run_thread(void *vp)
 			DUMPRUNQUEUE(j)
 			assert( *(e->resource_loc) == NULL);
 			if(atomics[a_index].acquire_or_wait(e)) {
-				assert( *(e->resource_loc) != NULL
-					&& (*(e->resource_loc))->next == NULL);
+				assert( *(e->resource_loc) != NULL);
+					//&& (*(e->resource_loc))->next == NULL);
 				// got it right away (no competing waiters)
 				dprintf("%d]%d} %d acquired (%p)\n"
 					,*ip, a_index, id, (*(e->resource_loc))->con.item);
-				running_evl[(j+1)%2].push(e);
+				running_evl[(j+1)%2].push_back(e);
 				++acquire_count;
 			} else {
 				dprintf("%d]%d} %d waited\n",*ip,a_index, id);
@@ -482,13 +560,18 @@ void * run_thread(void *vp)
 	pthread_barrier_wait(&end_barrier);
 	size_t held_count = 0;
 	size_t waiting_on = 0;
-	e = running_evl[iterations%2].head;
-	while(e && e->con.id) {
+	std::deque<event::Event*>::iterator qitr = running_evl[iterations%2].begin();
+	
+	while(qitr != running_evl[iterations%2].end()) {
+		event::Event * e = *qitr;
+		if(!(e && e->con.id)) {
+			break;
+		}
 		held_count += (e->has >= 0 ? 1 : 0);
 		waiting_on += (e->waiting_on >= 0 ? 1 : 0);
 		printf("%d]+  %d running with %d\n"
 			, *ip, e->con.id, e->has);
-		e = e->next;
+		++qitr;
 	}
 	printf(" thread %d exited ac: %ld wc: %ld rc: %ld "
 		"hc: %d wo: %d noi:%ld\n"
@@ -561,6 +644,8 @@ int main(int argc, char  * argv[])
         }
 	size_t a_count = 0;
 	__sync_synchronize();
+	int ii = -1;
+	int  * ip = &ii;
 	DUMPATOMICS_ // always
 	fflush(stdout);
 
