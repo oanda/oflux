@@ -1,3 +1,31 @@
+//
+// state:
+//    empty [1]
+//      head->next == 0x1
+//      && head == tail
+// trans:
+//  push.1->2
+//  (nothing else is legal)
+//
+//
+// state:
+//    held0 [2]
+//      head->next == 0x0
+//      && head == tail
+// trans:
+//  push.2->3
+//  pop.2->1
+//  (nothing else is legal)
+//
+// state:
+//    heldM [3]
+//      head->next > 0x1
+//      && head != tail
+// trans:
+//  pop.3->(2,3)
+//  (nothing else is legal)
+//
+
 #include <pthread.h>
 #include <cstdio>
 #include <cstdlib>
@@ -203,7 +231,7 @@ EventList::pop()
 					&head
 					, h
 					, hn)) {
-			// 3->2
+			// 3->(2,3)
 			r = h;
 			r->next = NULL;
 			break;
