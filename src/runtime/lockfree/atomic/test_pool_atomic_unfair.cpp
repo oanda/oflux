@@ -49,9 +49,55 @@
 #include <algorithm>
 #include <deque>
 #include <cassert>
+#include <stdint.h>
 
 size_t num_items = 5;
 int * items = NULL;
+
+template<typename T>
+class StampedPtr {
+public:
+	StampedPtr(T * tptr = NULL)
+	{ 
+		_content.s.stamp = 0;
+		_content.s.ptr = tptr;
+	}
+
+	StampedPtr(const StampedPtr<T> & sp)
+	{
+		_content.s = sp._content.s;
+	}
+
+	StampedPtr<T> & operator=(const StampedPtr<T> & sp)
+	{
+		_content.s = sp._content.s;
+		return *this;
+	}
+
+	inline int & stamp() { return _content.s.stamp; }
+
+	inline T * & get() { return _content.s.ptr; }
+
+	bool cas(const StampedPtr<T> & old_sp,T * new_ptr)
+	{ 
+		union { uint64_t _uint; S s; } new_content;
+		new_content.s.stamp = old_sp._content.s.stamp+1; 
+		new_content.s.ptr = new_ptr;
+		return __sync_bool_compare_and_swap(
+			  &(_content._uint)
+			, old_sp._content._uint
+			, new_content._uint);
+	}
+private:
+	struct S {
+		int stamp;
+		T * ptr;
+	};
+	union { 
+		uint64_t _uint; // for alignment
+		S s;
+	} _content;
+};
 
 namespace event {
 struct Event {
@@ -141,19 +187,18 @@ inline bool is_one(T* p)
 }
 
 struct PoolEventList { // thread safe
-	PoolEventList() : head(new Event(0,0)), tail(head), sentinel(head)
+	PoolEventList() : head(new Event(0,0)), tail(head.get())
 	{}
 	bool push(Event *e); // acquire a pool item
 
 	Event * pop(Resource * r); //release a pool item
 
-	Event * head;
+	StampedPtr<Event> head;
 	Event * tail;
-	Event * sentinel;
 	// state encoding:
 	//
 	// 1. (resourcesN) mkd(head) && unmk(head) = { mkd(next) && unmk(next) != NULL, id > 0 }
-	// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 } && head == sentinel
+	// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 } 
 	// 3. (waitingM) !mkd(head) && head = { unmk(next) != NULL, id > 0 }
 	// Note: in (1) all non-NULL next links are mkd()
 };
@@ -177,11 +222,13 @@ PoolEventList::push(Event * e)
 	//e->con.id = 0;
 	//e->waiting_on = -1;
 	//e->has = -1;
-	Event * h = NULL;
+	StampedPtr<Event> h;
+	Event * hp = NULL;
 	Event * hn = NULL;
 	while(1) {
 		h = head;
-		hn = unmk(h)->next;
+		hp = h.get();
+		hn = unmk(hp)->next;
 		/* not used currently:
 		t = tail;
 		while(t->next) {
@@ -189,15 +236,12 @@ PoolEventList::push(Event * e)
 		}
 		*/
 		if(	// condition:
-			mkd(h)
+			mkd(hp)
 			&& mkd(hn)
 			&& unmk(hn) != NULL) {
 			// action:
-			*(e->resource_loc) = unmk(h);
-			if(__sync_bool_compare_and_swap(
-					  &head
-					, h
-					, unmk(hn)->con.item ? hn : unmk(hn))
+			*(e->resource_loc) = unmk(hp);
+			if(head.cas(h, unmk(hn)->con.item ? hn : unmk(hn))
 				) {
 				// 1->(1,2)
 				//unmk(h)->next = NULL;
@@ -206,34 +250,34 @@ PoolEventList::push(Event * e)
 			}
 			*(e->resource_loc) = NULL;
 		} else if( //condition
-			h
-			&& (h == sentinel)
-			&& !mkd(h)
+			hp
+			&& (hp == tail)
+			&& !mkd(hp)
 			&& !hn) {
 			// action:
-			e->next = h;
-			if(__sync_bool_compare_and_swap(&head,h,e)) {
+			e->next = hp;
+			if(head.cas(h,e)) {
 				printf("  ::pushed(1) head from %d to %d\n"
-					, h->con.id
+					, hp->con.id
 					, e->con.id);
 				// 2->3
 				return false;
 			}
 			//e->next = NULL;
 		} else if( //condition:
-			h 
-			&& (h != sentinel)
-			&& !mkd(h)
+			hp 
+			&& (hp != tail)
+			&& !mkd(hp)
 			&& !mkd(hn)
 			&& hn) {
 			// action:
-			e->next = h;
-			if(__sync_bool_compare_and_swap(&head,h,e)) {
+			e->next = hp;
+			if(head.cas(h,e)) {
 				// 3->3
 				// parking it on the head (not starvation free!)
 				// TODO: stop starving
 				printf("  ::pushed(1) head from %d to %d\n"
-					, h->con.id
+					, hp->con.id
 					, e->con.id);
 				return false;
 			}
@@ -253,54 +297,61 @@ PoolEventList::pop(Event * by_ev)
 {
 	Resource * r = *(by_ev->resource_loc);
 	*(by_ev->resource_loc) = NULL;
-	Event * h = NULL;
+	StampedPtr<Event> h = NULL;
+	Event * hp = NULL;
 	Event * hn = NULL;
 	while(1) {
 		h = head;
-		hn = unmk(h)->next;
+		hp = h.get();
+		hn = unmk(hp)->next;
 		if(	// condition:
-			mkd(h)
+			mkd(hp)
 			&& mkd(hn)
 			&& unmk(hn) != NULL
-			&& (h->con.item != NULL)) {
+			&& (hp->con.item != NULL)) {
 			// action:
-			r->next = mk(h);
-			if(__sync_bool_compare_and_swap(&head,h,mk(r))) {
+			r->next = mk(hp);
+			if(head.cas(h,mk(r))) {
 				// 1->1
 				return NULL;
 			}
 			//r->next = NULL;
 		} else if(
 			// condition:
-			!mkd(h)
-			&& (h == sentinel)
-			&& h->con.id == 0
+			!mkd(hp)
+			&& (hp == tail)
+			&& hp->con.id == 0
 			&& !hn) {
 			// action:
-			r->next = mk(h);
-			if(__sync_bool_compare_and_swap(&head,h,mk(r))) {
+			r->next = mk(hp);
+			if(head.cas(h,mk(r))) {
 				// 2->1
+				// if putting events on the tail
+				// will need to see if 
+				// unmk(r->next)->con.id > 0
+				// -- if so pull it out
+				// cas-ing r->next
 				return NULL;
 			}
 			//r->next = NULL;
 		} else if(
 			// condition:
-			!mkd(h)
-			&& (h != sentinel)
+			!mkd(hp)
+			&& (hp != tail)
 			&& !mkd(hn)
-			&& h->con.id > 0
+			&& hp->con.id > 0
 			&& unmk(hn) != NULL) {
 			// action:
-			if(__sync_bool_compare_and_swap(&head,h,unmk(hn))) {
+			if(head.cas(h,unmk(hn))) {
 				// 3->(2,3)
-				assert(h->con.id);
+				assert(hp->con.id);
 				//h->next = NULL;
-				*(h->resource_loc) = r;
+				*(hp->resource_loc) = r;
 				//r->next = NULL;
 				printf("  ::pop head from %d to %d\n"
-					, h->con.id
+					, hp->con.id
 					, hn->con.id);
-				return h;
+				return hp;
 			}
 		}
 	}
@@ -339,11 +390,11 @@ void
 Pool::dump(int ip)
 {
 	const char * state =
-		( waiters.head == 0 ?
+		( waiters.head.get() == 0 ?
 			"undefined  [0]"
-		: (event::mkd(waiters.head) ?
+		: (event::mkd(waiters.head.get()) ?
 			"resourcesN [1]"
-		: (waiters.head->next == NULL ?
+		: (waiters.head.get()->next == NULL ?
 			"empty      [2]" :       
 			"waitingM   [3]" )));
 
@@ -355,8 +406,8 @@ Pool::dump(int ip)
 	size_t at = 0;
 	at += snprintf(buff+at,5000-at,"%d] %s head = "
 		, ip
-		, mkd(waiters.head) ? "m" : " ");
-	event::Event * e = waiters.head;
+		, mkd(waiters.head.get()) ? "m" : " ");
+	event::Event * e = waiters.head.get();
 	while(unmk(e) != NULL) {
 		if(!mkd(e)) {
 			at += snprintf(buff+at,5000-at,"%c%d->"
