@@ -398,6 +398,9 @@ int Listen (const Listen_in *, Listen_out *out, Listen_atoms *)
                 }
             }
             int size = listen_outs->size();
+	    if(size <= 0) {
+		return -1;
+	    }
             var = (Listen_out *)listen_outs->at(size-1);
             listen_outs->pop_back();
             out->socket = var->socket;
