@@ -350,7 +350,7 @@ PoolEventList::pop(Event * by_ev)
 		if(	// condition:
 			mkd(hp)
 			&& unmk(hn) != NULL
-			&& (hp->con.item != NULL)) {
+			&& (unmk(hp)->con.item != NULL)) {
 			// action:
 			r->next = mk(hp);
 			if(head.cas(h,mk(r))) {
@@ -423,12 +423,13 @@ event::PoolEventList Pool::default_pel;
 void
 Pool::dump(int ip)
 {
+	event::Event * hp = waiters.head.get();
 	const char * state =
-		( waiters.head.get() == 0 ?
+		( hp == 0 ?
 			"undefined  [0]"
-		: (event::mkd(waiters.head.get()) ?
+		: (event::mkd(hp) ?
 			"resourcesN [1]"
-		: (waiters.head.get()->next == NULL ?
+		: (hp->next == NULL ?
 			"empty      [2]" :       
 			"waitingM   [3]" )));
 
