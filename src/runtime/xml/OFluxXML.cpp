@@ -548,7 +548,7 @@ public:
 	virtual ~ReaderState()
 	{
 		if(!parent_obj()) {
-			oflux_log_debug("~ReaderState ditching obj %p for %s %s\n"
+			oflux_log_trace("~ReaderState ditching obj %p for %s %s\n"
 				, obj()
 				, _element_name
 				, _reader.allow_addition()
@@ -613,7 +613,7 @@ AddTarget::execute(flow::Flow * f)
         flow::Node *fsrc = f->get<flow::Node>(_name);
         assert(fsrc);
         _fc->setTargetNode(fsrc);
-	oflux_log_debug("AddTarget::execute %p %s\n", _fc,_name.c_str());
+	oflux_log_trace("AddTarget::execute %p %s\n", _fc,_name.c_str());
         _target_input_unionnumber = fsrc->inputUnionNumber();
         FlatIOConversionFun fiocf =
 		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
@@ -1007,7 +1007,7 @@ flow_element_factory<flow::Case>(AttributeMap & amap, Reader & reader)
 	int outputunionnumber = from_node->outputUnionNumber();
 	if(reader.allow_addition()) {
 		result = new flow::Case(target_name);
-		oflux_log_debug("flow_element_factory<flow::Case> %p %s adding t %s\n"
+		oflux_log_trace("flow_element_factory<flow::Case> %p %s adding t %s\n"
 			, result
 			, from_node->getName()
 			, target_name);

@@ -23,6 +23,7 @@ public:
 	struct WSQElement {
 		WSQElement() {}
 		WSQElement(EventBasePtr a_ev) : ev(a_ev)  {}
+		~WSQElement();
 
 		EventBasePtr ev;
 	};
@@ -76,6 +77,7 @@ private:
 	bool _request_stop;
 	bool _asleep;
 	WorkStealingDeque _queue;
+	long _queue_allowance;
 	oflux_thread_t _tid;
 	oflux_mutex_t _lck; 
 		// lock for the condition var (not really used as a lock)
