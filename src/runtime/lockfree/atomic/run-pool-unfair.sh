@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test_exec=`echo $0 | sed s/run-pool.sh/test_pool_atomic3/g`
+test_exec=`echo $0 | sed s/run-pool.sh/test_pool_unfair/g`
 
 set -e
 

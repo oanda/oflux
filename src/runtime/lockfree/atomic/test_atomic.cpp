@@ -204,10 +204,10 @@ EventList::push(Event * e)
 				t = t->next;
 			}
 			if(unmk(t) && __sync_bool_compare_and_swap(&(t->next),NULL,e)) {
+				tail = e;
 				t->id = id;
 				t->waiting_on = w_on;
 				t->has = hs;
-				tail = e;
 				break;
 			}
 		}
@@ -221,10 +221,15 @@ EventList::pop()
 	Event * r = NULL;
 	Event * h = NULL;
 	Event * hn = NULL;
+	Event * t = NULL;
 	while(1) {
 		h = head;
 		hn = h->next;
-		if(h != tail && hn != NULL 
+		t = tail;
+		while(unmk(t) && t->next) {
+			t = t->next;
+		}
+		if(h != t && hn != NULL 
 				&& !is_one(hn)
 				&& h->id != 0
 				&& __sync_bool_compare_and_swap(
