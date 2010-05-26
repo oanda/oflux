@@ -16,7 +16,7 @@ ifndef _ARCH
 endif
 
 ifndef _PROC
-  _PROC := $(shell uname -p)
+  _PROC := $(shell uname -m)
   export _PROC
 endif
 

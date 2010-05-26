@@ -419,10 +419,6 @@ RWEventList::pop(Event * &el, Event * by_e)
 					, h
 					, hn)) {
 			// (4,5)->(4,2)
-			/*if(hn->id ==0 || tail == h) {
-				tail = head;
-				check_tail_reachable();
-			}*/
 			h->next = NULL;
 			el = h;
 			break;
@@ -445,10 +441,6 @@ RWEventList::pop(Event * &el, Event * by_e)
 						, hn)) {
 					h->next = el;
 					el = h;
-					/*if(h == tail) {
-						tail = head;
-						check_tail_reachable();
-					}*/
 					h = head;
 					hn = h->next;
 					ht = h->type;
@@ -485,17 +477,8 @@ RWEventList::pop(Event * &el, Event * by_e)
 					  &head
 					, h
 					, hn)) {
-				/*if(hn->id == 0) {
-					//tail = hn;
-					tail = head;
-					check_tail_reachable();
-				}*/
 				h->next = el;
 				el = h;
-				/*if(h == tail) {
-					tail = head;
-					check_tail_reachable();
-				}*/
 				h = head;
 				hn = h->next;
 				ht = h->type;
