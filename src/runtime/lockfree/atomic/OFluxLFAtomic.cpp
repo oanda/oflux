@@ -220,6 +220,7 @@ ReadWriteWaiterList::push(
 	  EventBaseHolder * e
 	, int type)
 {
+	assert(type == EventBaseHolder::Read || type == EventBaseHolder::Write);
 	e->next = NULL;
 	EventBaseHolder * t = NULL;
 
@@ -287,7 +288,7 @@ ReadWriteWaiterList::push(
 					, e)) {
 				// 3->5
 				_tail = e;
-				h->type = e->type;
+				h->type = type;
 				h->ev.swap(ev);
 				return false;
 			}
