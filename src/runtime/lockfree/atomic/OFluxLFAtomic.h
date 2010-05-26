@@ -6,6 +6,10 @@
 #include "boost/shared_ptr.hpp"
 #include "OFluxAllocator.h"
 
+#include "OFlux.h"
+#include "OFluxLogging.h"
+#include "flow/OFluxFlowNode.h"
+
 namespace oflux {
 namespace lockfree {
 namespace atomic {
@@ -30,20 +34,59 @@ inline T * unmk(T * t)
 	return (is_val<0x0001>(t) ? NULL : t);
 }
 
-struct EventBaseHolder {
-	enum WType { None = 0, Read = 1, Write = 2, Exclusive = 3 };
+template<typename T>
+inline T * mk(T * p)
+{
+	size_t u = reinterpret_cast<size_t>(p);
+	return reinterpret_cast<T *>(u | 0x0001);
+}
 
-	EventBaseHolder(
-			  EventBasePtr & a_ev
+template<typename T>
+inline bool mkd(T * p)
+{
+        return reinterpret_cast<size_t>(p) & 0x0001;
+}
+
+
+struct EventBaseHolder {
+	enum WType 
+		{ None = oflux::atomic::AtomicCommon::None
+		, Read = oflux::atomic::AtomicReadWrite::Read
+		, Write = oflux::atomic::AtomicReadWrite::Write
+		, Exclusive = oflux::atomic::AtomicExclusive::Exclusive 
+		};
+
+	EventBaseHolder(  EventBasePtr & a_ev
 			, int a_type = None)
 		: ev(a_ev)
 		, next(NULL)
 		, type(a_type)
+		, resource_loc(NULL)
+		, resource(NULL)
+	{}
+	EventBaseHolder(  EventBasePtr & a_ev
+			, EventBaseHolder ** a_resource_loc
+			, int a_type = None)
+		: ev(a_ev)
+		, next(NULL)
+		, type(a_type)
+		, resource_loc(a_resource_loc)
+		, resource(NULL)
+	{}
+
+	EventBaseHolder( void * a_resource )
+		: ev()
+		, next(NULL)
+		, type(None)
+		, resource_loc(NULL)
+		, resource(a_resource)
 	{}
 
 	EventBasePtr ev;
 	EventBaseHolder * next;
 	int type;
+	EventBaseHolder ** resource_loc;
+	void * resource;
 };
 
 class WaiterList;
@@ -136,7 +179,7 @@ public:
 	ReadWriteWaiterList() : rcount(0) {}
 
 	bool push(EventBaseHolder * e, int type);
-	void pop(EventBaseHolder * & el, EventBasePtr & by_e);
+	void pop(EventBaseHolder * & el, int by_type);
 	void dump();
 	
 	int rcount;
@@ -146,6 +189,7 @@ class AtomicReadWrite : public AtomicCommon {
 public:
 	AtomicReadWrite(void * data)
 		: AtomicCommon(data)
+		, _wtype(EventBaseHolder::None)
 	{}
 	virtual ~AtomicReadWrite() {}
 	virtual int held() const 
@@ -159,10 +203,23 @@ public:
 		EventBaseHolder * ebh = allocator.get(ev,wtype);
 		bool acqed = _waiters.push(ebh,wtype);
 		if(acqed) {
+			oflux_log_debug("RW::a_o_w %s %p %p acqed %d %d\n"
+				, ev->flow_node()->getName()
+				, ev.get()
+				, this
+				, wtype
+				, _waiters.rcount);
 			_wtype = wtype;
-			if(wtype == EventBaseHolder::Read) {
-				allocator.put(ebh); 
-			}
+			//if(wtype == EventBaseHolder::Read) {
+			allocator.put(ebh); 
+			//}
+		} else {
+			oflux_log_debug("RW::a_o_w %s %p %p waited %d %d\n"
+				, ev->flow_node()->getName()
+				, ev.get()
+				, this
+				, wtype
+				, _waiters.rcount);
 		}
 		return acqed;
 	}
@@ -171,12 +228,26 @@ public:
                 , EventBasePtr & by_e)
 	{
 		EventBaseHolder * el = NULL;
-		_waiters.pop(el,by_e);
+		oflux_log_debug("RW::rel   %s %p %p releasing %d %d\n"
+			, by_e->flow_node()->getName()
+			, by_e.get()
+			, this
+			, _wtype
+			, _waiters.rcount);
+		_waiters.pop(el,_wtype);
+		//_wtype = EventBaseHolder::None;
 		EventBaseHolder * e = el;
 		EventBaseHolder * n_e = NULL;
 		while(e) {
 			n_e = e->next;
 			_wtype = e->type;
+			oflux_log_debug("RW::rel   %s %p %p came out %d %d\n"
+				, e->ev->flow_node()->getName()
+				, e->ev.get()
+				, this
+				, e->type
+				, _waiters.rcount);
+			//_wtype = e->type;
 			rel_ev.push_back(e->ev);
 			allocator.put(e);
 			e = n_e;
@@ -186,6 +257,139 @@ public:
 private:
 	ReadWriteWaiterList _waiters;
 	int _wtype;
+};
+
+
+
+template<typename T>
+class StampedPtr {
+public:
+	StampedPtr(T * tptr = NULL)
+	{ 
+		_content.s.stamp = 0;
+		_content.s.ptr = tptr;
+	}
+
+	StampedPtr(const StampedPtr<T> & sp)
+	{
+		_content.s = sp._content.s;
+	}
+
+	StampedPtr<T> & operator=(const StampedPtr<T> & sp)
+	{
+		_content.s = sp._content.s;
+		return *this;
+	}
+
+	inline int & stamp() { return _content.s.stamp; }
+
+	inline T * & get() { return _content.s.ptr; }
+	inline T * const & get() const { return _content.s.ptr; }
+
+	bool cas(const StampedPtr<T> & old_sp,T * new_ptr)
+	{ 
+		union { uint64_t _uint; S s; } new_content;
+		new_content.s.stamp = old_sp._content.s.stamp+1; 
+		new_content.s.ptr = new_ptr;
+		return __sync_bool_compare_and_swap(
+			  &(_content._uint)
+			, old_sp._content._uint
+			, new_content._uint);
+	}
+private:
+	struct S {
+		int stamp;
+		T * ptr;
+	};
+	union { 
+		uint64_t _uint; // for alignment
+		S s;
+	} _content;
+};
+
+class PoolEventList { // thread safe
+public:
+	PoolEventList() 
+		: _head(new EventBaseHolder(NULL))
+		, _tail(_head.get())
+	{}
+	~PoolEventList();
+	bool push(EventBaseHolder *e); // acquire a pool item
+	EventBaseHolder * pop(EventBaseHolder * r); //release a pool item
+
+	inline bool empty() const 
+	{ 
+		const EventBaseHolder * hp = _head.get();
+		return !mkd(hp) && (hp->next == NULL);
+	}
+
+	inline size_t count() const
+	{
+		const EventBaseHolder * hp = _head.get();
+		size_t res = 0;
+		while(!mkd(hp) && hp->ev.get()) {
+			if(hp->ev.get()) {
+				++res;
+			}
+			hp = hp->next;
+		}
+		return res;
+	}
+	void dump();
+
+private:
+	EventBaseHolder * complete_pop();
+
+	StampedPtr<EventBaseHolder> _head;
+	EventBaseHolder * _tail;
+};
+
+class AtomicPooled;
+
+class AtomicPool : public oflux::atomic::AtomicMapAbstract {
+public:
+	friend class AtomicPooled;
+
+	static Allocator<AtomicPooled> allocator;
+
+	AtomicPool();
+	virtual ~AtomicPool();
+	virtual void * new_key() const { return NULL; }
+	virtual void delete_key(void *) const {}
+	virtual const void * get(oflux::atomic::Atomic * & a_out,const void * key);
+	virtual oflux::atomic::AtomicMapWalker * walker();
+	virtual int compare (const void * v_k1, const void * v_k2) const
+	{ return 0; /* == always */ }
+	void release(AtomicPooled *ap);
+protected:
+	PoolEventList waiters;
+	AtomicPooled * head;
+};
+
+class AtomicPooled : public oflux::atomic::Atomic {
+public:
+	friend class AtomicPool;
+
+	AtomicPooled(AtomicPool & pool, void * data);
+	virtual ~AtomicPooled() {}
+	virtual int held() const { return ! _pool.waiters.empty(); }
+	virtual size_t waiter_count() { return _pool.waiters.count(); }
+	virtual int wtype() const { return 0; }
+	virtual bool acquire_or_wait(EventBasePtr & ev,int);
+	virtual void release(
+		  std::vector<EventBasePtr> & rel_ev
+		, EventBasePtr & by_ev);
+	virtual void ** data() { return &(_resource_ebh->resource); }
+        virtual const char * atomic_class() const { return atomic_class_str; }
+	virtual bool is_pool_like() const { return true; }
+	virtual void relinquish() {}
+protected:
+	AtomicPooled * _next;
+private:
+	static const char * atomic_class_str;
+	AtomicPool & _pool;
+	EventBaseHolder * _resource_ebh;
+	EventBaseHolder * _by_ebh;
 };
 
 } // namespace atomic

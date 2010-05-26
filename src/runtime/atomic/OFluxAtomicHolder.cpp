@@ -154,24 +154,30 @@ AtomicsHolder::release(
 	, EventBasePtr & by_ev)
 {
 	// reverse order
-	for(int i = _number-1; i >= 0; i--) {
+	for(int i = _number-1; i >= 0; --i) {
 		HeldAtomic * ha = get(i);
 		assert(ha);
 		if(ha->haveit()) {
 			Atomic * a = ha->atomic();
-#ifdef HAS_DTRACE
-			int pre_sz = released_events.size();
-#endif // HAS_DTRACE
+			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
+			/*if(released_events.size() - pre_sz > 0) {
+				oflux_log_debug("AH::release %s released no events\n", by_ev->flow_node()->getName());
+			}*/
 			// acquisition happens here for released events
 			bool should_relinquish = false;
-			for(std::vector<EventBasePtr>::iterator itr = released_events.begin(); itr != released_events.end(); ++itr) {
+			for(size_t k = pre_sz; k < released_events.size(); ++k) {
 				should_relinquish = true;
-				AtomicsHolder & rel_atomics = (*itr)->atomics();
+				EventBasePtr & rel_ev = released_events[k];
+				AtomicsHolder & rel_atomics = rel_ev->atomics();
 				bool fd = false;
 				HeldAtomic * rel_ha_ptr = NULL;
-				for(int j = rel_atomics.working_on(); j < rel_atomics.number(); ++j) {
-					rel_ha_ptr = rel_atomics.get(i);
+				//oflux_log_debug("AH::release %s released %s on recver atomic %p which is %s\n", by_ev->flow_node()->getName(), rel_ev->flow_node()->getName(), a, ha->flow_guard_ref()->getName().c_str());
+				for(int j = rel_atomics.working_on()
+						; j < rel_atomics.number()
+						; ++j) {
+					rel_ha_ptr = rel_atomics.get(j);
+					//oflux_log_debug("AH::release                  sender atomic %p which is %s\n", rel_ha_ptr->atomic(), rel_ha_ptr->flow_guard_ref()->getName().c_str());
 					if(rel_ha_ptr && rel_ha_ptr->atomic() == a) {
 						rel_ha_ptr->halftakeit(*ha);
 						fd = true;

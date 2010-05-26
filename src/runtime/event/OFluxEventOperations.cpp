@@ -21,7 +21,7 @@ acquire_guards(
 		  ev
 		, pred_ev);
 	if(!res) {
-		oflux_log_debug("event::acquire_guards() failure for "
+		oflux_log_trace("event::acquire_guards() failure for "
 			"%s %p on guards acquisition\n"
 			, ev->flow_node()->getName()
 			, ev.get());

@@ -107,9 +107,12 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 			while(unmk(t) && t->next) {
 				t = t->next;
 			}
-			if(unmk(t) && __sync_bool_compare_and_swap(&(t->next),NULL,e)) {
-				t->ev.swap(ev);
+			if(unmk(t) && __sync_bool_compare_and_swap(
+					  &(t->next)
+					, NULL
+					, e)) {
 				_tail = e;
+				t->ev.swap(ev);
 				break;
 			}
 		}
@@ -124,14 +127,19 @@ ExclusiveWaiterList::pop()
 	EventBaseHolder * r = NULL;
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
+	EventBaseHolder * t = NULL;
 	while(1) {
 		h = _head;
 		hn = h->next;
-		if(h != _tail && hn != NULL 
+		t = _tail;
+		while(unmk(t) && t->next) {
+			t = t->next;
+		}
+		if(h != t && hn != NULL 
 				&& !is_one(hn)
 				&& h->ev.get() != NULL
 				&& __sync_bool_compare_and_swap(
-					&_head
+					  &_head
 					, h
 					, hn)) {
 			// 3->2
@@ -162,19 +170,22 @@ ExclusiveWaiterList::dump()
         printf(" atomic[%p] in state %s\n"
                 , this
                 , state);
-        printf("  head = ");
+	char buff[5000];
+	size_t at = 0;
+        at += snprintf(buff+at,5000-at,"  head = ");
         EventBaseHolder * e = _head;
         while(e != NULL && !is_one(e)) {
-                printf("%p->",e->ev.get());
+                at += snprintf(buff+at,5000-at,"%p->",e->ev.get());
                 e  = e->next;
         }
         if(e == NULL) {
-                printf("(0x0)\n");
+                at += snprintf(buff+at,5000-at,"(0x0)\n");
         } else if(is_one(e)) {
-                printf("(0x1)\n");
+                at += snprintf(buff+at,5000-at,"(0x1)\n");
         } else {
-                printf("\n");
+                at += snprintf(buff+at,5000-at,"\n");
         }
+	printf("%s",buff);
         printf("  tail = %p\n",_tail->ev.get());
 }
 
@@ -220,6 +231,7 @@ ReadWriteWaiterList::push(
 		EventBase * he = h->ev.get();
 		int rc = rcount;
 		if(type == EventBaseHolder::Write 
+				&& rc == 0
 				&& is_one(hn) 
 				&& __sync_bool_compare_and_swap(
 				  &(_head->next)
@@ -242,16 +254,19 @@ ReadWriteWaiterList::push(
 				, 1);
 			e->ev.swap(ev);
 			return true;
-		} else if(hn == NULL
-				&& __sync_bool_compare_and_swap(
-				  &(_head->next)
-				, NULL
-				, e)) {
-			// 2->4
-			h->ev.swap(ev);
-			h->type = e->type;
+		} else if(hn == NULL && rc == 0) {
 			e->type = EventBaseHolder::None;
-			return false;
+			if(__sync_bool_compare_and_swap(
+					  &(_head->next)
+					, NULL
+					, e)) {
+				// 2->4
+				_tail = e;
+				h->type = type;
+				h->ev.swap(ev);
+				return false;
+			}
+			e->type = type;
 		} else if(is_three(hn)
 				&& type == EventBaseHolder::Read
 				&& rc > 0
@@ -259,39 +274,49 @@ ReadWriteWaiterList::push(
 				  &rcount
 				, rc
 				, rc+1)) {
-			assert(!is_three(e));
+			//assert(!is_three(e));
 			// 3->3
 			e->ev.swap(ev);
 			return true;
 		} else if(is_three(hn)
-				&& type == EventBaseHolder::Write
-				&& __sync_bool_compare_and_swap(
-				  &(_head->next)
-				, hn
-				, e)) {
-			// 3->5
-			h->ev.swap(ev);
-			h->type = e->type;
+				&& type == EventBaseHolder::Write) {
 			e->type = EventBaseHolder::None;
-			return false;
+			if(__sync_bool_compare_and_swap(
+					  &(_head->next)
+					, hn
+					, e)) {
+				// 3->5
+				_tail = e;
+				h->type = e->type;
+				h->ev.swap(ev);
+				return false;
+			}
+			e->type = type;
 		} else if(!is_three(hn) 
 				&& hn != NULL 
 				&& !is_one(hn)) {
 			// 4->4  or 5->5
-			while(_tail->next) {
-				_tail = _tail->next;
-			}
 			t = _tail;
-			if(_head != _tail && he
-					&& __sync_bool_compare_and_swap(
-						 &(t->next)
-						,NULL
-						,e)) {
-				t->ev.swap(ev);
-				t->type = e->type;
+			while(t && !is_three(t)
+					&& !is_one(t)
+					&& t->next
+					&& !is_three(t->next)
+					&& !is_one(t->next)) {
+				t = t->next;
+			}
+			if(h != t && he
+					&& h == _head) {
 				e->type = EventBaseHolder::None;
-				_tail = e;
-				break;
+				if(__sync_bool_compare_and_swap(
+						  &(t->next)
+						, NULL
+						, e)) {
+					_tail = e;
+					t->type = type;
+					t->ev.swap(ev);
+					break;
+				}
+				e->type = type;
 			}
 		}
 	}
@@ -301,19 +326,32 @@ ReadWriteWaiterList::push(
 
 
 void
-ReadWriteWaiterList::pop(EventBaseHolder * & el, EventBasePtr & by_e)
+ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 {
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
-	int rc = rcount;
-	int orig_rc = rc;
+	int rc;
+	int orig_rc;
 	int ht;
 	EventBase * he = NULL;
 	el = NULL;
-	bool is_last_reader = 
-		( rc > 0
-		? __sync_fetch_and_sub(&rcount,1) == 1
-		: true);
+
+
+	if(by_type == EventBaseHolder::Read) {
+		do {
+			orig_rc = rcount;
+			rc = orig_rc-1;
+			assert(rc >= 0);
+		} while( !__sync_bool_compare_and_swap(
+			  &rcount
+			, orig_rc
+			, rc));
+	} else {
+		orig_rc = rcount;
+		rc = orig_rc;
+		assert(rc == 0);
+	}
+	bool is_last_reader = (rc == 0) && (orig_rc == 1);
 	while(1) {
 		h = _head;
 		hn = h->next;
@@ -329,13 +367,21 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, EventBasePtr & by_e)
 			// 2->1
 			break;
 		} else if(is_three(hn)
-				&& orig_rc > 0) {
-			if( is_last_reader ) {
+				&& orig_rc > 0
+				&& is_last_reader 
 				// 3->1
-				__sync_bool_compare_and_swap(&(_head->next),0x0003,0x0001);
-			}
+				&& __sync_bool_compare_and_swap(
+					  &(_head->next)
+					, 0x0003
+					, 0x0001)) {
 			break;
-		} else if(!is_one(hn) && !is_three(hn) && hn != NULL
+		} else if(is_three(hn)
+				&& orig_rc > 1) {
+			// 3->3  (off the hook)
+			break;
+		} else if(!is_one(hn) 
+				&& !is_three(hn) 
+				&& hn != NULL
 				&& ht == EventBaseHolder::Write
 				&& (is_last_reader || orig_rc == 0)
 				&& __sync_bool_compare_and_swap(
@@ -343,62 +389,82 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, EventBasePtr & by_e)
 					, h
 					, hn)) {
 			// (4,5)->(4,2)
-			if(hn->ev.get() == 0) {
-				_tail = _head;
-			}
 			h->next = NULL;
 			el = h;
 			break;
-		} else if(!is_one(hn) && !is_three(hn) && hn != NULL
+		} else if(!is_one(hn) 
+				&& !is_three(hn) 
+				&& hn != NULL
 				&& orig_rc > 0) {
 			if(is_last_reader) {
 				// 5->(5,3)
 				el = NULL;
-				while(ht == EventBaseHolder::Read && he
-					&& !is_one(hn) && !is_three(hn) && hn != NULL
+				int local_reader_count = 0;
+				while(ht == EventBaseHolder::Read 
+					&& he
+					&& !is_one(hn) 
+					&& !is_three(hn) 
+					&& hn != NULL
 					&& __sync_bool_compare_and_swap(
 						  &_head
 						, h
 						, hn)) {
-					__sync_bool_compare_and_swap(
-						  &rcount
-						, rc
-						, std::min(0,rc-1));
 					h->next = el;
 					el = h;
 					h = _head;
 					hn = h->next;
 					ht = h->type;
 					he = h->ev.get();
-					rc = rcount;
+					++local_reader_count;
 				}
+				__sync_fetch_and_add(&rcount,local_reader_count);
+				if(el && hn == NULL 
+					&& __sync_bool_compare_and_swap(
+						  &(_head->next)
+						, hn
+						, 0x0003)) {}
+				if(el) {
+					// otherwise nothing happened
+					break;
+				}
+			} else {
+				break;
 			}
-			break;
-		} else if(!is_one(hn) && !is_three(hn) && hn != NULL
+		} else if(!is_one(hn) 
+				&& !is_three(hn) 
+				&& hn != NULL
 				&& ht == EventBaseHolder::Read
-				&& orig_rc == 0) {
+				&& rc == 0) {
 			// 4->(5,3)
 			el = NULL;
-			while(ht == EventBaseHolder::Read && he
-				&& !is_one(hn) && !is_three(hn) && hn != NULL
+			int local_reader_count = 0;
+			while(ht == EventBaseHolder::Read 
+				&& he
+				&& !is_one(hn) 
+				&& !is_three(hn) 
+				&& hn != NULL
 				&& __sync_bool_compare_and_swap(
 					  &_head
 					, h
 					, hn)) {
-				if(hn->ev.get() == NULL) {
-					_tail = hn;
-				}
 				h->next = el;
 				el = h;
 				h = _head;
-				__sync_fetch_and_add(&rcount,1);
 				hn = h->next;
 				ht = h->type;
 				he = h->ev.get();
 				rc = rcount;
+				++local_reader_count;
 			}
-			if(hn == NULL && __sync_bool_compare_and_swap(&(_head->next),hn,0x0003)) {}
-			break;
+			__sync_fetch_and_add(&rcount,local_reader_count);
+			if(el && hn == NULL 
+				&& __sync_bool_compare_and_swap(
+					  &(_head->next)
+					, hn
+					, 0x0003)) {}
+			if(el) {
+				break;
+			}
 		}
 	}
 }
@@ -420,23 +486,26 @@ ReadWriteWaiterList::dump()
         printf(" atomic[%p] in state %s\n"
                 , this
                 , state);
-        printf("  head = ");
+	size_t at = 0;
+	char buff[5000];
+        at += snprintf(buff+at,5000-at,"  head = ");
         EventBaseHolder * e = _head;
         while(e != NULL && !is_one(e) && !is_three(e)) {
-                printf("%p%s->"
+                at += snprintf(buff+at,5000-at,"%p%s->"
 			, e->ev.get()
 			, (e->type == EventBaseHolder::Read ? "R" : (e->type == EventBaseHolder::Write ? "W" : "")));
                 e = e->next;
         }
         if(e == NULL) {
-                printf("(0x0)\n");
+                at += snprintf(buff+at,5000-at,"(0x0)\n");
         } else if(is_one(e)) {
-                printf("(0x1)\n");
+                at += snprintf(buff+at,5000-at,"(0x1)\n");
         } else if(is_three(e)) {
-                printf("(0x3)\n");
+                at += snprintf(buff+at,5000-at,"(0x3)\n");
         } else {
-                printf("\n");
+                at += snprintf(buff+at,5000-at,"\n");
         }
+	printf("%s",buff);
         printf("  tail = %p\n", _tail->ev.get());
         printf("  rcount = %d\n", rcount);
 }
@@ -446,6 +515,334 @@ AtomicReadWrite::log_snapshot_waiters() const
 {
 	oflux_log_trace(" rcount:%d _wtype:%d\n", _waiters.rcount, _wtype);
 	_log_snapshot_waiters(&_waiters); 
+}
+
+/////////////////////////////////////////////////////////////////
+// PoolEventList state encoding:
+//
+// 1. (resourcesN) mkd(head) && unmk(head) = { mkd(next) && unmk(next) != NULL, id > 0 }
+// 2. (empty) !mkd(head) && head = { next == NULL, id == 0 } 
+// 3. (waitingM) !mkd(head) && head = { unmk(next) != NULL, id > 0 }
+// Note: in (1) all non-NULL next links are mkd()
+
+PoolEventList::~PoolEventList()
+{
+	EventBaseHolder * hp = _head.get();
+	EventBaseHolder * hp_n = NULL;
+	while(unmk(hp)) {
+		hp_n = hp->next;
+		delete unmk(hp);
+		hp = hp_n;
+	}
+}
+
+// push(Event * e) _________________________________________________________
+//   Either:
+//    return true and *(e->resource_loc) is written with a free resource
+//   Or
+//    return false and park e in the internal waiters data structure
+bool
+PoolEventList::push(EventBaseHolder * e)
+{
+	//*(e->resource_loc) = NULL;
+	//e->next = NULL;
+	EventBaseHolder * t = NULL;
+
+	StampedPtr<EventBaseHolder> h;
+	EventBaseHolder * hp = NULL;
+	EventBaseHolder * hn = NULL;
+	while(1) {
+		h = _head;
+		hp = h.get();
+		hn = unmk(hp)->next;
+		t = _tail;
+		while(t->next) {
+			t = t->next;
+		}
+		if(	// condition:
+			mkd(hp)
+			&& unmk(hn) != NULL) {
+			// action:
+			*(e->resource_loc) = unmk(hp);
+			if(_head.cas(h, hn)) {
+				// 1->(1,2)
+				return true;
+			}
+			*(e->resource_loc) = NULL;
+		} else if( //condition
+			hp
+			&& (hp == t)
+			&& !mkd(hp)
+			&& !hn) {
+			// action:
+			e->next = hp;
+			if(_head.cas(h,e)) {
+				// 2->3
+				return false;
+			}
+		} else if( //condition:
+			hp 
+			&& (hp != t)
+			&& !mkd(hp)
+			&& !mkd(hn)
+			&& hn) {
+			// action:
+
+			EventBasePtr ev;
+			EventBaseHolder ** resource_loc = e->resource_loc;
+			e->next = NULL;
+			e->ev.swap(ev);
+			e->resource_loc = NULL;
+
+			if(__sync_bool_compare_and_swap(&(t->next),NULL,e)) {
+				// 3->3
+				_tail = e;
+				t->resource_loc = resource_loc;
+				t->ev.swap(ev);
+				return false;
+			}
+			e->ev.swap(ev);
+			e->resource_loc = resource_loc;
+		}
+	}
+	return NULL;
+}
+
+EventBaseHolder *
+PoolEventList::complete_pop()
+{
+	EventBaseHolder * he = _head.get();
+	while(mkd(he) && mkd(unmk(he)->next)) {
+		he = unmk(he)->next;
+	}
+	EventBaseHolder * hen = unmk(he)->next;
+	if(hen && !mkd(hen) && hen->ev.get() != NULL) {
+		// proceed
+	} else {
+		return NULL;
+	}
+	StampedPtr<EventBaseHolder> h = _head;
+	EventBaseHolder * hp = h.get();
+	EventBaseHolder * hn = unmk(hp)->next;
+	if(mkd(hp) && unmk(hn) && _head.cas(h,hn)) {
+		if(__sync_bool_compare_and_swap(&(unmk(he)->next),hen,hen->next)) {
+			*(hen->resource_loc) = unmk(hp);
+			//printf("  ::complete_pop() success\n");
+			return hen;
+		} else {
+			//printf("  ::complete_pop() fail\n");
+			do { 
+				h = _head;
+			} while(!_head.cas(h,mk(hp)));
+		}
+	}
+	return NULL;
+}
+
+
+// pop(Resource * r) _____________________________________________________
+//   Either
+//    return re != NULL released event with *(re->release_loc) = r
+//   Or
+//    return NULL and park resource r in the pool of free resources
+EventBaseHolder *
+PoolEventList::pop(EventBaseHolder * by_ev)
+{
+	EventBaseHolder * r = *(by_ev->resource_loc);
+	*(by_ev->resource_loc) = NULL;
+	StampedPtr<EventBaseHolder> h = NULL;
+	EventBaseHolder * hp = NULL;
+	EventBaseHolder * hn = NULL;
+	EventBaseHolder * t = NULL;
+	while(1) {
+		h = _head;
+		hp = h.get();
+		hn = unmk(hp)->next;
+		t = _tail;
+		while(t->next) {
+			t = t->next;
+		}
+		if(	// condition:
+			mkd(hp)
+			&& unmk(hn) != NULL
+			&& (unmk(hp)->resource != NULL)) {
+			// action:
+			r->next = mk(hp);
+			if(_head.cas(h,mk(r))) {
+				// 1->1
+				return complete_pop();
+			}
+		} else if(
+			// condition:
+			!mkd(hp)
+			&& (hp == t)
+			&& hp->ev.get() == 0
+			&& !hn) {
+			// action:
+			r->next = hp;
+			if(_head.cas(h,mk(r))) {
+				// 2->1
+				return complete_pop();
+			}
+		} else if(
+			// condition:
+			!mkd(hp)
+			&& (hp != t)
+			&& !mkd(hn)
+			&& hp->ev.get() != 0
+			&& unmk(hn) != NULL) {
+			// action:
+			if(_head.cas(h,unmk(hn))) {
+				// 3->(2,3)
+				*(hp->resource_loc) = r;
+				return hp;
+			}
+		}
+	}
+	return NULL;
+}
+
+
+void
+PoolEventList::dump()
+{
+	EventBaseHolder * hp = _head.get();
+	const char * state =
+		( hp == 0 ?
+			"undefined  [0]"
+		: (mkd(hp) ?
+			"resourcesN [1]"
+		: (hp->next == NULL ?
+			"empty      [2]" :       
+			"waitingM   [3]" )));
+
+	printf("  atomic[%p] in state %s\n"
+		, this
+		, state);
+	char buff[5000];
+	size_t at = 0;
+	at += snprintf(buff+at,5000-at,"  %s head = "
+		, mkd(_head.get()) ? "m" : " ");
+	EventBaseHolder * e = _head.get();
+	while(unmk(e) != NULL) {
+		if(!mkd(e)) {
+			at += snprintf(buff+at,5000-at,"r%c%p->"
+				, mkd(e) ? 'm' : ' ',unmk(e)->resource);
+		} else {
+			at += snprintf(buff+at,5000-at,"e%c%p->"
+				, mkd(e) ? 'm' : ' ',unmk(e)->ev.get());
+		}
+		if(at >= 5000) return; \
+		e  = unmk(e)->next;
+	}
+	if(e == NULL) {
+		at += snprintf(buff+at,5000-at,"(0x0)\n");
+	} else if(is_one(e)) {
+		at += snprintf(buff+at,5000-at,"(0x1)\n");
+	} else {
+		at += snprintf(buff+at,5000-at,"\n");
+	}
+	printf("%s",buff);
+	printf("   tail = e%p/r%p\n"
+		, _tail->ev.get()
+		, _tail->resource);
+}
+
+AtomicPooled::AtomicPooled(AtomicPool &pool,void * data)
+	: _next(NULL)
+	, _pool(pool)
+	, _resource_ebh(AtomicCommon::allocator.get(data))
+	, _by_ebh(NULL)
+{
+}
+
+const char *
+AtomicPooled::atomic_class_str = "lockfree::Pooled";
+
+bool
+AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
+{
+	_by_ebh = AtomicCommon::allocator.get(ev, &_resource_ebh, t);
+	bool acqed = _pool.waiters.push(_by_ebh); // try to acquire the resource
+	if(acqed) {
+		AtomicCommon::allocator.put(_by_ebh);
+		_by_ebh = NULL;
+	}
+	return acqed;
+}
+
+void
+AtomicPooled::release(
+	  std::vector<EventBasePtr> & rel_ev_vec
+	, EventBasePtr &)
+{
+	EventBaseHolder * rel_ev = _pool.waiters.pop(_by_ebh);
+	if(rel_ev) { 
+		assert(rel_ev != _by_ebh);
+		rel_ev_vec.push_back(rel_ev->ev);
+		AtomicCommon::allocator.put(rel_ev);
+	}
+	_pool.release(this);
+	_resource_ebh = NULL;
+}
+
+Allocator<AtomicPooled> AtomicPool::allocator;
+
+AtomicPool::AtomicPool()
+	: head(NULL)
+{
+}
+
+AtomicPool::~AtomicPool()
+{
+	AtomicPooled * aph = head;
+	AtomicPooled * aph_n = NULL;
+	while(aph) {
+		aph_n = aph->_next;
+		delete aph;
+		aph = aph_n;
+	}
+}
+
+void
+AtomicPool::release(AtomicPooled *ap)
+{
+	AtomicPooled * h;
+	do {
+		h = head;
+		ap->_next = h;
+	} while(!__sync_bool_compare_and_swap(&head,h,ap));
+}
+
+const void *
+AtomicPool::get(oflux::atomic::Atomic * & a_out,const void *)
+{
+	char _here;
+	static const char * p_here = &_here;
+	AtomicPooled * ap_out = NULL;
+	while((ap_out = head) && __sync_bool_compare_and_swap(&head,ap_out,ap_out->_next));
+	if(!ap_out) {
+		void * p = NULL;
+		ap_out = allocator.get(*this,p);
+	}
+	a_out = ap_out;
+	return &p_here;
+}
+
+class AtomicPoolWalker : public oflux::atomic::AtomicMapWalker {
+public:
+	AtomicPoolWalker(PoolEventList &)
+	{}
+	virtual ~AtomicPoolWalker() {}
+	virtual bool next(const void * & key,oflux::atomic::Atomic * &atom)
+	{ return false; } // tbd
+private:
+};
+
+oflux::atomic::AtomicMapWalker *
+AtomicPool::walker()
+{
+	return new AtomicPoolWalker(waiters);
 }
 
 } // namespace atomic

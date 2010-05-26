@@ -7,6 +7,7 @@
 #include "atomic/OFluxAtomic.h"
 #include "flow/OFluxFlowGuard.h"
 #include "OFluxLibDTrace.h"
+//#include "OFluxLogging.h"
 
 
 
@@ -149,6 +150,7 @@ public:
 				, ev_name
 				, _flow_guard_ref->wtype()); 
 		}
+		//oflux_log_debug("HA::acquire_or_wait %s %s %s atom %p for %d\n", ev_name, (_haveit ? "takes": "waits on"), _flow_guard_ref->getName().c_str(), _atom, _flow_guard_ref->wtype());
 		return _haveit;
 	}
 	//inline const void * key() { return _key; }

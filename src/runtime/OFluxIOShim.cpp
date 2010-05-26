@@ -209,7 +209,7 @@ extern "C" int usleep(useconds_t useconds)
 {
         oflux::RunTimeAbstractForShim *local_eminfo = eminfo;
 	if (!local_eminfo || local_eminfo->thread()->is_detached()) {
-		if (!shim_sleep) {
+		if (!shim_usleep) {
 			shim_usleep = (int (*)(useconds_t)) dlsym(RTLD_NEXT, "usleep");
 		}
 		return ((shim_usleep)(useconds));

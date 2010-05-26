@@ -450,6 +450,11 @@ int main(int argc, char  * argv[])
 	if(argc >= 5) {
 		num_atomics = atoi(argv[4]);
 	}
+	printf("%u threads, %u iterations, %u events/thread, %u resource items\n"
+		, num_threads
+		, iterations
+		, num_events_per_thread
+		, num_items);
         pthread_t tids[num_threads];
 	int tns[num_threads];
 	pthread_barrier_init(&barrier,NULL,num_threads);
