@@ -273,6 +273,7 @@ rule token = parse
 	| "end" { updatePosInTok lexbuf (fun x -> END x) }
 	| "read" { updatePosInTok lexbuf (fun x -> READ x) }
 	| "upgradeable" { updatePosInTok lexbuf (fun x -> UPGRADEABLE x) }
+	| "nullok" { updatePosInTok lexbuf (fun x -> NULLOK x) }
 	| "if" { updatePosInTok lexbuf (fun x -> IF x) }
 	| "precedence" { updatePosInTok lexbuf (fun x -> PRECEDENCE x) }
 	| "write" { updatePosInTok lexbuf (fun x -> WRITE x) }
