@@ -1104,7 +1104,6 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 				let uel = (gr.guardcond::(gr.arguments))
 				in  List.exists uniterp_has_garg uel in
                         let gn = strip_position gr.guardname in
-			let _ = (print_string ("guard "^gn^" has "^(if nullok then "" else "not ")^"nullok\n")) in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
                         let hash = HashString.hash (gr.arguments, gr.guardcond) in
                         let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn^"_"^hash) in
