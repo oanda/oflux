@@ -11,7 +11,7 @@
 #endif
 #include <vector>
 #include "OFlux.h"
-//#include "OFluxLogging.h" // DEBUGGING
+#include "OFluxLogging.h"
 
 namespace oflux {
 
@@ -85,6 +85,7 @@ public:
 	virtual void log_snapshot_waiters() const {}
 
 	virtual bool is_pool_like() const { return false; }
+	virtual bool is_pool_like_init() const { return false; }
 
 	static EventBasePtr _null_static;
 };
@@ -190,10 +191,10 @@ public:
 	virtual void release(std::vector<EventBasePtr > & rel_ev
 		, EventBasePtr &)
 	{
-                //oflux_log_debug(" release() called held:%d mode:%d waiters:%d\n"
-                        //, _held
-                        //, _mode
-                        //, _waiters.size());
+                oflux_log_trace2(" ARW::release() called held:%d mode:%d waiters:%d\n"
+                        , _held
+                        , _mode
+                        , _waiters.size());
 		_held = std::max(_held-1,0);
 		if(_held == 0) {
 			_mode = AtomicCommon::None;
@@ -212,19 +213,19 @@ public:
 				}
 			}
 		}
-                //oflux_log_debug(" release() finished held:%d mode:%d releases:%d\n"
-                        //, _held
-                        //, _mode
-                        //, rel_ev.size());
+                oflux_log_trace2(" ARW::release() finished held:%d mode:%d releases:%d\n"
+                        , _held
+                        , _mode
+                        , rel_ev.size());
 	}
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
                 int res = 0;
-                //oflux_log_debug(" acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
-                        //, wtype
-                        //, _held
-                        //, _mode
-                        //, _waiters.size());
+                oflux_log_trace2(" ARW::acquire() called wtype:%d held:%d mode:%d waiters:%d\n"
+                        , wtype
+                        , _held
+                        , _mode
+                        , _waiters.size());
 		if(_held == 0) {
 			_held = 1;
 			_mode = wtype;
@@ -233,15 +234,15 @@ public:
 			_held++;
 			res = 1;
 		}
-                //oflux_log_debug(" acquire() finished held:%d mode:%d res:%d\n"
-                        //, _held
-                        //, _mode
-                        //, res);
-                //oflux_log_debug(" wait() called wtype:%d held:%d mode:%d waiters:%d\n"
-                        //, wtype
-                        //, _held
-                        //, _mode
-                        //, _waiters.size());
+                oflux_log_trace2(" ARW::acquire() finished held:%d mode:%d res:%d\n"
+                        , _held
+                        , _mode
+                        , res);
+                oflux_log_trace2(" ARW::wait() called wtype:%d held:%d mode:%d waiters:%d\n"
+                        , wtype
+                        , _held
+                        , _mode
+                        , _waiters.size());
 		if(!res) {
 			AtomicQueueEntry aqe(ev,wtype);
 			_waiters.push_back(aqe);
@@ -362,22 +363,12 @@ public:
 		, _next(NULL)
 	{}
 	virtual bool is_pool_like() const { return true; }
+	virtual bool is_pool_like_init() const { return true; }
 	virtual void ** data() { return &_data; }
 	virtual int held() const { return _data != NULL; }
 	virtual size_t waiter_count() { return _pool.waiter_count(); }
 	virtual void release(std::vector<EventBasePtr > & rel_ev
-		, EventBasePtr &)
-	{
-		if(_pool.waiter_count()) {
-                        rel_ev.push_back(_pool.get_waiter());
-		} else {
-			if(_data) { // return it to the pool
-				_pool.put_data(_data);
-			}
-			_data = NULL;
-			_pool.put(this);
-                }
-	}
+		, EventBasePtr &);
 	virtual bool acquire_or_wait(EventBasePtr & ev, int)
 	{ 
 		_data = _pool.get_data();

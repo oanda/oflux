@@ -8,6 +8,10 @@
 #include <boost/shared_ptr.hpp>
 #include <signal.h>
 
+#include "OFluxLogging.h"
+#include "event/OFluxEventBase.h"
+#include "flow/OFluxFlowNode.h"
+
 namespace oflux {
 namespace flow {
  class Node;
@@ -43,6 +47,11 @@ public:
 			ebptr.swap(e->ev);
 			allocator.put(e);
 		}
+		oflux_log_trace("[%d] steal  %s %p from thread [%d]\n"
+			, oflux_self()
+			, ebptr.get() ? ebptr->flow_node()->getName() : "<null>"
+			, ebptr.get()
+			, self());
 		return ebptr;
 	}
 	int index() const { return _index; }
@@ -62,10 +71,18 @@ private:
 			ebptr.swap(e->ev);
 			allocator.put(e);
 		}
+		oflux_log_trace("[%d] popLocal %s %p\n"
+			, self()
+			, (ebptr.get() ? ebptr->flow_node()->getName() : "<null>")
+			, ebptr.get());
 		return ebptr;
 	}
 	inline void pushLocal(EventBasePtr & ev)
 	{
+		oflux_log_trace("[%d] pushLocal %s %p\n"
+			, self()
+			, ev->flow_node()->getName()
+			, ev.get());
 		WSQElement * e = allocator.get(ev);
 		_queue.pushBottom(e);
 	}

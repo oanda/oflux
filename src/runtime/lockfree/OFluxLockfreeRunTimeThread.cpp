@@ -9,6 +9,12 @@
 #include "lockfree/allocator/OFluxLFMemoryPool.h"
 #include "OFluxLogging.h"
 
+#include "atomic/OFluxLFAtomic.h"
+
+namespace ofluximpl {
+    extern oflux::atomic::AtomicMapAbstract * IntPool_map_ptr;
+}
+
 namespace oflux {
 namespace lockfree {
 
@@ -92,14 +98,18 @@ void
 RunTimeThread::start()
 {
 	AutoLock al(&_lck); 
-	oflux_log_trace("RunTimeThread::start() called -- thread index %d\n", index());
+	oflux_log_trace("[%d] RunTimeThread::start() called -- thread index %d\n"
+			, oflux_self()
+			, index());
 		// only this thread locks its own _lck
 		// this is only needed for the _cond (signalling)
 	SetTrue st(_running);
 	int no_ev_iterations = 0;
 	while(!_request_stop && !_rt.was_soft_killed()) {
 		if(_rt.caught_soft_load_flow()) {
-			oflux_log_trace("RunTimeThread::start() called -- reloading flow %d\n",index());
+			oflux_log_trace("[%d] RunTimeThread::start() called -- reloading flow %d\n"
+				, oflux_self()
+				, index());
 			_rt.load_flow();
 		}
 		EventBasePtr ev = popLocal();
@@ -119,7 +129,10 @@ RunTimeThread::start()
 			int num_new_evs = handle(ev);
 			int num_alive_threads = _rt.nonsleepers();
 			int threads_to_wake = num_new_evs;
-			oflux_log_trace("RunTimeThread::start() calling handle %d wt: %d\n",index(),threads_to_wake);
+			oflux_log_trace("[%d] RunTimeThread::start() calling handle %d wt: %d\n"
+				, oflux_self()
+				, index()
+				, threads_to_wake);
 			_rt.wake_threads(threads_to_wake);
 			// attempt to avoid a thundering herd here
 		}
@@ -134,15 +147,16 @@ RunTimeThread::start()
 			no_ev_iterations = 0;
 		} else if(no_ev_iterations > NO_EV_CRITICAL*2
 				&& _rt.all_asleep_except_me()) {
+
+			//oflux::lockfree::atomic::AtomicPool::dump(ofluximpl::IntPool_map_ptr);
+
 			_asleep = false;
 			oflux_log_warn("RunTimeThread::start() exiting... seem to be out of events to run\n");
-			_rt.log_snapshot_guard("Ga");
-			_rt.log_snapshot_guard("Gb");
 			_rt.soft_kill();
 			break;
 		}
 		_asleep = false;
-		/*oflux_log_trace("RunTimeThread::start (about to reset) "
+		oflux_log_trace2("RunTimeThread::start (about to reset) "
 			"ev %d %s ev.pred %d %s\n"
 			, ev.use_count()
 			, ev->flow_node()->getName()
@@ -150,7 +164,7 @@ RunTimeThread::start()
 				? ev->get_predecessor().use_count()
 				: 0
 			, ev->get_predecessor()
-				? ev->get_predecessor()->flow_node()->getName()					: "<none>" );*/
+				? ev->get_predecessor()->flow_node()->getName()					: "<none>" );
 		ev.reset();
 	}
 }
@@ -166,7 +180,8 @@ int
 RunTimeThread::handle(EventBasePtr & ev)
 {
 	_flow_node_working = ev->flow_node();
-	oflux_log_trace("RunTimeThread::handle() on %s %p\n"
+	oflux_log_trace("[%d] RunTimeThread::handle() on %s %p\n"
+		, oflux_self()
 		, _flow_node_working->getName()
 		, ev.get());
 	// ---------------- Execution -------------------
@@ -183,6 +198,16 @@ RunTimeThread::handle(EventBasePtr & ev)
                           successor_events // output
                         , ev);
         }
+#ifdef OFLUX_DEEP_LOGGING
+	for(size_t i = 0; i < successor_events.size(); ++i) {
+		oflux_log_trace2("[%d] successor of %s %p ---> %s %p\n"
+			, oflux_self()
+			, ev->flow_node()->getName()
+			, ev.get()
+			, successor_events[i]->flow_node()->getName()
+			, successor_events[i].get());
+	}
+#endif // OFLUX_DEEP_LOGGING
         // ------------ Release held atomics --------------
         // put the released events as priority on the queue
         std::vector<EventBasePtr> successor_events_released;
@@ -192,8 +217,9 @@ RunTimeThread::handle(EventBasePtr & ev)
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
                         successor_events.push_back(successor_events_released[i]);
                 } else {
-			oflux_log_trace("acquire_all_or_wait() failure for "
+			oflux_log_trace2("[%d] acquire_all_or_wait() failure for "
 				"%s %p on guards acquisition"
+				, oflux_self()
 				, succ_ev->flow_node()->getName()
 				, succ_ev.get());
 		}
@@ -210,7 +236,8 @@ RunTimeThread::handle(EventBasePtr & ev)
 	size_t ind =0;
         for(size_t i = 0; i < successor_events.size(); ++i) {
 		if(push_sources_first == successor_events[i]->flow_node()->getIsSource()) {
-			oflux_log_trace(" %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
+			oflux_log_trace("[%d] %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
+				, oflux_self()
 				, index()
 				, _flow_node_working->getName()
 				, ev.get()
@@ -224,7 +251,8 @@ RunTimeThread::handle(EventBasePtr & ev)
 	}
         for(size_t i = 0; i < successor_events.size(); ++i) {
 		if(push_sources_first != successor_events[i]->flow_node()->getIsSource()) {
-			oflux_log_trace(" %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
+			oflux_log_trace("[%d] %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
+				, oflux_self()
 				, index()
 				, _flow_node_working->getName()
 				, ev.get()

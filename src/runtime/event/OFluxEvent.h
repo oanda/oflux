@@ -16,6 +16,8 @@
 #include "flow/OFluxFlowNode.h"
 #include "flow/OFluxFlowFunctions.h"
 
+#include "OFluxLogging.h"
+
 namespace oflux {
 
 
@@ -97,7 +99,19 @@ public:
 		, const IOConversionBase<typename Detail::In_> * im_io_convert
 		, flow::Node * flow_node)
 		: EventBaseTyped<Detail>(predecessor,im_io_convert,flow_node)
-	{}
+	{
+		oflux_log_trace2("[%d] Event cstr %s %p\n"
+			, oflux_self()
+			, flow_node->getName()
+			, this);
+	}
+	virtual ~Event()
+	{
+		oflux_log_trace2("[%d] ~Event %s %p\n"
+			, oflux_self()
+			, EventBase::flow_node()->getName()
+			, this);
+	}
 	virtual int execute()
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));

@@ -7,7 +7,8 @@
 #include "atomic/OFluxAtomic.h"
 #include "flow/OFluxFlowGuard.h"
 #include "OFluxLibDTrace.h"
-//#include "OFluxLogging.h"
+
+#include "OFluxLogging.h"
 
 
 
@@ -101,7 +102,8 @@ public:
 	}
 	inline void halftakeit(HeldAtomic & ha) 
 	{
-		_atom = ha._atom;
+		//_atom = ha._atom;
+		assert(ha._haveit);
 		_haveit = ha._haveit;
 	}
 	inline void swap(HeldAtomic & ha) 
@@ -109,6 +111,7 @@ public:
 		Atomic * atom = _atom;
 		bool hi = _haveit;
 		_atom = ha._atom;
+		oflux_log_trace2("[%d] HA:swap on %p\n", oflux_self(), this);
 		_haveit = ha._haveit;
 		ha._atom = atom;
 		ha._haveit = hi;
@@ -138,8 +141,12 @@ public:
 	{
 		assert(_key);
 		assert(_atom);
-		_haveit = _atom->acquire_or_wait(ev,_flow_guard_ref->wtype());
-		if(_haveit) {
+		oflux_log_trace2("[%d] HA: _haveit assignment a_o_w %p\n", oflux_self(), this);
+		bool res;
+		_haveit = false;
+		res = _atom->acquire_or_wait(ev,_flow_guard_ref->wtype());
+		if(res) _haveit = true;
+		if(res) {
 			_GUARD_ACQUIRE(
 				  _flow_guard_ref->getName().c_str()
 				, ev_name
@@ -150,8 +157,14 @@ public:
 				, ev_name
 				, _flow_guard_ref->wtype()); 
 		}
-		//oflux_log_debug("HA::acquire_or_wait %s %s %s atom %p for %d\n", ev_name, (_haveit ? "takes": "waits on"), _flow_guard_ref->getName().c_str(), _atom, _flow_guard_ref->wtype());
-		return _haveit;
+		oflux_log_trace2("[%d] HA::acquire_or_wait %s %s %s atom %p for %d\n"
+			, oflux_self()
+			, ev_name
+			, (res ? "takes": "waits on")
+			, _flow_guard_ref->getName().c_str()
+			, _atom
+			, _flow_guard_ref->wtype());
+		return res;
 	}
 	//inline const void * key() { return _key; }
 	/**

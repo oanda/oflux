@@ -1,4 +1,5 @@
 #include "atomic/OFluxAtomic.h"
+#include "atomic/OFluxAtomicHolder.h"
 #include "flow/OFluxFlowNode.h"
 #include "event/OFluxEventBase.h"
 #include "OFluxLogging.h"
@@ -178,6 +179,27 @@ AtomicPool::~AtomicPool()
                 on = next;
         }
 }
+
+void 
+AtomicPooled::release(
+	  std::vector<EventBasePtr > & rel_ev
+	, EventBasePtr &)
+{
+	if(_pool.waiter_count()) {
+		EventBasePtr w_ev = _pool.get_waiter();
+		AtomicsHolder & w_atomics = w_ev->atomics();
+		HeldAtomic * re_w_ptr = w_atomics.get(w_atomics.working_on());
+		*(re_w_ptr->atomic()->data()) = _data;
+		rel_ev.push_back(w_ev);
+	} else {
+		if(_data) { // return it to the pool
+			_pool.put_data(_data);
+		}
+		_data = NULL;
+		_pool.put(this);
+	}
+}
+
 
 bool AtomicPoolWalker::next(const void * & key, Atomic * &atom)
 {

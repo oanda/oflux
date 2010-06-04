@@ -4,6 +4,8 @@
 #include "OFlux.h"
 #include <ostream>
 
+#include "OFluxThreads.h"
+
 namespace oflux {
 namespace logging {
 
@@ -70,8 +72,20 @@ private:
  */
 void toStream(std::ostream & os); // only call this once!
 
+
 #define oflux_log_trace(...) \
         oflux::logging::logger->oflux_log(oflux::logging::LL_trace,__VA_ARGS__)
+
+// Uncomment OFLUX_DEEP_LOGGING if you want to log lots ... deeply
+//
+//#define OFLUX_DEEP_LOGGING
+
+#ifdef OFLUX_DEEP_LOGGING
+# define oflux_log_trace2(...) oflux_log_trace(__VA_ARGS__)
+#else
+# define oflux_log_trace2(...)
+#endif
+
 #define oflux_log_debug(...) \
         oflux::logging::logger->oflux_log(oflux::logging::LL_debug,__VA_ARGS__)
 #define oflux_log_info(...) \

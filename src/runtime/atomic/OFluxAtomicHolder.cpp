@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include "OFluxLibDTrace.h"
 
+#include "OFluxLogging.h"
+
 
 namespace oflux {
 namespace atomic {
@@ -112,8 +114,25 @@ AtomicsHolder::acquire_all_or_wait(
 	AtomicsHolderTraversal given_aht(given_atomics);
 	AtomicsHolderTraversal my_aht(*this,_working_on);
 	bool more_given = given_aht.next(given_ha);
+	oflux_log_trace2("[%d] AH::aaow: %s %p needs %d atomics\n"
+		, oflux_self()
+		, ev_name
+		, ev.get()
+		, _number);
 	while(blocking_index == -1 && my_aht.next(my_ha)) {
 		my_ha->build(node_in,this,true);
+		oflux_log_trace2("[%d] AH::aaow: %s given: %s %p %s%s my: %s %p %s%s  compare: %d\n"
+			, oflux_self()
+			, ev_name
+			, more_given ? given_ha->atomic()->atomic_class() : "<null>"
+			, more_given ? given_ha->atomic() : NULL
+			, more_given && given_ha->haveit() ? "have it" : ""
+			, more_given && given_ha->skipit() ? "skip it" : ""
+			, my_ha->atomic()->atomic_class()
+			, my_ha->atomic()
+			, my_ha->haveit() ? "have it" : ""
+			, my_ha->skipit() ? "skip it" : ""
+			, more_given ? given_ha->compare(*my_ha) : -99);
 		while(more_given 
                                 && (!given_ha->haveit() 
                                         || given_ha->compare(*my_ha) < 0)) {
@@ -126,6 +145,7 @@ AtomicsHolder::acquire_all_or_wait(
                                 && given_ha->compare(*my_ha) == 0 
 				&& given_ha->haveit()) {
 			my_ha->takeit(*given_ha);
+			oflux_log_trace2("[%d] AH::aaow: takeit\n", oflux_self());
 			_GUARD_ACQUIRE(
 				  my_ha->flow_guard_ref()->getName().c_str()
 				, ev_name
@@ -135,6 +155,9 @@ AtomicsHolder::acquire_all_or_wait(
 				// event is now queued
 				// for waiting
 				blocking_index = my_aht.index()-1; // next-1
+				oflux_log_trace2("[%d] AH::aaow: wait\n", oflux_self());
+			} else {
+				oflux_log_trace2("[%d] AH::aaow: acquire\n", oflux_self());
 			}
 		}
 	}
@@ -144,6 +167,9 @@ AtomicsHolder::acquire_all_or_wait(
 			  static_cast<void *>(ev_bptr)
 			, ev_name);
 	}
+	oflux_log_trace2("[%d] AH::aaow: return %d\n"
+		, oflux_self()
+		, blocking_index);
 	return blocking_index == -1;
 	// return true when all guards are acquired
 }
@@ -161,9 +187,11 @@ AtomicsHolder::release(
 			Atomic * a = ha->atomic();
 			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
-			/*if(released_events.size() - pre_sz > 0) {
-				oflux_log_debug("AH::release %s released no events\n", by_ev->flow_node()->getName());
-			}*/
+			if(released_events.size() - pre_sz > 0) {
+				oflux_log_trace2("[%d] AH::release %s released no events\n"
+					, oflux_self()
+					, by_ev->flow_node()->getName());
+			}
 			// acquisition happens here for released events
 			bool should_relinquish = false;
 			for(size_t k = pre_sz; k < released_events.size(); ++k) {
@@ -172,25 +200,52 @@ AtomicsHolder::release(
 				AtomicsHolder & rel_atomics = rel_ev->atomics();
 				bool fd = false;
 				HeldAtomic * rel_ha_ptr = NULL;
-				//oflux_log_debug("AH::release %s released %s on recver atomic %p which is %s\n", by_ev->flow_node()->getName(), rel_ev->flow_node()->getName(), a, ha->flow_guard_ref()->getName().c_str());
+				oflux_log_trace2("[%d] AH::release %s released %s on recver atomic %p %s which is %s\n"
+					, oflux_self()
+					, by_ev->flow_node()->getName()
+					, rel_ev->flow_node()->getName()
+					, a
+					, ha->haveit() ? "have it" : ""
+					, ha->flow_guard_ref()->getName().c_str());
 				for(int j = rel_atomics.working_on()
 						; j < rel_atomics.number()
 						; ++j) {
 					rel_ha_ptr = rel_atomics.get(j);
-					//oflux_log_debug("AH::release                  sender atomic %p which is %s\n", rel_ha_ptr->atomic(), rel_ha_ptr->flow_guard_ref()->getName().c_str());
+					oflux_log_trace2("[%d] AH::release                  sender atomic %p %s which is %s (compare %d)\n"
+						, oflux_self()
+						, rel_ha_ptr->atomic()
+						, rel_ha_ptr->haveit() ? "have it" : ""
+						, rel_ha_ptr->flow_guard_ref()->getName().c_str()
+						, rel_ha_ptr->compare(*ha)
+						);
+					oflux_log_trace2("[%d] AH::release                  fd %d haveit %d pool_like_init %d\n"
+						, oflux_self()
+						, fd
+						, rel_ha_ptr->haveit()
+						, a->is_pool_like_init()
+						);
 					if(rel_ha_ptr && rel_ha_ptr->atomic() == a) {
 						rel_ha_ptr->halftakeit(*ha);
 						fd = true;
+						if(j==rel_atomics.working_on()) {
+							++rel_atomics._working_on;
+						}
 						break;
-					} else if(a->is_pool_like() 
+					} else if(a->is_pool_like_init() 
 							&& rel_ha_ptr
-							&& rel_ha_ptr->compare(*ha) ==0) {
-						rel_ha_ptr->swap(*ha);
+							&& (rel_ha_ptr->compare(*ha) == 0)) {
+							//rel_ha_ptr->swap(*ha);
+						//}
+						rel_ha_ptr->halftakeit(*ha);
 						fd = true;
+						if(j==rel_atomics.working_on()) {
+							++rel_atomics._working_on;
+						}
 						break;
 					}
 				}
-				assert(fd && "should have found a held atomic for this released event");
+				assert(fd && "should have found a held atomic for this released event"); 
+				assert( (rel_ha_ptr==NULL) || rel_ha_ptr->haveit());
 			}
 			if(should_relinquish) {
 				ha->relinquish();
