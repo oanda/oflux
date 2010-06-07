@@ -245,6 +245,11 @@ public:
                 , atom1(NULL)
                 , atom2(NULL)
         { 
+		// make n_next grab a pool guard
+		static oflux::flow::Guard g(&pool,"testpool");
+		static oflux::flow::GuardReference * gr =
+			new oflux::flow::GuardReference(&g,pl,false);
+		n_next.add(gr);
                 // mimic populator
                 pool.get(atom1,NULL);
                 void ** d1 = atom1->data();
@@ -274,14 +279,17 @@ public:
 
 class AcquirePoolItem {
 public:
-        AcquirePoolItem(atomic::AtomicPool & pool
-                , EventBasePtr & ev
+        AcquirePoolItem(
+                  EventBasePtr & ev
                 , int expect_data)
         {
-                pool.get(a,NULL);
-                EXPECT_TRUE(NULL != a);
-                was_held = a->held();
-                have = a->acquire_or_wait(ev,OFluxAtomicPooledTests::pl);
+                //pool.get(a,NULL);
+                //EXPECT_TRUE(NULL != a);
+		oflux::atomic::AtomicsHolder & atomics = ev->atomics();
+		oflux::atomic::HeldAtomic * ha = atomics.get(0);
+                was_held = ha->haveit();
+                have = atomics.acquire_all_or_wait(ev);
+		a = ha->atomic();
                 if(have) {
                         void ** dp = a->data();
                         EXPECT_TRUE(NULL != dp);
@@ -325,15 +333,15 @@ TEST_F(OFluxAtomicPooledTests,Simple1) {
 
         // initialize pool with 2 things
 
-        AcquirePoolItem api1(pool,ev1,1);
+        AcquirePoolItem api1(ev1,1);
         EXPECT_TRUE(api1.have);
-        AcquirePoolItem api2(pool,ev2,2);
+        AcquirePoolItem api2(ev2,2);
         EXPECT_TRUE(api2.have);
-        AcquirePoolItem api3(pool,ev3,0);
+        AcquirePoolItem api3(ev3,0);
         EXPECT_FALSE(api3.have);
         EventBasePtr ev_r1 = api1.release(ev1);
         EXPECT_EQ(ev_r1,ev3);
-        AcquirePoolItem api3a(pool,ev3,1);
+        AcquirePoolItem api3a(ev3,1);
         EXPECT_FALSE(api3a.have);
 }
 

@@ -769,13 +769,20 @@ AtomicPooled::AtomicPooled(AtomicPool * pool,void * data)
 	_by_ebh->resource_loc = &_resource_ebh;
 }
 
+void
+AtomicPooled::relinquish()
+{
+}
+
 const char *
 AtomicPooled::atomic_class_str = "lockfree::Pooled";
 
 bool
 AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 {
+#ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
+#endif // OFLUX_DEEP_LOGGING
 	assert(_by_ebh);
 	oflux_log_trace("[%d] AP::a_o_w ev %s %p  atom %p rsrc_loc %p\n"
 		, oflux_self()
@@ -802,7 +809,9 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 		, ev.get()
 		, this
 		, acqed);
+#ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
+#endif // OFLUX_DEEP_LOGGING
 	return acqed;
 }
 
@@ -811,7 +820,9 @@ AtomicPooled::release(
 	  std::vector<EventBasePtr> & rel_ev_vec
 	, EventBasePtr &ev)
 {
+#ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
+#endif // OFLUX_DEEP_LOGGING
 	assert(_resource_ebh);
 	assert(_resource_ebh->resource != NULL);
 	oflux_log_trace("[%d] AP::rel   ev %s %p  atom %p rsrc %p\n"
@@ -847,7 +858,9 @@ AtomicPooled::release(
 	}
 	static int * _null = NULL;
 	_resource_ebh = AtomicCommon::allocator.get(_null);
+#ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
+#endif // OFLUX_DEEP_LOGGING
 	_pool->release(this);
 }
 
@@ -864,7 +877,7 @@ AtomicPool::~AtomicPool()
 	AtomicPooled * aph_n = NULL;
 	while(aph) {
 		aph_n = aph->_next;
-		delete aph;
+		AtomicPool::allocator.put(aph);
 		aph = aph_n;
 	}
 }
@@ -888,7 +901,7 @@ AtomicPool::get(oflux::atomic::Atomic * & a_out,const void *)
 	while((ap_out = head) && __sync_bool_compare_and_swap(&head,ap_out,ap_out->_next));
 	if(!ap_out) {
 		void * p = NULL;
-		ap_out = allocator.get(this,p);
+		ap_out = AtomicPool::allocator.get(this,p);
 	}
 	a_out = ap_out;
 	return &p_here;
