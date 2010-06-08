@@ -374,7 +374,7 @@ public:
 	{ reinterpret_cast<AtomicPool *>(map)->_dump(); }
 protected:
 	PoolEventList waiters;
-	AtomicPooled * head;
+	AtomicPooled * head_free;
 };
 
 class AtomicPooled : public oflux::atomic::Atomic {
@@ -396,7 +396,6 @@ public:
 		return &(_resource_ebh->resource); 
 	}
         virtual const char * atomic_class() const { return atomic_class_str; }
-	virtual bool is_pool_like_init() const { return true; }
 	virtual bool is_pool_like() const { return true; }
 	virtual void relinquish();
 protected:
@@ -405,7 +404,79 @@ private:
 	static const char * atomic_class_str;
 	AtomicPool * _pool;
 	EventBaseHolder * _resource_ebh;
+	// ownership of _resource_ebh based on state of this object:
+	// STATE 0: constructed or fresh from _pool->head_free
+	//  _resource_ebh
+	//         points to EventBaseHolder {
+	//                 ev = NULL
+	//                 next = NULL
+        //                 resource_loc = NULL
+        //                 resource = ? (could be assigned from get()..data())
+	//         }
+	//  can release() --> STATE 1
+	//  can acquire_or_wait() success --> STATE 2
+	//  can acquire_or_wait() failure --> STATE 3
+	// STATE 1: released
+	//  old _resource_ebh belongs to _pool or to rel_ebh (ret from pop())
+	//  _resource_ebh = allocator.get() // new one is had
+	//  pool->release(this) called (here or in relinquish elsewhere)
+	//  [ AtomicPooled ontop of rel_ebh was in STATE 3 with
+	//    its own _resource_ebh == NULL, but now == this atomic's passed
+	//    non-NULL value.
+	//  ]
+	//  --> STATE 0
+	// STATE 2: acquired
+	//  _resource_ebh reclaimed by allocator.put() and set to NULL
+	//  _pool->waiters.push() ret true
+	//   side-effect: _resource_ebh is written with a populated
+	//         (resource != NULL) item
+	//         so pool is giving that item up
+	//  can release() --> STATE 1
+	// STATE 3: waited
+	//  _resource_ebh reclaimed by allocator.put() and set to NULL
+	//  _pool->waiters.push() ret false
+	//  [ when another AtomicPooled does STATE 1 transition and hits this,
+	//     _resource_ebh goes to non-NULL
+	//  ]
+	//  release() --> STATE 1
+
 	EventBaseHolder * _by_ebh;
+	// ownership of _by_ebh based on state of this object:
+	// STATE 0: constructed or fresh from _pool->head_free
+	//  _by_ebh
+	//         points to EventBaseHolder {
+	//                 ev = ? // may be NULL if from a GuardInserter
+	//                 next = NULL
+        //                 resource_loc = &_resource_ebh
+        //                 resource = NULL
+	//         }
+	//  can release() --> STATE 1
+	//  can acquire_or_wait() success --> STATE 2
+	//  can acquire_or_wait() failure --> STATE 3
+	// STATE 1: released
+	//  *(_by_ebh->resource_loc) = NULL so _resource_ebh = NULL
+	//    [ the released rel_ebh has a non-NULL *(rel_ebh->resource_loc)
+	//      so that AtomicPooled will have a non-NULL _resource_ebh
+	//	his _by_ebh is _not_ related at all to rel_ebh
+	//    ]
+	//  if rel_ebh non-NULL, then strip out its ev
+	//     and reclaim it with allocator.put()
+	//  --> STATE 0
+	// STATE 2: acquired
+	//  _by_ebh.ev = ev
+	//  _by_ebh was not really used so no need for a new one
+	//  can release() --> STATE 1
+	// STATE 3: wait
+	//  _by_ebh.ev = ev
+	//  _by_ebh is given up to _pool since it is waiting
+	//  _by_ebh = allocator.get()
+	//  [ when another AtomicPooled does STATE 1, we'll
+	//    get a _resource_ebh that is non-NULL out of it
+	//    the local _by_ebh is not involved tho, and the given up
+	//    one may not be directly used since the lockfree content
+	//    swap may have happened (PoolEventList::push() for detail)
+	//  ]
+	// release() --> STATE 1
 };
 
 } // namespace atomic

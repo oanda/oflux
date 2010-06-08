@@ -772,6 +772,7 @@ AtomicPooled::AtomicPooled(AtomicPool * pool,void * data)
 void
 AtomicPooled::relinquish()
 {
+	_pool->release(this);
 }
 
 const char *
@@ -848,7 +849,7 @@ AtomicPooled::release(
 		//_by_ebh.ev = rel_ebh->ev;
 		//_by_ebh.type = rel_ebh->type;
 		rel_ev_vec.push_back(rel_ebh->ev);
-		//AtomicCommon::allocator.put(rel_ebh);
+		AtomicCommon::allocator.put(rel_ebh);
 	} else {
 		oflux_log_trace("[%d] AP::rel   ev %s %p  atom %p rsrc nothing out\n"
 			, oflux_self()
@@ -861,19 +862,22 @@ AtomicPooled::release(
 #ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
-	_pool->release(this);
+	if(!rel_ebh) {
+		_pool->release(this);
+	}
 }
 
 Allocator<AtomicPooled> AtomicPool::allocator;
 
 AtomicPool::AtomicPool()
-	: head(NULL)
+	: head_free(NULL)
 {
 }
 
 AtomicPool::~AtomicPool()
 {
-	AtomicPooled * aph = head;
+	// reclaim items from the free list
+	AtomicPooled * aph = head_free;
 	AtomicPooled * aph_n = NULL;
 	while(aph) {
 		aph_n = aph->_next;
@@ -885,11 +889,12 @@ AtomicPool::~AtomicPool()
 void
 AtomicPool::release(AtomicPooled *ap)
 {
+	// put it on the free list
 	AtomicPooled * h;
 	do {
-		h = head;
+		h = head_free;
 		ap->_next = h;
-	} while(!__sync_bool_compare_and_swap(&head,h,ap));
+	} while(!__sync_bool_compare_and_swap(&head_free,h,ap));
 }
 
 const void *
@@ -898,7 +903,11 @@ AtomicPool::get(oflux::atomic::Atomic * & a_out,const void *)
 	char _here;
 	static const char * p_here = &_here;
 	AtomicPooled * ap_out = NULL;
-	while((ap_out = head) && __sync_bool_compare_and_swap(&head,ap_out,ap_out->_next));
+	while((ap_out = head_free) 
+			&& __sync_bool_compare_and_swap(
+				  &head_free
+				, ap_out
+				, ap_out->_next));
 	if(!ap_out) {
 		void * p = NULL;
 		ap_out = AtomicPool::allocator.get(this,p);

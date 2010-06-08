@@ -218,11 +218,11 @@ AtomicsHolder::release(
 						, rel_ha_ptr->flow_guard_ref()->getName().c_str()
 						, rel_ha_ptr->compare(*ha)
 						);
-					oflux_log_trace2("[%d] AH::release                  fd %d haveit %d pool_like_init %d\n"
+					oflux_log_trace2("[%d] AH::release                  fd %d haveit %d pool_like %d\n"
 						, oflux_self()
 						, fd
 						, rel_ha_ptr->haveit()
-						, a->is_pool_like_init()
+						, a->is_pool_like()
 						);
 					if(rel_ha_ptr && rel_ha_ptr->atomic() == a) {
 						rel_ha_ptr->halftakeit(*ha);
@@ -231,7 +231,7 @@ AtomicsHolder::release(
 							++rel_atomics._working_on;
 						}
 						break;
-					} else if(a->is_pool_like_init() 
+					} else if(a->is_pool_like() 
 							&& rel_ha_ptr
 							&& (rel_ha_ptr->compare(*ha) == 0)) {
 							//rel_ha_ptr->swap(*ha);

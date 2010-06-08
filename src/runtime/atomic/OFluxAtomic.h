@@ -85,7 +85,6 @@ public:
 	virtual void log_snapshot_waiters() const {}
 
 	virtual bool is_pool_like() const { return false; }
-	virtual bool is_pool_like_init() const { return false; }
 
 	static EventBasePtr _null_static;
 };
@@ -363,7 +362,6 @@ public:
 		, _next(NULL)
 	{}
 	virtual bool is_pool_like() const { return true; }
-	virtual bool is_pool_like_init() const { return true; }
 	virtual void ** data() { return &_data; }
 	virtual int held() const { return _data != NULL; }
 	virtual size_t waiter_count() { return _pool.waiter_count(); }
