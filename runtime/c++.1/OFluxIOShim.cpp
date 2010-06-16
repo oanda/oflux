@@ -77,11 +77,12 @@ typedef int (*acceptFnType) (int, struct sockaddr *, socklen_t *);
 typedef int (*selectFnType) (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 typedef ssize_t (*recvFnType) (int, void *, size_t, int);
 typedef ssize_t (*sendFnType) (int, const void *, size_t, int);
-typedef int (*gethostbyname_rFnType) (const char *, struct hostent *, char *, size_t, struct hostent **, int *);
 #if defined SunOS
+typedef struct hostent * (*gethostbyname_rFnType) (const char *, struct hostent *, char *, int, int *);
 typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
 typedef int (*port_getnFnType) (int port, port_event_t [],  uint_t, uint_t *, const timespec_t *);
 #else
+typedef int (*gethostbyname_rFnType) (const char *, struct hostent *, char *, size_t, struct hostent **, int *);
 typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
 #endif
 
@@ -611,6 +612,7 @@ extern "C" ssize_t send(int s, const void * msg, size_t len, int flags) {
     return ret;
 }
 
+#ifdef LINUX
 extern "C" int gethostbyname_r(const char *name,
                                struct hostent *ret, char *buf, size_t buflen,
                                struct hostent **result, int *h_errnop)
@@ -640,7 +642,6 @@ extern "C" int gethostbyname_r(const char *name,
     return retval;
 }
 
-#ifdef LINUX
 extern "C" int epoll_wait(int epfd, struct epoll_event * events,
                           int maxevents, int timeout)
 {
@@ -671,6 +672,34 @@ extern "C" int epoll_wait(int epfd, struct epoll_event * events,
 #endif
 
 #ifdef SunOS
+extern "C" struct hostent *gethostbyname_r(const char *name,
+                               struct hostent *result, char *buffer, int buflen,
+                               int *h_errnop)
+{
+    if (!eminfo || eminfo->thread()->is_detached()) {
+        if (!shim_gethostbyname_r) {
+            shim_gethostbyname_r = (gethostbyname_rFnType) dlsym (RTLD_NEXT, "gethostbyname_r");
+        }
+        return ((shim_gethostbyname_r)(name, result, buffer, buflen, h_errnop));
+    }
+
+    struct hostent *retval;
+    int mgr_awake = eminfo->wake_another_thread();
+
+    oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
+    SHIM_CALL("gethostbyname_r");
+    {
+        oflux::UnlockRunTime urt(eminfo);
+        retval = ((shim_gethostbyname_r)(name, result, buffer, buflen, h_errnop));
+    }
+    SHIM_WAIT("gethostbyname_r");
+    if (mgr_awake == 0) {
+        wtr_raii.state_wtr();
+        eminfo->wait_to_run();
+    }
+    SHIM_RETURN("gethostbyname_r");
+    return retval;
+}
 extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout) {
 
     oflux::RunTimeAbstract *local_eminfo = eminfo;
