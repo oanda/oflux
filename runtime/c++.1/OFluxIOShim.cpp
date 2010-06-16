@@ -81,6 +81,7 @@ typedef ssize_t (*sendFnType) (int, const void *, size_t, int);
 typedef struct hostent * (*gethostbyname_rFnType) (const char *, struct hostent *, char *, int, int *);
 typedef int (*port_getFnType) (int, port_event_t *, const timespec_t *);
 typedef int (*port_getnFnType) (int port, port_event_t [],  uint_t, uint_t *, const timespec_t *);
+typedef int (*open64FnType) (const char*, int, ...);
 #else
 typedef int (*gethostbyname_rFnType) (const char *, struct hostent *, char *, size_t, struct hostent **, int *);
 typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
@@ -108,6 +109,7 @@ static gethostbyname_rFnType shim_gethostbyname_r = NULL;
 #if defined LINUX
 static epoll_waitFnType shim_epoll_wait = NULL;
 #elif defined SunOS
+static open64FnType shim_open64 = NULL;
 static port_getFnType shim_port_get = NULL;
 static port_getnFnType shim_port_getn = NULL;
 #endif
@@ -169,6 +171,7 @@ extern "C" void initShim(oflux::RunTimeAbstract *eventmgrinfo)
 #if defined LINUX
 	shim_epoll_wait = (epoll_waitFnType) dlsym(RTLD_NEXT, "epoll_wait");
 #elif defined SunOS
+	shim_open64 = (open64FnType)dlsym (RTLD_NEXT, "open64");
 	shim_port_get = (port_getFnType) dlsym(RTLD_NEXT, "port_get");
         shim_port_getn = (port_getnFnType) dlsym(RTLD_NEXT, "port_getn");
 #endif
@@ -672,6 +675,50 @@ extern "C" int epoll_wait(int epfd, struct epoll_event * events,
 #endif
 
 #ifdef SunOS
+extern "C" int open64(const char *pathname, int flags, ...)
+{
+       mode_t mode = 0;
+
+       if (flags & O_CREAT) {
+               va_list varargs;
+               va_start (varargs, flags);
+               mode = va_arg (varargs, mode_t);
+               va_end (varargs);
+       }
+
+       if (!eminfo) {
+               if (!shim_open64) {
+                       shim_open64 = (open64FnType)dlsym (RTLD_NEXT, "open64");
+               }
+
+               if (flags & O_CREAT) {
+                       return ((shim_open64)(pathname, flags, mode));
+               } else {
+                       return ((shim_open64)(pathname, flags));
+               }
+       }
+
+
+       int fd;
+
+       if (flags & O_CREAT) {
+               fd = ((*shim_open64)(pathname, flags, mode));
+       } else {
+               fd = ((*shim_open64)(pathname, flags));
+       }
+
+       if(-1 == fd) {
+           return fd;
+       }
+       is_regular[fd] = true;
+
+       if (strcmp("/proc/cpuinfo", pathname) == 0) {
+               is_regular[fd] = false;
+       }
+
+       return fd;
+}
+
 extern "C" struct hostent *gethostbyname_r(const char *name,
                                struct hostent *result, char *buffer, int buflen,
                                int *h_errnop)
