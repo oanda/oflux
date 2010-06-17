@@ -14,7 +14,7 @@ int NS(const NS_in *in, NS_out *out, NS_atoms * atoms)
 {
         if(atoms->have_Gb()) {
                 int * & ptr = atoms->Gb();
-                printf("ns out: %d is %s %x\n", in->b, (ptr == NULL ? "    null" : "not null"), (unsigned int)&ptr);
+                printf("ns out: %d is %s %p\n", in->b, (ptr == NULL ? "    null" : "not null"), &ptr);
         } else {
                 printf("ns out: %d condition for guard was false\n", in->b);
         }

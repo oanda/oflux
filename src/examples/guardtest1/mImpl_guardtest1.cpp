@@ -13,7 +13,7 @@ int S(const S_in *, S_out * out, S_atoms * atoms)
 int NS(const NS_in *in, NS_out *, NS_atoms * atoms)
 {
 	int * & ptr = atoms->Gb();
-	printf("ns out: %d is %s %x\n", in->b, (ptr == NULL ? "    null" : "not null"), (unsigned int)&ptr);
+	printf("ns out: %d is %s %p\n", in->b, (ptr == NULL ? "    null" : "not null"), &ptr);
 	return 0;
 }
 	

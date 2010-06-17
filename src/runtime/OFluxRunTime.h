@@ -65,6 +65,12 @@ public:
 	 */
 	virtual void log_snapshot();
 	virtual void log_snapshot_guard(const char * guardname);
+
+	/**
+	 * @brief Number of threads the runtime has
+	 */
+	virtual int thread_count() { return _thread_count; }
+
 protected:
 	/**
 	 * @brief determine if we can detach the thread (runtime limits allow it)

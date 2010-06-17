@@ -1,0 +1,19 @@
+This example demonstrates a timer module which could be used to
+submit objects that extend the Timer::EventBase class (which has
+id() and expiry() properties) so that these objects pop out of the one 
+node and source of the module.  The module adds conditional abstract
+nodes to distinguish the case when those objects are leaving because
+
+  a) Timer.OutExpired node : their expiry() time has passed
+  b) Timer.OutCancelled node : they have been cancelled
+
+The methods to 
+  1. Timer::Submitter::add() : get event objects into the module instance 
+  2. Timer::Submitter::cancel() : cancel pre-existing event objects
+make use of the Timer::Submitter class which should be instantiated as a
+local variable on the stack.  At the end of its life it sends a signal to
+the thread that is running the Timer source so that it has a chance to
+wake up and process any changes (add/cancel).
+
+Modifications of expiry time are not currently implemented, but could easily
+be added.

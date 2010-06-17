@@ -87,6 +87,8 @@ typedef int (*epoll_waitFnType) (int, struct epoll_event *, int, int);
 
 typedef ssize_t (*recvfromFnType)(int,void *,size_t,int,struct sockaddr *,socklen_t *);
 
+typedef int (*pollFnType)(struct pollfd *fds, nfds_t nfds, int timeout);
+
 } // extern "C"
 
 
@@ -109,6 +111,7 @@ static port_getFnType shim_port_get = NULL;
 static port_getnFnType shim_port_getn = NULL;
 #endif
 static recvfromFnType shim_recvfrom = NULL;
+static pollFnType shim_poll = NULL;
 
 static int page_size;
 
@@ -169,6 +172,7 @@ extern "C" void initShim(oflux::RunTimeAbstractForShim *eventmgrinfo)
         shim_port_getn = (port_getnFnType) dlsym(RTLD_NEXT, "port_getn");
 #endif
 	shim_recvfrom = (recvfromFnType) dlsym(RTLD_NEXT,"recvfrom");
+	shim_poll = (pollFnType) dlsym(RTLD_NEXT,"poll");
 }
 
 extern "C" void deinitShim()
@@ -254,7 +258,7 @@ extern "C" int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 	struct pollfd pfd;
 	pfd.fd = s;
 	pfd.events = POLLIN;
-	poll(&pfd, 1, 0);
+	((shim_poll)(&pfd, 1, 0));
 	if ((pfd.revents & POLLIN) != 0)
 		return ((shim_accept)(s, addr, addrlen));
 
@@ -292,7 +296,7 @@ extern "C" ssize_t read(int fd, void *buf, size_t count)
 		struct pollfd pfd;
 		pfd.fd = fd;
 		pfd.events = POLLIN;
-		poll(&pfd, 1, 0);
+		((shim_poll)(&pfd, 1, 0));
 
 		if (pfd.revents & POLLIN) { // if it won't block
 			return ((shim_read)(fd, buf, count));
@@ -420,7 +424,7 @@ extern "C" ssize_t write(int fd, const void *buf, size_t count) {
 	struct pollfd pfd;
 	pfd.fd = fd;
 	pfd.events = POLLOUT;
-	poll(&pfd, 1, 0);
+	((shim_poll)(&pfd, 1, 0));
 
 	if (pfd.revents & POLLOUT) { // if it won't block
 		return ((shim_write)(fd, buf, count));
@@ -484,7 +488,7 @@ extern "C" ssize_t recvfrom(int s, void * buf, size_t len, int flags, struct soc
     struct pollfd pfd;
     pfd.fd = s;
     pfd.events = POLLIN;
-    poll(&pfd, 1, 0);
+    ((shim_poll)(&pfd, 1, 0));
 
     if (pfd.revents & POLLIN || flags & MSG_DONTWAIT) { // if it won't block
         return ((shim_recvfrom)(s, buf, len, flags,socketaddress,address_len));
@@ -520,7 +524,7 @@ extern "C" ssize_t recv(int s, void * buf, size_t len, int flags) {
     struct pollfd pfd;
     pfd.fd = s;
     pfd.events = POLLIN;
-    poll(&pfd, 1, 0);
+    ((shim_poll)(&pfd, 1, 0));
 
     if (pfd.revents & POLLIN || flags & MSG_DONTWAIT) { // if it won't block
         return ((shim_recv)(s, buf, len, flags));
@@ -543,6 +547,34 @@ extern "C" ssize_t recv(int s, void * buf, size_t len, int flags) {
     return ret;
 }
 
+extern "C" int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+    if (!eminfo || eminfo->thread()->is_detached()) {
+        if (!shim_poll) {
+            shim_poll = (pollFnType) dlsym (RTLD_NEXT, "poll");
+        }
+        return ((shim_poll)(fds,nfds,timeout));
+    }
+
+    int res = ((shim_poll)(fds, nfds, 0));
+    if(res == 0 && timeout != 0) { // timed out when timeout was 0
+	int mgr_awake = eminfo->wake_another_thread();
+	oflux::WaitingToRunRAII wtr_raii(eminfo->thread());
+        SHIM_CALL("poll");
+	{
+            oflux::UnlockRunTime urt(eminfo);
+            res = ((shim_poll)(fds, nfds, timeout));
+	}
+	SHIM_WAIT("poll");
+	if (mgr_awake == 0) {
+            wtr_raii.state_wtr();
+            eminfo->wait_to_run();
+        }
+        SHIM_RETURN("poll");
+    }
+    return res;
+}
+
+
 extern "C" ssize_t send(int s, const void * msg, size_t len, int flags) {
     if (!eminfo || eminfo->thread()->is_detached()) {
         if (!shim_send) {
@@ -554,7 +586,7 @@ extern "C" ssize_t send(int s, const void * msg, size_t len, int flags) {
     struct pollfd pfd;
     pfd.fd = s;
     pfd.events = POLLOUT;
-    poll(&pfd, 1, 0);
+    ((shim_poll)(&pfd, 1, 0));
 
     if (pfd.revents & POLLOUT) { // if it won't block
         return ((shim_send)(s, msg, len, flags));

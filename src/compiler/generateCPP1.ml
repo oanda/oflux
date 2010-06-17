@@ -1142,7 +1142,9 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         match grm with 
                                 (Read::_) -> 1
                                 | (Write::_) -> 2
-                                | _ -> 3 in
+                                | (Upgradeable::_) -> 4
+                                | _ -> 3 
+			in
                 let e_gr (code,donel) gr =
 			let has_garg = 
 				let uel = (gr.guardcond::(gr.arguments))

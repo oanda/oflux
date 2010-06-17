@@ -181,7 +181,7 @@ public:
 
 class AtomicReadWrite : public AtomicCommon { // implements AtomicScaffold
 public:
-	enum { Read = 1, Write = 2 } WType;
+	enum { Read = 1, Write = 2, Upgradeable = 4 } WType;
 	AtomicReadWrite(void * data)
 		: AtomicCommon(data)
 		, _mode(AtomicCommon::None)
@@ -199,12 +199,17 @@ public:
 			_mode = AtomicCommon::None;
 			if(_waiters.size()) {
 				AtomicQueueEntry & aqe = _waiters.front();
+				_mode = aqe.wtype;
+				if(_mode == Upgradeable) {
+					_mode = (*data() ? Read : Write);
+				}
 				rel_ev.push_back(aqe.event);
 				_mode = aqe.wtype;
 				++_held;
 				_waiters.pop_front();
 				if(_mode == Read) {
-					while(_waiters.size() && _waiters.front().wtype == Read) {
+					while(_waiters.size() && (_waiters.front().wtype == Read 
+							|| (*data() && _waiters.front().wtype == Upgradeable))) {
 						rel_ev.push_back(_waiters.front().event);
 						++_held;
 						_waiters.pop_front();
@@ -227,9 +232,14 @@ public:
                         , _waiters.size());
 		if(_held == 0) {
 			_held = 1;
+			_mode = ( wtype == Upgradeable 
+				? (*data() ? Read : Write)
+				: wtype);
 			_mode = wtype;
 			res = 1;
-		} else if(wtype == Read && _mode == Read && _waiters.size() == 0) {
+		} else if(_mode == Read && _waiters.size() == 0
+				&& ((wtype == Upgradeable && *data())
+					|| (wtype == Read))) {
 			_held++;
 			res = 1;
 		}
@@ -251,7 +261,7 @@ public:
 	virtual int wtype() const { return _mode; }
 	virtual const char * atomic_class() const { return "ReadWrite"; }
 private:
-	int _mode;
+	int _mode; // should only be either {Read,Write}
 };
 
 /****

@@ -119,6 +119,7 @@ RunTime::load_flow(
 	, void * initpluginparams)
 {
         oflux_log_debug("RunTime::load_flow() called\n");
+	_rtc = _rtc_ref;
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
@@ -191,13 +192,16 @@ RunTime::start()
 	rtt->start();
 	// shutdown phase
         while(_thread_count> 0) {
-                AutoLock al(&_manager_lock);
-		int kill_count = 0;
-		// sending SIGINTs to stuck threads 
-		_thread_list.fold(&kill_count,__fold_pthread_kill_int);
-        }
-        remove(rtt);
-        delete rtt;
+		{
+			AutoLock al(&_manager_lock);
+			int kill_count = 0;
+			// sending SIGINTs to stuck threads
+			_thread_list.fold(&kill_count,__fold_pthread_kill_int);
+		}
+
+		sched_yield();
+	}
+
         deinit_eminfo();
         oflux_log_info("RunTime::start() returning....\n");
 }
@@ -381,6 +385,10 @@ RunTimeThread::start()
 			_rt->_waiting_to_run.signal();
 			ev.reset();
 			wait_in_pool();
+
+			if (!_system_running || _request_death) {
+				break;
+			}
 		}
 		if(_rt->_queue.pop(ev)) {
 			handle(ev);

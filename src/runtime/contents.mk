@@ -89,7 +89,7 @@ else
 	$(CXX) -shared -Wl,-z,interpose $^ $(if $(DTRACE),ofluxshimprobe_so.o,) $(OFLUXRTLIBS) -o $@
 endif
 OFLUX_LIB_VERS_READ:=$(shell test -r $(CURDIR)/oflux_vers.cpp && grep "^\"v" $(CURDIR)/oflux_vers.cpp | sed s/\"//g)
-OFLUX_LIB_VERS_EXISTING:=$(shell cd $(OFLUX_LIB_COMPONENT_DIR); git describe --tags; cd $(CURDIR))
+OFLUX_LIB_VERS_EXISTING:=$(shell cd $(OFLUX_LIB_COMPONENT_DIR); git describe --tags --match 'v*'; cd $(CURDIR))
 
 ifeq ($(OFLUX_LIB_VERS_READ), $(OFLUX_LIB_VERS_EXISTING))
   VERSDEPEND=
@@ -104,7 +104,7 @@ oflux_vers.cpp: $(VERSDEPEND)
 	; echo "" \
 	; echo " namespace oflux { const char * runtime_version = " \
 	; cd $(OFLUX_LIB_COMPONENT_DIR) \
-	; echo "\""`git describe --tags`"\"" \
+	; echo "\""`git describe --tags --match 'v*'`"\"" \
 	;cd $(CURDIR) \
 	; echo "; }" \
 	; echo "") > oflux_vers.cpp
