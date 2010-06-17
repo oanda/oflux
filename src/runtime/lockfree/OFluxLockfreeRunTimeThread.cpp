@@ -28,6 +28,7 @@ RunTimeThread::RunTimeThread(RunTime & rt, int index, oflux_thread_t tid)
 	, _running(false)
 	, _request_stop(false)
 	, _asleep(false)
+	, _queue_allowance(0)
 	, _tid(tid)
 	, _flow_node_working(NULL)
 {
@@ -39,6 +40,17 @@ RunTimeThread::~RunTimeThread()
 {
 	oflux_mutex_destroy(&_lck);
 	oflux_cond_destroy(&_cond);
+	while(_queue.size()) {
+		EventBasePtr ev = popLocal();
+		if(!ev.get()) {
+			break;
+		} else {
+			oflux_log_debug("~RunTimeThread discarding queued event %s %p\n"
+				, ev->flow_node()->getName()
+				, ev.get()
+				);
+		}
+	}
 }
 
 RunTimeThread::WSQElement::~WSQElement()
@@ -159,11 +171,11 @@ RunTimeThread::start()
 		oflux_log_trace2("RunTimeThread::start (about to reset) "
 			"ev %d %s ev.pred %d %s\n"
 			, ev.use_count()
-			, ev->flow_node()->getName()
-			, ev->get_predecessor() 
+			, ev.get() ? ev->flow_node()->getName() : "<null>"
+			, ev.get() && ev->get_predecessor() 
 				? ev->get_predecessor().use_count()
 				: 0
-			, ev->get_predecessor()
+			, ev.get() && ev->get_predecessor()
 				? ev->get_predecessor()->flow_node()->getName()					: "<none>" );
 		ev.reset();
 	}

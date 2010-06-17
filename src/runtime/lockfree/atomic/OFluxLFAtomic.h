@@ -48,6 +48,13 @@ inline bool mkd(T * p)
         return reinterpret_cast<size_t>(p) & 0x0001;
 }
 
+#define resource_loc_asgn(B,V) \
+	oflux_log_trace2("[%d] on line %d assigning %p to %p->%p\n" \
+		, oflux_self() \
+		, __LINE__ \
+		, V \
+		, B \
+		, B->resource_loc)
 
 struct EventBaseHolder {
 	enum WType 
@@ -64,7 +71,9 @@ struct EventBaseHolder {
 		, type(a_type)
 		, resource_loc(NULL)
 		, resource(NULL)
-	{}
+	{
+		resource_loc_asgn(this,NULL);
+	}
 	EventBaseHolder(  EventBasePtr & a_ev
 			, EventBaseHolder ** a_resource_loc
 			, int a_type = None)
@@ -73,7 +82,21 @@ struct EventBaseHolder {
 		, type(a_type)
 		, resource_loc(a_resource_loc)
 		, resource(NULL)
-	{}
+	{
+		resource_loc_asgn(this,a_resource_loc);
+	}
+
+	EventBaseHolder(  char c
+			, EventBaseHolder ** a_resource_loc
+			, int a_type = None)
+		: ev()
+		, next(NULL)
+		, type(a_type)
+		, resource_loc(a_resource_loc)
+		, resource(NULL)
+	{
+		resource_loc_asgn(this,a_resource_loc);
+	}
 
 	EventBaseHolder( void * a_resource )
 		: ev()
@@ -81,14 +104,18 @@ struct EventBaseHolder {
 		, type(None)
 		, resource_loc(NULL)
 		, resource(a_resource)
-	{}
+	{
+		resource_loc_asgn(this,NULL);
+	}
 	EventBaseHolder()
 		: ev()
 		, next(NULL)
 		, type(None)
 		, resource_loc(NULL)
 		, resource(NULL)
-	{}
+	{
+		resource_loc_asgn(this,NULL);
+	}
 
 	EventBasePtr ev;
 	EventBaseHolder * next;
@@ -164,7 +191,7 @@ public:
 		EventBaseHolder * ebh = _waiters.pop();
 		if(ebh) {
 			rel_ev.push_back(ebh->ev);
-			allocator.put(ebh);
+			AtomicCommon::allocator.put(ebh);
 		}
 	}
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
@@ -172,7 +199,7 @@ public:
 		EventBaseHolder * ebh = allocator.get(ev,wtype);
 		bool acqed = _waiters.push(ebh);
 		if(acqed) {
-			allocator.put(ebh); // not in use - return it to pool
+			AtomicCommon::allocator.put(ebh); // not in use - return it to pool
 		}
 		return acqed;
 	}
@@ -219,7 +246,7 @@ public:
 				, _waiters.rcount);*/
 			_wtype = wtype;
 			//if(wtype == EventBaseHolder::Read) {
-			allocator.put(ebh); 
+			AtomicCommon::allocator.put(ebh); 
 			//}
 		} else {
 			/*oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
@@ -257,7 +284,7 @@ public:
 				, _waiters.rcount);*/
 			//_wtype = e->type;
 			rel_ev.push_back(e->ev);
-			allocator.put(e);
+			AtomicCommon::allocator.put(e);
 			e = n_e;
 		}
 	}
@@ -318,7 +345,7 @@ private:
 class PoolEventList { // thread safe
 public:
 	PoolEventList() 
-		: _head(new EventBaseHolder(NULL))
+		: _head(AtomicCommon::allocator.get()) //new EventBaseHolder(NULL))
 		, _tail(_head.get())
 	{}
 	~PoolEventList();
@@ -382,7 +409,20 @@ public:
 	friend class AtomicPool;
 
 	AtomicPooled(AtomicPool * pool, void * data);
-	virtual ~AtomicPooled() {}
+	virtual ~AtomicPooled() 
+	{
+		oflux_log_debug("~AtomicPooled %p\n",this);
+	}
+	inline void init()
+	{
+		_next = NULL;
+		_by_ebh->ev.reset();
+		resource_loc_asgn(_by_ebh,&_resource_ebh);
+		oflux_log_trace2("APD::init() APD*this:%p\n",this);
+		_by_ebh->resource_loc = &_resource_ebh;
+		//check();
+	}
+	void check();
 	virtual int held() const { return ! _pool->waiters.empty(); }
 	virtual size_t waiter_count() { return _pool->waiters.count(); }
 	virtual int wtype() const { return 0; }
@@ -459,7 +499,7 @@ private:
 	//      so that AtomicPooled will have a non-NULL _resource_ebh
 	//	his _by_ebh is _not_ related at all to rel_ebh
 	//    ]
-	//  if rel_ebh non-NULL, then strip out its ev
+	//  if rel_ebh non-NULL then strip out its ev
 	//     and reclaim it with allocator.put()
 	//  --> STATE 0
 	// STATE 2: acquired

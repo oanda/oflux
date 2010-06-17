@@ -21,6 +21,7 @@ namespace lockfree {
 
 deinitShimFnType RunTime::deinitShim = NULL;
 
+
 RunTime::RunTime(const RunTimeConfiguration &rtc)
 	: _rtc_ref(rtc)
 	, _rtc(rtc)

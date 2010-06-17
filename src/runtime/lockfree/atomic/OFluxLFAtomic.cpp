@@ -531,11 +531,12 @@ PoolEventList::~PoolEventList()
 	EventBaseHolder * hp = _head.get();
 	EventBaseHolder * hp_n = NULL;
 	while(unmk(hp)) {
-		hp_n = hp->next;
-		delete unmk(hp);
+		hp_n = unmk(hp)->next;
+		AtomicCommon::allocator.put(unmk(hp));
 		hp = hp_n;
 	}
 }
+
 
 // push(Event * e) _________________________________________________________
 //   Either:
@@ -593,16 +594,19 @@ PoolEventList::push(EventBaseHolder * e)
 			EventBaseHolder ** resource_loc = e->resource_loc;
 			e->next = NULL;
 			e->ev.swap(ev);
+			resource_loc_asgn(e,NULL);
 			e->resource_loc = NULL;
 
 			if(__sync_bool_compare_and_swap(&(t->next),NULL,e)) {
 				// 3->3
 				_tail = e;
+				resource_loc_asgn(t,resource_loc);
 				t->resource_loc = resource_loc;
 				t->ev.swap(ev);
 				return false;
 			}
 			e->ev.swap(ev);
+			resource_loc_asgn(e,resource_loc);
 			e->resource_loc = resource_loc;
 		}
 	}
@@ -617,7 +621,10 @@ PoolEventList::complete_pop()
 		he = unmk(he)->next;
 	}
 	EventBaseHolder * hen = unmk(he)->next;
-	if(hen && !mkd(hen) && hen->ev.get() != NULL) {
+	if(hen && !mkd(hen) 
+		&& hen->ev.get() != NULL 
+		&& hen->resource_loc != NULL
+		&& hen->resource == NULL) {
 		// proceed
 	} else {
 		return NULL;
@@ -628,10 +635,10 @@ PoolEventList::complete_pop()
 	if(mkd(hp) && unmk(hn) && _head.cas(h,hn)) {
 		if(__sync_bool_compare_and_swap(&(unmk(he)->next),hen,hen->next)) {
 			*(hen->resource_loc) = unmk(hp);
-			//printf("  ::complete_pop() success\n");
+			oflux_log_trace2("  ::complete_pop() success\n");
 			return hen;
 		} else {
-			//printf("  ::complete_pop() fail\n");
+			oflux_log_trace2("  ::complete_pop() fail\n");
 			do { 
 				h = _head;
 			} while(!_head.cas(h,mk(hp)));
@@ -764,15 +771,29 @@ AtomicPooled::AtomicPooled(AtomicPool * pool,void * data)
 	: _next(NULL)
 	, _pool(pool)
 	, _resource_ebh(AtomicCommon::allocator.get(data))
-	, _by_ebh(AtomicCommon::allocator.get())
+	, _by_ebh(AtomicCommon::allocator.get('\0',&_resource_ebh))
 {
-	_by_ebh->resource_loc = &_resource_ebh;
+	oflux_log_trace2("AC::alloc.g APD*this:%p _resource_ebh:%p %d\n"
+		, this
+		, _resource_ebh
+		, __LINE__);
+	oflux_log_trace2("AC::alloc.g APD*this:%p _by_ebh:%p %d\n"
+		, this
+		, _by_ebh
+		, __LINE__);
+	init();
+	oflux_log_trace2("APD::APD APD*this:%p\n",this);
+	//check();
 }
 
 void
 AtomicPooled::relinquish()
 {
+	oflux_log_trace2("[%d] APD::relinquish APD*this:%p\n"
+		, oflux_self()
+		, this);
 	_pool->release(this);
+	//check();
 }
 
 const char *
@@ -785,26 +806,36 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
 	assert(_by_ebh);
-	oflux_log_trace("[%d] AP::a_o_w ev %s %p  atom %p rsrc_loc %p\n"
+	oflux_log_trace("[%d] AP::a_o_w ev %s ev*:%p  atom APD*this:%p "
+		" _by_ebh:%p _by_ebh->rsrc_loc: %p\n"
 		, oflux_self()
 		, ev->flow_node()->getName()
 		, ev.get()
 		, this
+		, _by_ebh
 		, _by_ebh->resource_loc);
 	_by_ebh->ev = ev;
 	_by_ebh->type = t;
 	if(_resource_ebh) {
 		assert(_resource_ebh->resource == NULL);
+		oflux_log_trace2("AC::alloc.p _resource_ebh:%p %d\n"
+			, _resource_ebh
+			, __LINE__);
 		AtomicCommon::allocator.put(_resource_ebh);
 		_resource_ebh = NULL;
 	}
-	bool acqed = _pool->waiters.push(_by_ebh); // try to acquire the resource
+	//assert(_by_ebh->resource_loc == &_resource_ebh);
+	EventBaseHolder *local_by_ebh = _by_ebh;
+	_by_ebh = AtomicCommon::allocator.get('\0',&_resource_ebh);
+	oflux_log_trace2("AC::alloc.g %p %d\n",_by_ebh,__LINE__);
+	init();
+	bool acqed = _pool->waiters.push(local_by_ebh); // try to acquire the resource
 	assert(!acqed || _resource_ebh->resource);
-	if(!acqed) {
-		_by_ebh = AtomicCommon::allocator.get();
-		_by_ebh->resource_loc = &_resource_ebh;
+	if(acqed) {
+		AtomicCommon::allocator.put(local_by_ebh);
 	}
-	oflux_log_trace("[%d] AP::a_o_w ev %s %p  atom %p res %d\n"
+	//assert(_by_ebh->resource_loc == &_resource_ebh);
+	oflux_log_trace("[%d] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
 		, oflux_self()
 		, ev->flow_node()->getName()
 		, ev.get()
@@ -813,6 +844,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 #ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
+	//assert(_by_ebh->resource_loc == &_resource_ebh);
 	return acqed;
 }
 
@@ -826,18 +858,21 @@ AtomicPooled::release(
 #endif // OFLUX_DEEP_LOGGING
 	assert(_resource_ebh);
 	assert(_resource_ebh->resource != NULL);
-	oflux_log_trace("[%d] AP::rel   ev %s %p  atom %p rsrc %p\n"
+	oflux_log_trace2("[%d] AP::rel   ev %s ev*:%p  APD*this:%p _by_ebh:%p _res_ebh->res:%p\n"
 		, oflux_self()
 		, ev.get() ? ev->flow_node()->getName() : "<NULL>"
 		, ev.get()
 		, this
+		, _by_ebh
 		, _resource_ebh->resource);
+	//assert(_by_ebh->resource_loc == &_resource_ebh);
 	EventBaseHolder * rel_ebh = _pool->waiters.pop(_by_ebh);
+	//assert(_by_ebh->resource_loc == &_resource_ebh);
 	if(rel_ebh) { 
 		assert(rel_ebh != _by_ebh);
 		assert(rel_ebh->ev.get());
 		assert((*(rel_ebh->resource_loc))->resource);
-		oflux_log_trace("[%d] AP::rel   ev %s %p atom %p passed to %s %p rsrc_loc %p rsrc %p\n"
+		oflux_log_trace("[%d] AP::rel   ev %s ev*:%p APD*this:%p passed to %s rel_ebh->ev:%p rel_ebh->res_loc:%p rsrc:%p\n"
 			, oflux_self()
 			, ev.get() ? ev->flow_node()->getName() : "<NULL>"
 			, ev.get()
@@ -849,9 +884,12 @@ AtomicPooled::release(
 		//_by_ebh.ev = rel_ebh->ev;
 		//_by_ebh.type = rel_ebh->type;
 		rel_ev_vec.push_back(rel_ebh->ev);
+		oflux_log_trace2("AC::alloc.p rel_ebh:%p %d\n"
+			, rel_ebh
+			, __LINE__);
 		AtomicCommon::allocator.put(rel_ebh);
 	} else {
-		oflux_log_trace("[%d] AP::rel   ev %s %p  atom %p rsrc nothing out\n"
+		oflux_log_trace("[%d] AP::rel   ev %s ev*:%p  APD*this:%p rsrc nothing out\n"
 			, oflux_self()
 			, ev.get() ? ev->flow_node()->getName() : "<NULL>"
 			, ev.get()
@@ -859,6 +897,7 @@ AtomicPooled::release(
 	}
 	static int * _null = NULL;
 	_resource_ebh = AtomicCommon::allocator.get(_null);
+	oflux_log_trace2("AC::alloc.g _res_ebh:%p %d\n",_resource_ebh,__LINE__);
 #ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
@@ -876,6 +915,7 @@ AtomicPool::AtomicPool()
 
 AtomicPool::~AtomicPool()
 {
+	oflux_log_trace2("~AtomicPool APD*this:%p\n",this);
 	// reclaim items from the free list
 	AtomicPooled * aph = head_free;
 	AtomicPooled * aph_n = NULL;
@@ -889,6 +929,8 @@ AtomicPool::~AtomicPool()
 void
 AtomicPool::release(AtomicPooled *ap)
 {
+	oflux_log_trace2("[%d] AP::release APD*:%p\n",oflux_self(),ap);
+	ap->init();
 	// put it on the free list
 	AtomicPooled * h;
 	do {
@@ -904,27 +946,50 @@ AtomicPool::get(oflux::atomic::Atomic * & a_out,const void *)
 	static const char * p_here = &_here;
 	AtomicPooled * ap_out = NULL;
 	while((ap_out = head_free) 
-			&& __sync_bool_compare_and_swap(
+			&& !__sync_bool_compare_and_swap(
 				  &head_free
 				, ap_out
 				, ap_out->_next));
 	if(!ap_out) {
 		void * p = NULL;
 		ap_out = AtomicPool::allocator.get(this,p);
+		oflux_log_trace2("[%d] AP::get APD*:%p new\n",oflux_self(),ap_out);
+	} else {
+		oflux_log_trace2("[%d] AP::get APD*:%p old\n",oflux_self(),ap_out);
 	}
 	a_out = ap_out;
+	//ap_out->check();
 	return &p_here;
+}
+
+void
+AtomicPooled::check()
+{
+	assert(_by_ebh->resource_loc == &_resource_ebh);
 }
 
 class AtomicPoolWalker : public oflux::atomic::AtomicMapWalker {
 public:
-	AtomicPoolWalker(PoolEventList &)
-	{}
-	virtual ~AtomicPoolWalker() {}
-	virtual bool next(const void * & key,oflux::atomic::Atomic * &atom)
-	{ return false; } // tbd
+	AtomicPoolWalker(PoolEventList &pool);
+	virtual ~AtomicPoolWalker();
+	virtual bool next(const void * & key,oflux::atomic::Atomic * &atom);
 private:
 };
+
+AtomicPoolWalker::AtomicPoolWalker(PoolEventList & pool)
+{
+}
+
+AtomicPoolWalker::~AtomicPoolWalker()
+{
+}
+
+bool 
+AtomicPoolWalker::next(const void * &, oflux::atomic::Atomic * &atom)
+{
+	bool res = false;
+	return res;
+}
 
 oflux::atomic::AtomicMapWalker *
 AtomicPool::walker()

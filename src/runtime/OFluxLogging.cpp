@@ -25,6 +25,9 @@ static const char * convert_level_to_string(Level lv)
 	return conv[lv];
 }
 
+#define STARTING_LEVEL LL_info
+//#define STARTING_LEVEL LL_trace
+
 Streamed::Streamed(StreamArray streams,
                 int levels)
 	: _levels(levels)
@@ -34,7 +37,7 @@ Streamed::Streamed(StreamArray streams,
 	oflux_log_info("OFlux runtime logging begins (%s)\n"
                 , OFLUX_RUNTIME_VERSION);
 	// trace if off by default
-	for(int i = LL_debug; i < LL_count; i++) {
+	for(int i = STARTING_LEVEL; i < LL_count; i++) {
 		is_on[i] = true;
 	}
 }
