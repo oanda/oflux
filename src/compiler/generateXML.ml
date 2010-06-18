@@ -502,6 +502,13 @@ let emit_program_xml' programname br usesmodel =
 	let one_arg get_argno sp =
 		let argno = get_argno (ParserTypes.strip_position sp)
 		in  argument (string_of_int argno) in *)
+	let rec determine_wtype modifiers =
+		match modifiers with
+			(ParserTypes.Read::_) -> "1"
+			| (ParserTypes.Write::_) -> "2"
+			| (ParserTypes.Upgradeable::_) -> "4"
+			| (_::t) -> determine_wtype t
+			| [] -> "3" in
 	let emit_one n =
 		let is_dt = is_detached n in
 		let is_ext = is_external n in
@@ -527,11 +534,7 @@ let emit_program_xml' programname br usesmodel =
 				(ParserTypes.strip_position gr.ParserTypes.guardname)
 				(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
 				(HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
-				(match gr.ParserTypes.modifiers with
-					(ParserTypes.Read::_) -> "1"
-					| (ParserTypes.Write::_) -> "2"
-					| (ParserTypes.Upgradeable::_) -> "4"
-					| _ -> "3")
+				(determine_wtype gr.ParserTypes.modifiers)
 				(if has_gargs then "true" else "false")
 			in
 		let is_eh = is_error_handler n in 

@@ -46,7 +46,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> SEQUENCE, POOL, READWRITE, FREE;
 %token <ParserTypes.position*ParserTypes.position> HANDLE, ERROR, AS, WHERE;
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
-%token <ParserTypes.position*ParserTypes.position> UPGRADEABLE;
+%token <ParserTypes.position*ParserTypes.position> UPGRADEABLE, NULLOK;
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
 %token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE, IF, STATIC;
@@ -531,7 +531,7 @@ typed_or_guardref_item:
 ;
 
 guardref_item:
-	GUARD IDENTIFIER guardref_modifier_opt LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN as_named_opt if_condition_opt
+	GUARD IDENTIFIER guardref_modifier_list LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN as_named_opt if_condition_opt
 	{ trace_thing "guardref_item"; 
 	  ( (*guardname= *) $2
           , (*arguments= *) $5
@@ -540,15 +540,17 @@ guardref_item:
           , (*guardcond= *) $8 ) }
 ;
 
-guardref_modifier_opt:
-	SLASH READ
-	{ trace_thing "guardref_modifier_opt"; [Read] }
-	| SLASH WRITE
-	{ trace_thing "guardref_modifier_opt"; [Write] }
-	| SLASH UPGRADEABLE
-	{ trace_thing "guardref_modifier_opt"; [Upgradeable] }
+guardref_modifier_list:
+	SLASH READ guardref_modifier_list
+	{ trace_thing "guardref_modifier_list"; (Read::$3) }
+	| SLASH WRITE guardref_modifier_list
+	{ trace_thing "guardref_modifier_list"; (Write::$3) }
+	| SLASH UPGRADEABLE guardref_modifier_list
+	{ trace_thing "guardref_modifier_list"; (Upgradeable::$3) }
+	| SLASH NULLOK guardref_modifier_list
+	{ trace_thing "guardref_modifier_list"; (NullOk::$3) }
 	| /*epsilon*/
-	{ trace_thing "guardref_modifier_opt"; [] }
+	{ trace_thing "guardref_modifier_list"; [] }
 
 as_named_opt:
 	AS IDENTIFIER
