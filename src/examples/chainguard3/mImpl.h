@@ -1,0 +1,4 @@
+#ifndef _MIMPL_CHAINGUARD3_H
+#define _MIMPL_CHAINGUARD3_H
+
+#endif // _MIMPL_CHAINGUARD3_H

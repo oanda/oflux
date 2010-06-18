@@ -62,6 +62,7 @@ struct EventBaseHolder {
 		, Read = oflux::atomic::AtomicReadWrite::Read
 		, Write = oflux::atomic::AtomicReadWrite::Write
 		, Exclusive = oflux::atomic::AtomicExclusive::Exclusive 
+		, Upgradeable = oflux::atomic::AtomicReadWrite::Upgradeable
 		};
 
 	EventBaseHolder(  EventBasePtr & a_ev
@@ -236,25 +237,35 @@ public:
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
 		EventBaseHolder * ebh = allocator.get(ev,wtype);
-		bool acqed = _waiters.push(ebh,wtype);
+		// Upgradable could be stuck into the lower-level
+		// lf queue, but the added complexity is probably not worth it
+		//  we tolerate: that sometimes upgradable will grab Write
+		//  access to non-NULL data (which the app will treat as readonly.
+		// we guarantee that NULL data is not grabbed for Read.
+		bool acqed = _waiters.push(
+			  ebh
+			, ( wtype == EventBaseHolder::Upgradeable
+			  ? ( *data()
+			    ? EventBaseHolder::Read 
+			    : EventBaseHolder::Write)
+			  : wtype)
+			);
 		if(acqed) {
-			/*oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
+			oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
 				, ev->flow_node()->getName()
 				, ev.get()
 				, this
 				, wtype
-				, _waiters.rcount);*/
+				, _waiters.rcount);
 			_wtype = wtype;
-			//if(wtype == EventBaseHolder::Read) {
 			AtomicCommon::allocator.put(ebh); 
-			//}
 		} else {
-			/*oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
+			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
 				, ev->flow_node()->getName()
 				, ev.get()
 				, this
 				, wtype
-				, _waiters.rcount);*/
+				, _waiters.rcount);
 		}
 		return acqed;
 	}
@@ -263,12 +274,12 @@ public:
                 , EventBasePtr & by_e)
 	{
 		EventBaseHolder * el = NULL;
-		/*oflux_log_trace2("RW::rel   %s %p %p releasing %d %d\n"
+		oflux_log_trace2("RW::rel   %s %p %p releasing %d %d\n"
 			, by_e->flow_node()->getName()
 			, by_e.get()
 			, this
 			, _wtype
-			, _waiters.rcount);*/
+			, _waiters.rcount);
 		_waiters.pop(el,_wtype);
 		//_wtype = EventBaseHolder::None;
 		EventBaseHolder * e = el;
@@ -276,12 +287,12 @@ public:
 		while(e) {
 			n_e = e->next;
 			_wtype = e->type;
-			/*oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
+			oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
 				, e->ev->flow_node()->getName()
 				, e->ev.get()
 				, this
 				, e->type
-				, _waiters.rcount);*/
+				, _waiters.rcount);
 			//_wtype = e->type;
 			rel_ev.push_back(e->ev);
 			AtomicCommon::allocator.put(e);
