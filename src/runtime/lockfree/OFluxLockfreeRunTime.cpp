@@ -32,6 +32,7 @@ RunTime::RunTime(const RunTimeConfiguration &rtc)
 	, _threads(NULL)
 	, _active_flow(NULL)
 {
+	oflux_log_info("oflux::lockfree::RunTime initializing\n");
 	if(rtc.initAtomicMapsF) {
 		// create the AtomicMaps (guards)
 		(*(rtc.initAtomicMapsF))(atomics_style());

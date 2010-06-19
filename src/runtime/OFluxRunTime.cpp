@@ -39,6 +39,7 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 	, _thread_count(0) // will count the news
 	, _detached_count(0) 
 {
+	oflux_log_info("oflux::runtime::classic::RunTime initializing\n");
 	if(rtc.initAtomicMapsF) {
 		// create the AtomicMaps (guards)
 		(*(rtc.initAtomicMapsF))(atomics_style());
