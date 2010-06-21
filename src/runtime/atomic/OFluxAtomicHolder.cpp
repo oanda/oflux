@@ -207,6 +207,9 @@ AtomicsHolder::release(
 					, a
 					, ha->haveit() ? "have it" : ""
 					, ha->flow_guard_ref()->getName().c_str());
+				_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
+					, by_ev->flow_node()->getName() 
+					, k);
 				for(int j = rel_atomics.working_on()
 						; j < rel_atomics.number()
 						; ++j) {
@@ -230,6 +233,10 @@ AtomicsHolder::release(
 						if(j==rel_atomics.working_on()) {
 							++rel_atomics._working_on;
 						}
+						_GUARD_ACQUIRE(
+							  rel_ha_ptr->flow_guard_ref()->getName().c_str()
+							, rel_ev->flow_node()->getName() 
+							, 1);
 						break;
 					} else if(a->is_pool_like() 
 							&& rel_ha_ptr
@@ -241,6 +248,10 @@ AtomicsHolder::release(
 						if(j==rel_atomics.working_on()) {
 							++rel_atomics._working_on;
 						}
+						_GUARD_ACQUIRE(
+							  rel_ha_ptr->flow_guard_ref()->getName().c_str()
+							, rel_ev->flow_node()->getName() 
+							, 1);
 						break;
 					}
 				}
@@ -255,9 +266,11 @@ AtomicsHolder::release(
 #ifdef HAS_DTRACE
 			int post_sz = released_events.size();
 #endif // HAS_DTRACE
-			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str(),
-				(post_sz > pre_sz ? released_events.back()->flow_node()->getName() : "<nil>"),
-				post_sz - pre_sz);
+			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
+				, (post_sz > pre_sz 
+					? released_events.back()->flow_node()->getName() 
+					: "<nil>")
+				, post_sz - pre_sz);
 		}
 	}
 }

@@ -22,6 +22,7 @@ convert_wtype_to_string(int wtype)
 		, "Read "
 		, "Write"
 		, "Excl."
+		, "Upgr."
 		};
 	static const char * fallthrough = "?    ";
 	return (wtype >=0 && (size_t)wtype < (sizeof(conv)/sizeof(fallthrough))
