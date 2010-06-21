@@ -7,15 +7,19 @@
 //
 
 #include <cstdio>
+#include <strings.h>
+#include "OFluxThreadNumber.h"
+#include "OFluxMachineSpecific.h"
 
 namespace oflux {
 namespace lockfree {
+
 
 template<typename T>
 class CircularArray {
 public:
 	typedef T * TPtr;
-	enum { default_log_size = 3 };
+	enum { default_log_size = 8 };
 	CircularArray(int log_size = default_log_size)
 		: _log_size(log_size)
 		, _old(NULL)
@@ -57,11 +61,19 @@ public:
 	static T empty;
 	static T abort;
 
+#ifdef CSW_DEQUE_BIG_LOG
+	size_t big_log[100000];
+#endif
+
 	CircularWorkStealingDeque()
 		: _bottom(0)
 		, _top(0)
 		, _active_array(new CircularArray<T>())
-	{}
+	{
+#ifdef CSW_DEQUE_BIG_LOG
+	::bzero(big_log,100000);
+#endif
+	}
 
 	~CircularWorkStealingDeque()
 	{ 
@@ -81,15 +93,20 @@ public:
 			a = a->grow(b,t);
 			_active_array = a;
 		}
+#ifdef CSW_DEQUE_BIG_LOG
+		big_log[b%100000] |= (1 << (_tn.index + 16));
+		assert(b < 100000);
+#endif
 		a->put(b,e);
 		_bottom = b+1;
 	}
 
 	inline T * steal()
 	{
-		long t = _top;
-		long b = _bottom;
 		CircularArray<T> * a = _active_array;
+		long t = _top;
+		load_load_barrier();
+		long b = _bottom;
 		long size = b - t;
 		if(size <= 0) {
 			return &empty;
@@ -98,29 +115,41 @@ public:
 		if(!cas_top(t,t+1)) {
 			return &abort;
 		}
+#ifdef CSW_DEQUE_BIG_LOG
+		big_log[t%100000] |= (1 << _tn.index);
+#endif
 		return e;
 	}
 
 	inline T * popBottom()
 	{
-		long b = _bottom;
 		CircularArray<T> * a = _active_array;
+		long b = _bottom;
+		long t;
+		long size;
 		b = b-1;
 		_bottom = b;
-		long t = _top;
-		long size = b - t;
+		store_load_barrier();
+		t = _top;
+		size = b - t;
 		if(size < 0) {
 			_bottom = t;
 			return &empty;
 		}
 		T * e = a->get(b);
 		if(size>0) {
+#ifdef CSW_DEQUE_BIG_LOG
+			big_log[b%100000] |= (1 << (_tn.index+8));
+#endif
 			return e;
 		}
 		if(!cas_top(t,t+1)) {
 			e = &empty;
 		}
 		_bottom = t+1;
+#ifdef CSW_DEQUE_BIG_LOG
+		if(e != &empty) { big_log[b%100000] |= (1 << (_tn.index +8)); }
+#endif
 		return e;
 	}
 	void dump()
@@ -134,8 +163,8 @@ public:
 	inline long size() const { return _bottom - _top; }
 
 private:
-	long _bottom;
-	long _top;
+	volatile long _bottom;
+	volatile long _top;
 	CircularArray<T> * _active_array;
 	char _align_dontcare[256 - 2*sizeof(long) - sizeof(CircularArray<T> *)];
 };
