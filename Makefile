@@ -108,6 +108,7 @@ $$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libof
 	echo "" >> $$@; \
 	echo "export LD_LIBRARY_PATH=$(shell pwd):$$$$LD_LIBRARY_PATH" >> $$@; \
 	echo "" >> $$@; \
+	echo $(EXTRA_RUN_ENVIRONMENT) >> $$@; \
 	$$(if $$($(1)_OFLUX_KERNEL),echo "export LD_LIBRARY_PATH=$(shell pwd):$$$$LD_LIBRARY_PATH" >> $$@; \
 	echo "pushd .; cd $(shell pwd)/$$($(1)_OFLUX_KERNEL_DIR)" >> $$@;,) \
 	(echo $(shell pwd)/$$($(1)_OFLUX_MAIN:%.flux=%) " " $(shell pwd)/$$($(1)_OFLUX_MAIN:%.flux=%.xml) "@: @," | sed -e 's/:/1/g' | sed -e 's/\,/2/g' | sed -e 's/@/$$$$/g') >> $$@; \
