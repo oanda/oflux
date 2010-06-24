@@ -29,7 +29,8 @@ DEBUG_FLAGS := -ggdb
 WARN_FLAGS = -Wall
 
 BASECXXFLAGS = -MMD -MF "$(@F:.o=.depend)"
-OFLUX_RUNTIME = $(SRCDIR)/src/runtime
+OFLUXSRCDIR ?= $(SRCDIR)
+OFLUX_RUNTIME = $(OFLUXSRCDIR)/src/runtime
 
 INCS = \
     -I$(BOOSTDIR) \
@@ -41,10 +42,10 @@ LIBS= -lexpat -lpthread -ldl
 LIBDIRS= -L. -L/oanda/system/lib
 
 # Include any specific settings for this RELEASE (eg. production, debug, etc)
--include $(SRCDIR)/Mk/$(RELEASE).mk
+-include $(OFLUXSRCDIR)/Mk/$(RELEASE).mk
 
 # Include any specific settings for this architecture (eg. Linux, Sparc, etc)
--include $(SRCDIR)/Mk/$(_ARCH).mk
+-include $(OFLUXSRCDIR)/Mk/$(_ARCH).mk
 
 %.pic.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c -fPIC $(CXXFLAGS) $< -o $@
