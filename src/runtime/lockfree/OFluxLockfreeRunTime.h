@@ -35,6 +35,7 @@ public:
 	const RunTimeConfiguration & config() const { return _rtc; }
 	virtual void log_snapshot();
 	virtual void log_snapshot_guard(const char *);
+	virtual void getPluginNames(std::vector<std::string> & result);
 	virtual int atomics_style() const { return 2; }
 	bool incr_sleepers(); // false if that would put it at _num_threads
 	void decr_sleepers();
