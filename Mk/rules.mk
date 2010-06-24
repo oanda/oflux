@@ -1,4 +1,4 @@
-$(warn Reading rules.mk)
+$(info Reading oflux rules.mk)
 
 CC := gcc 
 
@@ -84,4 +84,4 @@ DTRACE_LIB_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
 DTRACE_SHIM_PROBE_HEADER:=$(if $(DTRACE),ofluxshimprobe.h,)
 DTRACE_GCC_OPTIMIZATIONS:=-O1 -finline-functions
 endif
--include $(SRCDIR)/Mk/$(_PROC).mk
+-include $(OFLUXSRCDIR)/Mk/$(_PROC).mk
