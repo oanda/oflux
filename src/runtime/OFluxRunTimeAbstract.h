@@ -1,6 +1,9 @@
 #ifndef OFLUX_RUNTIME_ABSTRACT_H
 #define OFLUX_RUNTIME_ABSTRACT_H
 
+#include <string>
+#include <vector>
+
 namespace oflux {
 
 namespace flow {
@@ -51,6 +54,8 @@ public:
 	virtual void log_snapshot() = 0;
 
 	virtual void log_snapshot_guard(const char * guardname) = 0;
+
+        virtual void getPluginNames(std::vector<std::string> & result) = 0;
 };
 
 namespace runtime {

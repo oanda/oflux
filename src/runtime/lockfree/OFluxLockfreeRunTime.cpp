@@ -256,5 +256,12 @@ RunTime::log_snapshot_guard(const char *guardname)
 	flow()->log_snapshot_guard(guardname);
 }
 
+void
+RunTime::getPluginNames(std::vector<std::string> & result)
+{
+        flow::Flow * f = flow();
+        if(f) f->getLibraryNames(result);
+}
+
 } // namespace lockfree
 } // namespace oflux
