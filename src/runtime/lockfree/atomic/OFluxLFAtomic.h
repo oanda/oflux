@@ -1,6 +1,7 @@
 #ifndef OFLUX_LOCKFREE_ATOMIC
 #define OFLUX_LOCKFREE_ATOMIC
 
+#include <inttypes.h>
 #include "atomic/OFluxAtomic.h"
 #include "event/OFluxEventBase.h"
 #include "boost/shared_ptr.hpp"

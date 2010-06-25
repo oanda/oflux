@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "lockfree/OFluxLockfreeRunTimeThread.h"
 #include "lockfree/OFluxLockfreeRunTime.h"
 #include "OFluxWrappers.h"
