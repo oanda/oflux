@@ -29,6 +29,7 @@ public:
 	{
 		return _soft_load_flow && __sync_bool_compare_and_swap(&_soft_load_flow,true,false);
 	}
+	virtual int thread_count() { return _num_threads; }
 	virtual void soft_kill();
 	virtual void hard_kill() { soft_kill(); }
 	bool was_soft_killed() { return _request_death; }
