@@ -57,6 +57,25 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 	((RunTimeBase::initShim)(this));
 }
 
+static void 
+deinit_eminfo() 
+{
+	// deinit the shim
+	if(!RunTimeBase::deinitShim) {
+                RunTimeBase::deinitShim = 
+                        (deinitShimFnType)dlsym (RTLD_DEFAULT, "deinitShim");
+        }
+	if(RunTimeBase::deinitShim == NULL) {
+		oflux_log_error("ERROR(deinit) no SHIM file found... "
+			"exiting\n%s\n"
+			, dlerror());
+		exit(0);
+	}
+	((RunTimeBase::deinitShim)());
+        oflux_log_info("deinit_eminfo() returning....\n");
+}
+
+
 RunTime::~RunTime()
 {
         printf("runtime destructor called\n");
@@ -72,24 +91,7 @@ RunTime::~RunTime()
                 _active_flows.pop_back();
                 delete back;
         }
-}
-
-static void 
-deinit_eminfo() 
-{
-	// deinit the shim
-	if(!RunTimeBase::deinitShim) {
-                RunTimeBase::deinitShim = 
-                        (deinitShimFnType)dlsym (RTLD_DEFAULT, "deinitShim");
-        }
-	if (RunTimeBase::deinitShim == NULL){
-		oflux_log_error("ERROR(deinit) no SHIM file found... "
-			"exiting\n%s\n"
-			, dlerror());
-		exit(0);
-	}
-	((RunTimeBase::deinitShim)());
-        oflux_log_info("deinit_eminfo() returning....\n");
+	deinit_eminfo();
 }
 
 void 
