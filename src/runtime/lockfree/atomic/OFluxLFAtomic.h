@@ -247,7 +247,7 @@ public:
 			? ( *data()
 			    ? EventBaseHolder::Read 
 			    : EventBaseHolder::Write)
-			: wtype)
+			: wtype);
 		bool acqed = _waiters.push(
 			  ebh
 			, local_wtype);
