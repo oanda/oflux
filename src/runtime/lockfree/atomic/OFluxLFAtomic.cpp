@@ -907,7 +907,7 @@ AtomicPooled::release(
 	}
 }
 
-Allocator<AtomicPooled> AtomicPool::allocator;
+Allocator<AtomicPooled> AtomicPool::allocator; // (new allocator::MemoryPool<sizeof(AtomicPooled)>());
 
 AtomicPool::AtomicPool()
 	: head_free(NULL)
