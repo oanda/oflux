@@ -139,7 +139,7 @@ RunTimeThread::start()
 		} else {
 			no_ev_iterations = 0;
 			int num_new_evs = handle(ev);
-			int num_alive_threads = _rt.nonsleepers();
+			int num_alive_threads __attribute__((unused)) = _rt.nonsleepers();
 			int threads_to_wake = num_new_evs;
 			oflux_log_trace("[%d] RunTimeThread::start() calling handle %d wt: %d\n"
 				, oflux_self()

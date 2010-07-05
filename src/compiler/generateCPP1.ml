@@ -1696,6 +1696,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
 		[ ""
 		; "namespace ofluximpl {"
+		; "extern void init_atomic_maps(int style);"
                 ; "extern oflux::CreateMap * __create_map_ptr;" 
 		; "extern oflux::CreateMap __create_map[];"
 		; "extern oflux::ConditionalMap __conditional_map[];"
@@ -1837,6 +1838,7 @@ let emit_cpp modulenameopt br um =
 	let h_code = List.fold_left CodePrettyPrinter.add_code h_code
 		[ ""
 		; "namespace ofluximpl {"
+		; "extern void init_atomic_maps(int style);"
 		; if is_module 
 		  then "extern oflux::CreateMap * __create_map_ptr;" 
 		  else "extern oflux::ModularCreateMap __master_create_map[];"

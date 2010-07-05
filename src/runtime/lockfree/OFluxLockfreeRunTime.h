@@ -29,12 +29,14 @@ public:
 	{
 		return _soft_load_flow && __sync_bool_compare_and_swap(&_soft_load_flow,true,false);
 	}
+	virtual int thread_count() { return _num_threads; }
 	virtual void soft_kill();
 	virtual void hard_kill() { soft_kill(); }
 	bool was_soft_killed() { return _request_death; }
 	const RunTimeConfiguration & config() const { return _rtc; }
 	virtual void log_snapshot();
 	virtual void log_snapshot_guard(const char *);
+	virtual void getPluginNames(std::vector<std::string> & result);
 	virtual int atomics_style() const { return 2; }
 	bool incr_sleepers(); // false if that would put it at _num_threads
 	void decr_sleepers();

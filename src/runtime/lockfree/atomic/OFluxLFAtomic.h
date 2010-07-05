@@ -242,14 +242,15 @@ public:
 		//  we tolerate: that sometimes upgradable will grab Write
 		//  access to non-NULL data (which the app will treat as readonly.
 		// we guarantee that NULL data is not grabbed for Read.
-		bool acqed = _waiters.push(
-			  ebh
-			, ( wtype == EventBaseHolder::Upgradeable
-			  ? ( *data()
+		int local_wtype =
+			( wtype == EventBaseHolder::Upgradeable
+			? ( *data()
 			    ? EventBaseHolder::Read 
 			    : EventBaseHolder::Write)
-			  : wtype)
-			);
+			: wtype);
+		bool acqed = _waiters.push(
+			  ebh
+			, local_wtype);
 		if(acqed) {
 			oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
 				, ev->flow_node()->getName()
@@ -257,7 +258,7 @@ public:
 				, this
 				, wtype
 				, _waiters.rcount);
-			_wtype = wtype;
+			_wtype = local_wtype;
 			AtomicCommon::allocator.put(ebh); 
 		} else {
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"

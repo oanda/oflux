@@ -264,7 +264,7 @@ AtomicsHolder::release(
                         ha->atomic(NULL);
 
 #ifdef HAS_DTRACE
-			int post_sz = released_events.size();
+			size_t post_sz = released_events.size();
 #endif // HAS_DTRACE
 			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
 				, (post_sz > pre_sz 

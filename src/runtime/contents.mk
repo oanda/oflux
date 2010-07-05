@@ -2,7 +2,7 @@ $(info Reading contents.mk $(COMPONENT_DIR))
 
 OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
 
-LIBRARIES += liboflux.a libofshim.so
+LIBRARIES += liboflux.so libofshim.so
 
 SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
 
