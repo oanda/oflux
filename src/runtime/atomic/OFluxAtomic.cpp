@@ -128,7 +128,7 @@ AtomicPool::get_waiter()
 }
 
 void 
-AtomicPool::put_waiter(boost::shared_ptr<EventBase> & ev)
+AtomicPool::put_waiter(EventBasePtr & ev)
 {
         _q.push_back(ev);
 }

@@ -746,7 +746,7 @@ public:
 				}
 			}
 		}
-		const V * old_val;
+		const V * old_val = NULL;
 		size_t k_hash = hash<K>()(k);
 		while(impl && (old_val = impl->compareAndSwap(
 				  k

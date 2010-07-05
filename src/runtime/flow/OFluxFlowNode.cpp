@@ -205,6 +205,7 @@ Node::setErrorHandler(Node *fn)
 {
         _error_handler_case->setTargetNode(fn);
 }
+
 void 
 Node::get_successors(std::vector<Case *> & successor_nodes, 
 		const void * a,
