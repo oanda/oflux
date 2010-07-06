@@ -102,17 +102,41 @@ successors_on_error(
 void
 push_initials_and_sources( 
 	  std::vector<EventBasePtr> & events_vec
-	, flow::Flow * flow)
+	, flow::Flow * flow
+	, bool lifo)
 {
 	std::vector<flow::Node *> & sources = flow->sources();
-	for(int i = 0; i < (int) sources.size(); ++i) {
+	std::vector<EventBasePtr> events_backend;
+	for(size_t i = 0; i < sources.size(); ++i) {
 		flow::Node * fn = sources[i];
-                oflux_log_info("load_flow pushing %s\n",fn->getName());
-		CreateNodeFn createfn = fn->getCreateFn();
-		EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
-		if(event::acquire_guards(ev)) {
-			events_vec.push_back(ev);
+		if(fn->getIsInitial()) {
+			oflux_log_info("load_flow pushing initial %s\n"
+				, fn->getName());
+			CreateNodeFn createfn = fn->getCreateFn();
+			EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
+			if(event::acquire_guards(ev)) {
+				if(lifo) {
+					events_vec.push_back(ev);
+				} else {
+					events_backend.push_back(ev);
+				}
+			}
 		}
+	}
+	for(size_t i = 0; i < sources.size(); ++i) {
+		flow::Node * fn = sources[i];
+		if(!fn->getIsInitial()) {
+			oflux_log_info("load_flow pushing source  %s\n"
+				, fn->getName());
+			CreateNodeFn createfn = fn->getCreateFn();
+			EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
+			if(event::acquire_guards(ev)) {
+				events_vec.push_back(ev);
+			}
+		}
+	}
+	for(size_t i = 0; i < events_backend.size(); ++i) {
+		events_vec.push_back(events_backend[i]);
 	}
 }
 

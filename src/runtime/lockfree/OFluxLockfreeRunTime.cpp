@@ -150,7 +150,7 @@ RunTime::load_flow(
 	// push the sources (first time)
 	if(_running) {
 		std::vector<EventBasePtr> events_vec;
-		event::push_initials_and_sources(events_vec, flow);
+		event::push_initials_and_sources(events_vec, flow, true);
 		distribute_events(_threads,events_vec); 
 	}
 	ActiveFlow * aflow = new ActiveFlow(flow);

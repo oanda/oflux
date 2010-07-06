@@ -32,7 +32,8 @@ public:
         inline const std::string & getName() { return _name; }
         void add(Case * fc, bool front=false);
 	void remove(Case * fc);
-	Case * getByTarget(const char *n);
+	Case * getByTargetName(const char *n);
+	Case * getByTargetNode(const Node *n);
         Case * get_successor(const void * a);
         void pretty_print(int depth, std::set<std::string> * visited);
 private:
@@ -71,6 +72,7 @@ public:
                 }
         }
         void pretty_print(int depth, std::set<std::string> * visited);
+	bool has_successor_with_target(const Node * n) const;
 private:
         std::map<std::string, Successor *> _successorlist;
 };
@@ -100,9 +102,10 @@ public:
         void successor_list(SuccessorList * sl) { _successor_list = sl; }
         SuccessorList * successor_list() { return _successor_list; }
         inline const char * getName() { return &(_name[0]); }
-        inline bool getIsSource() { return _is_source; }
-        inline bool getIsErrorHandler() { return _is_error_handler; }
-        inline bool getIsDetached() { return _is_detached; }
+        inline bool getIsSource() const { return _is_source; }
+	bool getIsInitial();
+        inline bool getIsErrorHandler() const { return _is_error_handler; }
+        inline bool getIsDetached() const { return _is_detached; }
         inline CreateNodeFn & getCreateFn() { return _createfn; }
         void get_successors(std::vector<Case *> & successor_nodes, 
                         const void * a,
@@ -129,6 +132,7 @@ private:
         CreateNodeFn                  _createfn;
         bool                          _is_error_handler;
         bool                          _is_source;
+        int                           _is_initial;
         bool                          _is_detached;
         SuccessorList *               _successor_list;
         Case *                        _error_handler_case;
