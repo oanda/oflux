@@ -138,6 +138,7 @@ AtomicPool::get(Atomic * & a_out,const void * key)
 {
         static int _to_use;
         //assert(_ap_list == NULL || _ap_list->next() != _ap_list);
+	oflux_log_trace2("ap::get() [%d] %p\n", oflux_self(), this);
         if(_ap_list) {
                 a_out = _ap_list;
                 _ap_list = _ap_list->next();
@@ -187,12 +188,15 @@ AtomicPooled::release(
 	, EventBasePtr &)
 {
 	if(_pool.waiter_count()) {
+		oflux_log_trace2("apd::release() [%d] %p wc %p data\n", oflux_self(), this, _data);
 		EventBasePtr w_ev = _pool.get_waiter();
 		AtomicsHolder & w_atomics = w_ev->atomics();
 		HeldAtomic * re_w_ptr = w_atomics.get(w_atomics.working_on());
 		*(re_w_ptr->atomic()->data()) = _data;
+		_data = NULL;
 		rel_ev.push_back(w_ev);
 	} else {
+		oflux_log_trace2("apd::release() [%d] %p no wc %p data\n", oflux_self(), this, _data);
 		if(_data) { // return it to the pool
 			_pool.put_data(_data);
 		}

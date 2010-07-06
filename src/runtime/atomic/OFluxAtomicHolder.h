@@ -10,8 +10,6 @@
 
 #include "OFluxLogging.h"
 
-
-
 namespace oflux {
 namespace atomic {
 
@@ -159,12 +157,13 @@ public:
 				, ev_name
 				, _flow_guard_ref->wtype()); 
 		}
-		oflux_log_trace2("[%d] HA::acquire_or_wait %s %s %s atom %p for %d\n"
+		oflux_log_trace2("[%d] HA::acquire_or_wait %s %s %s atom %p  (data %p) for %d\n"
 			, oflux_self()
 			, ev_name
 			, (res ? "takes": "waits on")
 			, _flow_guard_ref->getName().c_str()
 			, _atom
+			, _atom && _atom ? *(_atom->data()) : NULL
 			, _flow_guard_ref->wtype());
 		return res;
 	}

@@ -124,11 +124,15 @@ AtomicsHolder::acquire_all_or_wait(
 		oflux_log_trace2("[%d] AH::aaow: %s given: %s %p %s%s my: %s %p %s%s  compare: %d\n"
 			, oflux_self()
 			, ev_name
-			, more_given ? given_ha->atomic()->atomic_class() : "<null>"
+			, more_given && given_ha->atomic() 
+			  ? given_ha->atomic()->atomic_class() 
+			  : "<null>"
 			, more_given ? given_ha->atomic() : NULL
 			, more_given && given_ha->haveit() ? "have it" : ""
 			, more_given && given_ha->skipit() ? "skip it" : ""
-			, my_ha->atomic()->atomic_class()
+			, my_ha->atomic() 
+			  ? my_ha->atomic()->atomic_class()
+			  : "."
 			, my_ha->atomic()
 			, my_ha->haveit() ? "have it" : ""
 			, my_ha->skipit() ? "skip it" : ""
@@ -227,22 +231,10 @@ AtomicsHolder::release(
 						, rel_ha_ptr->haveit()
 						, a->is_pool_like()
 						);
-					if(rel_ha_ptr && rel_ha_ptr->atomic() == a) {
-						rel_ha_ptr->halftakeit(*ha);
-						fd = true;
-						if(j==rel_atomics.working_on()) {
-							++rel_atomics._working_on;
-						}
-						_GUARD_ACQUIRE(
-							  rel_ha_ptr->flow_guard_ref()->getName().c_str()
-							, rel_ev->flow_node()->getName() 
-							, 1);
-						break;
-					} else if(a->is_pool_like() 
-							&& rel_ha_ptr
-							&& (rel_ha_ptr->compare(*ha) == 0)) {
-							//rel_ha_ptr->swap(*ha);
-						//}
+					if(rel_ha_ptr 
+						&& (rel_ha_ptr->atomic() == a
+							|| (a->is_pool_like() && (rel_ha_ptr->compare(*ha) == 0)))
+							) {
 						rel_ha_ptr->halftakeit(*ha);
 						fd = true;
 						if(j==rel_atomics.working_on()) {
@@ -261,7 +253,7 @@ AtomicsHolder::release(
 			if(should_relinquish) {
 				ha->relinquish();
 			}
-                        ha->atomic(NULL);
+			ha->atomic(NULL);
 
 #ifdef HAS_DTRACE
 			size_t post_sz = released_events.size();

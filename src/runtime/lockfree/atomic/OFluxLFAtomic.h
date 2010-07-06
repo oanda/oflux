@@ -7,9 +7,9 @@
 #include "boost/shared_ptr.hpp"
 #include "OFluxAllocator.h"
 
-//#include "OFlux.h"
-//#include "OFluxLogging.h"
-//#include "flow/OFluxFlowNode.h"
+#include "OFlux.h"
+#include "OFluxLogging.h"
+#include "flow/OFluxFlowNode.h"
 
 namespace oflux {
 namespace lockfree {

@@ -381,6 +381,7 @@ public:
 	{ 
 		_data = _pool.get_data();
 		bool res = (_data != NULL);
+		oflux_log_trace2("apd::a_o_w() [%d] %p no wc %p data %d res\n", oflux_self(), this, _data, res);
 		if(!res) {
 			_pool.put_waiter(ev); 
 		}
@@ -390,6 +391,7 @@ public:
 	virtual void delete_key(void *) const {}
 	virtual void relinquish()
 	{
+		oflux_log_trace2("apd::relinq() [%d] %p no wc %p data\n", oflux_self(), this, _data);
 		if(_data) {
 			_pool.put_data(_data);
 			_data = NULL;
