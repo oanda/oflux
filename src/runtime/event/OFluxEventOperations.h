@@ -31,7 +31,8 @@ successors_on_error(
 void
 push_initials_and_sources( 
 	  std::vector<EventBasePtr> & events_vec
-	, flow::Flow * flow);
+	, flow::Flow * flow
+	, bool lifo = false);
 
 } // namespace event
 } // namespace oflux
