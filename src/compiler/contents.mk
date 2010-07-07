@@ -116,7 +116,7 @@ lexer.cmi: parserTypes.cmi
 lexer.cmo: parserTypes.cmi parser.cmi 
 lexer.cmx: parserTypes.cmx parser.cmx 
 topLevel.cmx: parser.cmx lexer.cmx
-topLevel.cmo: parser.cmi lexer.cmi
+topLevel.cmo: parser.cmi lexer.cmi lexer.cmo
 
 OFLUXGITTOP=`find ../.. | grep ofluxgittop | xargs dirname`
 ofluxforbjam : oflux
