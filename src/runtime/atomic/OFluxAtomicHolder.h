@@ -71,7 +71,7 @@ public:
 (a == b ? 0 : ( (!a) && b /*a < b*/ ? -1 : 1 ))
 		return (gt1 == gt2 && wt1 == wt2
 				? (!lt1 && !lt2
-					? _flow_guard_ref->compare_keys(_key,ha._key)
+					? (_key == ha._key ? 0 : _flow_guard_ref->compare_keys(_key,ha._key))
 					: compare_lates(lt1,lt2))
 				: (gt1 == gt2 
 					? (wt1 < wt2 ? -1 : 1)
