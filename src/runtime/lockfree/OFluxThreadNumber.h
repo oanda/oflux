@@ -13,6 +13,7 @@ public:
         size_t index;
 
 	static void init(int i);
+	static void init();
 };
 
 extern __thread ThreadNumber _tn; // thread local access to a thread's index

@@ -31,7 +31,7 @@
 #include <cstdlib>
 #include <unistd.h>
 
-#define dprintf //printf
+#define dprintf printf
 
 namespace event {
 struct Event {
@@ -378,7 +378,7 @@ void * run_thread(void *vp)
 		if(!running_evl[j%2].head) {
 			++no_op_iterations;
 		}
-		while(e = running_evl[j%2].pop()) {
+		while((e = running_evl[j%2].pop())) {
 			no_op_iterations = 0;
 			int a_index = e->has;
 			dprintf("%d]   %d running\n",*ip,e->id);
@@ -454,7 +454,7 @@ int main(int argc, char  * argv[])
 		, num_threads
 		, iterations
 		, num_events_per_thread
-		, num_items);
+		, num_atomics);
         pthread_t tids[num_threads];
 	int tns[num_threads];
 	pthread_barrier_init(&barrier,NULL,num_threads);

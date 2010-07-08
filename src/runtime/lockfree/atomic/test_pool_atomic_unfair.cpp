@@ -214,7 +214,7 @@ PoolEventList::push(Event * e)
 {
 	//*(e->resource_loc) = NULL;
 	//e->next = NULL;
-	Event * t = NULL;
+	//Event * t = NULL;
 
 	//int id = e->con.id;
 	//int w_on = e->waiting_on;
@@ -693,7 +693,6 @@ int main(int argc, char  * argv[])
                         exit(12);
                 }
         }
-	size_t a_count = 0;
 	__sync_synchronize();
 	int ii = -1;
 	int  * ip = &ii;

@@ -16,6 +16,13 @@ ThreadNumber::init(int i)
 	__sync_fetch_and_add(&ThreadNumber::num_threads,1);
 }
 
+void
+ThreadNumber::init()
+{
+	// This version is less used
+	_tn.index = __sync_fetch_and_add(&ThreadNumber::num_threads,1);
+}
+
 
 } // namespace lockfree
 } // namespace oflux

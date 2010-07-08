@@ -204,7 +204,7 @@ RWEventList::push(Event * e, int type)
 	while(1) {
 		Event * h = head;
 		Event * hn = h->next;
-		int hi = h->id;
+		hi = h->id;
 		int rc = rcount;
 		if(type == Write 
 				&& rc == 0
@@ -629,7 +629,7 @@ atomic::ReadWrite atomics[10];
 #define DUMPATOMICS //_DUMPATOMICS
 #define DUMP_RUNQUEUE(JMOD) //_DUMP_RUNQUEUE(JMOD)
 #define DUMPATOMIC(A) //_DUMPATOMICS(A)
-#define dprintf //printf
+#define dprintf printf
 
 void * run_thread(void *vp)
 {
@@ -657,7 +657,7 @@ void * run_thread(void *vp)
 	// this is uncontended acquisition
 	int id = 0;
 	int type = 0;
-	for(int a = *ip; a < num_atomics; a += num_threads) {
+	for(size_t a = *ip; a < num_atomics; a += num_threads) {
 		if(running_evl[0].size() == 0) {
 			break;
 		}
