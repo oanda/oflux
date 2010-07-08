@@ -43,7 +43,7 @@ public:
 	CT value() const
 	{
 		CT res = 0;
-		for(size_t i = 0; i < num_threads; ++i) {
+		for(size_t i = 0; i < std::max(ThreadNumber::num_threads,num_threads); ++i) {
 			res += _v[i];
 		}
 		return res;

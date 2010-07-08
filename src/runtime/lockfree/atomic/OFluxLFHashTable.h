@@ -532,8 +532,8 @@ protected:
 				assert(ent <= _table + (1ULL << _scale));
 			}
 			if(num_copied) {
-				total_copied = _stats.num_entries_copied.value()
-					+ num_copied;
+				_stats.num_entries_copied += num_copied;
+				total_copied = _stats.num_entries_copied.value();
 			}
 		}
 		return (total_copied == (1ULL << _scale));
@@ -545,7 +545,7 @@ protected:
 	int 
 	release() {
 		assert(_ref_count > 0);
-		_ref_count = __sync_fetch_and_add(&_ref_count,-1);
+		_ref_count = __sync_add_and_fetch(&_ref_count,-1);
 		return _ref_count;
 	}
 
