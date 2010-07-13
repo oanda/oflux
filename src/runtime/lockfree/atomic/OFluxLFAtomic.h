@@ -290,13 +290,15 @@ public:
 			n_e = e->next;
 			_wtype = e->type;
 			oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
-				, e->ev->flow_node()->getName()
+				, e->ev.get() ? e->ev->flow_node()->getName() : "<null>"
 				, e->ev.get()
 				, this
 				, e->type
 				, _waiters.rcount);
 			//_wtype = e->type;
-			rel_ev.push_back(e->ev);
+			if(e->ev.get()) { 
+				rel_ev.push_back(e->ev); 
+			}
 			AtomicCommon::allocator.put(e);
 			e = n_e;
 		}
