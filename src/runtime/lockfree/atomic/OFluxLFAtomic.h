@@ -304,6 +304,7 @@ public:
 		}
 	}
 	virtual void log_snapshot_waiters() const;
+	inline void _dump() { _waiters.dump(); }
 private:
 	ReadWriteWaiterList _waiters;
 	int _wtype;

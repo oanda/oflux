@@ -242,6 +242,7 @@ ReadWriteWaiterList::push(
 				, NULL)) {
 			// 1->2
 			e->ev.swap(ev);
+			e->type = type;
 			return true;
 		} else if(type == EventBaseHolder::Read
 				&& rc == 0
@@ -256,6 +257,7 @@ ReadWriteWaiterList::push(
 				, rc
 				, 1);
 			e->ev.swap(ev);
+			e->type = type;
 			return true;
 		} else if(hn == NULL && rc == 0) {
 			if(__sync_bool_compare_and_swap(
@@ -278,6 +280,7 @@ ReadWriteWaiterList::push(
 			//assert(!is_three(e));
 			// 3->3
 			e->ev.swap(ev);
+			e->type = type;
 			return true;
 		} else if(is_three(hn)
 				&& type == EventBaseHolder::Write) {
