@@ -12,3 +12,4 @@ test_pool_atomic_fair: test_pool_atomic_fair.cpp $(LIBS)
 
 test_rw_atomic: test_rw_atomic.cpp $(LIBS)
 
+test_rw_atomic2: test_rw_atomic2.cpp $(LIBS) liboflux.so libofshim.so
