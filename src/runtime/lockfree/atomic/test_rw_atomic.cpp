@@ -564,6 +564,7 @@ ReadWrite::release(event::Event * & el,event::Event * by_e)
 	waiters.pop(el,by_e);
 	event::Event * e = el;
 	while(event::unmk(e)) { 
+		assert(e->id);
 		e->has = index;
 		e->waiting_on = -1;
 		e = e->next;
@@ -629,7 +630,7 @@ atomic::ReadWrite atomics[10];
 #define DUMPATOMICS //_DUMPATOMICS
 #define DUMP_RUNQUEUE(JMOD) //_DUMP_RUNQUEUE(JMOD)
 #define DUMPATOMIC(A) //_DUMPATOMICS(A)
-#define dprintf printf
+#define dprintf //printf
 
 void * run_thread(void *vp)
 {
