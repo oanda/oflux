@@ -406,7 +406,6 @@ int RunTimeThread::execute_detached(boost::shared_ptr<EventBase> & ev,
         {
                 UnlockRunTime urt(_rt);
                 return_code = ev->execute();
-                incr.release(_tid);
         }
         return return_code;
 }
