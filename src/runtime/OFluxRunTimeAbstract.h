@@ -56,6 +56,8 @@ public:
 	virtual void log_snapshot_guard(const char * guardname) = 0;
 
         virtual void getPluginNames(std::vector<std::string> & result) = 0;
+
+	virtual int thread_count() = 0;
 };
 
 namespace runtime {

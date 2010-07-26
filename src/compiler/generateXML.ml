@@ -502,13 +502,16 @@ let emit_program_xml' programname br usesmodel =
 	let one_arg get_argno sp =
 		let argno = get_argno (ParserTypes.strip_position sp)
 		in  argument (string_of_int argno) in *)
-	let rec determine_wtype modifiers =
-		match modifiers with
-			(ParserTypes.Read::_) -> "1"
-			| (ParserTypes.Write::_) -> "2"
-			| (ParserTypes.Upgradeable::_) -> "4"
-			| (_::t) -> determine_wtype t
-			| [] -> "3" in
+	let rec determine_wtype gtype_str modifiers =
+		match gtype_str, modifiers with
+			("readwrite",(ParserTypes.Read::_)) -> "1"
+			| ("readwrite",(ParserTypes.Write::_)) -> "2"
+			| ("readwrite",(ParserTypes.Upgradeable::_)) -> "4"
+			| ("pool",[]) -> "3" 
+			| ("exclusive",[]) -> "3"
+			| ("free",[]) -> "3"
+			| ("readwrite",(_::t)) -> determine_wtype gtype_str t
+			| _ -> raise Not_found in
 	let emit_one n =
 		let is_dt = is_detached n in
 		let is_ext = is_external n in
@@ -521,6 +524,8 @@ let emit_program_xml' programname br usesmodel =
 			try List.assoc n argmap
 			with Not_found -> raise (XMLConversion (n,ParserTypes.noposition)) in*)
 		let do_gr gr = 
+			let gname,gr_pos,_ = gr.ParserTypes.guardname in
+			let gd = SymbolTable.lookup_guard_symbol stable gname in
 			let has_gargs = List.exists
 				(fun xl -> List.exists
 					(fun une ->
@@ -529,13 +534,14 @@ let emit_program_xml' programname br usesmodel =
 							| _ -> false)) xl) 
 				(gr.ParserTypes.guardcond::gr.ParserTypes.arguments)
 			in
-			(*let _,gr_pos,_ = gr.ParserTypes.guardname in*)
-			guardref 
-				(ParserTypes.strip_position gr.ParserTypes.guardname)
+			try guardref 
+				gname
 				(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
 				(HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
-				(determine_wtype gr.ParserTypes.modifiers)
+				(determine_wtype gd.SymbolTable.gtype gr.ParserTypes.modifiers)
 				(if has_gargs then "true" else "false")
+			with Not_found ->
+				raise (XMLConversion ("bad guard mode (Read/Write/Exclusive/None/Pool) on " ^ gname,gr_pos))
 			in
 		let is_eh = is_error_handler n in 
 		let fl = Flow.flowmap_find n fmap in

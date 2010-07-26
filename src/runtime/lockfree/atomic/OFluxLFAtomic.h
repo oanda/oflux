@@ -1,14 +1,15 @@
 #ifndef OFLUX_LOCKFREE_ATOMIC
 #define OFLUX_LOCKFREE_ATOMIC
 
+#include <inttypes.h>
 #include "atomic/OFluxAtomic.h"
 #include "event/OFluxEventBase.h"
 #include "boost/shared_ptr.hpp"
 #include "OFluxAllocator.h"
 
-//#include "OFlux.h"
-//#include "OFluxLogging.h"
-//#include "flow/OFluxFlowNode.h"
+#include "OFlux.h"
+#include "OFluxLogging.h"
+#include "flow/OFluxFlowNode.h"
 
 namespace oflux {
 namespace lockfree {
@@ -242,14 +243,15 @@ public:
 		//  we tolerate: that sometimes upgradable will grab Write
 		//  access to non-NULL data (which the app will treat as readonly.
 		// we guarantee that NULL data is not grabbed for Read.
-		bool acqed = _waiters.push(
-			  ebh
-			, ( wtype == EventBaseHolder::Upgradeable
-			  ? ( *data()
+		int local_wtype =
+			( wtype == EventBaseHolder::Upgradeable
+			? ( *data()
 			    ? EventBaseHolder::Read 
 			    : EventBaseHolder::Write)
-			  : wtype)
-			);
+			: wtype);
+		bool acqed = _waiters.push(
+			  ebh
+			, local_wtype);
 		if(acqed) {
 			oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
 				, ev->flow_node()->getName()
@@ -257,7 +259,7 @@ public:
 				, this
 				, wtype
 				, _waiters.rcount);
-			_wtype = wtype;
+			_wtype = local_wtype;
 			AtomicCommon::allocator.put(ebh); 
 		} else {
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
@@ -288,18 +290,21 @@ public:
 			n_e = e->next;
 			_wtype = e->type;
 			oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
-				, e->ev->flow_node()->getName()
+				, e->ev.get() ? e->ev->flow_node()->getName() : "<null>"
 				, e->ev.get()
 				, this
 				, e->type
 				, _waiters.rcount);
 			//_wtype = e->type;
-			rel_ev.push_back(e->ev);
+			if(e->ev.get()) { 
+				rel_ev.push_back(e->ev); 
+			}
 			AtomicCommon::allocator.put(e);
 			e = n_e;
 		}
 	}
 	virtual void log_snapshot_waiters() const;
+	inline void _dump() { _waiters.dump(); }
 private:
 	ReadWriteWaiterList _waiters;
 	int _wtype;

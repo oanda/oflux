@@ -204,7 +204,7 @@ RWEventList::push(Event * e, int type)
 	while(1) {
 		Event * h = head;
 		Event * hn = h->next;
-		int hi = h->id;
+		hi = h->id;
 		int rc = rcount;
 		if(type == Write 
 				&& rc == 0
@@ -564,6 +564,7 @@ ReadWrite::release(event::Event * & el,event::Event * by_e)
 	waiters.pop(el,by_e);
 	event::Event * e = el;
 	while(event::unmk(e)) { 
+		assert(e->id);
 		e->has = index;
 		e->waiting_on = -1;
 		e = e->next;
@@ -657,7 +658,7 @@ void * run_thread(void *vp)
 	// this is uncontended acquisition
 	int id = 0;
 	int type = 0;
-	for(int a = *ip; a < num_atomics; a += num_threads) {
+	for(size_t a = *ip; a < num_atomics; a += num_threads) {
 		if(running_evl[0].size() == 0) {
 			break;
 		}

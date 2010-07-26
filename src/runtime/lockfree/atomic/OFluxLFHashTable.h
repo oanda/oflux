@@ -532,8 +532,8 @@ protected:
 				assert(ent <= _table + (1ULL << _scale));
 			}
 			if(num_copied) {
-				total_copied = _stats.num_entries_copied.value()
-					+ num_copied;
+				_stats.num_entries_copied += num_copied;
+				total_copied = _stats.num_entries_copied.value();
 			}
 		}
 		return (total_copied == (1ULL << _scale));
@@ -746,7 +746,7 @@ public:
 				}
 			}
 		}
-		const V * old_val;
+		const V * old_val = NULL;
 		size_t k_hash = hash<K>()(k);
 		while(impl && (old_val = impl->compareAndSwap(
 				  k

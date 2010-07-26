@@ -223,6 +223,7 @@ ReadWriteWaiterList::push(
 {
 	assert(type == EventBaseHolder::Read || type == EventBaseHolder::Write);
 	e->next = NULL;
+	e->type = EventBaseHolder::None;
 	EventBaseHolder * t = NULL;
 
 	EventBasePtr ev;
@@ -241,6 +242,7 @@ ReadWriteWaiterList::push(
 				, NULL)) {
 			// 1->2
 			e->ev.swap(ev);
+			e->type = type;
 			return true;
 		} else if(type == EventBaseHolder::Read
 				&& rc == 0
@@ -255,9 +257,9 @@ ReadWriteWaiterList::push(
 				, rc
 				, 1);
 			e->ev.swap(ev);
+			e->type = type;
 			return true;
 		} else if(hn == NULL && rc == 0) {
-			e->type = EventBaseHolder::None;
 			if(__sync_bool_compare_and_swap(
 					  &(_head->next)
 					, NULL
@@ -268,7 +270,6 @@ ReadWriteWaiterList::push(
 				h->ev.swap(ev);
 				return false;
 			}
-			e->type = type;
 		} else if(is_three(hn)
 				&& type == EventBaseHolder::Read
 				&& rc > 0
@@ -279,10 +280,10 @@ ReadWriteWaiterList::push(
 			//assert(!is_three(e));
 			// 3->3
 			e->ev.swap(ev);
+			e->type = type;
 			return true;
 		} else if(is_three(hn)
 				&& type == EventBaseHolder::Write) {
-			e->type = EventBaseHolder::None;
 			if(__sync_bool_compare_and_swap(
 					  &(_head->next)
 					, hn
@@ -293,7 +294,6 @@ ReadWriteWaiterList::push(
 				h->ev.swap(ev);
 				return false;
 			}
-			e->type = type;
 		} else if(!is_three(hn) 
 				&& hn != NULL 
 				&& !is_one(hn)) {
@@ -308,7 +308,6 @@ ReadWriteWaiterList::push(
 			}
 			if(h != t && he
 					&& h == _head) {
-				e->type = EventBaseHolder::None;
 				if(__sync_bool_compare_and_swap(
 						  &(t->next)
 						, NULL
@@ -318,7 +317,6 @@ ReadWriteWaiterList::push(
 					t->ev.swap(ev);
 					break;
 				}
-				e->type = type;
 			}
 		}
 	}
@@ -907,7 +905,7 @@ AtomicPooled::release(
 	}
 }
 
-Allocator<AtomicPooled> AtomicPool::allocator;
+Allocator<AtomicPooled> AtomicPool::allocator; // (new allocator::MemoryPool<sizeof(AtomicPooled)>());
 
 AtomicPool::AtomicPool()
 	: head_free(NULL)

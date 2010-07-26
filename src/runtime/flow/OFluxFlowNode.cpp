@@ -45,13 +45,29 @@ Successor::remove(Case * fc)
 }
 
 Case * 
-Successor::getByTarget(const char *n)
+Successor::getByTargetName(const char *n)
 {
 	std::deque<Case *>::iterator itr =
 		_cases.begin();
 	std::string name = n;
 	while(itr != _cases.end()) {
 		if(name == (*itr)->targetNodeName()) {
+			break;
+		}
+		++itr;
+	}
+	return  ( itr == _cases.end()
+		? NULL
+		: *itr );
+}
+
+Case * 
+Successor::getByTargetNode(const Node *n)
+{
+	std::deque<Case *>::iterator itr =
+		_cases.begin();
+	while(itr != _cases.end()) {
+		if(n == (*itr)->targetNode()) {
 			break;
 		}
 		++itr;
@@ -112,6 +128,19 @@ SuccessorList::~SuccessorList()
         delete_map_contents<std::string, Successor>(_successorlist); 
 }
 
+bool
+SuccessorList::has_successor_with_target(const Node * n) const
+{
+	std::map<std::string,Successor *>::const_iterator mitr = _successorlist.begin();
+	while(mitr != _successorlist.end()) {
+		if((*mitr).second->getByTargetNode(n)) {
+			return true;
+		}
+		++mitr;
+	}
+	return false;
+}
+
 void 
 SuccessorList::add(Successor * fs) 
 { 
@@ -154,6 +183,7 @@ Node::Node(const char * name,
         , _createfn(createfn)
         , _is_error_handler(is_error_handler)
         , _is_source(is_source)
+	, _is_initial(-1) // unknown
         , _is_detached(is_detached)
 	, _successor_list(NULL)
 	, _error_handler_case(new Case())
@@ -205,6 +235,7 @@ Node::setErrorHandler(Node *fn)
 {
         _error_handler_case->setTargetNode(fn);
 }
+
 void 
 Node::get_successors(std::vector<Case *> & successor_nodes, 
 		const void * a,
@@ -214,12 +245,25 @@ Node::get_successors(std::vector<Case *> & successor_nodes,
 		if(_error_handler_case->targetNode() != NULL) {
 			successor_nodes.push_back(_error_handler_case);
 		}
-		if(_is_source) { // even on errors
+		if(_is_source && !getIsInitial()) { // even on errors
 			successor_nodes.push_back(_this_case);
 		}
 	} else {
 		_successor_list->get_successors(successor_nodes,a);
 	}
+}
+
+bool
+Node::getIsInitial()
+{
+	if(_is_initial >= 0) {
+		// nothing to do
+	} else if(!getIsSource()) {
+		_is_initial = 0;
+	} else {
+		_is_initial = ! _successor_list->has_successor_with_target(this);
+	}
+	return _is_initial;
 }
 
 void 
