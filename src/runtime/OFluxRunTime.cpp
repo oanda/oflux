@@ -448,7 +448,6 @@ RunTimeThread::execute_detached(
         {
                 UnlockRunTime urt(_rt);
                 return_code = ev->execute();
-                incr.release(_tid);
         }
         return return_code;
 }
