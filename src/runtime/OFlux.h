@@ -118,11 +118,11 @@ public:
 		: _bosb(bosb)
 		{}
 	void * next()
-		{
-			BaseOutputStructBase * res = _bosb;
-			if(res) _bosb = reinterpret_cast<BaseOutputStructBase *>(_bosb->__next);
-			return res;
-		}
+	{
+		BaseOutputStructBase * res = _bosb;
+		if(res) _bosb = reinterpret_cast<BaseOutputStructBase *>(_bosb->__next);
+		return res;
+	}
 private:
 	BaseOutputStructBase * _bosb;
 };
