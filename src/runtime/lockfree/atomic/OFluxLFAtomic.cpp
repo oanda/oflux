@@ -216,6 +216,7 @@ ExclusiveWaiterList::dump()
 //              && rcount == 0
 
 
+/*
 bool
 ReadWriteWaiterList::push(
 	  EventBaseHolder * e
@@ -516,6 +517,7 @@ AtomicReadWrite::log_snapshot_waiters() const
 	oflux_log_trace(" rcount:%d _wtype:%d\n", _waiters.rcount, _wtype);
 	_log_snapshot_waiters(&_waiters); 
 }
+*/
 
 /////////////////////////////////////////////////////////////////
 // PoolEventList state encoding:

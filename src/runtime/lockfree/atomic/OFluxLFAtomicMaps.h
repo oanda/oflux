@@ -2,6 +2,7 @@
 #define OFLUX_LF_ATOMIC_MAPS
 
 #include "lockfree/atomic/OFluxLFAtomic.h"
+#include "lockfree/atomic/OFluxLFAtomicReadWrite.h"
 #include "lockfree/atomic/OFluxLFHashTable.h"
 
 namespace oflux {

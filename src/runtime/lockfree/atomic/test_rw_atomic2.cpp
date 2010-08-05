@@ -8,7 +8,7 @@
 #include <OFlux.h>
 #include <flow/OFluxFlowNode.h>
 #include <event/OFluxEvent.h>
-#include <lockfree/atomic/OFluxLFAtomic.h>
+#include <lockfree/atomic/OFluxLFAtomicReadWrite.h>
 #include <OFluxLogging.h>
 
 namespace event {

@@ -4,18 +4,21 @@ OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
 
 LIBRARIES += liboflux.so libofshim.so
 
-SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
+OFLUX_SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
 
 DTRACECALLINGCPPS := $(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f)))
 DTRACE_FLAGS := -G
 
-LF_OBJS := \
-	OFluxThreadNumber.o \
-	OFluxLFAtomic.o \
-	OFluxLockfreeRunTimeThread.o \
-	OFluxLockfreeRunTime.o
+OFLUX_LF_SRC := \
+  OFluxLockfreeRunTime.cpp \
+  OFluxThreadNumber.cpp \
+  OFluxLockfreeRunTimeThread.cpp \
+  OFluxLFAtomic.cpp \
+  OFluxLFAtomicReadWrite.cpp
 
-OBJS := \
+OFLUX_LF_OBJS = $(OFLUX_LF_SRC:.cpp=.o)
+
+OFLUX_OBJS = \
         OFlux.o \
         OFluxLogging.o \
         OFluxProfiling.o \
@@ -37,16 +40,16 @@ OBJS := \
         OFluxRunTimeBase.o \
         OFluxRunTime.o \
         OFluxMeldingRunTime.o \
-	$(LF_OBJS) \
+	$(OFLUX_LF_OBJS) \
         OFluxXML.o \
 	oflux_vers.o
 
 # disable optimization for dtrace USDT code (PIC code not affected):
 $(DTRACECALLINGCPPS:.cpp=.o) : OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)
 
-$(OBJS) $(OBJS:.o=.pic.o) $(SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM_PROBE_HEADER)
+$(OFLUX_OBJS) $(OFLUX_OBJS:.o=.pic.o) $(OFLUX_SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM_PROBE_HEADER)
 
-liboflux.a: $(OBJS)
+liboflux.a: $(OFLUX_OBJS)
 ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj.o $^
 	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj.o -o ofluxprobe_glommed.o
@@ -55,7 +58,7 @@ else
 	$(AR) $(ARFLAGS) $@ $^
 endif
 
-liboflux.so: $(OBJS:%.o=%.pic.o)
+liboflux.so: $(OFLUX_OBJS:%.o=%.pic.o)
 ifneq ($(DTRACE),)
 	$(LD) -r -o glommedobj_so.o $^
 	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj_so.o -o ofluxprobe_glommed_so.o
@@ -71,7 +74,7 @@ $(DTRACE_SHIM_PROBE_HEADER): ofluxshimprobe.d
 	$(if $(DTRACE), $(DTRACE) -h -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d)
 
 
-.SECONDARY: $(OBJS) $(OBJS:%.o=%.pic.o)
+.SECONDARY: $(OFLUX_OBJS) $(OFLUX_OBJS:%.o=%.pic.o)
 
 ifeq ($(_ARCH),SunOS)
 OFLUXRTLIBS= -lposix4 -lexpat -lm -lc -lpthread
@@ -81,7 +84,7 @@ else ifeq ($(_ARCH),Darwin)
 OFLUXRTLIBS= -lexpat -lm -lc -lpthread
 endif
 
-libofshim.so: $(SHIMOBJS)
+libofshim.so: $(OFLUX_SHIMOBJS)
 	$(if $(DTRACE),$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxshimprobe.d OFluxIOShim.pic.o -o ofluxshimprobe_so.o)
 ifeq  ($(_ARCH),Darwin)
 	$(CXX) -flat_namespace -dynamiclib -shared -Wl $^ -o $@
@@ -111,9 +114,9 @@ oflux_vers.cpp: $(VERSDEPEND)
 
 OFLUX_DOCUMENTATION += doc/runtime
 
-doc/runtime: oflux.dox $(OBJS) oflux_vers.cpp
+doc/runtime: oflux.dox $(OFLUX_OBJS) oflux_vers.cpp
 	mkdir -p $@; \
 	$(DOXYGEN) $<
 
 #dependencies
--include $(OBJS:.o=.depend)
+-include $(OFLUX_OBJS:.o=.depend)

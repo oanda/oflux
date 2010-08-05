@@ -211,6 +211,7 @@ private:
 	ExclusiveWaiterList _waiters;
 };
 
+/*
 class ReadWriteWaiterList : public WaiterList {
 public:
 	ReadWriteWaiterList() : rcount(0) {}
@@ -310,6 +311,7 @@ private:
 	int _wtype;
 };
 
+*/
 
 
 template<typename T>
