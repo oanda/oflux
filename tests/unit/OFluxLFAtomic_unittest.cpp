@@ -1,5 +1,6 @@
 #include "CommonEventunit.h"
 #include "lockfree/atomic/OFluxLFAtomic.h"
+#include "lockfree/atomic/OFluxLFAtomicReadWrite.h"
 
 using namespace oflux;
 

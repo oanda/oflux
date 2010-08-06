@@ -374,9 +374,9 @@ void * run_thread(void *vp)
 int main(int argc, char  * argv[])
 {
 	oflux::logging::toStream(std::cout);
-	oflux::logging::logger->setLevelOnOff(oflux::logging::LL_trace,true);
-	oflux::logging::logger->setLevelOnOff(oflux::logging::LL_debug,true);
-	oflux::logging::logger->setLevelOnOff(oflux::logging::LL_info,true);
+	//oflux::logging::logger->setLevelOnOff(oflux::logging::LL_trace,true);
+	//oflux::logging::logger->setLevelOnOff(oflux::logging::LL_debug,true);
+	//oflux::logging::logger->setLevelOnOff(oflux::logging::LL_info,true);
 	oflux::logging::logger->setLevelOnOff(oflux::logging::LL_warn,true);
 	oflux::logging::logger->setLevelOnOff(oflux::logging::LL_error,true);
 	if(argc >= 2) {

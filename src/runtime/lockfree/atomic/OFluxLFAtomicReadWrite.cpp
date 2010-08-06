@@ -55,7 +55,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 		h = head.head();
 		hn = h->next;
 		rcount = head.rcount();
-		mkd = head.mkd();
+		mkd = head.mkd() || hn;
 		if(        type == EventBaseHolder::Write
 			&& rcount == 0 
 			&& !mkd 
@@ -163,7 +163,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 		hn = h->next;
 		rcount = head.rcount();
 		ht = h->type;
-		mkd = head.mkd();
+		mkd = head.mkd() || hn;
 		if(        rcount == -1
 			&& !mkd
 			&& !hn
