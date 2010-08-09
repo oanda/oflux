@@ -141,14 +141,13 @@ AtomicsHolder::release(
 		assert(ha);
 		if(ha->haveit()) {
 			Atomic * a = ha->atomic();
-#ifdef HAS_DTRACE
 			int pre_sz = released_events.size();
-#endif // HAS_DTRACE
 			a->release(released_events);
-                        ha->atomic(NULL);
-#ifdef HAS_DTRACE
 			int post_sz = released_events.size();
-#endif // HAS_DTRACE
+			if(post_sz == pre_sz) {
+				ha->garbage_collect();
+			}
+                        ha->atomic(NULL);
 			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str(),
 				(post_sz > pre_sz ? released_events.back()->flow_node()->getName() : "<nil>"),
 				post_sz - pre_sz);

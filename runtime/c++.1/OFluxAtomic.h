@@ -310,6 +310,9 @@ public:
 	virtual AtomicMapWalker * walker() = 0;
 
 	virtual void log_snapshot(const char * guardname);
+
+	virtual bool garbage_collect(const void *, Atomic *) { return false; } 
+		// no gc by default
 };
 
 class AtomicPooled;
@@ -567,6 +570,25 @@ public:
         { delete (reinterpret_cast<const typename MapPolicy::keytype *>(k)); }
 	virtual AtomicMapWalker * walker() 
         { return new AtomicMapStdWalker<MapPolicy>(_map); }
+	virtual bool garbage_collect(const void * key, Atomic * a)
+	{
+                const typename MapPolicy::keytype * k = 
+                        reinterpret_cast<const typename MapPolicy::keytype *>(key);
+                typename MapPolicy::iterator mitr = _map.find(k);
+		if(_map.end() != mitr) {
+			assert(((*mitr).second == a) 
+				&& "garbage_collect detected that atom object "
+				   "does not match what is in the map");
+			assert(((*mitr).first == k) 
+				&& "garbage_collect detected that key object "
+				   "does not match what is in the map");
+			_map.erase(mitr);
+			delete a;
+			delete_key(const_cast<void*>(key));
+			return true;
+		}
+		return false;
+	}
 private:
 	typename MapPolicy::maptype _map;
 };

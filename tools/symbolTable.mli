@@ -30,6 +30,7 @@ type guard_data = { garguments: ParserTypes.decl_formal list
 		; return: ParserTypes.data_type 
 		; magicnumber: int (* used for priority - text order in prog *)
                 ; gunordered: bool
+                ; ggc: bool
 		}
 
 val add_guard : symbol_table -> ParserTypes.atom_decl -> symbol_table

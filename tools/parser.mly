@@ -50,7 +50,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
 %token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE, IF, STATIC;
-%token <ParserTypes.position*ParserTypes.position> UNORDERED;
+%token <ParserTypes.position*ParserTypes.position> UNORDERED, GC;
 %token <ParserTypes.position*ParserTypes.position> BACKARROW, NOTEQUALS, ISEQUALS;
 %token <ParserTypes.position*ParserTypes.position> DOUBLEAMPERSAND;
 %token <ParserTypes.position*ParserTypes.position> DOUBLEBAR;
@@ -267,6 +267,8 @@ atom_type:
 atom_mod:
         UNORDERED
         { "unordered" }
+        | GC
+        { "gc" }
 
 atom_mod_opt_list:
         /*epsilon*/

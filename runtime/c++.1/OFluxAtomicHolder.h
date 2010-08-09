@@ -140,6 +140,16 @@ public:
                 }
 	inline int wtype() const { return _flow_guard_ref->wtype(); }
         inline bool skipit() const { return _atom == NULL; }
+	inline void garbage_collect()
+	{
+		void ** dptr = _atom->data();
+		if(*dptr == NULL) {
+			if(_flow_guard_ref->garbage_collect(_key,_atom)) {
+				_atom = NULL;
+				_key = NULL;
+			}
+		}
+	}
 private:
 	Atomic *               _atom;
 	flow::GuardReference * _flow_guard_ref;
