@@ -17,6 +17,11 @@ type general_formal =
                 * string ParserTypes.positioned option 
                 * string list )
 
+let rec comma_separate ll =
+	match ll with
+		(h::(_::_ as t)) -> (h @ [ "," ] @ (comma_separate t))
+		| _ -> List.concat ll
+
 let rec break_dotted_name nsn =
         try let ind = String.index nsn '.' in
             let len = String.length nsn in
@@ -598,7 +603,8 @@ uninterpreted_cpp_code_fragment:
         | DOUBLEBAR uninterpreted_cpp_code_fragment 
         { (" || "::$2) }
         | LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
-        { ("("::(List.concat $2)) @ [")"] }
+        { ("("::(comma_separate $2)) @ [")"] 
+	}
         | PIPE uninterpreted_cpp_code_fragment
         { "->"::$2 }
         | STAR uninterpreted_cpp_code_fragment
