@@ -6,6 +6,8 @@ test_lfhashtable: liboflux.so test_lfhashtable.cpp $(LIBS)
 
 test_atomic: test_atomic.cpp $(LIBS)
 
+test_atomic2: test_atomic2.cpp $(LIBS) liboflux.so libofshim.so
+
 test_pool_atomic_unfair: test_pool_atomic_unfair.cpp $(LIBS)
 
 test_pool_atomic_fair: test_pool_atomic_fair.cpp $(LIBS)
