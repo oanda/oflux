@@ -170,6 +170,7 @@ public:
 		}
 		return res;
 	}
+	bool isGC() const { return _is_gc; }
 private:
         AtomicMapAbstract * _amap;
         std::string         _name;
@@ -265,7 +266,7 @@ public:
         inline int wtype() const { return _wtype; }
         inline void setLexicalIndex(int i) { _lexical_index = i; }
         inline int getLexicalIndex() const { return _lexical_index; }
-	inline bool late() const { return _late; }
+	inline bool late() const { return _late || _flow_guard->isGC(); }
 	inline bool garbage_collect(const void * key, Atomic * a)
 	{
 		return _flow_guard->garbage_collect(key,a);
