@@ -101,6 +101,7 @@ let xml_hash_str = "hash"
 let xml_before_str = "before"
 let xml_after_str = "after"
 let xml_late_str = "late"
+let xml_gc_str = "gc"
 
 let depend el_name =
         Element (xml_depend_str
@@ -117,10 +118,11 @@ let condition el_name el_argno el_isnegated el_unionnumber =
 		  ]
 		, [])
 
-let guard el_name =
+let guard el_name el_gc =
 	Element (xml_guard_str
 		, [ xml_name_str, el_name
 		  (*; xml_magicnumber_str, el_magicnumber*)
+		  ; xml_gc_str, el_gc
 		  ]
 		, [])
 
@@ -265,7 +267,7 @@ let emit_program_xml' programname br usesmodel =
 	let is_runonce_source n = List.mem n br.Flow.runoncesources in
         let is_terminate n = List.mem n br.Flow.terminates in
 	let get_node n _ ll = if Flow.is_concrete stable fmap n then n::ll else ll in
-	let get_guard n _ ll = (n::ll) in
+	let get_guard n gd ll = ((n,gd.SymbolTable.ggc)::ll) in
 	let guardlist = SymbolTable.fold_guards get_guard stable [] in 
         let guardlist = List.rev guardlist in
 	let nodelist = Flow.flowmap_fold get_node fmap [] in
@@ -327,7 +329,7 @@ let emit_program_xml' programname br usesmodel =
                         in  find 1 is 
                 with Not_found -> j
                 in
-	let rec gen_cond t_u_n u_n i ccond =
+	let rec gen_cond' t_u_n u_n i ccond =
 		match ccond with
 			(h::t) ->
 				(List.map (fun (s,neg) -> 
@@ -336,8 +338,10 @@ let emit_program_xml' programname br usesmodel =
                                                 in  string_of_int i) 
                                                 (if neg then "true" else "false")
                                                 (string_of_int u_n)) h)
-				@ (gen_cond t_u_n u_n (i+1) t)
+				@ (gen_cond' t_u_n u_n (i+1) t)
 			| _ -> [] in
+	let gen_cond t_u_n u_n i ccond =
+		List.rev (gen_cond' t_u_n u_n i ccond) in
 	(*let rec prod f ll1 ll2 =
 		match ll2 with
 			(h::t) -> (List.map (fun x -> f x h) ll1)
@@ -500,6 +504,13 @@ let emit_program_xml' programname br usesmodel =
 	let one_arg get_argno sp =
 		let argno = get_argno (ParserTypes.strip_position sp)
 		in  argument (string_of_int argno) in *)
+	let rec determine_wtype modifiers =
+		match modifiers with
+			(ParserTypes.Read::_) -> "1"
+			| (ParserTypes.Write::_) -> "2"
+			| (ParserTypes.Upgradeable::_) -> "4"
+			| (_::t) -> determine_wtype t
+			| [] -> "3" in
 	let emit_one n =
 		let is_dt = is_detached n in
 		let is_ext = is_external n in
@@ -525,10 +536,7 @@ let emit_program_xml' programname br usesmodel =
 				(ParserTypes.strip_position gr.ParserTypes.guardname)
 				(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
 				(HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
-				(match gr.ParserTypes.modifiers with
-					(ParserTypes.Read::_) -> "1"
-					| (ParserTypes.Write::_) -> "2"
-					| _ -> "3")
+				(determine_wtype gr.ParserTypes.modifiers)
 				(if has_gargs then "true" else "false")
 			in
 		let is_eh = is_error_handler n in 
@@ -560,8 +568,9 @@ let emit_program_xml' programname br usesmodel =
 			in  Flow.flow_apply (sfun, chefun, coefun, sfun, nfun) fl)
 			(successorlist ((gen_succ n_out_u_n [] succ)
 				@ (if is_src && (not is_ro_src) then [successor "erste" [case n []]] else []))) in
-	let guard_ff (ll,i) gname = 
-		let element = guard gname (*(string_of_int i)*)
+	let guard_ff (ll,i) (gname,gc) = 
+		let element = guard gname (*(string_of_int i)*) 
+				(if gc then "true" else "false")
 		in  (element::ll, i+1) in
         let rec order_node_list onfunl nl =
                 match onfunl with

@@ -476,7 +476,10 @@ let add_error symtable fmap unified err =
 	let h = follow_concrete h in
 	let a_e unified node =
 		let n,npos,_ = node in
-		let fl = FlowMap.find n fmap
+		let fl = 
+			try FlowMap.find n fmap
+			with Not_found ->
+				raise (Failure ("error handler for unknown node"^n,npos))
 		in  match !fl with
 			((Source (a,_,b,hr)) | (CNode (a,_,b,hr))) -> 
 				let _ = hr := h

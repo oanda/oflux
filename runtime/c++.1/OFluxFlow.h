@@ -58,15 +58,16 @@ public:
          * @return 
          **/
         ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
-        /**
-         * @brief lookup a guard translator function
-         * @remark these functions can translate an input structure to a guard key structure
-         * @param guardname name of the guard
-         * @param union_number union number (indicates the input structure)
-         * @param hash is the hash result of on the expression (compiler's)
-         * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
-         * @return the compiled function (pointer to it)
-         */
+	/**
+	 * @brief lookup a guard translator function
+	 * @remark these functions can translate an input structure to a guard key structure
+	 * @param guardname name of the guard
+	 * @param union_number union number (indicates the input structure)
+	 * @param hash is the hash result of on the expression (compiler's)
+	 * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
+	 * @param late is true when this lookup is done for a late guard acquisition
+	 * @return the compiled function (pointer to it)
+	 */
         GuardTransFn lookup_guard_translator(
 		  const char * guardname
                 , int union_number
@@ -115,9 +116,10 @@ private:
  */
 class Guard : public MagicNumberable {
 public:
-        Guard(AtomicMapAbstract * amap, const char * n)
+        Guard(AtomicMapAbstract * amap, const char * n, bool is_gc)
                 : _amap(amap)
                 , _name(n)
+		, _is_gc(is_gc)
                 {}
         /**
          * @brief acquire the atomic value if possible -- otherwise should wait
@@ -160,9 +162,18 @@ public:
          */
         void drain();
 	void log_snapshot() { if(_amap) _amap->log_snapshot(_name.c_str()); }
+	inline bool garbage_collect(const void * key, Atomic * a)
+	{
+		bool res = false;
+		if(_is_gc) {
+			res = _amap->garbage_collect(key,a);
+		}
+		return res;
+	}
 private:
         AtomicMapAbstract * _amap;
         std::string         _name;
+	bool _is_gc;
 };
 
 /**
@@ -210,13 +221,14 @@ public:
          *        and persistent key
          * @param a_out output atomic pointer
          * @param node_in the node input structure (used to generate a key)
+	 * @param ah the atomic holder for this acquisition
          */
         inline const void * 
 	get(      Atomic * & a_out
 		, const void * node_in
 		, AtomicsHolderAbstract * ah)
-        { 
-                bool ok = true;
+	{ 
+		bool ok = true;
 		GuardLocalKey local_key(_flow_guard);
 		try {
 			if(_guardfn) {
@@ -230,7 +242,7 @@ public:
 			a_out = NULL;
 			return NULL;
 		}
-                return _flow_guard->get(a_out,local_key.get());
+		return _flow_guard->get(a_out,local_key.get());
         }
         /**
          * @brief compare keys (pointers to void)
@@ -254,6 +266,10 @@ public:
         inline void setLexicalIndex(int i) { _lexical_index = i; }
         inline int getLexicalIndex() const { return _lexical_index; }
 	inline bool late() const { return _late; }
+	inline bool garbage_collect(const void * key, Atomic * a)
+	{
+		return _flow_guard->garbage_collect(key,a);
+	}
 private:
         GuardTransFn _guardfn;
         Guard *      _flow_guard;

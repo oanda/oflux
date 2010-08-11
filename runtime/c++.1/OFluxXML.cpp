@@ -326,8 +326,8 @@ public:
         }
         void new_flow_successor_list() { }
         void add_flow_successor_list() { }
-        void new_flow_guard(const char * name, AtomicMapAbstract * amap)
-        { _flow->addGuard(new flow::Guard(amap,name)); }
+        void new_flow_guard(const char * name, bool is_gc, AtomicMapAbstract * amap)
+        { _flow->addGuard(new flow::Guard(amap,name,is_gc)); }
         void new_flow_guardprecedence(const char * before, const char * after)
         { _flow->addGuardPrecedence(before,after); }
         void new_flow_guard_reference(flow::Guard * fg
@@ -603,6 +603,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         const char * el_before = NULL;
         const char * el_after = NULL;
         const char * el_late = NULL;
+        const char * el_gc = NULL;
         for(int i = 0; attr[i]; i += 2) {
                 if(strcmp(attr[i],"name") == 0) {
                         el_name = attr[i+1];
@@ -630,6 +631,8 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                         el_before = attr[i+1];
                 } else if(strcmp(attr[i],"late") == 0) {
                         el_late = attr[i+1];
+                } else if(strcmp(attr[i],"gc") == 0) {
+                        el_gc = attr[i+1];
                 } else if(strcmp(attr[i],"hash") == 0) {
                         el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
@@ -639,6 +642,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 }
         }
         bool is_late = (el_late ? strcmp(el_late,"true")==0 : false);
+	bool is_gc = (el_gc ? strcmp(el_gc,"true")==0 : false);
         bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
         bool is_negated = (el_isnegated ? strcmp(el_isnegated,"true")==0 : false);
         bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
@@ -658,7 +662,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 // has no children
                 AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
                 assert(amap);
-                pthis->new_flow_guard(el_name, amap);
+                pthis->new_flow_guard(el_name, is_gc, amap);
         } else if(strcmp(el,"guardprecedence") == 0) {
                 // has attributes: before, after
                 // has no children
@@ -753,6 +757,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         const char * el_after = NULL;
         const char * el_wtype = NULL;
         const char * el_hash = NULL;
+	const char * el_gc = NULL;
 
         for(int i = 0; attr[i]; i += 2) {
                 // node attributes
@@ -789,6 +794,8 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                     	el_before = attr[i+1];
                 } else if(strcmp(attr[i],"late") == 0) {
                     	el_late = attr[i+1];
+                } else if(strcmp(attr[i],"gc") == 0) {
+                    	el_gc = attr[i+1];
                 } else if(strcmp(attr[i],"hash") == 0) {
                     	el_hash = attr[i+1];
                 } else if(strcmp(attr[i],"wtype") == 0) {
@@ -797,6 +804,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         }
 
         bool is_late = (el_late ? strcmp(el_late,"true")==0 : false);
+	bool is_gc = (el_gc ? strcmp(el_gc,"true")==0 : false);
         bool is_source = (el_source ? strcmp(el_source,"true")==0 : false);
         bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
         bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
@@ -828,7 +836,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 // has no children
                 AtomicMapAbstract * amap = pthis->fromThisScope()->lookup_atomic_map(el_name);
                 assert(amap);
-                pthis->new_flow_guard(el_name, amap);
+                pthis->new_flow_guard(el_name, is_gc, amap);
         } else if(strcmp(el,"guardprecedence") == 0) {
                 // has attributes: before, after
                 // has no children

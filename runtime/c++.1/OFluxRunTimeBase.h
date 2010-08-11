@@ -45,6 +45,7 @@ public:
         
 	RunTimeBase(const RunTimeConfiguration & rtc)
                 : _rtc(rtc)
+		, _rtc_ref(rtc)
                 , _running(false)
                 , _load_flow_next(false)
                 {}
@@ -63,8 +64,11 @@ public:
         virtual void log_snapshot() = 0;
         virtual void log_snapshot_guard(const char * guardname) = 0;
         virtual void getPluginNames(std::vector<std::string> & result) = 0;
+        virtual int  thread_count() = 0;
+
 protected:
-	const RunTimeConfiguration   _rtc;
+	RunTimeConfiguration         _rtc;
+	const RunTimeConfiguration & _rtc_ref;
         bool                         _running;
         bool                         _load_flow_next;
 };

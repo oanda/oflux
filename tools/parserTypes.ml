@@ -31,7 +31,7 @@ type decl_formal =
 		; name: string positioned
 		}
 
-type guardmod = Read | Write
+type guardmod = Read | Write | Upgradeable | NullOk
 
 type uninterp_expr =
         Arg of string (* normal node argument *)

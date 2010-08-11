@@ -102,6 +102,11 @@ public:
 		}
 		return reinterpret_cast<T>(vp);
 	}
+	template<typename T>
+	T getDataLexical(int i) {
+		void * vp = getDataLexical(i);
+		return reinterpret_cast<T>(vp);
+	}
 };
 
 	

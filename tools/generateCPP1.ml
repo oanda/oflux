@@ -1090,12 +1090,16 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 | _ ->
                                         ("if(!("^(fill_expr test_expr)
                                         ^")) { return false; }  ") in
-                let wtype grm = 
+                let rec wtype grm = 
                         match grm with 
                                 (Read::_) -> 1
                                 | (Write::_) -> 2
-                                | _ -> 3 in
+                                | (Upgradeable::_) -> 4
+				| (_::t) -> wtype t
+                                | [] -> 3 
+			in
                 let e_gr (code,donel) gr =
+			let nullok = List.mem NullOk gr.modifiers in
 			let has_garg = 
 				let uel = (gr.guardcond::(gr.arguments))
 				in  List.exists uniterp_has_garg uel in
@@ -1121,8 +1125,11 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 					(GArg s) ->
 						let i,t = get_lexical_ind_and_type s
 						in
-						t^" "^s^
-						" = ah->getDataLexicalThrowOnNull<"
+						t^" "^s
+						^" = ah->getDataLexical"
+						^(if nullok then ""
+						 else "ThrowOnNull" )
+						^"<"
 						^t^" >("
 						^(string_of_int i)
 						^");"

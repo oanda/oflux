@@ -174,7 +174,7 @@ public:
 
 class AtomicReadWrite : public AtomicCommon { // implements AtomicScaffold
 public:
-	enum { Read = 1, Write = 2 } WType;
+	enum { Read = 1, Write = 2, Upgradeable = 4 } WType;
 	AtomicReadWrite(void * data)
 		: AtomicCommon(data)
 		, _mode(AtomicCommon::None)
@@ -190,9 +190,13 @@ public:
                         //, _waiters.size());
 		if(_held == 0) {
 			_held = 1;
-			_mode = wtype;
+			_mode = ( wtype == Upgradeable 
+				? (*data() ? Read : Write)
+				: wtype);
 			res = 1;
-		} else if(wtype == Read && _mode == Read && _waiters.size() == 0) {
+		} else if(_mode == Read && _waiters.size() == 0
+				&& ((wtype == Upgradeable && *data())
+					|| (wtype == Read))) {
 			_held++;
 			res = 1;
 		}
@@ -214,10 +218,14 @@ public:
 			if(_waiters.size()) {
 				AtomicQueueEntry & aqe = _waiters.front();
 				_mode = aqe.wtype;
+				if(_mode == Upgradeable) {
+					_mode = (*data() ? Read : Write);
+				}
 				rel_ev.push_back(aqe.event);
 				_waiters.pop_front();
 				if(_mode == Read) {
-					while(_waiters.size() && _waiters.front().wtype == Read) {
+					while(_waiters.size() && (_waiters.front().wtype == Read 
+							|| (*data() && _waiters.front().wtype == Upgradeable))) {
 						rel_ev.push_back(_waiters.front().event);
 						_waiters.pop_front();
 					}
@@ -242,7 +250,7 @@ public:
 	virtual int wtype() const { return _mode; }
 	virtual const char * atomic_class() const { return "ReadWrite"; }
 private:
-	int _mode;
+	int _mode; // should only be either {Read,Write}
 };
 
 /****
@@ -302,6 +310,9 @@ public:
 	virtual AtomicMapWalker * walker() = 0;
 
 	virtual void log_snapshot(const char * guardname);
+
+	virtual bool garbage_collect(const void *, Atomic *) { return false; } 
+		// no gc by default
 };
 
 class AtomicPooled;
@@ -559,6 +570,25 @@ public:
         { delete (reinterpret_cast<const typename MapPolicy::keytype *>(k)); }
 	virtual AtomicMapWalker * walker() 
         { return new AtomicMapStdWalker<MapPolicy>(_map); }
+	virtual bool garbage_collect(const void * key, Atomic * a)
+	{
+                const typename MapPolicy::keytype * k = 
+                        reinterpret_cast<const typename MapPolicy::keytype *>(key);
+                typename MapPolicy::iterator mitr = _map.find(k);
+		if(_map.end() != mitr) {
+			assert(((*mitr).second == a) 
+				&& "garbage_collect detected that atom object "
+				   "does not match what is in the map");
+			assert(((*mitr).first == k) 
+				&& "garbage_collect detected that key object "
+				   "does not match what is in the map");
+			_map.erase(mitr);
+			delete a;
+			delete_key(const_cast<void*>(key));
+			return true;
+		}
+		return false;
+	}
 private:
 	typename MapPolicy::maptype _map;
 };
