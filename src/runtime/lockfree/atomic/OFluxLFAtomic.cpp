@@ -91,6 +91,7 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 	ev.swap(e->ev);
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
+	EventBaseHolder * old_t = NULL;
 	while(1) {
 		h = _head;
 		hn = h->next;
@@ -103,10 +104,17 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 			e->ev.swap(ev);
 			return true;
 		} else {
-			// 2->3
+			// (2,3)->3
 			t = _tail;
-			while(unmk(t) && t->next) {
+			old_t = t;
+			while(unmk(t) && unmk(t->next)) {
 				t = t->next;
+			}
+			if(t != _tail && t->next == NULL) {
+				__sync_bool_compare_and_swap(
+					  &_tail
+					, old_t
+					, t);
 			}
 			if(unmk(t) && __sync_bool_compare_and_swap(
 					  &(t->next)
@@ -129,14 +137,22 @@ ExclusiveWaiterList::pop()
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
 	EventBaseHolder * t = NULL;
+	EventBaseHolder * old_t = NULL;
 	while(1) {
 		h = _head;
 		hn = h->next;
 		t = _tail;
-		while(unmk(t) && t->next) {
+		old_t = t;
+		while(unmk(t) && unmk(t->next)) {
 			t = t->next;
 		}
-		if(h != t && hn != NULL 
+		if(t != _tail && t->next == NULL) {
+			__sync_bool_compare_and_swap(
+				  &_tail
+				, old_t
+				, t);
+		}
+		if(h != _tail && hn != NULL 
 				&& !is_one(hn)
 				&& h->ev.get() != NULL
 				&& __sync_bool_compare_and_swap(

@@ -30,6 +30,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
+#include <cassert>
+#include <deque>
+#include "lockfree/OFluxMachineSpecific.h"
 
 #define dprintf printf
 
@@ -47,6 +50,7 @@ struct LocalEventList { // use in a single thread
 	LocalEventList() : head(NULL), tail(NULL) {}
 
 	void push(Event *e) {
+		assert(e->id);
 		e->next = NULL;
 		if(tail) {
 			tail->next = e;
@@ -58,14 +62,18 @@ struct LocalEventList { // use in a single thread
 	}
 	Event * pop() {
 		Event * r = NULL;
-		if(head) {
+		if(head && head->id) {
 			r = head;
 			if(tail == head) {
 				tail = NULL;
 			}
 			head = head->next;
 			r->next = NULL;
+			if(!r->id) {
+				oflux::lockfree::store_load_barrier();
+			}
 		}
+		assert( (!r) || r->id);
 		return r;
 	}
 		
@@ -171,13 +179,23 @@ struct EventList { // thread safe
 	// 3->2 /\ 3->2 : one wins the cas on the head
 };
 
+#define check_tail(h,t) \
+   { Event * ch = h; \
+     while(unmk(ch) && unmk(ch->next)) ch = ch->next; \
+     assert((t->next != NULL) || ch == t); \
+   }
+
 bool
 EventList::push(Event * e)
 {
 	e->next = NULL;
 	Event * t = NULL;
 
+	if(!e->id) {
+		oflux::lockfree::store_load_barrier();
+	}
 	int id = e->id;
+	assert(id);
 	int w_on = e->waiting_on;
 	int hs = e->has;
 	e->id = 0;
@@ -193,16 +211,22 @@ EventList::push(Event * e)
 				, 0x0001
 				, NULL)) {
 			// 1->2
+			tail = head;
 			e->id = id;
 			e->waiting_on = w_on;
 			e->has = hs;
 			return true;
 		} else {
-			//2->3
+			// (2,3)->3
 			t = tail;
-			while(unmk(t) && t->next) {
+			Event * old_t = t;
+			while(unmk(t) && unmk(t->next)) {
 				t = t->next;
 			}
+			if(t != tail && t->next == NULL) {
+				__sync_bool_compare_and_swap(&tail,old_t,t);
+			}
+			//check_tail(h,t);
 			if(unmk(t) && __sync_bool_compare_and_swap(&(t->next),NULL,e)) {
 				tail = e;
 				t->id = id;
@@ -226,10 +250,15 @@ EventList::pop()
 		h = head;
 		hn = h->next;
 		t = tail;
-		while(unmk(t) && t->next) {
+		Event * old_t = t;
+		while(unmk(t) && unmk(t->next)) {
 			t = t->next;
 		}
-		if(h != t && hn != NULL 
+		if(t != tail && t->next == NULL) {
+			__sync_bool_compare_and_swap(&tail,old_t,t);
+		}
+		//check_tail(h,t);
+		if(h != tail && hn != NULL 
 				&& !is_one(hn)
 				&& h->id != 0
 				&& __sync_bool_compare_and_swap(
@@ -238,6 +267,7 @@ EventList::pop()
 					, hn)) {
 			// 3->(2,3)
 			r = h;
+			assert(r->id);
 			r->next = NULL;
 			break;
 		} else if(hn==NULL && __sync_bool_compare_and_swap(
@@ -256,8 +286,7 @@ EventList::pop()
 namespace atomic {
 
 struct Exclusive {
-	template<typename EL>
-	void release(EL & el);
+	void release(std::deque<event::Event *> & el);
 	bool acquire_or_wait(event::Event * e);
 
 	void dump();
@@ -295,15 +324,15 @@ Exclusive::dump()
 	printf("  tail = %d\n",waiters.tail->id);
 }
 
-template<typename EL>
 void
-Exclusive::release(EL & el)
+Exclusive::release(std::deque<event::Event *> & el)
 {
 	event::Event * e = waiters.pop();
 	if(e) { 
+		assert(e->id);
 		e->has = index;
 		e->waiting_on = -1;
-		el.push(e);
+		el.push_back(e);
 	}
 }
 
@@ -345,10 +374,12 @@ void * run_thread(void *vp)
 	long release_count = 0;
 	long no_op_iterations = 0;
 
-	event::LocalEventList running_evl[2];
+	std::deque<event::Event *> running_evl[2];
 	//event::LocalEventList * from_other_thread = NULL;
 	for(size_t i = 0 ; i < num_events_per_thread; ++i) {
-		running_evl[0].push(new event::Event(1+ num_events_per_thread * (*ip) + i));
+		event::Event * ep = new event::Event(1+ num_events_per_thread * (*ip) + i);
+		assert(ep->id);
+		running_evl[0].push_back(ep);
 	}
 
 	int target_atomic = 0;
@@ -358,14 +389,16 @@ void * run_thread(void *vp)
 	// try to distribute to each thread all the atomics
 	// this is uncontended acquisition
 	for(size_t a = *ip
-			; a < num_atomics && running_evl[0].head != NULL
+			; a < num_atomics && running_evl[0].size() > 0
 			; a+= num_threads) {
-		e = running_evl[0].pop();
+		e = running_evl[0].front();
+		running_evl[0].pop_front();
 		id = e->id;
+		assert(id);
 		if(atomics[a].acquire_or_wait(e)) {
 			// got it right away (no competing waiters)
 			dprintf("%d]%d}- %d acquired\n",*ip, (*ip)%num_atomics,id);
-			running_evl[1].push(e);
+			running_evl[1].push_back(e);
 			++acquire_count;
 		} else {
 			dprintf("%d]%d}- %d waited\n",*ip,(*ip)%num_atomics, id);
@@ -375,20 +408,23 @@ void * run_thread(void *vp)
 	
 	pthread_barrier_wait(&barrier);
 	for(size_t j = 0; j < iterations; ++j) {
-		if(!running_evl[j%2].head) {
+		if(!running_evl[j%2].size()) {
 			++no_op_iterations;
 		}
-		while((e = running_evl[j%2].pop())) {
+		while(running_evl[j%2].size()) {
+			e = running_evl[j%2].front();
+			running_evl[j%2].pop_front();
 			no_op_iterations = 0;
 			int a_index = e->has;
+			assert(e->id);
 			dprintf("%d]   %d running\n",*ip,e->id);
 			if(a_index >=0) {
 				DUMPATOMICS
 				dprintf("%d]%d} %d releasing\n",*ip,a_index,e->id);
-				event::Event * oldtail = running_evl[(j+1)%2].tail;
+				size_t pre_sz = running_evl[(j+1)%2].size();
 				atomics[a_index].release(running_evl[(j+1)%2]);
-				if(running_evl[(j+1)%2].tail && running_evl[(j+1)%2].tail != oldtail) {
-					dprintf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].tail->id);
+				if(running_evl[(j+1)%2].size() > pre_sz) {
+					dprintf("%d]%d} %d came out\n",*ip,a_index, running_evl[(j+1)%2].back()->id);
 				} else {
 					dprintf("%d]%d} nothing came out\n",*ip,a_index);
 				}
@@ -398,11 +434,13 @@ void * run_thread(void *vp)
 			a_index = target_atomic;
 			target_atomic = (target_atomic+1)%num_atomics;
 			id = e->id;
+			assert(e->id);
 			DUMPATOMICS
 			if(atomics[a_index].acquire_or_wait(e)) {
 				// got it right away (no competing waiters)
 				dprintf("%d]%d} %d acquired\n",*ip,a_index, id);
-				running_evl[(j+1)%2].push(e);
+				assert(e->id);
+				running_evl[(j+1)%2].push_back(e);
 				++acquire_count;
 			} else {
 				dprintf("%d]%d} %d waited\n",*ip,a_index, id);
@@ -413,13 +451,18 @@ void * run_thread(void *vp)
 	pthread_barrier_wait(&end_barrier);
 	size_t held_count = 0;
 	size_t waiting_on = 0;
-	e = running_evl[iterations%2].head;
-	while(e && e->id) {
+	std::deque<event::Event *>::iterator ditr = 
+		running_evl[iterations%2].begin();
+	while(ditr != running_evl[iterations%2].end()) {
+		e = *ditr;
+		if(!e->id) {
+			break;
+		}
 		held_count += (e->has >= 0 ? 1 : 0);
 		waiting_on += (e->waiting_on >= 0 ? 1 : 0);
 		printf("%d]+  %d running with %d\n"
 			, *ip, e->id, e->has);
-		e = e->next;
+		++ditr;
 	}
 	printf(" thread %d exited ac: %ld wc: %ld rc: %ld "
 		"hc: %d wo: %d noi:%ld\n"

@@ -207,6 +207,9 @@ public:
 	}
 	virtual void log_snapshot_waiters() const
 	{ _log_snapshot_waiters(&_waiters); }
+
+	void _dump()
+	{ _waiters.dump(); }
 private:
 	ExclusiveWaiterList _waiters;
 };
