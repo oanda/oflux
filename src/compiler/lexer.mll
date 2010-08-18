@@ -247,6 +247,7 @@ rule token = parse
 	| "const" { updatePosInTok lexbuf (fun x -> CONST x) }
 	| "guard" { updatePosInTok lexbuf (fun x -> GUARD x) }
         | "unordered" { updatePosInTok lexbuf (fun x -> UNORDERED x) }
+        | "gc" { updatePosInTok lexbuf (fun x -> GC x) }
 	| "exclusive" { updatePosInTok lexbuf (fun x -> EXCLUSIVE x) }
 	| "readwrite" { updatePosInTok lexbuf (fun x -> READWRITE x) }
 	| "free" { updatePosInTok lexbuf (fun x -> FREE x) }

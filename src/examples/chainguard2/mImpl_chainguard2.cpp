@@ -78,8 +78,8 @@ N(        const N_in * in
 			, tfstr(gb_new));
 	}
 
-        if(atoms->have_gc()) {
-		Cob * & gc = atoms->gc();
+        if(atoms->have_gc_()) {
+		Cob * & gc = atoms->gc_();
 
 		if(gc == NULL) {
 			gc = new Cob(b);
@@ -99,12 +99,12 @@ N(        const N_in * in
 	}
 
         // ga always grabbed or created
-        if(!atoms->have_gb() && !atoms->have_gc()) {
+        if(!atoms->have_gb() && !atoms->have_gc_()) {
 		printf("N %d %d %s have no gb have no gc\n"
 			, in->a
 			, ga->get_a()
 			, tfstr(ga_new));
-	} else if (atoms->have_gb() && !atoms->have_gc()){
+	} else if (atoms->have_gb() && !atoms->have_gc_()){
 		printf("N %d %d %d %s %s have no gc\n"
 			, in->a
 			, ga->get_a()

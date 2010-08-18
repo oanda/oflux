@@ -1153,6 +1153,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 				in  List.exists uniterp_has_garg uel in
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
+			let is_gc = gd.SymbolTable.ggc in
                         let hash = HashString.hash (gr.arguments, gr.guardcond) in
                         let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn^"_"^hash) in
                         if (not with_map) && List.mem gtfunc donel then
@@ -1211,7 +1212,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 ^(string_of_int u_n)^", "
                                 ^"\""^hash^"\", "
                                 ^(string_of_int (wtype gr.modifiers))^", "
-				^(if has_garg then "true" else "false")^", "
+				^(if has_garg || is_gc then "true" else "false")^", "
                                 ^"&"^gtfunc
                                 ^" },  ") in
                         let code = if with_map then 

@@ -1,4 +1,5 @@
 #include "OFluxLFAtomicReadWrite.h"
+#include <cstdio>
 
 namespace oflux {
 namespace lockfree {

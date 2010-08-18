@@ -1,0 +1,4 @@
+This test will demonstrate the guard garbage collection feature.
+When the key space of a guard is not bounded, it is necessary to try
+to recover (via garbage collection) the (key,value) pairs that have NULL
+value since letting those grow can appear to be a memory leak.

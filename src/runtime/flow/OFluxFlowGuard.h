@@ -20,9 +20,10 @@ class Guard : public MagicNumberable {
 public:
 	typedef Flow ParentObjType;
 
-        Guard(atomic::AtomicMapAbstract * amap, const char * n)
+        Guard(atomic::AtomicMapAbstract * amap, const char * n, bool is_gc)
                 : _amap(amap)
                 , _name(n)
+		, _is_gc(is_gc)
                 {}
         /**
          * @brief acquire the atomic value if possible -- otherwise should wait
@@ -65,9 +66,19 @@ public:
          */
         void drain();
 	void log_snapshot() { if(_amap) _amap->log_snapshot(_name.c_str()); }
+	inline bool garbage_collect(const void * key, atomic::Atomic * a)
+ 	{
+ 		bool res = false;
+ 		if(_is_gc) {
+ 			res = _amap->garbage_collect(key,a);
+ 		}
+ 		return res;
+ 	}
+	bool isGC() const { return _is_gc; }
 private:
         atomic::AtomicMapAbstract * _amap;
-        std::string         _name;
+        std::string _name;
+	bool _is_gc;
 };
 
 /**
@@ -162,7 +173,11 @@ public:
         inline int wtype() const { return _wtype; }
         inline void setLexicalIndex(int i) { _lexical_index = i; }
         inline int getLexicalIndex() const { return _lexical_index; }
-	inline bool late() const { return _late; }
+	inline bool late() const { return _late || _flow_guard->isGC(); }
+ 	inline bool garbage_collect(const void * key, atomic::Atomic * a)
+ 	{
+ 		return _flow_guard->garbage_collect(key,a);
+ 	}
 private:
         GuardTransFn _guardfn;
         Guard *      _flow_guard;

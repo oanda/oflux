@@ -246,7 +246,7 @@ public:
                 , atom2(NULL)
         { 
 		// make n_next grab a pool guard
-		static oflux::flow::Guard g(&pool,"testpool");
+		static oflux::flow::Guard g(&pool,"testpool", false);
 		static oflux::flow::GuardReference * gr =
 			new oflux::flow::GuardReference(&g,pl,false);
 		n_next.add(gr);

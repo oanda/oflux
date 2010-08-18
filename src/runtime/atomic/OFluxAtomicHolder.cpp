@@ -253,11 +253,12 @@ AtomicsHolder::release(
 			if(should_relinquish) {
 				ha->relinquish();
 			}
-			ha->atomic(NULL);
 
-#ifdef HAS_DTRACE
 			size_t post_sz = released_events.size();
-#endif // HAS_DTRACE
+			if(post_sz == pre_sz && a->waiter_count() == 0 && a->held() == 0) {
+ 				ha->garbage_collect();
+ 			}
+			ha->atomic(NULL);
 			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
 				, (post_sz > pre_sz 
 					? released_events.back()->flow_node()->getName() 

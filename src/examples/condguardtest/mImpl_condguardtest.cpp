@@ -2,6 +2,10 @@
 #include "OFluxGenerate_condguardtest.h"
 #include "atomic/OFluxAtomicInit.h"
 
+bool
+C_(int b1, int b2) 
+{ return b1 <= 8; }
+
 int S(const S_in *, S_out * out, S_atoms * atoms)
 {
 	int * & ptr = atoms->Ga();

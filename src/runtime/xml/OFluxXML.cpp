@@ -170,6 +170,7 @@ public:
 	static const char * attr_after;
 	static const char * attr_before;
 	static const char * attr_late;
+	static const char * attr_gc;
 	static const char * attr_hash;
 	static const char * attr_wtype;
 	static const char * attr_function;
@@ -768,6 +769,7 @@ const char * XMLVocab::attr_outputunionnumber = "outputunionnumber";
 const char * XMLVocab::attr_after = "after";
 const char * XMLVocab::attr_before = "before";
 const char * XMLVocab::attr_late = "late";
+const char * XMLVocab::attr_gc = "gc";
 const char * XMLVocab::attr_hash = "hash";
 const char * XMLVocab::attr_wtype = "wtype";
 const char * XMLVocab::attr_function = "function";
@@ -810,6 +812,7 @@ fillAttributeMap(
 		, XMLVocab::attr_after
 		, XMLVocab::attr_before
 		, XMLVocab::attr_late
+		, XMLVocab::attr_gc
 		, XMLVocab::attr_hash
 		, XMLVocab::attr_wtype
 		, XMLVocab::attr_function
@@ -962,8 +965,10 @@ flow_element_factory<flow::Guard>(AttributeMap & amap, Reader & reader)
 {
 	const char * name =
 		amap.getOrThrow(XMLVocab::attr_name).c_str();
+	bool is_gc =
+		amap.getOrThrow(XMLVocab::attr_gc).boolVal();
 	atomic::AtomicMapAbstract * atomicmap = reader.fromThisScope()->lookup_atomic_map(name);
-	return new flow::Guard(atomicmap,name);
+	return new flow::Guard(atomicmap,name,is_gc);
 }
 
 template<>
@@ -985,7 +990,7 @@ flow_element_factory<flow::GuardReference>(AttributeMap & amap, Reader & reader)
                                 , unionnumber
                                 , hash
                                 , wtype
-                                , is_late);
+                                , result->late());
 		if(!guardfn) {
 			std::string ex_msg = "guard translator function not found for ";
 			ex_msg += guard_name;
