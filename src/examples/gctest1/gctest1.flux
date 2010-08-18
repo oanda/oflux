@@ -1,4 +1,4 @@
-exclusive Gb (int v) => int *; 
+exclusive/gc Gb (int v) => int *; 
   /* remove the /gc to cause this program to leak memory */
 
 node S () => (int a);
