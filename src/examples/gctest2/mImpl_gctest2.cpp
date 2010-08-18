@@ -2,6 +2,7 @@
 #include "OFluxGenerate_gctest2.h"
 #include "atomic/OFluxAtomicInit.h"
 #include "OFlux.h"
+#include <unistd.h>
 
 int 
 S_splay(const S_splay_in *, S_splay_out * out, S_splay_atoms * atoms)
@@ -13,6 +14,7 @@ S_splay(const S_splay_in *, S_splay_out * out, S_splay_atoms * atoms)
 		ptool->a = (++x)%10;
 		ptool.next();
 	}
+	usleep(10);
 	return 0;
 }
 
