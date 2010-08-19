@@ -51,7 +51,12 @@ public:
 		, const void * key)
 	{
 		const K * k = reinterpret_cast<const K *>(key);
-		A * res = const_cast<A *>(_table.get(*k));
+		size_t k_hash = hash<K>()(*k);
+		_thread_k_hashes[_tn.index] = k_hash;
+		A * res = &_tombstone;
+		while(res == &_tombstone) {
+			res = const_cast<A *>(_table.get(*k));
+		}
 		if(res == Table::HTC::Does_Not_Exist) {
 			// insert it
 			res = new A(NULL);
@@ -79,9 +84,46 @@ public:
 			_table.getKeyValues();
 		return new AtomicMapUnorderedWalker<K,A>(enumer);
 	}
+	virtual bool garbage_collect(const void * key, oflux::atomic::Atomic * a)
+	{
+		bool res = false;
+		const K * k = reinterpret_cast<const K *>(key);
+		size_t k_hash = hash<K>()(*k);
+		if(a->held()+a->waiter_count() == 0 && !k_hash_used(k_hash)) {
+			if(_table.compareAndSwap(*k,reinterpret_cast<A*>(a),&_tombstone)) {
+				if(a->held()+a->waiter_count() == 0 && !k_hash_used(k_hash)) {
+					_table.remove(*k);
+					delete a;
+				} else {
+					// oops return it to the hash
+					_table.compareAndSwap(*k,&_tombstone,reinterpret_cast<A*>(a));
+				}
+			}
+		}
+		return res;
+	}
+private:
+	inline bool k_hash_used(size_t kh) const
+	{
+		for(size_t i = 0
+				; i < DEFAULT_MEMPOOL_MAX_THREADS
+				  && i < ThreadNumber::num_threads
+				; ++i) {
+			if(_thread_k_hashes[i] == kh) {
+				return true;
+			}
+		}
+		return false;
+	}
 private:
 	Table _table;
+	static A _tombstone;
+	size_t _thread_k_hashes[DEFAULT_MEMPOOL_MAX_THREADS];
 };
+
+template< typename K
+	, typename A>
+A AtomicMapUnordered<K,A>::_tombstone(NULL);
 
 } // namespace atomic
 } // namespace lockfree
