@@ -195,7 +195,7 @@ public:
 				delete kp;
 				kp = NULL;
 			}
-			if(vp) {
+			if(vp && vp != HTC::TombStone && vp != HTC::Copied_Value ) {
 				delete vp;
 				vp = NULL;
 			}
@@ -250,6 +250,26 @@ public:
 			: ent_val);
 	}
 			
+	bool
+	remove_key(const K & k, size_t k_hash)
+	{
+		bool is_empty;
+		volatile Entry * ent = lookUp(k,k_hash,is_empty);
+		K * ent_k = ent->key;
+		if(!is_empty 
+				&& ent->value == HTC::TombStone 
+				&& __sync_bool_compare_and_swap(
+					  &ent->key
+					, ent_k
+					, NULL)) {
+			if(ent->value == HTC::TombStone) {
+				delete ent_k;
+				__sync_bool_compare_and_swap(&ent->value,HTC::TombStone,NULL);
+				return true;
+			}
+		}
+		return false;
+	}
 
 protected:
 
@@ -720,6 +740,8 @@ public:
 			assert(impl->_next);
 			impl = impl->_next;
 		} while(1);
+		// now recover the key:
+		impl->remove_key(k,k_hash);
 	}
 
 	// compareAndSwap() ____________________________________________
