@@ -69,7 +69,9 @@ public:
 			}
 		}
 		atomic = res;
-		return _table.getPersistentKey(res);
+		const void * per_key = _table.getPersistentKey(k,k_hash);
+		printf("get k %p\n",per_key);
+		return per_key;
 	}
 	virtual int compare(const void * v_k1, const void * v_k2) const
 	{ return oflux::atomic::k_compare<K>(v_k1,v_k2); }
@@ -89,16 +91,23 @@ public:
 		bool res = false;
 		const K * k = reinterpret_cast<const K *>(key);
 		size_t k_hash = hash<K>()(*k);
+		printf("gc on k %p\n", k);
 		if(a->held()+a->waiter_count() == 0 && !k_hash_used(k_hash)) {
 			if(_table.compareAndSwap(*k,reinterpret_cast<A*>(a),&_tombstone)) {
 				if(a->held()+a->waiter_count() == 0 && !k_hash_used(k_hash)) {
+					printf("   gc remove on k %p\n", k);
 					_table.remove(*k);
 					delete a;
 				} else {
+					printf("   fail gc on second check %p\n", k);
 					// oops return it to the hash
 					_table.compareAndSwap(*k,&_tombstone,reinterpret_cast<A*>(a));
 				}
+			} else {
+				printf("  fail gc on cas k %p\n", k);
 			}
+		} else {
+			printf(" fail gc on init chk %p\n", k);
 		}
 		return res;
 	}

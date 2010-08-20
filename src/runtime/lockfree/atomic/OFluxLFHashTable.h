@@ -131,12 +131,12 @@ public:
 		V * value;
 	};
 
-	static const K * key_from_value(const V *v) {
+	/*static const K * key_from_value(const V *v) {
 		static const Entry e;
 		static const size_t offset = reinterpret_cast<size_t>(&e.value)
 			- reinterpret_cast<size_t>(&e);
 		return reinterpret_cast<const K *>(reinterpret_cast<const char *>(v)-offset);
-	}
+	}*/
 
 	/**
 	 * @brief hold the constants that are needed by the implementation
@@ -263,6 +263,7 @@ public:
 					, ent_k
 					, NULL)) {
 			if(ent->value == HTC::TombStone) {
+				printf("ht rmk del k %p\n",ent_k);
 				delete ent_k;
 				__sync_bool_compare_and_swap(&ent->value,HTC::TombStone,NULL);
 				return true;
@@ -316,11 +317,13 @@ protected:
 				return HTC::Does_Not_Exist;
 			}
 			K * new_k = new K(k);
+			printf("ht cas new k %p\n",new_k);
 			K * old_k = __sync_val_compare_and_swap(
 					  &ent->key
 					, NULL
 					, new_k);
 			if(old_k != NULL) {
+				printf("ht cas del k %p\n",new_k);
 				delete new_k;
 				return compareAndSwap(
 					  k
@@ -416,6 +419,20 @@ protected:
 		// and the caller should look to _next to see if it is 
 		// in there.
 		return NULL;
+	}
+
+	const K *
+	getPersistentKey( const K * k, size_t k_hash )
+	{
+		bool is_empty;
+		volatile Entry * ent = lookUp(
+			  *k
+			, k_hash
+			, is_empty);
+		if(_next && ent == NULL) {
+			return _next->getPersistentKey(k,k_hash);
+		}
+		return is_empty || (ent == NULL) ? NULL : ent->key;
 	}
 
 	// nextIndex() _________________________________________________
@@ -715,8 +732,8 @@ public:
 	//  gets us the internal key when the get() return value is
 	//  a real value
 	inline const K *
-	getPersistentKey(const V * v) {
-		return Implementation::key_from_value(v);
+	getPersistentKey(const K * k, size_t k_hash) {
+		return _impl->getPersistentKey(k,k_hash);
 	}
 
 	// remove() ____________________________________________________
