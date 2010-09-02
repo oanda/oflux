@@ -14,7 +14,8 @@ OFLUX_LF_SRC := \
   OFluxThreadNumber.cpp \
   OFluxLockfreeRunTimeThread.cpp \
   OFluxLFAtomic.cpp \
-  OFluxLFAtomicReadWrite.cpp
+  OFluxLFAtomicReadWrite.cpp \
+  OFluxLFAtomicPooled.cpp
 
 OFLUX_LF_OBJS = $(OFLUX_LF_SRC:.cpp=.o)
 

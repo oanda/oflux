@@ -39,6 +39,18 @@ namespace atomic {
   t->type = type; \
   t->ev.swap(ev);
 
+ReadWriteWaiterList::~ReadWriteWaiterList()
+{
+	EventBaseHolder * e = _head.head();
+	EventBaseHolder * en;
+	while((en = e->next)) {
+		AtomicCommon::allocator.put(e);
+		e = en;
+	}
+	if(e) {
+		AtomicCommon::allocator.put(e);
+	}
+}
 
 bool
 ReadWriteWaiterList::push(EventBaseHolder * e, int type)

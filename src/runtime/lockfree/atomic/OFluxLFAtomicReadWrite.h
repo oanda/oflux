@@ -65,6 +65,7 @@ public:
 		: _head(AtomicCommon::allocator.get(EventBase::no_event,EventBaseHolder::None), 0, false)
 		, _tail(_head.head())
 	{}
+	~ReadWriteWaiterList();
 	bool push(EventBaseHolder * e, int type);
 	void pop(EventBaseHolder * & el, int by_type);
 	void dump();
