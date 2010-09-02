@@ -157,10 +157,15 @@ public:
 	 * @brief count (per thread) statistics need by the implementation
 	 */
 	struct Stats {
-		Counter<size_t> count;
+		Stats() 
+			: count(0)
+			, num_entries_copied(0) 
+		{}
+
+		size_t count;
 		Counter<size_t> key_count;
 		Counter<size_t> copy_scan;
-		Counter<size_t> num_entries_copied;
+		size_t num_entries_copied;
 	};
 
 
@@ -240,7 +245,7 @@ public:
 					, VOLATILE_SELF._next
 					);
 				if(did_copy) {
-					++_stats.num_entries_copied;
+					__sync_fetch_and_add(&_stats.num_entries_copied,1);
 				}
 			}
 			return VOLATILE_SELF._next->get(k,k_hash);
@@ -263,7 +268,7 @@ public:
 					, ent_k
 					, NULL)) {
 			if(ent->value == HTC::TombStone) {
-				printf("ht rmk del k %p\n",ent_k);
+				//printf("%d ht rmk del k %p\n",pthread_self(), ent_k);
 				delete ent_k;
 				__sync_bool_compare_and_swap(&ent->value,HTC::TombStone,NULL);
 				return true;
@@ -317,13 +322,17 @@ protected:
 				return HTC::Does_Not_Exist;
 			}
 			K * new_k = new K(k);
-			printf("ht cas new k %p\n",new_k);
+			//printf("%d ht cas this %p new k %p kh\n"
+				//, pthread_self()
+				//, this
+				//, new_k
+				//, k_hash);
 			K * old_k = __sync_val_compare_and_swap(
 					  &ent->key
 					, NULL
 					, new_k);
 			if(old_k != NULL) {
-				printf("ht cas del k %p\n",new_k);
+				//printf("%d ht cas del k %p\n",pthread_self(),new_k);
 				delete new_k;
 				return compareAndSwap(
 					  k
@@ -342,7 +351,7 @@ protected:
 					, k_hash
 					, VOLATILE_SELF._next);
 				if(did_copy) {
-					++_stats.num_entries_copied;
+					__sync_fetch_and_add(&_stats.num_entries_copied,1);
 				}
 			}
 			return HTC::Copied_Value;
@@ -375,9 +384,9 @@ protected:
 				, k_hash);
 		}
 		if(old_existed && new_val == HTC::Does_Not_Exist) {
-			--_stats.count;
+			__sync_add_and_fetch(&_stats.count,-1);
 		} else if(!old_existed && new_val != HTC::Does_Not_Exist) {
-			++_stats.count;
+			__sync_add_and_fetch(&_stats.count,1);
 		}
 		return ent_val;
 	}
@@ -430,7 +439,7 @@ protected:
 			, k_hash
 			, is_empty);
 		if(_next && ent == NULL) {
-			return _next->getPersistentKey(k,k_hash);
+			return VOLATILE_SELF._next->getPersistentKey(k,k_hash);
 		}
 		return is_empty || (ent == NULL) ? NULL : ent->key;
 	}
@@ -452,7 +461,7 @@ protected:
 	// initiate a copy by creating a new _next table
 	void 
 	startCopy() {
-		size_t count = _stats.count.value();
+		size_t count = _stats.count;
 		unsigned short newscale = _scale;
 		newscale += (count > (1ULL << (_scale - 1))) 
 			|| (count > (1ULL << (_scale - 2)) 
@@ -537,8 +546,8 @@ protected:
 		}
 		ent->value = const_cast<V *>(HTC::Copied_Value);
 		if(old_nht_ent_val == HTC::Does_Not_Exist) {
-			--_stats.count;
-			nht->_stats.count++;
+			__sync_add_and_fetch(&_stats.count,-1);
+			__sync_add_and_fetch(&nht->_stats.count,+1);
 			return true;
 		}
 		return false;
@@ -550,7 +559,7 @@ protected:
 	helpCopy() {
 		volatile Entry * ent;
 		size_t limit;
-		size_t total_copied = _stats.num_entries_copied.value();
+		size_t total_copied = _stats.num_entries_copied;
 		size_t num_copied = 0;
 		size_t x = _stats.copy_scan.value();
 		if(total_copied != (1ULL << _scale)) {
@@ -569,8 +578,7 @@ protected:
 				assert(ent <= _table + (1ULL << _scale));
 			}
 			if(num_copied) {
-				_stats.num_entries_copied += num_copied;
-				total_copied = _stats.num_entries_copied.value();
+				total_copied = __sync_add_and_fetch(&_stats.num_entries_copied,num_copied);
 			}
 		}
 		return (total_copied == (1ULL << _scale));
@@ -590,7 +598,7 @@ protected:
 	// return the stats entry count
 	inline size_t
 	count()
-	{ return _stats.count.value(); }
+	{ return _stats.count; }
 
 private:
 	unsigned short                 _scale;
@@ -742,6 +750,7 @@ public:
 	remove(const K & k) {
 		const V * val;
 		size_t k_hash = hash<K>()(k);
+		//printf("%d remove on kh %u\n", pthread_self(), k_hash);
 		Implementation * impl = _impl;
 		do {
 			val = impl->compareAndSwap(
@@ -779,9 +788,12 @@ public:
 						  &_impl
 						, impl
 						, impl->_next)) {
+					//printf("%d impl up %p %p\n", pthread_self(), impl, impl->_next);
+					Implementation * impl_next = impl->_next;
 					if(0 == impl->release()) {
 						delete impl;
 					}
+					impl = impl_next;
 				}
 			}
 		}

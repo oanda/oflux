@@ -57,20 +57,33 @@ public:
 		while(res == &_tombstone) {
 			res = const_cast<A *>(_table.get(*k));
 		}
+		//int path = 0;
+		const A * cas_res = NULL;
 		if(res == Table::HTC::Does_Not_Exist) {
 			// insert it
 			res = new A(NULL);
-			const A * cas_res = _table.compareAndSwap(
+			cas_res = _table.compareAndSwap(
 				  *k
 				, Table::HTC::Does_Not_Exist
 				, res);
+			//path = 1;
 			if(Table::HTC::Does_Not_Exist != cas_res) { // cas succeeds
 				res = const_cast<A *>(_table.get(*k));
+				//path=2;
 			}
+			//printf("%d get k had to cas hash %u casres %d\n"
+				//, pthread_self()
+				//, k_hash
+				//, Table::HTC::Does_Not_Exist != cas_res);
 		}
 		atomic = res;
 		const void * per_key = _table.getPersistentKey(k,k_hash);
-		printf("get k %p\n",per_key);
+		assert(per_key);
+		//printf("%d get k %p hash %u a %p\n"
+			//, pthread_self()
+			//, per_key
+			//, k_hash
+			//, atomic);
 		return per_key;
 	}
 	virtual int compare(const void * v_k1, const void * v_k2) const
@@ -91,23 +104,23 @@ public:
 		bool res = false;
 		const K * k = reinterpret_cast<const K *>(key);
 		size_t k_hash = hash<K>()(*k);
-		printf("gc on k %p\n", k);
+		//printf("%d gc on k %p\n", pthread_self(), k);
 		if(a->held()+a->waiter_count() == 0 && !k_hash_used(k_hash)) {
 			if(_table.compareAndSwap(*k,reinterpret_cast<A*>(a),&_tombstone)) {
 				if(a->held()+a->waiter_count() == 0 && !k_hash_used(k_hash)) {
-					printf("   gc remove on k %p\n", k);
+					//printf("%d   gc remove on k %p\n", pthread_self(), k);
 					_table.remove(*k);
 					delete a;
 				} else {
-					printf("   fail gc on second check %p\n", k);
+					//printf("%d   fail gc on second check %p\n", pthread_self(), k);
 					// oops return it to the hash
 					_table.compareAndSwap(*k,&_tombstone,reinterpret_cast<A*>(a));
 				}
 			} else {
-				printf("  fail gc on cas k %p\n", k);
+				//printf("%d  fail gc on cas k %p\n", pthread_self(), k);
 			}
 		} else {
-			printf(" fail gc on init chk %p\n", k);
+			//printf("%d fail gc on init chk %p\n", pthread_self(), k);
 		}
 		return res;
 	}
