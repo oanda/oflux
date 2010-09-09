@@ -156,6 +156,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
     mkd2 = head2.mkd(); \
   } while( h2->type == EventBaseHolder::Read \
 	&& h2->next != NULL \
+	&& h2->ev.get() \
 	&& mkd2 \
 	&& _head.compareAndSwap(head2,hn2,rcount2+1,hn2->next!=NULL) \
 	&& (h2->next = el) \
@@ -201,6 +202,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 		} else if( rcount == -1
 			&& mkd
 			&& ht == EventBaseHolder::Write
+			&& h->ev.get()
 			&& hn
 			&& !hn->next
 				// 4->2
@@ -212,6 +214,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 		} else if( rcount == -1
 			&& mkd
 			&& ht == EventBaseHolder::Write
+			&& h->ev.get()
 			&& hn
 			&& hn->next
 				// 4->4
@@ -223,6 +226,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 		} else if( rcount == -1
 			&& mkd
 			&& ht == EventBaseHolder::Read
+			&& h->ev.get()
 			&& hn
 				// 4->(3,5)
 			&& _head.compareAndSwap(head,hn,1,hn->next!=NULL)
@@ -233,6 +237,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			break;
 		} else if( rcount == 1
 			&& mkd
+			&& h->ev.get()
 			&& ht == EventBaseHolder::Write
 			&& hn
 				// 5->(2,4)
@@ -250,6 +255,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			break;
 		} else if( rcount == 1
 			&& mkd
+			&& h->ev.get()
 			&& ht == EventBaseHolder::Read
 			&& hn
 				// 5->(3,5) [*]
