@@ -1,8 +1,6 @@
 #ifndef ATOMIC_INIT_H
 #define ATOMIC_INIT_H
 
-#include <vector>
-
 /**
  * @file OFluxAtomicInit.h
  * @author Mark Pichora
@@ -11,6 +9,8 @@
  *    functionality is (1) to initiatialize the guard before the runtime
  *    starts and (2) to recover resources when the runtime has finished.
  */
+
+#include <vector>
 
 namespace oflux {
 namespace atomic {

@@ -1,6 +1,14 @@
 #ifndef _OFLUX_ATOMIC
 #define _OFLUX_ATOMIC
 
+/**
+ * @file OFluxAtomic.h
+ * @author Mark Pichora
+ * @brief These classes are used to implement the runtime aspect of 
+ *        atomic guards
+ */
+
+
 #include <deque>
 #include <map>
 
@@ -18,13 +26,6 @@ namespace oflux {
 class EventBase;
 
 namespace atomic {
-
-/**
- * @file OFluxAtomic.h
- * @author Mark Pichora
- * @brief These classes are used to implement the runtime aspect of 
- *        atomic guards
- */
 
 
 /**

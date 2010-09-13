@@ -1,6 +1,15 @@
 #ifndef OFLUX_DISTRIBUTED_COUNTER_H
 #define OFLUX_DISTRIBUTED_COUNTER_H
 
+/**
+ * @file OFluxDistributedCounter.h
+ * @author Mark Pichora
+ * A distributed counter is an object with per-thread local counters
+ * whose sum represents the overall value of the counter.  This is done
+ * so that each thread can quickly increment the counter, and not pay
+ * any contention penalty on the changes.
+ */
+
 #include <cstdlib>
 #include "lockfree/OFluxThreadNumber.h"
 

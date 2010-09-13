@@ -1,6 +1,14 @@
 #ifndef OFLUX_LOCKFREE_RUNTIME
 #define OFLUX_LOCKFREE_RUNTIME
 
+/**
+ * @file OFluxLockfreeRunTime.h
+ * @author Mark Pichora
+ *  Implementation of the lock-free runtime.  This runtime does not use
+ * a central mutex (like the classic one), but rather relies on threads to
+ * work independently on their own work stealing deques.
+ */
+
 #include "OFluxRunTimeAbstract.h"
 #include "lockfree/OFluxLockfreeRunTimeThread.h"
 #include "lockfree/OFluxThreadNumber.h"

@@ -1,6 +1,13 @@
 #ifndef OFLUX_LOCKFREE_MEMPOOL_H
 #define OFLUX_LOCKFREE_MEMPOOL_H
 
+/**
+ * @file OFluxLFMemoryPool.h
+ * @author Mark Pichora
+ *  Lock-free memory allocation pools.  Does its best to memory pool on
+ * a per-thread basis.
+ */
+
 #include <cstdlib>
 #include <new>
 #include <malloc.h>

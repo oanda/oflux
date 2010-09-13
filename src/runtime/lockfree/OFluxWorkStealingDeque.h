@@ -1,10 +1,16 @@
 #ifndef OFLUX_WS_DEQUE
 #define OFLUX_WS_DEQUE
-//
-// based on the paper:
-// David Chase and Yososi Lev
-// "Dynamic Circular Work-Stealing Deques" (SPAA'05)
-//
+
+/**
+ * @file OFluxWorkStealingDeque.h
+ * @author Mark Pichora
+ * This code is based on the paper:
+ *  David Chase and Yososi Lev
+ *  "Dynamic Circular Work-Stealing Deques" (SPAA'05)
+ * It implements a deque on which one end can be locally accessed within the
+ * thread, and the other end can be used by other threads for stealing 
+ * elements.  The cost of stealling involves a CAS, and the use of the local
+ */
 
 #include <cstdio>
 #include <strings.h>

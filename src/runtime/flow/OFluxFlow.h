@@ -4,7 +4,7 @@
 /**
  * @file OFluxFlow.h
  * @author Mark Pichora
- * Flow data structure which encapsulates the program data flow.
+ * Top-level flow data structure which encapsulates the program data flow.
  * This only changes if we have the server load a new flow graph.
  */
 

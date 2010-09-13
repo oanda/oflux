@@ -1,6 +1,14 @@
 #ifndef _OFLUX_FLOW_NODE
 #define _OFLUX_FLOW_NODE
 
+/**
+ * @file OFluxFlowNode.h
+ * @author Mark Pichora
+ * Flow object to hold the details of event node execution.  Each node's
+ * C function pointer, list of resources and logic to obtain successors
+ * is encapsulated here.
+ */
+
 #include "OFlux.h"
 #include "OFluxProfiling.h"
 #include <vector>

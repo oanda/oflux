@@ -1,6 +1,13 @@
 #ifndef OFLUX_ALLOCATOR
 #define OFLUX_ALLOCATOR
 
+/**
+ * @file OFluxAllocator.h
+ * @author Mark Pichora
+ * Holds the interface for allocators used in key parts of the runtime.
+ * an implementation for the standard new/delete is there too
+ */
+
 #include <new>
 
 namespace oflux {
@@ -13,6 +20,11 @@ public:
 	virtual void put(void *) = 0;
 };
 
+/**
+ * @class MallocAllocatorImplementation
+ * @brief implementation which just defers to the standard malloc/free stuff
+ */
+
 template<const size_t size>
 class MallocAllocatorImplementation : public AllocatorImplementation<size> {
 public:
@@ -21,6 +33,13 @@ public:
 	virtual void * get() { return malloc(size); }
 	virtual void put(void * o) { free(o); }
 };
+
+
+/**
+ * @class Allocator
+ * @brief holder of the implementation.  Also does the construction and
+ * destruction via pattern new etc.
+ */
 
 template<typename T>
 class Allocator {

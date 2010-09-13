@@ -1,6 +1,12 @@
 #ifndef OFLUX_META_LOG_H
 #define OFLUX_META_LOG_H
 
+/**
+ * @file OFluxMetaLog.h
+ * @author Mark Pichora
+ *   Meta-programming computation of logarithms
+ */
+
 // find the highest bit of an unsigned value:
 // e.g:
 // 1 -> 0

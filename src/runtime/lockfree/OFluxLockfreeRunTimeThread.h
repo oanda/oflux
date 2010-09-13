@@ -1,6 +1,12 @@
 #ifndef OFLUX_LF_RUNTIME_THREAD
 #define OFLUX_LF_RUNTIME_THREAD
 
+/**
+ * @file OFluxLockfreeRunTimeThread.h
+ * @author Mark Pichora
+ *   Thread object used by the lock-free runtime.  
+ */
+
 #include "OFlux.h"
 #include "OFluxAllocator.h"
 #include "OFluxThreads.h"

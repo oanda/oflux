@@ -1,6 +1,13 @@
 #ifndef OFLUX_FLOW_NODE_INCREMENTER
 #define OFLUX_FLOW_NODE_INCREMENTER
 
+/**
+ * @file OFluxFlowNodeIncr.h
+ * @author Mark Pichora
+ * RAII class which does counter inrementing to indicate the number
+ * of instances of flow nodes created (so events).
+ */
+
 namespace oflux {
 namespace flow {
 

@@ -1,6 +1,14 @@
 #ifndef OFLUX_ENUMERATOR_H
 #define OFLUX_ENUMERATOR_H
 
+/**
+ * @file OFluxEnumerator.h
+ * @author Mark Pichora
+ * Enumerator (Iterator) pattern templates for easy datastructure walking.
+ * This interface is used to help abstract the internal details of a data
+ * structure when writing code that implements a walker.
+ */
+
 #include <exception>
 #include <string>
 

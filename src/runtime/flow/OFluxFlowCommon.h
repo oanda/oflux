@@ -1,6 +1,12 @@
 #ifndef OFLUX_FLOW_COMMON
 #define OFLUX_FLOW_COMMON
 
+/**
+ * @file OFluxFlowCommon.h
+ * @author Mark Pichora
+ * Some useful utilities for deletion of container heap allocated objects
+ */
+
 #include <vector>
 #include <map>
 #include <deque>

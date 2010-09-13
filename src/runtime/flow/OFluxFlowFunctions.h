@@ -1,6 +1,13 @@
 #ifndef OFLUX_FLOW_FUNCTIONS
 #define OFLUX_FLOW_FUNCTIONS
 
+/**
+ * @file OFluxFlowFunctions.h
+ * @author Mark Pichora
+ * Things that hold the compiled-in C-style lookup maps used to load the 
+ * program and bind the flow to C function pointers etc when the XML is loaded.
+ */
+
 #include "OFlux.h"
 
 namespace oflux {

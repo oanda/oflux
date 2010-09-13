@@ -1,6 +1,13 @@
 #ifndef _OFLUX_ATOMIC_HOLDER
 #define _OFLUX_ATOMIC_HOLDER
 
+/**
+ * @file OFluxAtomicHolder.h
+ * @author Mark Pichora
+ * A class for acquiring atomic guards at runtime in the right order 
+ * (partly based on value)
+ */
+
 
 #include <vector>
 #include <cassert>
@@ -12,13 +19,6 @@
 
 namespace oflux {
 namespace atomic {
-
-/**
- * @file OFluxAtomicHolder.h
- * @author Mark Pichora
- * A class for acquiring atomic guards at runtime in the right order 
- * (partly based on value)
- */
 
 
 /**

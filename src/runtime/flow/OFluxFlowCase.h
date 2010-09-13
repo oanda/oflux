@@ -1,6 +1,13 @@
 #ifndef OFLUX_FLOW_CASE
 #define OFLUX_FLOW_CASE
 
+/**
+ * @file OFluxFlowCase.h
+ * @author Mark Pichora
+ * Flow (the dynamic program structure loaded into the runtime) for 
+ * conditional logic and concurrent handling.  Determination of successors.
+ */
+
 #include "OFlux.h"
 #include "OFluxIOConversion.h"
 #include <string>

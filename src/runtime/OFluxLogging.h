@@ -1,6 +1,12 @@
 #ifndef _OFLUX_LOGGING
 #define _OFLUX_LOGGING
 
+/** @file OFluxLogging.h
+ *  @author Mark Pichora
+ *  This logging module allows you to punt the logging in the runtime
+ *    to specified streams
+ */
+
 #include "OFlux.h"
 #include <ostream>
 
@@ -8,12 +14,6 @@
 
 namespace oflux {
 namespace logging {
-
-/** @file OFluxLogging.h
- *  @author Mark Pichora
- *  This logging module allows you to punt the logging in the runtime
- *    to specified streams
- */
 
 enum Level 
 	{ LL_trace = 0

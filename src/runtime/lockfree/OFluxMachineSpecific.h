@@ -1,6 +1,14 @@
 #ifndef OFLUX_MACHINE_SPECIFIC_H
 #define OFLUX_MACHINE_SPECIFIC_H
 
+/**
+ * @file OFluxMachineSpecific.h
+ * @author Mark Pichora
+ *  Specific values and macros for getting things done on different
+ * machine architectures.
+ */
+
+
 namespace oflux {
 namespace lockfree {
 

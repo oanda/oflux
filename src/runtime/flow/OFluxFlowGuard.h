@@ -1,6 +1,13 @@
 #ifndef OFLUX_FLOW_GUARD
 #define OFLUX_FLOW_GUARD
 
+/**
+ * @file OFluxFlowGuard.h
+ * @author Mark Pichora
+ * Flow (dynamic program structure loaded into the runtime at startup)
+ * objects that control the access to guards (global resources) for
+ * each node in the flow.
+ */
 
 #include "OFlux.h"
 #include "OFluxOrderable.h"

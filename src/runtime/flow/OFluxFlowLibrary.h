@@ -1,6 +1,14 @@
 #ifndef _OFLUX_FLOW_LIBRARY
 #define _OFLUX_FLOW_LIBRARY
 
+/**
+ * @file OFluxFlowLibrary
+ * @author Mark Pichora
+ * Wrapper for dynamically loaded libraries (which are used to implement 
+ * plugins).  The top-level flow manages these and ensures that they are
+ * loaded before the XML is read into the flow data structure.
+ */ 
+
 #include <string>
 #include <vector>
 #include <dlfcn.h>
