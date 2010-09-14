@@ -265,7 +265,10 @@ let add_main_fn symtable fmap unified mainfun =
 				None -> ref_null()
 				| (Some sfl_n) -> FlowMap.find sfl_n fmap in
 		    let fl = FlowMap.find fl_n fmap in
-		    let _ = fl := Source (fl_n,fl_n_f,ref sfl,ref_ref_null ())
+		    let _ = 
+			if (!fl) = NullNode then
+				fl := Source (fl_n,fl_n_f,ref sfl,ref_ref_null ())
+			else raise (Failure ("Source "^fl_n^" already defined",srcpos))
 		    in unified
 		with Not_found -> 
 		    raise (Failure ("Node "^fl_n
@@ -323,8 +326,11 @@ let add_concurrent_expr symtable fmap unified expr =
 		try FlowMap.find n fmap
 		with Not_found -> raise (Failure ("node "^n^" referenced in the flow not found",identpos)) in
         let efl = getfl ident_n in
-        let _ = efl := ConExpr(ident_n,List.map
-                        (fun n -> ref (getfl n)) tounify_names)
+        let _ = 
+		if(! efl) = NullNode then
+			efl := ConExpr(ident_n,List.map
+				(fun n -> ref (getfl n)) tounify_names)
+		else raise (Failure ("Concurrent expression "^ident_n^" already defined",identpos))
         in unified
 
 let add_choice_expr symtable fmap unified expr =
@@ -450,7 +456,11 @@ let add_choice_expr symtable fmap unified expr =
 		in
 	let _ = commit_conseq (ref_null(),true) (List.rev conseq) in
 	let head_n, headconseqfl = getfl (List.hd conseq) in
-	let _ = fl := ChExpr (n, (ncond,ref headconseqfl)::lines)
+	let _ = 
+		(*if (! fl) = NullNode then*)
+			fl := ChExpr (n, (ncond,ref headconseqfl)::lines)
+		(*else 
+			raise (Failure ("node "^n^" already has a sucessor", identpos))*)
 	in  unified
 
 let add_expr symtable fmap unified expr =
@@ -482,7 +492,10 @@ let add_error symtable fmap unified err =
 				raise (Failure ("error handler for unknown node"^n,npos))
 		in  match !fl with
 			((Source (a,_,b,hr)) | (CNode (a,_,b,hr))) -> 
-				let _ = hr := h
+				let _ = (** new error case *)
+					if (! ! hr) = NullNode then
+						 hr := h
+					else raise (Failure ("Source "^a^" already has an error handler",npos))
 				in  TypeCheck.type_check_general (true,true) unified symtable hname n npos
 			| _ -> raise (Failure ("trying to bind error handler to non-concrete node "^n,npos))
 	in  List.fold_left a_e unified nodes
