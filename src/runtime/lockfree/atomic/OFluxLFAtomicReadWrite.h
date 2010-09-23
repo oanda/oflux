@@ -1,7 +1,8 @@
 #ifndef OFLUX_LOCKFREE_ATOMIC_RW
 #define OFLUX_LOCKFREE_ATOMIC_RW
 
-#include "OFluxLFAtomic.h"
+#include "lockfree/atomic/OFluxLFAtomic.h"
+#include "lockfree/OFluxMachineSpecific.h"
 
 namespace oflux {
 namespace lockfree {
@@ -143,6 +144,7 @@ public:
 		//_wtype = EventBaseHolder::None;
 		EventBaseHolder * e = el;
 		EventBaseHolder * n_e = NULL;
+		store_load_barrier();
 		while(e) {
 			n_e = e->next;
 			_wtype = e->type;
@@ -152,9 +154,10 @@ public:
 				, this
 				, e->type
 				, _waiters._head.rcount());
-			//_wtype = e->type;
 			if(e->ev.get()) { 
 				rel_ev.push_back(e->ev); 
+			} else {
+				oflux_log_error("RW::rel   put out a NULL event\n");
 			}
 			AtomicCommon::allocator.put(e);
 			e = n_e;
