@@ -13,5 +13,4 @@ node NSS (int a, guard Gb(a) as ab) => (); /* depopulates the rval guard */
 
 node abstract N(int a) => ...;
 
-source S_splay -> N;
-N = NS -> NSS;
+source S_splay -> NS -> NSS;
