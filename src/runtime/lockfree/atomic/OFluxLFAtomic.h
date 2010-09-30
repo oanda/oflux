@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 #include "atomic/OFluxAtomic.h"
+#include "lockfree/OFluxMachineSpecific.h"
 #include "event/OFluxEventBase.h"
 #include "boost/shared_ptr.hpp"
 #include "OFluxAllocator.h"
@@ -123,6 +124,21 @@ struct EventBaseHolder {
 		, resource(NULL)
 	{
 		resource_loc_asgn(this,NULL);
+	}
+
+	inline void busyWaitOnEv()
+	{
+		size_t retries = 0;
+		size_t warning_level = 1;
+		while(ev.get() == NULL) {
+			if(retries > warning_level) {
+				oflux_log_error("EventBaseHolder::busyWaitOnEv retries at %d\n", retries);
+				warning_level = std::max(warning_level, warning_level << 1);
+			}
+			sched_yield();
+			store_load_barrier();
+			++retries;
+		}
 	}
 
 	EventBasePtr ev;

@@ -267,6 +267,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			break;
 		}
 	}
+	if(el) el->busyWaitOnEv();
 }
 
 void

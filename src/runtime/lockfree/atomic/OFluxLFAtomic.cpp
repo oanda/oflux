@@ -179,6 +179,7 @@ ExclusiveWaiterList::pop()
 			break; //empty
 		}
 	}
+	if(r) r->busyWaitOnEv();
 	return r;
 }
 

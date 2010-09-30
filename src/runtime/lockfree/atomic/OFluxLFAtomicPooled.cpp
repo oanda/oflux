@@ -124,6 +124,7 @@ PoolEventList::complete_pop()
 		if(__sync_bool_compare_and_swap(&(unmk(he)->next),hen,hen->next)) {
 			*(hen->resource_loc) = unmk(hp);
 			oflux_log_trace2("  ::complete_pop() success\n");
+			hen->busyWaitOnEv();
 			return hen;
 		} else {
 			oflux_log_trace2("  ::complete_pop() fail\n");
@@ -191,6 +192,7 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 			if(_head.cas(h,unmk(hn))) {
 				// 3->(2,3)
 				*(hp->resource_loc) = r;
+				hp->busyWaitOnEv();
 				return hp;
 			}
 		}
