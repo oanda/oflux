@@ -7,6 +7,19 @@ exception Heck of string
 
 let star (ident,p1,p2) (t1,t2) = (ident^"*",p1,t2)
 
+let make_node_decl name n =
+	{ detached = false
+	; abstract = true
+	; ismutable = false
+	; externalnode = false
+	; nodename=name
+	; nodefunction = (strip_position name)
+	; inputs = (match n.outputs with
+			(Some o) -> o
+			| _ -> raise (Heck "make_node_decl expects source to have declared outputs"))
+	; guardrefs = []
+	; outputs = None }
+
 
 type general_formal = 
 	Typed of decl_formal 
@@ -76,67 +89,72 @@ top_level_program:
 program:
 	code_list 
 		{ let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-		  in { cond_decl_list=cl 
-		     ; atom_decl_list=al
-		     ; node_decl_list=nl
-		     ; mainfun_list=sl
-		     ; expr_list=el
-		     ; err_list=erl
-		     ; mod_def_list=mdl
-		     ; mod_inst_list=mil
-                     ; plugin_list=pl
-                     ; terminate_list=tl
-                     ; order_decl_list=odl
+		  in { cond_decl_list=List.rev cl 
+		     ; atom_decl_list=List.rev al
+		     ; node_decl_list=List.rev nl
+		     ; mainfun_list=List.rev sl
+		     ; expr_list=List.rev el
+		     ; err_list=List.rev erl
+		     ; mod_def_list=List.rev mdl
+		     ; mod_inst_list=List.rev mil
+                     ; plugin_list=List.rev pl
+                     ; terminate_list=List.rev tl
+                     ; order_decl_list=List.rev odl
 		     } }
 ;
 
 /*** Code: sources, abstract nodes and error handlers ***/
 
 code_list:
-	main_fn code_list
+	code_list main_fn
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
-	  in  ($1::sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl) }
-	| expr_part code_list
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 in
+	  let findsrc s = 
+		try List.find (fun n -> (strip_position s.sourcename) = (strip_position n.nodename)) nl
+		with Not_found -> raise (Heck ("could not find source declaration before definition for "^(strip_position s.sourcename)))
+	  in  match $2 with
+		(s,None) -> (s::sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl) 
+	       |(s,Some e) -> (s::sl,e::el,erl,mil,cl,al,(make_node_decl e.exprname (findsrc s))::nl,mdl,pl,tl,odl) }
+	| code_list expr_part
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
-	  in  (sl,$1::el,erl,mil,cl,al,nl,mdl,pl,tl,odl) }
-	| err_def code_list
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1
+	  in  (sl,$2::el,erl,mil,cl,al,nl,mdl,pl,tl,odl) }
+	| code_list err_def
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
-	  in  (sl,el,$1::erl,mil,cl,al,nl,mdl,pl,tl,odl) }
-	| mod_inst code_list
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1
+	  in  (sl,el,$2::erl,mil,cl,al,nl,mdl,pl,tl,odl) }
+	| code_list mod_inst
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2
-	  in  (sl,el,erl,$1::mil,cl,al,nl,mdl,pl,tl,odl) }
-	| node_decl code_list
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1
+	  in  (sl,el,erl,$2::mil,cl,al,nl,mdl,pl,tl,odl) }
+	| code_list node_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-          in sl,el,erl,mil,cl,al,$1::nl,mdl,pl,tl,odl }
-	| atom_decl code_list
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+          in sl,el,erl,mil,cl,al,$2::nl,mdl,pl,tl,odl }
+	| code_list atom_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-	  in sl,el,erl,mil,cl,$1::al,nl,mdl,pl,tl,odl }
-	| cond_decl code_list
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,$2::al,nl,mdl,pl,tl,odl }
+	| code_list cond_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-	  in sl,el,erl,mil,$1::cl,al,nl,mdl,pl,tl,odl }
-	| mod_decl code_list
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+	  in sl,el,erl,mil,$2::cl,al,nl,mdl,pl,tl,odl }
+	| code_list mod_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-	  in sl,el,erl,mil,cl,al,nl,$1::mdl,pl,tl,odl }
-	| plugin_decl code_list
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,$2::mdl,pl,tl,odl }
+	| code_list plugin_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-	  in sl,el,erl,mil,cl,al,nl,mdl,$1::pl,tl,odl }
-	| term_decl code_list
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,$2::pl,tl,odl }
+	| code_list term_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$1::tl,odl }
-	| guard_order_decl code_list
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$2::tl,odl }
+	| code_list guard_order_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $2 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,tl,$1 @ odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,tl,$2 @ odl }
 	| /*epsilon*/
 	{ trace_thing "code_list";
           [],[],[],[],[],[],[],[],[],[],[] }
@@ -192,6 +210,7 @@ plugin_decl:
 
 
 /*** namespaced identifier ***/
+
 namespaced_ident:
 	IDENTIFIER
 	{ trace_thing "namespaced_ident"; $1 }
@@ -213,40 +232,34 @@ source_or_initial:
 main_fn:
 	source_or_initial namespaced_ident SEMI
 	{ trace_thing "main_fn"; 
-	  { sourcename =$2
+	  ({ sourcename =$2
           ; sourcefunction=strip_position $2
           ; successor=None 
           ; runonce=$1
-          } }
+          }, None) }
 	|
-	source_or_initial namespaced_ident PIPE namespaced_ident SEMI
+	source_or_initial namespaced_ident PIPE ident_list SEMI
 	{ trace_thing "main_fn"; 
-	  { sourcename =$2
-          ; sourcefunction=strip_position $2
-          ; successor=(Some $4) 
-          ; runonce=$1
-          } }
+          let rhs_name =
+		let n,p1,p2 = $2
+		in  (((n^"_RHS"),p1,p2) : string positioned)
+	  in
+	  ( { sourcename=$2
+            ; sourcefunction=strip_position $2
+            ; successor=(Some rhs_name) 
+            ; runonce=$1
+            }
+	  , Some
+	    { exprname = rhs_name
+	    ; condbinding=[]
+	    ; successors = $4
+	    ; etype = Choice
+	    }
+	  ) }
 ;
 
 /*** Declarations ***/
 
-/*
-decl_list:
-	decl_list node_decl
-	{ let cl,al,nl,mdl = $1 
-          in cl,al,$2::nl,mdl }
-	| decl_list atom_decl
-	{ let cl,al,nl,mdl = $1 
-	  in cl,$2::al,nl,mdl }
-	| decl_list cond_decl
-	{ let cl,al,nl,mdl = $1 
-	  in $2::cl,al,nl,mdl }
-	| decl_list mod_decl
-	{ let cl,al,nl,mdl = $1 
-	  in cl,al,nl,$2::mdl }
-	| *epsilon*
-	{ [],[],[],[] }
-*/
 
 /*** Conditions ***/
 
@@ -661,19 +674,6 @@ ident_list:
 	{ [] }
 ;
 
-/*
-ident_comma_list:
-	ident_comma_list COMMA ident
-	{ $1 @ [ $3 ] }
-	| ident
-	{ [ $1 ] }
-
-ident_comma_list_opt:
-        *epsilon*
-        { [] }
-        | ident_comma_list
-        { $1 }
-*/
 
 ident:
 	IDENTIFIER
