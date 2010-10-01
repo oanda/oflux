@@ -2,6 +2,7 @@
 #define OFLUX_LOCKFREE_ATOMIC_POOLED
 
 #include "OFluxLFAtomic.h"
+#include "lockfree/OFluxMachineSpecific.h"
 
 namespace oflux {
 namespace lockfree {
@@ -145,8 +146,10 @@ public:
 		, EventBasePtr & by_ev);
 	virtual void ** data() 
 	{ 
-		assert(_resource_ebh);
-		return &(_resource_ebh->resource); 
+		store_load_barrier();
+		EventBaseHolder * r_ebh = _resource_ebh;
+		assert(r_ebh);
+		return &(r_ebh->resource); 
 	}
         virtual const char * atomic_class() const { return atomic_class_str; }
 	virtual bool is_pool_like() const { return true; }

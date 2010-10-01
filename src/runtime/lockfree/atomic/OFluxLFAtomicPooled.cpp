@@ -387,6 +387,7 @@ AtomicPooled::release(
 	}
 	static int * _null = NULL;
 	_resource_ebh = AtomicCommon::allocator.get(_null);
+	store_load_barrier();
 	oflux_log_trace2("AC::alloc.g _res_ebh:%p %d\n",_resource_ebh,__LINE__);
 #ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
