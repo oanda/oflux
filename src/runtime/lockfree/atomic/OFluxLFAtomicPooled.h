@@ -146,9 +146,11 @@ public:
 		, EventBasePtr & by_ev);
 	virtual void ** data() 
 	{ 
-		store_load_barrier();
-		EventBaseHolder * r_ebh = _resource_ebh;
-		assert(r_ebh);
+		EventBaseHolder * r_ebh;
+		while(!(r_ebh = _resource_ebh)) {
+			store_load_barrier();
+			sched_yield();
+		}
 		return &(r_ebh->resource); 
 	}
         virtual const char * atomic_class() const { return atomic_class_str; }
