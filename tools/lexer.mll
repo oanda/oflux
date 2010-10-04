@@ -251,6 +251,7 @@ rule token = parse
 	| "exclusive" { updatePosInTok lexbuf (fun x -> EXCLUSIVE x) }
 	| "readwrite" { updatePosInTok lexbuf (fun x -> READWRITE x) }
 	| "free" { updatePosInTok lexbuf (fun x -> FREE x) }
+	| "depends" { updatePosInTok lexbuf (fun x -> DEPENDS x) }
 	| "sequence" { updatePosInTok lexbuf (fun x -> SEQUENCE x) }
 	| "pool" { updatePosInTok lexbuf (fun x -> POOL x) }
 	| "condition" { updatePosInTok lexbuf (fun x -> CONDITION x) }

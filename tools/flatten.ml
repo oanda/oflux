@@ -69,6 +69,7 @@ let add_atom_decl ip mp issm pr =
                 ; mod_def_list = pr.mod_def_list
                 ; mod_inst_list = pr.mod_inst_list
                 ; plugin_list = pr.plugin_list
+                ; plugin_depend_list = pr.plugin_depend_list
                 ; terminate_list = pr.terminate_list
                 ; order_decl_list = pr.order_decl_list
                 }
@@ -104,6 +105,7 @@ let add_self_guardrefs pr =
                 ; mod_def_list = pr.mod_def_list
                 ; mod_inst_list = pr.mod_inst_list
                 ; plugin_list = pr.plugin_list
+                ; plugin_depend_list = pr.plugin_depend_list
                 ; terminate_list = pr.terminate_list
                 ; order_decl_list = pr.order_decl_list
                 }
@@ -164,6 +166,7 @@ let program_append keepextatoms pr1 pr2 =
         ; mod_def_list = pr1.mod_def_list @ pr2.mod_def_list
         ; mod_inst_list = inst1 @ inst2
         ; plugin_list = pr1.plugin_list @ pr2.plugin_list
+        ; plugin_depend_list = pr1.plugin_depend_list @ pr2.plugin_depend_list
         ; terminate_list = pr1.terminate_list @ pr2.terminate_list
         ; order_decl_list = pr1.order_decl_list @ pr2.order_decl_list
         }
@@ -210,6 +213,7 @@ let remove_reductions prog =
             ; mod_def_list=prog.mod_def_list
             ; mod_inst_list=prog.mod_inst_list
             ; plugin_list=prog.plugin_list
+            ; plugin_depend_list=prog.plugin_depend_list
             ; terminate_list=prog.terminate_list
             ; order_decl_list=prog.order_decl_list
             }
@@ -228,6 +232,7 @@ let context_for_module pr mn =
                 ; mod_def_list = pr.mod_def_list @ prm.mod_def_list
                 ; mod_inst_list = prm.mod_inst_list
                 ; plugin_list = prm.plugin_list
+                ; plugin_depend_list = prm.plugin_depend_list
                 ; terminate_list = prm.terminate_list
                 ; order_decl_list = prm.order_decl_list
                 }
@@ -286,6 +291,7 @@ let apply_guardref_subst gsubst pr =
             ; mod_def_list = pr.mod_def_list
             ; mod_inst_list = pr.mod_inst_list
             ; plugin_list = pr.plugin_list
+            ; plugin_depend_list = pr.plugin_depend_list
             ; terminate_list = pr.terminate_list
             ; order_decl_list = pr.order_decl_list
             }
@@ -414,6 +420,7 @@ let flatten prog =
 		; mod_def_list = []
 		; mod_inst_list = []
                 ; plugin_list = []
+                ; plugin_depend_list = []
                 ; terminate_list = List.map (prefix_sp pre_mi) pr.terminate_list
                 ; order_decl_list = 
 			let explicit_odl = pr.order_decl_list in
@@ -498,6 +505,7 @@ let flatten_module module_name pr =
 		; mod_def_list = pr.mod_def_list @ (List.map (fun (_,x) -> x) modl)
 		; mod_inst_list = pr.mod_inst_list
                 ; plugin_list = pr.plugin_list
+                ; plugin_depend_list = pr.plugin_depend_list
                 ; terminate_list = pr.terminate_list
                 ; order_decl_list = pr.order_decl_list
 		} in
@@ -638,6 +646,7 @@ let flatten_plugin' plugin_name prog =
 		; mod_def_list = []
 		; mod_inst_list = List.map (for_mod_inst is_ext_inst is_ext_atom) pr.mod_inst_list
                 ; plugin_list = []
+                ; plugin_depend_list = []
                 ; terminate_list = List.map (for_terminate is_ext_node) pr.terminate_list
                 ; order_decl_list = List.map (for_order_decl is_ext_atom) pr.order_decl_list
 		} in
@@ -647,6 +656,7 @@ let flatten_plugin' plugin_name prog =
 
 
 let flatten_plugin plugin_name prog = 
+	let plugin = List.find (fun p -> plugin_name=(strip_position p.pluginname)) prog.plugin_list in
         let append_but n prog pd =
                 if (strip_position pd.pluginname) = n then prog
                 else let pn = strip_position pd.pluginname
@@ -659,7 +669,7 @@ let flatten_plugin plugin_name prog =
         let _ = List.iter Debug.dprint_string 
                 (List.map (fun x -> " "^(strip_position x.pluginname)^"\n") prog.plugin_list) in
         let flt_without = flatten (append_all_but plugin_name prog prog.plugin_list)
-        in  flt_without, flt_with
+        in  flt_without, flt_with, List.map strip_position plugin.pluginprogramdef.plugin_depend_list
         
         
 

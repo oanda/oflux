@@ -13,7 +13,7 @@ so $VIMRUNTIME/syntax/cpp.vim
 syn keyword fluxStatement as where terminate handle begin end if precedence
 syn keyword fluxType guard readwrite sequence pool condition node source error atomic instance module exclusive initial plugin free
 syn keyword fluxModifier detached abstract read write external unordered gc
-syn keyword fluxInclude include
+syn keyword fluxInclude include depends
 
 " Default highlighting
 if version >= 508 || !exists("did_flux_syntax_inits")

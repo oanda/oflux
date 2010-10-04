@@ -111,6 +111,7 @@ type program =
 	; mod_def_list: mod_def list
 	; mod_inst_list: mod_inst list
         ; plugin_list: plugin_def list
+	; plugin_depend_list: string positioned list
         ; terminate_list: string positioned list
         ; order_decl_list: order_decl list
 	}
