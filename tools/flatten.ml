@@ -256,6 +256,12 @@ let subst_guardrefs subst grl =
                List.fold_left single_sub gr ll
         in  List.map (list_subst subst) grl
 
+let subst_order_decl subst (g1,g2) =
+	let single_sub (gn,p1,p2) (x,y) =
+		if gn = x then (y,p1,p2) else (gn,p1,p2) in
+	let substone subst g = List.fold_left single_sub g subst
+	in  (substone subst g1, substone subst g2)
+
 let apply_guardref_subst gsubst pr =
         let _ = let dpsubst (x,y) = Debug.dprint_string ("    "^x^" -> "^y^"\n")
                 in  List.iter dpsubst gsubst
@@ -293,7 +299,7 @@ let apply_guardref_subst gsubst pr =
             ; plugin_list = pr.plugin_list
             ; plugin_depend_list = pr.plugin_depend_list
             ; terminate_list = pr.terminate_list
-            ; order_decl_list = pr.order_decl_list
+            ; order_decl_list = List.map (subst_order_decl gsubst) pr.order_decl_list
             }
 
 
