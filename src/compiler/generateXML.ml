@@ -88,6 +88,7 @@ let xml_case_str = "case"
 let xml_successor_str = "successor"
 let xml_successorlist_str = "successorlist"
 let xml_source_str = "source"
+let xml_door_str = "door"
 let xml_node_str = "node"
 let xml_nodetarget_str = "nodetarget"
 let xml_flow_str = "flow"
@@ -168,11 +169,12 @@ let successorlist successors =
 		,[]
 		,successors)
 
-let node el_name el_function el_source el_iserrorhandler el_detached el_external el_inputunionnumber el_outputunionnumber guardrefs errorhandler_opt successorlist =
+let node el_name el_function el_source el_door el_iserrorhandler el_detached el_external el_inputunionnumber el_outputunionnumber guardrefs errorhandler_opt successorlist =
 	Element(xml_node_str
 		,[ xml_name_str,el_name
 		 ; xml_function_str,el_function
 		 ; xml_source_str,el_source
+		 ; xml_door_str,el_door
 		 ; xml_iserrhandler_str,el_iserrorhandler
 		 ; xml_detached_str,el_detached
 		 ; xml_external_str,el_external
@@ -259,11 +261,13 @@ let emit_program_xml' programname br usesmodel =
 	let stable = br.Flow.symtable in
 	let fmap = br.Flow.fmap in
 	let sourcelist = br.Flow.sources in
+	let doorlist = br.Flow.doorsources in
 	let errhandlers = br.Flow.errhandlers in
 	let is_detached n = SymbolTable.is_detached stable n in
 	let is_external n = SymbolTable.is_external stable n in
 	let is_abstract n = SymbolTable.is_abstract stable n in
-	let is_source n = List.mem n sourcelist in
+	let is_door n = List.mem n doorlist in
+	let is_source n = (not (is_door n)) && (List.mem n sourcelist) in
 	let is_runonce_source n = List.mem n br.Flow.runoncesources in
         let is_terminate n = List.mem n br.Flow.terminates in
 	let get_node n _ ll = if Flow.is_concrete stable fmap n then n::ll else ll in
@@ -518,6 +522,7 @@ let emit_program_xml' programname br usesmodel =
 		let is_dt = is_detached n in
 		let is_ext = is_external n in
 		let is_src = is_source n in
+		let is_dr = is_door n in
 		let is_ro_src = is_runonce_source n in
 		let nd = SymbolTable.lookup_node_symbol stable n in
 		let f = nd.SymbolTable.functionname in
@@ -556,6 +561,7 @@ let emit_program_xml' programname br usesmodel =
 		let succ = Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in  node n f 
                         (if is_src then "true" else "false")
+                        (if is_dr then "true" else "false")
 			(if is_eh then "true" else "false")
 			(if is_dt then "true" else "false")
 			(if is_ext then "true" else "false")

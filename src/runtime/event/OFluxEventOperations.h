@@ -23,6 +23,9 @@ namespace flow {
 
 namespace event {
 
+extern int 
+acquire_guards(EventBasePtr & ev, EventBasePtr & pred_ev);
+
 
 /**
  * @brief compute and return the successor_events from predecessor ev when

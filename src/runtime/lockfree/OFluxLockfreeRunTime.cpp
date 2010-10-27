@@ -1,4 +1,5 @@
 #include "lockfree/OFluxLockfreeRunTime.h"
+#include "lockfree/OFluxThreadNumber.h"
 #include "event/OFluxEventOperations.h"
 #include "flow/OFluxFlow.h"
 #include "xml/OFluxXML.h"
@@ -31,6 +32,7 @@ RunTime::RunTime(const RunTimeConfiguration &rtc)
 	, _sleep_count(0)
 	, _threads(NULL)
 	, _active_flow(NULL)
+	, _doors(this)
 {
 	oflux_log_info("oflux::lockfree::RunTime initializing\n");
 	if(rtc.initAtomicMapsF) {
@@ -85,6 +87,21 @@ RunTime::~RunTime()
 		delete aflow;
 		aflow = next_aflow;
 	}
+}
+
+void
+RunTime::submitEvents(const std::vector<EventBasePtr> & evs)
+{
+	size_t t_ind = _tn.index;
+	RunTimeThread * thread_ptr = _threads;
+	while(thread_ptr && evs.size()) {
+		if((int)t_ind == thread_ptr->index()) {
+			thread_ptr->submitEvents(evs);
+			return;
+		}
+		thread_ptr = thread_ptr->_next;
+	}
+	oflux_log_error("lockfree::RunTime::submitEvents dropped %d events\n", evs.size());
 }
 
 void 
@@ -199,6 +216,42 @@ void __runtime_sigint_handler(int)
 	}
 }
 
+#ifdef HAS_DOORS_IPC
+# define SET_RT_FOR_DOORS doorthread::theRT = this
+namespace doorthread {
+  // things I wish were not global -- libdoor forces me to do this
+  RunTime * theRT = NULL;
+  RunTimeThread * doors_thread = NULL;
+} // namespace doorthread
+
+static void *
+RunTimeThread_start_door_thread(void * pthis)
+{
+	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
+	SetTrue keep_true_during_lifetime(rtt->_running);
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	DOOR_RETURN;
+	return NULL;
+}
+
+
+static void
+RunTime_start_door_thread(door_info_t *)
+{
+	if(!doorthread::doors_thread) {
+		assert(doorthread::theRT);
+		doorthread::doors_thread = new RunTimeThread(*doorthread::theRT,1024,0);
+		oflux_create_thread(
+			  doorthread::theRT->config().stack_size
+			, RunTimeThread_start_door_thread
+			, doorthread::doors_thread
+			, &(doorthread::doors_thread->_tid));
+	}
+}               
+#else // ! HAS_DOORS_IPC
+# define SET_RT_FOR_DOORS 
+#endif // HAS_DOORS_IPC
+
 void
 RunTime::start()
 {
@@ -229,6 +282,11 @@ RunTime::start()
 	while(rtt) {
 		res = res || rtt->create();
 		rtt = rtt->_next;
+	}
+	// if doors, start up 
+	if(_doors.create_doors()) {
+		SET_RT_FOR_DOORS;
+		START_DOORS;
 	}
 	// start thread 0
 	this_rtt->start();

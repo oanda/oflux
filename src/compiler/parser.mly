@@ -52,7 +52,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> LEFT_CR_BRACE, RIGHT_CR_BRACE;
 %token <ParserTypes.position*ParserTypes.position> PIPE, COLON, COMMA, EQUALS, SEMI;
 %token <ParserTypes.position*ParserTypes.position> LEFT_PAREN, RIGHT_PAREN, LEFT_SQ_BRACE, RIGHT_SQ_BRACE;
-%token <ParserTypes.position*ParserTypes.position> TYPEDEF, SOURCE, TERMINATE, INITIAL;
+%token <ParserTypes.position*ParserTypes.position> TYPEDEF, SOURCE, TERMINATE, INITIAL, DOOR;
 %token <ParserTypes.position*ParserTypes.position> PLUS, QUESTION, DOUBLECOLON;
 %token <ParserTypes.position*ParserTypes.position> MINUS, ELLIPSIS;
 %token <ParserTypes.position*ParserTypes.position> LESSTHAN, GREATERTHAN, AMPERSAND;
@@ -223,22 +223,24 @@ term_decl:
         TERMINATE namespaced_ident SEMI
         { $2 }
 
-source_or_initial:
+source_or_initial_or_door:
         SOURCE
-        { false }
+        { 0 }
         | INITIAL
-        { true }
+        { 1 }
+        | DOOR
+        { 2 }
 
 main_fn:
-	source_or_initial namespaced_ident SEMI
+	source_or_initial_or_door namespaced_ident SEMI
 	{ trace_thing "main_fn"; 
 	  ({ sourcename =$2
           ; sourcefunction=strip_position $2
           ; successor=None 
-          ; runonce=$1
+          ; runoncetype=$1
           }, None) }
 	|
-	source_or_initial namespaced_ident PIPE ident_list SEMI
+	source_or_initial_or_door namespaced_ident PIPE ident_list SEMI
 	{ trace_thing "main_fn"; 
           let rhs_name =
 		let n,p1,p2 = $2
@@ -247,7 +249,7 @@ main_fn:
 	  ( { sourcename=$2
             ; sourcefunction=strip_position $2
             ; successor=(Some rhs_name) 
-            ; runonce=$1
+            ; runoncetype=$1
             }
 	  , Some
 	    { exprname = rhs_name

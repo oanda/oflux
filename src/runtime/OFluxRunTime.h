@@ -12,6 +12,7 @@
 #include "OFluxQueue.h"
 #include "OFluxLinkedList.h"
 #include "boost/shared_ptr.hpp"
+#include "OFluxDoor.h"
 
 namespace oflux {
 namespace runtime {
@@ -71,6 +72,8 @@ public:
 	 */
 	virtual int thread_count() { return _thread_count; }
 
+	void create_door_thread();
+
 protected:
 	/**
 	 * @brief determine if we can detach the thread (runtime limits allow it)
@@ -89,8 +92,11 @@ protected:
          * @brief obtain the list of plugin names (in loaded order)
          */
         virtual void getPluginNames(std::vector<std::string> & result);
+	virtual flow::Flow * flow() 
+	{ return _active_flows.size() ? _active_flows.front() : NULL; }
+	virtual void submitEvents(const std::vector<EventBasePtr> &);
 protected:
-	inline flow::Flow * flow() 
+	inline flow::Flow * _flow() 
 	{ return _active_flows.size() ? _active_flows.front() : NULL; }
 	void remove(RunTimeThread * rtt);
 protected:
@@ -99,6 +105,8 @@ protected:
 	Queue               _queue;
 	int                 _thread_count;
 	int                 _detached_count;
+	doors::ServerDoorsContainer _doors;
+	RunTimeThread *     _door_thread;
 };
 
 
@@ -126,6 +134,7 @@ public:
 	{}
 	virtual ~RunTimeThread() {}
 	int create();
+	static void * start_door(void *);
 	virtual void start();
         void disconnect_from_runtime() { _rt->remove(this); }
 	void handle(EventBasePtr & ev);
@@ -138,6 +147,7 @@ public:
 	void soft_die() { _request_death = true; }
 	void hard_die() { _request_death = true; oflux_cancel(_tid); }
 	bool running() { return _thread_running; }
+	virtual void submitEvents(const std::vector<EventBasePtr> &);
 	inline void wait_to_run() 
 	{
 		_wait_state = RTTWS_wtr;
@@ -163,11 +173,15 @@ protected:
         bool           _condition_context_switch;
 	bool           _bootstrap;
 	bool &         _system_running;
+public:
 	bool           _thread_running;
+protected:
 	bool           _request_death;
 	bool           _detached;
 	RTT_WaitState  _wait_state;
+public:
 	oflux_thread_t _tid;
+protected:
 	flow::Node *   _flow_node_working;
 #ifdef PROFILING
 	TimerList      _timer_list;
