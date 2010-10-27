@@ -27,8 +27,8 @@ public:
 	static const char * element_name(Element &);
 	void push(Element & e);
 	void push_priority(Element & e);
-	void push_list(std::vector<Element> & vec);
-	void push_list_priority(std::vector<Element> & vec);
+	void push_list(const std::vector<Element> & vec);
+	void push_list_priority(const std::vector<Element> & vec);
 	bool pop(Element & e);
 	void log_snapshot();
 private:

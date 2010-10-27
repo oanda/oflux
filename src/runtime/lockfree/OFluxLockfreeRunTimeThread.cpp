@@ -74,6 +74,17 @@ RunTimeThread_start_thread(void *pthis)
         return NULL;
 }
 
+void
+RunTimeThread::submitEvents(const std::vector<EventBasePtr> & evs)
+{
+	std::vector<EventBasePtr>::const_iterator itr = evs.begin();
+	while(itr != evs.end()) {
+		pushLocal(*itr);
+		++itr;
+	}
+	_rt.wake_threads(1); // uhm....
+}
+
 extern bool __ignore_sig_int;
 
 bool 

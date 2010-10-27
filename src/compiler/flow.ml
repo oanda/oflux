@@ -510,6 +510,7 @@ type built_flow =
 		; modules : string list
                 ; terminates : string list
                 ; runoncesources : string list
+		; doorsources : string list
                 ; consequences : TypeCheck.consequence_result
                 ; guard_order_pairs : (string * string) list
 		}
@@ -556,7 +557,9 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs order_
 		(List.map (fun e -> strip_position e.handler) errs) in
 	let sources = List.map (fun mf -> strip_position mf.sourcename) m_fns in
         let run_once_sources = List.map (fun mf -> strip_position mf.sourcename)
-                (List.filter (fun x -> x.runonce) m_fns) in
+                (List.filter (fun x -> x.runoncetype = 1) m_fns) in
+        let door_sources = List.map (fun mf -> strip_position mf.sourcename)
+                (List.filter (fun x -> x.runoncetype = 2) m_fns) in
 	let _ = List.iter (verify_source symboltable) sources in
 	let _ = check_guard_refs symboltable in
         (*
@@ -583,6 +586,7 @@ let build_flow_map symboltable node_decls m_fns exprs errs terms mod_defs order_
 	    ; modules = List.map (fun md -> strip_position md.modulename) mod_defs
             ; terminates = terms
             ; runoncesources = run_once_sources
+            ; doorsources = door_sources
             ; consequences = TypeCheck.consequences ulist symboltable
             ; guard_order_pairs = List.map (fun (b,a) -> (strip_position b, strip_position a)) order_decls
 	    }
@@ -597,6 +601,7 @@ let make_compatible br_const br_change =
             ; modules = br_change.modules
             ; terminates = br_change.terminates
             ; runoncesources = br_change.runoncesources
+            ; doorsources = br_change.doorsources
             ; consequences = conseq
             ; guard_order_pairs = br_change.guard_order_pairs
             }

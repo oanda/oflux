@@ -100,8 +100,10 @@ public:
         friend class NodeCounterIncrementer;
         Node(const char * name,
                 CreateNodeFn createfn,
+                CreateDoorFn createdoorfn,
                 bool is_error_handler,
                 bool is_source,
+		bool is_door,
                 bool is_detached,
                 int input_unionnumber,
                 int output_unionnumber);
@@ -112,9 +114,11 @@ public:
         inline const char * getName() { return &(_name[0]); }
         inline bool getIsSource() const { return _is_source; }
 	bool getIsInitial();
+        inline bool getIsDoor() const { return _is_door; }
         inline bool getIsErrorHandler() const { return _is_error_handler; }
         inline bool getIsDetached() const { return _is_detached; }
         inline CreateNodeFn & getCreateFn() { return _createfn; }
+        inline CreateDoorFn & getCreateDoorFn() { return _createdoorfn; }
         void get_successors(std::vector<Case *> & successor_nodes, 
                         const void * a,
                         int return_code);
@@ -138,8 +142,10 @@ protected:
 private:
         std::string                   _name;
         CreateNodeFn                  _createfn;
+        CreateDoorFn                  _createdoorfn;
         bool                          _is_error_handler;
         bool                          _is_source;
+        bool                          _is_door;
         int                           _is_initial;
         bool                          _is_detached;
         SuccessorList *               _successor_list;

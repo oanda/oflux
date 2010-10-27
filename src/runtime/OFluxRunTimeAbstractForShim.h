@@ -9,6 +9,7 @@
 
 #include "OFlux.h"
 #include "OFluxRunTimeAbstract.h"
+#include "OFluxRunTimeThreadAbstract.h"
 #include "OFluxProfiling.h"
 #include "OFluxWrappers.h"
 #include "OFluxWatermark.h"
@@ -80,9 +81,11 @@ enum RTT_WaitState
 	, RTTWS_wip = 2
 	, RTTWS_blockingcall = 3
 	, RTTWS_wtrshim = 4 
+	, RTTWS_door_service = 5 
+	, RTTWS_door_wait = 6 
 	};
 
-class RunTimeThreadAbstractForShim {
+class RunTimeThreadAbstractForShim : public RunTimeThreadAbstract {
 public:
 	virtual ~RunTimeThreadAbstractForShim() {}
 	virtual bool is_detached() = 0;

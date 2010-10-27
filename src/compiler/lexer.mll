@@ -258,6 +258,7 @@ rule token = parse
 	| "detached" { updatePosInTok lexbuf (fun x -> DETACHED x) }
 	| "typedef" { updatePosInTok lexbuf (fun x -> TYPEDEF x) }
 	| "source" { updatePosInTok lexbuf (fun x -> SOURCE x) }
+	| "door" { updatePosInTok lexbuf (fun x -> DOOR x) }
 	| "terminate" { updatePosInTok lexbuf (fun x -> TERMINATE x) }
 	| "initial" { updatePosInTok lexbuf (fun x -> INITIAL x) }
 	| "handle" { updatePosInTok lexbuf (fun x -> HANDLE x) }

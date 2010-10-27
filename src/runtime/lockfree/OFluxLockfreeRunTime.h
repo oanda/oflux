@@ -12,6 +12,7 @@
 #include "OFluxRunTimeAbstract.h"
 #include "lockfree/OFluxLockfreeRunTimeThread.h"
 #include "lockfree/OFluxThreadNumber.h"
+#include "OFluxDoor.h"
 #include <vector>
 
 namespace oflux {
@@ -41,7 +42,7 @@ public:
 	virtual void soft_kill();
 	virtual void hard_kill() { soft_kill(); }
 	bool was_soft_killed() { return _request_death; }
-	const RunTimeConfiguration & config() const { return _rtc; }
+	virtual const RunTimeConfiguration & config() const { return _rtc; }
 	virtual void log_snapshot();
 	virtual void log_snapshot_guard(const char *);
 	virtual void getPluginNames(std::vector<std::string> & result);
@@ -50,6 +51,7 @@ public:
 	void decr_sleepers();
 	bool all_asleep_except_me() const { return _sleep_count+1 == _num_threads; }
 	int nonsleepers() const { return _num_threads - _sleep_count; }
+	virtual void submitEvents(const std::vector<EventBasePtr> & evs);
 	void wake_threads(int num_to_wake)
 	{ // rouse threads from their slumber
 		if(_sleep_count == 0) return; // all awake already
@@ -107,7 +109,7 @@ protected:
 	void distribute_events(
 		  RunTimeThread * rtt
 		, std::vector<EventBasePtr> & events);
-	flow::Flow * flow() 
+	virtual flow::Flow * flow() 
 	{ return (_active_flow ? _active_flow->flow : NULL); }
 private:
 	const RunTimeConfiguration & _rtc_ref;
@@ -119,6 +121,7 @@ private:
 	int _sleep_count;
 	RunTimeThread * _threads;
 	ActiveFlow * _active_flow;
+	doors::ServerDoorsContainer _doors;
 };
 
 } // namespace lockfree

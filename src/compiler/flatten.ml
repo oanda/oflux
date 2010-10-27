@@ -358,7 +358,7 @@ let flatten prog =
 				None -> None
 				| (Some sp) -> 
 					Some (prefix_sp pre_mi sp)) 
-                ; runonce = mf.runonce
+                ; runoncetype = mf.runoncetype
                 } 
 		in
 	let for_comma_item pre_mi pre_md ci =
@@ -584,7 +584,7 @@ let flatten_plugin' plugin_name prog =
                 { sourcename = for_ref is_en mainfn.sourcename
 		; sourcefunction = (if isext then "" else pref)^mainfn.sourcefunction
 		; successor = onsucc mainfn.successor
-                ; runonce = mainfn.runonce
+                ; runoncetype = mainfn.runoncetype
                 } in
         let for_expr is_en is_ec expr =
                 let for_comma_item ci =

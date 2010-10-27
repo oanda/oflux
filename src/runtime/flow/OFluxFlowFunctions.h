@@ -23,6 +23,7 @@ class FunctionMaps { // data that is compiled in
 public:
         FunctionMaps(ConditionalMap cond_map[],
                         ModularCreateMap create_map[],
+			ModularCreateDoorMap create_door_map[],
                         GuardTransMap guard_map[],
                         AtomicMapMap atom_map[],
                         IOConverterMap ioconverter_map[]);
@@ -33,6 +34,7 @@ public:
          * @return a function pointer usable to create a new event (smart pointered)
          **/
         CreateNodeFn lookup_node_function(const char * n) const;
+        CreateDoorFn lookup_door_function(const char * d) const;
 
         /**
          * @brief lookup a conditional function usable on a particular input
@@ -74,6 +76,7 @@ public:
 private:
         ConditionalMap *   _cond_map;
         ModularCreateMap * _create_map;
+        ModularCreateDoorMap * _create_door_map;
         GuardTransMap *    _guard_trans_map;
         AtomicMapMap *     _atom_map_map;
         IOConverterMap *   _ioconverter_map;

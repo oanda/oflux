@@ -44,6 +44,7 @@ type built_flow =
 		; modules : string list
                 ; terminates : string list
                 ; runoncesources : string list
+		; doorsources : string list
                 ; consequences : TypeCheck.consequence_result
                 ; guard_order_pairs : (string * string) list
 		}
