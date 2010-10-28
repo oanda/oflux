@@ -1654,6 +1654,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
         let conseq_res = braft.Flow.consequences in
 	let fm = braft.Flow.fmap in
 	let ehs = braft.Flow.errhandlers in
+	let doors = braft.Flow.doorsources in
 	let h_code = CodePrettyPrinter.empty_code in
         let ns_broken = break_namespaced_name pluginname in
 	let def_const_ns_fun csofar str = csofar^(String.capitalize str)^"__" in
@@ -1708,6 +1709,8 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		; "extern void init_atomic_maps(int style);"
                 ; "extern oflux::CreateMap * __create_map_ptr;" 
 		; "extern oflux::CreateMap __create_map[];"
+                ; "extern oflux::CreateDoorMap * __create_door_map_ptr;" 
+		; "extern oflux::CreateDoorMap __create_door_map[];"
 		; "extern oflux::ConditionalMap __conditional_map[];"
 		; "extern oflux::AtomicMapMap __atomic_map_map[];"
 		; "extern oflux::GuardTransMap __theGuardTransMap[];"
@@ -1742,6 +1745,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let cpp_code = emit_node_detail_defn (Some pluginname) is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
 	let cpp_code = emit_create_map "" (fun _ -> false) (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = emit_create_map "Door" (fun n -> not (List.mem n doors)) (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
 	let cpp_code = emit_cond_map conseq_res stable cpp_code in
 	let cpp_code = 
 		let cpp_code = emit_atom_map_map (Some pluginname) stable cpp_code in

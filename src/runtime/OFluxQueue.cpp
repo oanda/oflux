@@ -7,7 +7,7 @@
 namespace oflux {
 
 const char *
-Queue::element_name(Element & e)
+Queue::element_name(const Element & e)
 {
 	return flow::get_node_name(e->flow_node());
 }

@@ -24,7 +24,7 @@ public:
 	typedef EventBasePtr Element;
 	Queue() {}
 	~Queue() { _q.clear(); }
-	static const char * element_name(Element &);
+	static const char * element_name(const Element &);
 	void push(Element & e);
 	void push_priority(Element & e);
 	void push_list(const std::vector<Element> & vec);

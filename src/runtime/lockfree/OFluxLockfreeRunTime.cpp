@@ -217,7 +217,7 @@ void __runtime_sigint_handler(int)
 }
 
 #ifdef HAS_DOORS_IPC
-# define SET_RT_FOR_DOORS doorthread::theRT = this
+# define OFLUX_SET_RT_FOR_DOORS doorthread::theRT = this
 namespace doorthread {
   // things I wish were not global -- libdoor forces me to do this
   RunTime * theRT = NULL;
@@ -230,7 +230,7 @@ RunTimeThread_start_door_thread(void * pthis)
 	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
 	SetTrue keep_true_during_lifetime(rtt->_running);
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	DOOR_RETURN;
+	OFLUX_DOOR_RETURN;
 	return NULL;
 }
 
@@ -249,7 +249,7 @@ RunTime_start_door_thread(door_info_t *)
 	}
 }               
 #else // ! HAS_DOORS_IPC
-# define SET_RT_FOR_DOORS 
+# define OFLUX_SET_RT_FOR_DOORS 
 #endif // HAS_DOORS_IPC
 
 void
@@ -285,8 +285,8 @@ RunTime::start()
 	}
 	// if doors, start up 
 	if(_doors.create_doors()) {
-		SET_RT_FOR_DOORS;
-		START_DOORS;
+		OFLUX_SET_RT_FOR_DOORS;
+		OFLUX_START_DOORS;
 	}
 	// start thread 0
 	this_rtt->start();

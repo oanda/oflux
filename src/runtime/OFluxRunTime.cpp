@@ -206,7 +206,7 @@ RunTime::start()
 	RunTime::thread_data_key.set(rtt);
 	// if doors, start up a service thread now
 	if(_doors.create_doors()) {
-		START_DOORS;
+		OFLUX_START_DOORS;
 	}
 	// running phase
 	rtt->start();
@@ -375,7 +375,7 @@ RunTimeThread_start_door_thread(void * pthis)
 	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
 	SetTrue keep_true_during_lifetime(rtt->_thread_running);
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	DOOR_RETURN;
+	OFLUX_DOOR_RETURN;
 	return NULL;
 }
 
@@ -397,6 +397,7 @@ RunTime::submitEvents(const std::vector<EventBasePtr> & evs)
 {
 	AutoLock al(&_manager_lock);
 	_queue.push_list(evs);
+	wake_another_thread();
 }
 
 void

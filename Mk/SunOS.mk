@@ -1,7 +1,8 @@
 
 # Define ARCH_FLAGS for architecture specific compile flags
 
-LIBS += -lsocket -lrt
+LIBS += -lsocket -lrt -ldoor
+CXXFLAGS += -DHAS_DOORS_IPC
 LD = /usr/ccs/bin/ld 
 
 #EXTRA_RUN_ENVIRONMENT="export UMEM_DEBUG=default\nexport UMEM_LOGGING=transaction\nexport LD_PRELOAD=libumem.so.1"

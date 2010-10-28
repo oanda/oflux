@@ -4,6 +4,8 @@
 #ifdef HAS_DOORS_IPC
 # include <door.h>
 # include <string>
+# include <errno.h>
+# include <string.h>
 # include <sys/stat.h>
 # include <fcntl.h>
 # include "event/OFluxEventDoor.h"
@@ -11,8 +13,8 @@
 # include "OFluxRunTimeAbstract.h"
 # include "flow/OFluxFlow.h"
 
-# define DOOR_RETURN door_return(NULL,0,NULL,0)
-# define START_DOORS door_server_create(RunTime_start_door_thread)
+# define OFLUX_DOOR_RETURN door_return(NULL,0,NULL,0)
+# define OFLUX_START_DOORS door_server_create(RunTime_start_door_thread)
 
 namespace oflux {
 namespace flow {
@@ -55,8 +57,13 @@ public:
 
 	int send(const T * in)
 	{
-		if(_door_descriptor < -1) {
+		if(_door_descriptor < 0) {
 			_door_descriptor = ::open(_door_filename.c_str(), O_RDONLY);
+			if(_door_descriptor < 0) {
+				oflux_log_error("::open() on door %s failed %s\n"
+					, _door_filename.c_str()
+					, strerror(errno));
+			}
 		}
 		door_arg_t arg =
 			{ reinterpret_cast<char *>(const_cast<T *>(in)) // data_ptr
@@ -66,7 +73,9 @@ public:
 			, NULL // rbuf
 			, 0 // rbuf_size
 			};
-		return door_call(_door_descriptor,&arg);
+		int res = door_call(_door_descriptor,&arg);
+		oflux_log_info("door_call returned %d on sz %u\n", res, arg.data_size);
+		return res;
 	}
 
 private:
@@ -96,7 +105,7 @@ public:
 	ServerDoor(const char * door_filename, oflux::RunTimeAbstract * rt)
 		: ServerDoorCookie(door_filename, rt)
 		, _door_filename(door_filename)
-		, _door_descriptor(create(door_filename,server_procedure,this))
+		, _door_descriptor(create(door_filename,server_procedure,static_cast<ServerDoorCookie *>(this)))
 	{
 		if(_door_descriptor < 0) {
 			std::string str("could not create door");
@@ -118,6 +127,7 @@ public:
 		, door_desc_t *
 		, size_t )
 	{
+		oflux_log_info("server_procedure called on sz %u\n", sz);
 		ServerDoorCookie * sdc = 
 			reinterpret_cast<ServerDoorCookie *>(cookie);
 		assert(sz == sizeof(typename TDetail::Out_));
@@ -164,14 +174,16 @@ create_door(
 	door_fullpath_filename += rt->flow()->name();
 	door_fullpath_filename += "/";
 	door_fullpath_filename += door_node_name;
-	return new doors::ServerDoor<TDetail>(door_fullpath_filename.c_str(), rt);
+	doors::ServerDoorCookie * sc = 
+		new doors::ServerDoor<TDetail>(door_fullpath_filename.c_str(), rt);
+	return sc;
 }
 
 } // namespace oflux
 
 #else // ! HAS_DOORS_IPC
-# define DOOR_RETURN  /*nuthin*/
-# define START_DOORS  /*nuthin*/
+# define OFLUX_DOOR_RETURN  /*nuthin*/
+# define OFLUX_START_DOORS  /*nuthin*/
 struct door_info_t {};
 namespace oflux {
 namespace doors {
@@ -180,6 +192,7 @@ class ServerDoorCoookie {};
 
 class ServerDoorsContainer {
 public:
+	ServerDoorsContainer(void *) {}
 	int create_doors() { return 0; } // nothing to do
 };
 } // namespace doors

@@ -37,7 +37,7 @@ public:
 
         Successor(const char * name);
         ~Successor();
-        inline const std::string & getName() { return _name; }
+        inline const std::string & getName() const { return _name; }
         void add(Case * fc, bool front=false);
 	void remove(Case * fc);
 	Case * getByTargetName(const char *n);
@@ -111,7 +111,7 @@ public:
         void setErrorHandler(Node *fn);
         void successor_list(SuccessorList * sl) { _successor_list = sl; }
         SuccessorList * successor_list() { return _successor_list; }
-        inline const char * getName() { return &(_name[0]); }
+        inline const char * getName() const { return &(_name[0]); }
         inline bool getIsSource() const { return _is_source; }
 	bool getIsInitial();
         inline bool getIsDoor() const { return _is_door; }

@@ -31,6 +31,12 @@ output:
 #include "OFluxLinkedList.h"
 #include <gtest/gtest.h>
 
+namespace oflux {
+ class RunTimeAbstractForShim; 
+} // namespace oflux
+
+oflux::RunTimeAbstractForShim *eminfo = NULL; // need this symbol due to doors
+
 using namespace oflux;
 
 class C {

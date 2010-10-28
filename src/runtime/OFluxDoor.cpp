@@ -2,10 +2,9 @@
 # include "OFluxDoor.h"
 # include "OFluxLogging.h"
 # include <unistd.h>
-# include <errno.h>
 # include <sys/stat.h>
+# include <sys/types.h>
 # include <cassert>
-# include <string.h>
 # ifdef __linux__
 #  include <namefs.h>
 # endif // __linux__
@@ -71,6 +70,15 @@ create(const char * filename, server_proc_t server_proc, void * cookie)
 	int door;
 	door = ::door_create(server_proc,cookie,0);
 	if(door > 0) {
+		std::string dir(filename);
+		size_t last_slash = dir.find_last_of('/');
+		if(last_slash != std::string::npos) {
+			dir = dir.substr(0,last_slash);
+			struct stat s;
+			if(::stat(dir.c_str(),&s) < 0) {
+				::mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+			}
+		}
 		fd = ::creat(filename,0600);
 		::close(fd);
 		if(fd > 0) {

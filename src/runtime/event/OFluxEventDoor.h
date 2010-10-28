@@ -21,6 +21,7 @@ public:
 	{
 		assert(sz == sizeof(typename Detail::Out_));
 		memcpy(EventBaseTyped<Detail>::pr_output_type(), ptr, sz);
+		EventBaseTyped<Detail>::pr_output_type()->next(NULL);
 	}
 	virtual int execute() { return 0; } // not called anyway
 };
