@@ -108,6 +108,9 @@ ServerDoorsContainer::create_doors()
 	flow::Flow * flow = _rt->flow();
 	assert(flow);
 	std::vector<flow::Node *> & doors = flow->doors();
+	if(doors.size()) {
+		START_DOORS;
+	}
 	for(size_t i = 0; i < doors.size(); ++i) {
 		CreateDoorFn create_door_fn = doors[i]->getCreateDoorFn();
 		ServerDoorCookie * cookie = 

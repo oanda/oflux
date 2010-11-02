@@ -80,7 +80,7 @@ typedef void (*server_proc_t)(void *cookie, char *argp, size_t arg_size,
 int create(const char * filename, server_proc_t server_proc, void * cookie);
 void destroy(int & door, const char * filename);
 
-struct ServerDoorCookie {
+struct ServerDoorCookie { // this is the base-level POD struct
 	ServerDoorCookie(
 		  const char * door_filename
 		, oflux::RunTimeAbstract * rt);
@@ -89,14 +89,25 @@ struct ServerDoorCookie {
 	oflux::RunTimeAbstract * runtime;
 };
 
+class ServerDoorCookieVirtualDestructor : public ServerDoorCookie {
+public:
+	ServerDoorCookieVirtualDestructor
+		  const char * door_filename
+		, oflux::RunTimeAbstract * rt)
+		: ServerDoorCookie(door_filename,rt)
+		{}
+	virtual ~ServerDoorCookieVirtualDestructor {}
+};
+
 template<typename TDetail>
-class ServerDoor : public ServerDoorCookie {
+class ServerDoor : public ServerDoorCookieVirtualDestructor {
 	CheckDoorDataIsPOD<typename TDetail::Out_> _pod_check;
 public:
 	ServerDoor(const char * door_filename, oflux::RunTimeAbstract * rt)
-		: ServerDoorCookie(door_filename, rt)
+		: ServerDoorCookieVirtualDestructor(door_filename, rt)
 		, _door_filename(door_filename)
-		, _door_descriptor(create(door_filename,server_procedure,this))
+		, _door_descriptor(create(door_filename,server_procedure
+			,reinterpret_cast<ServerDoorCookie *>(this)))
 	{
 		if(_door_descriptor < 0) {
 			std::string str("could not create door");
@@ -147,13 +158,13 @@ public:
 	int create_doors();
 private:
 	RunTimeAbstract * _rt;
-	std::vector<ServerDoorCookie *> _created_doors;	
+	std::vector<ServerDoorCookieVirtualDestructor *> _created_doors;	
 };
 
 } // namespace doors
 
 template< typename TDetail >
-doors::ServerDoorCookie *
+doors::ServerDoorCookieVirtualDestructor *
 create_door(
 	  const char * door_dir
 	, const char * door_node_name
@@ -176,7 +187,8 @@ struct door_info_t {};
 namespace oflux {
 namespace doors {
 
-class ServerDoorCoookie {};
+class ServerDoorCookie {};
+class ServerDoorCookieVirtualDestructor : public ServerDoorCookie {};
 
 class ServerDoorsContainer {
 public:
@@ -185,7 +197,7 @@ public:
 } // namespace doors
 
 template< typename TDetail >
-doors::ServerDoorCookie *
+doors::ServerDoorCookieVirtualDestructor *
 create_door(
           const char * door_dir
         , const char * door_node_name

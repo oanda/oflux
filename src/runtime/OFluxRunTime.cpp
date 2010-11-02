@@ -206,7 +206,7 @@ RunTime::start()
 	RunTime::thread_data_key.set(rtt);
 	// if doors, start up a service thread now
 	if(_doors.create_doors()) {
-		START_DOORS;
+		//START_DOORS;
 	}
 	// running phase
 	rtt->start();

@@ -105,6 +105,7 @@ public:
 		flow::Flow * flow;
 		ActiveFlow * next; // older flows
 	};
+	void setupDoorsThread();
 protected:
 	void distribute_events(
 		  RunTimeThread * rtt
@@ -122,6 +123,7 @@ private:
 	RunTimeThread * _threads;
 	ActiveFlow * _active_flow;
 	doors::ServerDoorsContainer _doors;
+	RunTimeThread * _doors_thread;
 };
 
 } // namespace lockfree
