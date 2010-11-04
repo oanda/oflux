@@ -182,11 +182,12 @@ typedef EventBasePtr (*CreateNodeFn)(EventBasePtr,const void *, flow::Node *);
 
 namespace doors {
   struct ServerDoorCookie;
+  class ServerDoorCookieVirtualDestructor;
 } // doors
 
 class RunTimeAbstract;
 
-typedef doors::ServerDoorCookie * (*CreateDoorFn)(const char *, const char *, RunTimeAbstract *);
+typedef doors::ServerDoorCookieVirtualDestructor * (*CreateDoorFn)(const char *, const char *, RunTimeAbstract *);
 
 typedef bool (*GuardTransFn)(void *, const void *, atomic::AtomicsHolderAbstract *);
 

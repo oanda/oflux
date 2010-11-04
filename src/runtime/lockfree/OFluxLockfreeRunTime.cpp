@@ -33,6 +33,7 @@ RunTime::RunTime(const RunTimeConfiguration &rtc)
 	, _threads(NULL)
 	, _active_flow(NULL)
 	, _doors(this)
+	, _doors_thread(NULL)
 {
 	oflux_log_info("oflux::lockfree::RunTime initializing\n");
 	if(rtc.initAtomicMapsF) {
@@ -221,7 +222,6 @@ void __runtime_sigint_handler(int)
 namespace doorthread {
   // things I wish were not global -- libdoor forces me to do this
   RunTime * theRT = NULL;
-  RunTimeThread * doors_thread = NULL;
 } // namespace doorthread
 
 static void *
@@ -238,19 +238,27 @@ RunTimeThread_start_door_thread(void * pthis)
 static void
 RunTime_start_door_thread(door_info_t *)
 {
-	if(!doorthread::doors_thread) {
-		assert(doorthread::theRT);
-		doorthread::doors_thread = new RunTimeThread(*doorthread::theRT,1024,0);
-		oflux_create_thread(
-			  doorthread::theRT->config().stack_size
-			, RunTimeThread_start_door_thread
-			, doorthread::doors_thread
-			, &(doorthread::doors_thread->_tid));
-	}
+	assert(doorthread::theRT);
+	doorthread::theRT->setupDoorsThread();
 }               
 #else // ! HAS_DOORS_IPC
 # define OFLUX_SET_RT_FOR_DOORS 
 #endif // HAS_DOORS_IPC
+
+void
+RunTime::setupDoorsThread()
+{
+#ifdef HAS_DOORS_RPC
+	if(!_doors_thread) {
+		_doors_thread = new RunTimeThread(*this,1024,0);
+		oflux_create_thread(
+			  config().stack_size
+			, RunTimeThread_start_door_thread
+			, _doors_thread
+			, &(_doors_thread->_tid));
+	}
+#endif // HAS_DOORS_IPC
+}
 
 void
 RunTime::start()
@@ -284,9 +292,9 @@ RunTime::start()
 		rtt = rtt->_next;
 	}
 	// if doors, start up 
-	if(_doors.create_doors()) {
-		OFLUX_SET_RT_FOR_DOORS;
-		OFLUX_START_DOORS;
+	OFLUX_SET_RT_FOR_DOORS;
+	if(_doors.create_doors(RunTime_start_door_thread)) {
+		//START_DOORS;
 	}
 	// start thread 0
 	this_rtt->start();

@@ -5,6 +5,8 @@
 # include <sys/stat.h>
 # include <sys/types.h>
 # include <cassert>
+# include <errno.h>
+# include <string.h>
 # ifdef __linux__
 #  include <namefs.h>
 # endif // __linux__
@@ -110,15 +112,18 @@ ServerDoorsContainer::~ServerDoorsContainer()
 }
 
 int
-ServerDoorsContainer::create_doors()
+ServerDoorsContainer::create_doors(RunTime_start_door_function sdfc)
 {
 	assert(_rt);
 	flow::Flow * flow = _rt->flow();
 	assert(flow);
 	std::vector<flow::Node *> & doors = flow->doors();
+	if(doors.size()) {
+		door_server_create(sdfc);
+	}
 	for(size_t i = 0; i < doors.size(); ++i) {
 		CreateDoorFn create_door_fn = doors[i]->getCreateDoorFn();
-		ServerDoorCookie * cookie = 
+		ServerDoorCookieVirtualDestructor * cookie = 
 			(*create_door_fn)(
 				  _rt->config().doors_dir
 				, doors[i]->getName()

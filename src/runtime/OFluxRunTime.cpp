@@ -205,8 +205,8 @@ RunTime::start()
 	_thread_count++;
 	RunTime::thread_data_key.set(rtt);
 	// if doors, start up a service thread now
-	if(_doors.create_doors()) {
-		OFLUX_START_DOORS;
+	if(_doors.create_doors(RunTime_start_door_thread)) {
+		//START_DOORS;
 	}
 	// running phase
 	rtt->start();
