@@ -248,7 +248,7 @@ RunTime_start_door_thread(door_info_t *)
 void
 RunTime::setupDoorsThread()
 {
-#ifdef HAS_DOORS_RPC
+#ifdef HAS_DOORS_IPC
 	if(!_doors_thread) {
 		_doors_thread = new RunTimeThread(*this,1024,0);
 		oflux_create_thread(
@@ -285,16 +285,15 @@ RunTime::start()
 		newaction.sa_handler = __runtime_sigint_handler;
 		sigaction(SIGINT,&newaction,NULL);
 	}
+	// if doors, start up 
+	OFLUX_SET_RT_FOR_DOORS;
+	if(_doors.create_doors(RunTime_start_door_thread)) {
+	}
 	// start threads > 0
 	int res = 0;
 	while(rtt) {
 		res = res || rtt->create();
 		rtt = rtt->_next;
-	}
-	// if doors, start up 
-	OFLUX_SET_RT_FOR_DOORS;
-	if(_doors.create_doors(RunTime_start_door_thread)) {
-		//START_DOORS;
 	}
 	// start thread 0
 	this_rtt->start();

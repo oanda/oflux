@@ -115,7 +115,7 @@ public:
 		: ServerDoorCookieVirtualDestructor(door_filename, rt)
 		, _door_filename(door_filename)
 		, _door_descriptor(create(door_filename,server_procedure
-			,reinterpret_cast<ServerDoorCookie *>(this)))
+			,static_cast<ServerDoorCookie *>(this)))
 	{
 		if(_door_descriptor < 0) {
 			std::string str("could not create door");

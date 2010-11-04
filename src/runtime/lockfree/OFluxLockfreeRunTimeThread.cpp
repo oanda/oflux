@@ -173,11 +173,18 @@ RunTimeThread::start()
 				&& _rt.all_asleep_except_me()) {
 
 			//oflux::lockfree::atomic::AtomicPool::dump(ofluximpl::IntPool_map_ptr);
-
-			_asleep = false;
-			oflux_log_warn("RunTimeThread::start() exiting... seem to be out of events to run\n");
-			_rt.soft_kill();
-			break;
+			if(_rt.doorsThread()) {
+				oflux_log_trace("RunTimeThread::start() there is a doors thread\n");
+				oflux_log_trace("RunTimeThread::start() sleeping %d\n",index());
+				oflux_cond_wait(&_cond, &_lck);
+				_asleep = false;
+				oflux_log_trace("RunTimeThread::start() woke up  %d\n",index());
+			} else {
+				_asleep = false;
+				oflux_log_warn("RunTimeThread::start() exiting... seem to be out of events to run\n");
+				_rt.soft_kill();
+				break;
+			}
 		}
 		_asleep = false;
 		oflux_log_trace2("RunTimeThread::start (about to reset) "

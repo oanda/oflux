@@ -106,6 +106,7 @@ public:
 		ActiveFlow * next; // older flows
 	};
 	void setupDoorsThread();
+	RunTimeThread * doorsThread() { return _doors_thread; }
 protected:
 	void distribute_events(
 		  RunTimeThread * rtt
