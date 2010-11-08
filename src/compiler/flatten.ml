@@ -313,7 +313,9 @@ let flatten prog =
         let prog = remove_reductions prog in
 	let for_cond_decl pre_mi pre_md cd =
 		{ externalcond = cd.externalcond
-                ; condname = prefix_sp pre_mi cd.condname
+                ; condname = 
+			(let (cn,p1,p2) = cd.condname
+			in  (prefix pre_md cn), p1, p2)
 		; condfunction = prefix pre_md cd.condfunction
 		; condinputs = cd.condinputs 
                 } in
@@ -537,7 +539,9 @@ let flatten_plugin' plugin_name prog =
                 let isext = cd.externalcond
                 in
                 { externalcond = cd.externalcond
-                ; condname = for_ref (fun _ -> isext) cd.condname
+                ; condname = 
+			(let cn,p1,p2 = cd.condname
+			in ((if isext then "" else pref)^cn, p1,p2))
                 ; condfunction = (if isext then "" else pref)^cd.condfunction
                 ; condinputs = cd.condinputs
                 } in
