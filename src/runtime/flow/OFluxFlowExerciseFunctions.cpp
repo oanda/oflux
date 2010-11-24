@@ -11,6 +11,7 @@
 #include <string>
 #include <strings.h>
 #include <unistd.h>
+#include <ctime>
 
 namespace oflux {
 namespace flow {
@@ -295,6 +296,13 @@ exercise_error_node_function(
 	return 0;
 }
 
+#define WAIT_A_LITTLE(L) \
+	{ \
+	timespec twait = {0 /*sec*/, L /*nsec*/}; \
+	timespec trem; \
+	nanosleep(&twait,&trem); \
+	}
+
 int
 exercise_source_node_function(
 	  const ExerciseEventDetail::In_ *
@@ -307,7 +315,8 @@ exercise_source_node_function(
 		, atoms->node_name.c_str()
 		, out->value);
 	atoms->report();
-	::usleep(1); // if sources do not stop a little - bad stuff happens
+#define MAX_NSEC_WAIT 300
+	WAIT_A_LITTLE((out->value)%MAX_NSEC_WAIT);
 	return 0;
 }
 

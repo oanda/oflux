@@ -116,7 +116,9 @@ oflux_vers.cpp: $(VERSDEPEND)
 	; echo "") > oflux_vers.cpp
 
 exercise : oflux_exercise.o liboflux.so libofshim.so
-	$(CXX) $(CXXOPTS) $(CXXFLAGS) $(INCS) $(LIBDIRS) $^ liboflux.so libofshim.so $(LIBS) -o $@
+	$(CXX) $(CXXOPTS) $(CXXFLAGS) $(INCS) $(LIBDIRS) $^ $(LIBS) -o $@
+
+exercise : LIBS += -lumem
 
 OFLUX_DOCUMENTATION += doc/runtime
 
