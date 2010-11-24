@@ -1317,7 +1317,8 @@ let emit_cond_func_decl plugin_opt symtable code =
 			| _ -> raise (CppGenFailure ("emit_cond_func_decl -internal"))
 	in SymbolTable.fold_conditionals e_one symtable code
 
-let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
+let emit_create_map spec ignore_f plugin_opt is_concrete symtable conseq_res ehs code =
+	let lower_spec = if spec = "" then "" else "_"^(String.lowercase spec) in
 	let is_eh f = List.mem f ehs in
 	(*let lookup_union_number (n,isin) =
 		try TypeCheck.get_union_from_strio conseq_res (n,isin)
@@ -1326,9 +1327,10 @@ let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
 		in*)
         let is_abstract n = SymbolTable.is_abstract symtable n in
 	let ignore_emit n = 
-		match plugin_opt with
+		(ignore_f n) ||
+		(match plugin_opt with
 			None -> has_dot n
-			| (Some pn) -> not (string_has_prefix n (pn^"."))
+			| (Some pn) -> not (string_has_prefix n (pn^".")))
 		in
 	(*let e_one n _ code =
 		if ignore_emit n then code 
@@ -1381,27 +1383,31 @@ let emit_create_map plugin_opt is_concrete symtable conseq_res ehs code =
 						| _ -> ("",nfind)
 				in*)  
 				add_code code ("{ \""^nfind
-					^"\", &oflux::create"
+					^"\", &oflux::create"^lower_spec
 					^(if is_eh n then "_error" else "")
                                         ^"<"^nfind^"Detail> },  ")
 			else code
 		in
 	let code = List.fold_left add_code code 
 			[ ""
-			; "oflux::CreateMap __create_map[] = {"
+			; "oflux::Create"^spec
+				^"Map __create"^lower_spec^"_map[] = {"
 			] in
 	let code = SymbolTable.fold_nodes e_one symtable code in
 	let code = List.fold_left add_code code [ "{ NULL, NULL }  " ; "};" ]
-	in  add_code code "oflux::CreateMap * __create_map_ptr = __create_map;"
+	in  add_code code ("oflux::Create"^spec
+		^"Map * __create"^lower_spec^"_map_ptr = __create"
+		^lower_spec^"_map;")
 
-let emit_master_create_map modules code =
+let emit_master_create_map spec modules code =
+	let lower_spec = if spec = "" then "" else "_"^(String.lowercase spec) in
 	let per_module m =
 		let mm = if m = "" then m else m^"::"
-		in  "{ \""^mm^"\", "^mm^"ofluximpl::__create_map_ptr }, "
+		in  "{ \""^mm^"\", "^mm^"ofluximpl::__create"^lower_spec^"_map_ptr }, "
 	in  List.fold_left add_code code 
-		( [ "oflux::ModularCreateMap __master_create_map[] = {" ]
+		( [ "oflux::ModularCreate"^spec^"Map __master_create"^lower_spec^"_map[] = {" ]
 		@ (List.map per_module modules)
-		@ [ "{ \"\", __create_map_ptr }, "
+		@ [ "{ \"\", __create"^lower_spec^"_map_ptr }, "
 		  ; "{ NULL, NULL }  " 
 		  ; "};" 
 		  ; "" ] 
@@ -1577,7 +1583,7 @@ let emit_test_main code =
 		; "int main(int argc, char * argv[])"
 		; "{"
 		; "assert(argc >= 2);"
-		; "static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
+		; "static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__master_create_door_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);"
 		; "RunTimeConfiguration rtc = {"
 		; "  1024*1024 // stack size"
 		; ", 4 // initial threads (ignored really)"
@@ -1591,6 +1597,7 @@ let emit_test_main code =
 		; ", \"lib\" // lib subdir for plugins"
 		; ", NULL"
 		; ", ofluximpl::init_atomic_maps"
+		; ", \"/tmp\" // subdir for door creations"
 		; "};"
 		; "logging::toStream(std::cout); // comment out if no oflux logging is desired"
 		; "EnvironmentVar env(runtime::Factory::"^(CmdLine.get_runtime_engine())^");"
@@ -1633,6 +1640,7 @@ let cpp_header_includes lc_codeprefix file_suffix =
 	; "#include \"atomic/OFluxAtomicHolder.h\""
 	; "#include \"OFluxRunTimeBase.h\""
 	; "#include \"OFluxIOConversion.h\""
+	; "#include \"OFluxDoor.h\""
 	; "#include \"OFluxLogging.h\""
 	; "#include <boost/shared_ptr.hpp>"
 	; "#include <iostream>"
@@ -1646,6 +1654,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
         let conseq_res = braft.Flow.consequences in
 	let fm = braft.Flow.fmap in
 	let ehs = braft.Flow.errhandlers in
+	let doors = braft.Flow.doorsources in
 	let h_code = CodePrettyPrinter.empty_code in
         let ns_broken = break_namespaced_name pluginname in
 	let def_const_ns_fun csofar str = csofar^(String.capitalize str)^"__" in
@@ -1700,6 +1709,8 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		; "extern void init_atomic_maps(int style);"
                 ; "extern oflux::CreateMap * __create_map_ptr;" 
 		; "extern oflux::CreateMap __create_map[];"
+                ; "extern oflux::CreateDoorMap * __create_door_map_ptr;" 
+		; "extern oflux::CreateDoorMap __create_door_map[];"
 		; "extern oflux::ConditionalMap __conditional_map[];"
 		; "extern oflux::AtomicMapMap __atomic_map_map[];"
 		; "extern oflux::GuardTransMap __theGuardTransMap[];"
@@ -1733,7 +1744,8 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 	let cpp_code = namespaceheader cpp_code in
 	let cpp_code = emit_node_detail_defn (Some pluginname) is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
-	let cpp_code = emit_create_map (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = emit_create_map "" (fun _ -> false) (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = emit_create_map "Door" (fun n -> not (List.mem n doors)) (Some pluginname) is_concrete stable conseq_res ehs cpp_code in
 	let cpp_code = emit_cond_map conseq_res stable cpp_code in
 	let cpp_code = 
 		let cpp_code = emit_atom_map_map (Some pluginname) stable cpp_code in
@@ -1766,9 +1778,19 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
         
                 @ [ "{ NULL, NULL }  "
                   ; "};"
-                  ; "static oflux::flow::FunctionMaps ffm("
+		  ]
+                @ [ "static oflux::ModularCreateDoorMap mcdm[] = {"
+                  ; "{ \""^pluginname^"::\", "^pluginname^"::ofluximpl::__create_door_map_ptr },  "
+                  ]
+                @ (List.map (fun d -> "{ \""^d^"::\", "^d^"::ofluximpl::__create_door_map_ptr },  ") modules)
+        
+                @ [ "{ NULL, NULL }  "
+                  ; "};"
+		  ]
+                @ [ "static oflux::flow::FunctionMaps ffm("
                   ; "       "^pluginname^"::ofluximpl::__conditional_map"
                   ; "     , mcm"
+                  ; "     , mcdm"
                   ; "     , "^pluginname^"::ofluximpl::__theGuardTransMap"
                   ; "     , "^pluginname^"::ofluximpl::__atomic_map_map"
                   ; "     , "^pluginname^"::ofluximpl::__ioconverter_map );"
@@ -1786,6 +1808,7 @@ let emit_cpp modulenameopt br um =
         let conseq_res = br.Flow.consequences in
 	let fm = br.Flow.fmap in
 	let ehs = br.Flow.errhandlers in
+	let doors = br.Flow.doorsources in
 	let h_code = CodePrettyPrinter.empty_code in
 	let file_suffix = get_module_file_suffix modulenameopt in
 	let ns_broken,is_module = 
@@ -1843,7 +1866,11 @@ let emit_cpp modulenameopt br um =
 		; if is_module 
 		  then "extern oflux::CreateMap * __create_map_ptr;" 
 		  else "extern oflux::ModularCreateMap __master_create_map[];"
+		; if is_module 
+		  then "extern oflux::CreateDoorMap * __create_door_map_ptr;" 
+		  else "extern oflux::ModularCreateDoorMap __master_create_door_map[];"
 		; "extern oflux::CreateMap __create_map[];"
+		; "extern oflux::CreateDoorMap __create_door_map[];"
 		; "extern oflux::ConditionalMap __conditional_map[];"
 		; if is_module then "" else "extern oflux::AtomicMapMap __atomic_map_map[];"
 		; if is_module then "" else "extern oflux::GuardTransMap __theGuardTransMap[];"
@@ -1885,8 +1912,10 @@ let emit_cpp modulenameopt br um =
 	let cpp_code = namespaceheader cpp_code in
 	let cpp_code = emit_node_detail_defn None is_concrete ehs stable cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "namespace ofluximpl {"; "" ] in
-	let cpp_code = emit_create_map None is_concrete stable conseq_res ehs cpp_code in
-	let cpp_code = if is_module then cpp_code else emit_master_create_map modules cpp_code in
+	let cpp_code = emit_create_map "" (fun _ -> false) None is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = if is_module then cpp_code else emit_master_create_map "" modules cpp_code in
+	let cpp_code = emit_create_map "Door" (fun n -> not (List.mem n doors)) None is_concrete stable conseq_res ehs cpp_code in
+	let cpp_code = if is_module then cpp_code else emit_master_create_map "Door" modules cpp_code in
 	let cpp_code = emit_cond_map conseq_res stable cpp_code in
 	let cpp_code = if is_module then cpp_code
 		else

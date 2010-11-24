@@ -8,11 +8,13 @@ namespace flow {
 
 FunctionMaps::FunctionMaps(ConditionalMap cond_map[],
                 ModularCreateMap create_map[],
+                ModularCreateDoorMap create_door_map[],
                 GuardTransMap guard_map[],
                 AtomicMapMap atom_map_map[],
                 IOConverterMap ioconverter_map[])
         : _cond_map(cond_map)
         , _create_map(create_map)
+        , _create_door_map(create_door_map)
         , _guard_trans_map(guard_map)
         , _atom_map_map(atom_map_map)
         , _ioconverter_map(ioconverter_map)
@@ -43,16 +45,15 @@ FunctionMaps::lookup_io_conversion(
         return res;
 }
 
-
-CreateNodeFn 
-FunctionMaps::lookup_node_function(const char * n) const
+template<typename FP>
+FP
+lookupModularType(ModularFunctionLookup<FP> * mcm, const char * n)
 {
-        CreateNodeFn res = NULL;
-        ModularCreateMap * mcm = _create_map;
+        FP res = NULL;
         while(mcm->scope) {
                 int sz = strlen(mcm->scope);
                 if(strncmp(mcm->scope,n,sz) == 0) {
-                        CreateMap * cm = mcm->map;
+                        FunctionLookup<FP> * cm = mcm->map;
                         while(cm->name) {
                                 if(strcmp(cm->name,n + sz) == 0) {
                                         res = cm->createfn;
@@ -68,6 +69,14 @@ FunctionMaps::lookup_node_function(const char * n) const
         }
         return res;
 }
+
+CreateNodeFn 
+FunctionMaps::lookup_node_function(const char * n) const
+{ return lookupModularType(_create_map,n); }
+
+CreateDoorFn 
+FunctionMaps::lookup_door_function(const char * n) const
+{ return lookupModularType(_create_door_map,n); }
 
 ConditionFn 
 FunctionMaps::lookup_conditional(

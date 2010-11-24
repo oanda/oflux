@@ -45,6 +45,7 @@ public:
         virtual void log_snapshot_guard(const char * guardname) = 0;
         virtual void getPluginNames(std::vector<std::string> & result) = 0;
 	virtual int thread_count() = 0;
+	virtual const RunTimeConfiguration & config() const { return _rtc; }
 protected:
 	RunTimeConfiguration         _rtc;
 	const RunTimeConfiguration & _rtc_ref;

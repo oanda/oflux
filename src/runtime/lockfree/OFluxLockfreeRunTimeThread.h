@@ -10,6 +10,7 @@
 #include "OFlux.h"
 #include "OFluxAllocator.h"
 #include "OFluxThreads.h"
+#include "OFluxRunTimeThreadAbstract.h"
 #include "lockfree/OFluxWorkStealingDeque.h"
 #include <boost/shared_ptr.hpp>
 #include <signal.h>
@@ -26,7 +27,7 @@ namespace lockfree {
 
 class RunTime;
 
-class RunTimeThread {
+class RunTimeThread : public ::oflux::RunTimeThreadAbstract {
 public:
 	friend class RunTime;
 
@@ -44,6 +45,7 @@ public:
 	RunTimeThread(RunTime & rt, int index, oflux_thread_t tid);
 	~RunTimeThread();
 	void start();
+	virtual void submitEvents(const std::vector<EventBasePtr> &);
 	inline EventBasePtr steal()
 	{
 		EventBasePtr ebptr;
@@ -83,7 +85,7 @@ private:
 			, ebptr.get());
 		return ebptr;
 	}
-	inline void pushLocal(EventBasePtr & ev)
+	inline void pushLocal(const EventBasePtr & ev)
 	{
 		oflux_log_trace("[%d] pushLocal %s %p\n"
 			, self()
@@ -96,12 +98,16 @@ private:
 private:
 	RunTime & _rt;
 	int _index;
+public:
 	bool _running;
+private:
 	bool _request_stop;
 	bool _asleep;
 	WorkStealingDeque _queue;
 	long _queue_allowance;
+public:
 	oflux_thread_t _tid;
+private:
 	oflux_mutex_t _lck; 
 		// lock for the condition var (not really used as a lock)
 	oflux_cond_t _cond;

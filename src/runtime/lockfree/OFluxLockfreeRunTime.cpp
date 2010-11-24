@@ -1,4 +1,5 @@
 #include "lockfree/OFluxLockfreeRunTime.h"
+#include "lockfree/OFluxThreadNumber.h"
 #include "event/OFluxEventOperations.h"
 #include "flow/OFluxFlow.h"
 #include "xml/OFluxXML.h"
@@ -31,6 +32,8 @@ RunTime::RunTime(const RunTimeConfiguration &rtc)
 	, _sleep_count(0)
 	, _threads(NULL)
 	, _active_flow(NULL)
+	, _doors(this)
+	, _doors_thread(NULL)
 {
 	oflux_log_info("oflux::lockfree::RunTime initializing\n");
 	if(rtc.initAtomicMapsF) {
@@ -85,6 +88,21 @@ RunTime::~RunTime()
 		delete aflow;
 		aflow = next_aflow;
 	}
+}
+
+void
+RunTime::submitEvents(const std::vector<EventBasePtr> & evs)
+{
+	size_t t_ind = _tn.index;
+	RunTimeThread * thread_ptr = _threads;
+	while(thread_ptr && evs.size()) {
+		if((int)t_ind == thread_ptr->index()) {
+			thread_ptr->submitEvents(evs);
+			return;
+		}
+		thread_ptr = thread_ptr->_next;
+	}
+	oflux_log_error("lockfree::RunTime::submitEvents dropped %d events\n", evs.size());
 }
 
 void 
@@ -199,6 +217,50 @@ void __runtime_sigint_handler(int)
 	}
 }
 
+#ifdef HAS_DOORS_IPC
+# define OFLUX_SET_RT_FOR_DOORS doorthread::theRT = this
+namespace doorthread {
+  // things I wish were not global -- libdoor forces me to do this
+  RunTime * theRT = NULL;
+} // namespace doorthread
+
+static void *
+RunTimeThread_start_door_thread(void * pthis)
+{
+	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
+	SetTrue keep_true_during_lifetime(rtt->_running);
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	OFLUX_DOOR_RETURN;
+	return NULL;
+}
+
+
+static void
+RunTime_start_door_thread(door_info_t *)
+{
+	assert(doorthread::theRT);
+	doorthread::theRT->setupDoorsThread();
+}               
+#else // ! HAS_DOORS_IPC
+# define OFLUX_SET_RT_FOR_DOORS 
+# define RunTime_start_door_thread
+#endif // HAS_DOORS_IPC
+
+void
+RunTime::setupDoorsThread()
+{
+#ifdef HAS_DOORS_IPC
+	if(!_doors_thread) {
+		_doors_thread = new RunTimeThread(*this,1024,0);
+		oflux_create_thread(
+			  config().stack_size
+			, RunTimeThread_start_door_thread
+			, _doors_thread
+			, &(_doors_thread->_tid));
+	}
+#endif // HAS_DOORS_IPC
+}
+
 void
 RunTime::start()
 {
@@ -223,6 +285,10 @@ RunTime::start()
 		sigemptyset(&newaction.sa_mask);
 		newaction.sa_handler = __runtime_sigint_handler;
 		sigaction(SIGINT,&newaction,NULL);
+	}
+	// if doors, start up 
+	OFLUX_SET_RT_FOR_DOORS;
+	if(_doors.create_doors(RunTime_start_door_thread)) {
 	}
 	// start threads > 0
 	int res = 0;

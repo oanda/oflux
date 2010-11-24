@@ -20,6 +20,7 @@ class FunctionMapsAbstract {
 public:
 	virtual Library* libraryFactory(const char * dir, const char * name) = 0;
         virtual CreateNodeFn lookup_node_function(const char * n) const = 0;
+        virtual CreateDoorFn lookup_door_function(const char * d) const = 0;
         virtual ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const = 0;
         virtual GuardTransFn lookup_guard_translator(
 		  const char * guardname
@@ -42,6 +43,7 @@ class FunctionMaps : public FunctionMapsAbstract { // data that is compiled in
 public:
         FunctionMaps(ConditionalMap cond_map[],
                         ModularCreateMap create_map[],
+			ModularCreateDoorMap create_door_map[],
                         GuardTransMap guard_map[],
                         AtomicMapMap atom_map[],
                         IOConverterMap ioconverter_map[]);
@@ -53,6 +55,7 @@ public:
          * @return a function pointer usable to create a new event (smart pointered)
          **/
         virtual CreateNodeFn lookup_node_function(const char * n) const;
+        virtual CreateDoorFn lookup_door_function(const char * d) const;
 
         /**
          * @brief lookup a conditional function usable on a particular input
@@ -93,6 +96,7 @@ public:
 private:
         ConditionalMap *   _cond_map;
         ModularCreateMap * _create_map;
+        ModularCreateDoorMap * _create_door_map;
         GuardTransMap *    _guard_trans_map;
         AtomicMapMap *     _atom_map_map;
         IOConverterMap *   _ioconverter_map;

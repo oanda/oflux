@@ -32,6 +32,7 @@ public:
 	ExerciseFunctionMaps(int atomics_style);
 	virtual Library* libraryFactory(const char * dir, const char * name);
         virtual CreateNodeFn lookup_node_function(const char * n) const;
+        virtual CreateDoorFn lookup_door_function(const char * n) const;
         virtual ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
         virtual GuardTransFn lookup_guard_translator(
 		  const char * guardname

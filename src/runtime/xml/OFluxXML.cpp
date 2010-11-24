@@ -103,6 +103,9 @@ public:
 		CreateNodeFn
 		lookup_node_function(const char *n);
 
+		CreateDoorFn
+		lookup_door_function(const char *n);
+
 		ConditionFn
 		lookup_conditional(
 			  const char * n
@@ -171,6 +174,7 @@ public:
 	static const char * attr_argno;
 	static const char * attr_nodetarget;
 	static const char * attr_source;
+	static const char * attr_door;
 	static const char * attr_isnegated;
 	static const char * attr_iserrhandler;
 	static const char * attr_detached;
@@ -244,6 +248,15 @@ public:
 			std::string ex_msg = "unfound attribute key ";
 			ex_msg += k;
 			throw ReaderException(ex_msg.c_str());
+		}
+		return (*itr).second;
+	}
+	Attribute getOrDefault(const char * k, const char * str_default)
+	{
+		std::map<const char *,Attribute>::iterator itr = find(k);
+		if(itr == end()) {
+			Attribute attr(str_default);
+			return attr;
 		}
 		return (*itr).second;
 	}
@@ -700,6 +713,18 @@ ScopedFunctionMaps::Scope::lookup_node_function(const char *n)
         return res;
 }
 
+CreateDoorFn
+ScopedFunctionMaps::Scope::lookup_door_function(const char *n)
+{
+        CreateDoorFn res = NULL;
+	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
+        while(res == NULL && itr != _c.end()) {
+                res = (*itr)->lookup_door_function(n);
+		++itr;
+        }
+        return res;
+}
+
 ConditionFn
 ScopedFunctionMaps::Scope::lookup_conditional(
 	  const char * n
@@ -770,6 +795,7 @@ const char * XMLVocab::attr_name = "name";
 const char * XMLVocab::attr_argno = "argno";
 const char * XMLVocab::attr_nodetarget = "nodetarget";
 const char * XMLVocab::attr_source = "source";
+const char * XMLVocab::attr_door = "door";
 const char * XMLVocab::attr_isnegated = "isnegated";
 const char * XMLVocab::attr_iserrhandler = "iserrhandler";
 const char * XMLVocab::attr_detached = "detached";
@@ -813,6 +839,7 @@ fillAttributeMap(
 		, XMLVocab::attr_argno
 		, XMLVocab::attr_nodetarget
 		, XMLVocab::attr_source
+		, XMLVocab::attr_door
 		, XMLVocab::attr_isnegated
 		, XMLVocab::attr_iserrhandler
 		, XMLVocab::attr_detached
@@ -973,10 +1000,8 @@ template<>
 flow::Guard *
 flow_element_factory<flow::Guard>(AttributeMap & amap, Reader & reader)
 {
-	const char * name =
-		amap.getOrThrow(XMLVocab::attr_name).c_str();
-	bool is_gc =
-		amap.getOrThrow(XMLVocab::attr_gc).boolVal();
+	const char * name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+	bool is_gc = amap.getOrDefault(XMLVocab::attr_gc, "false").boolVal();
 	atomic::AtomicMapAbstract * atomicmap = reader.fromThisScope()->lookup_atomic_map(name);
 	return new flow::Guard(atomicmap,name,is_gc);
 }
@@ -1070,6 +1095,11 @@ flow_element_factory<flow::Node>(AttributeMap & amap, Reader & reader)
 {
 	CreateNodeFn createfn =
 		reader.fromThisScope()->lookup_node_function(amap.getOrThrow(XMLVocab::attr_function).c_str());
+	bool is_door = amap.getOrDefault(XMLVocab::attr_door,"false").boolVal();
+	CreateDoorFn createdoorfn =
+		( is_door 
+		? reader.fromThisScope()->lookup_door_function(amap.getOrThrow(XMLVocab::attr_function).c_str())
+		: NULL);
 	bool is_external = amap.getOrThrow(XMLVocab::attr_external).boolVal();
 	flow::Node * result = NULL;
 	const char * node_name = amap.getOrThrow(XMLVocab::attr_name).c_str();
@@ -1081,8 +1111,10 @@ flow_element_factory<flow::Node>(AttributeMap & amap, Reader & reader)
 		result = new flow::Node(
 			  node_name
 			, createfn
+			, createdoorfn
 			, amap.getOrThrow(XMLVocab::attr_iserrhandler).boolVal()
 			, amap.getOrThrow(XMLVocab::attr_source).boolVal()
+			, is_door
 			, amap.getOrThrow(XMLVocab::attr_detached).boolVal()
 			, amap.getOrThrow(XMLVocab::attr_inputunionnumber).intVal()
 			, amap.getOrThrow(XMLVocab::attr_outputunionnumber).intVal());
@@ -1111,17 +1143,23 @@ flow_element_factory<flow::Library>(AttributeMap &amap, Reader & reader)
 
 template<>
 flow::Flow *
-flow_element_factory<flow::Flow>(AttributeMap &, Reader & reader)
+flow_element_factory<flow::Flow>(AttributeMap & amap, Reader & reader)
 {
 	const flow::Flow * ef =
 		reader.existing_flow(); // for SIGHUP
 	flow::Flow * f = reader.get<flow::Flow>(); // for plugins
 	if(reader.allow_addition() && !f) {
-		f = ( ef ? new flow::Flow(*ef) : new flow::Flow());
+		std::string name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+		size_t dot_pos = name.find_last_of('.');
+		if(dot_pos != std::string::npos) {
+			name.replace(dot_pos,5,"");
+		}
+		f = ( ef 
+			? new flow::Flow(*ef,name) 
+			: new flow::Flow(name));
 	}
 	return f;
 }
-
 template<typename T>
 const char * ElementName<T>::name = "unknown";
 

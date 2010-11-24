@@ -5,7 +5,7 @@ namespace oflux {
 namespace flow {
 
 const char *
-get_node_name(flow::Node *n)
+get_node_name(const flow::Node *n)
 {
 	return n->getName();
 }

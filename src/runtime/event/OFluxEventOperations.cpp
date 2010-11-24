@@ -13,7 +13,7 @@ namespace oflux {
 namespace event {
 
 inline int
-acquire_guards(
+__acquire_guards(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev = EventBase::no_event)
 {
@@ -28,6 +28,14 @@ acquire_guards(
 			, ev.get());
 	}
 	return res;
+}
+
+int
+acquire_guards(
+	  EventBasePtr & ev
+	, EventBasePtr & pred_ev)
+{
+	return __acquire_guards(ev,pred_ev);
 }
 
 void
@@ -63,7 +71,7 @@ successors_on_no_error(
 				: (*createfn)(ev,iocon->convert(ev_output),fn)
 				);
 			ev_succ->error_code(0);
-			if(event::acquire_guards(ev_succ
+			if(event::__acquire_guards(ev_succ
 					, is_source
 					? EventBase::no_event
 					: ev)) {
@@ -93,7 +101,7 @@ successors_on_error(
 			? (*createfn)(EventBase::no_event,NULL,fn)
 			: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
 		ev_succ->error_code(return_code);
-		if(event::acquire_guards(ev_succ,ev)) {
+		if(event::__acquire_guards(ev_succ,ev)) {
 			successor_events.push_back(ev_succ);
 		}
 	}
@@ -114,7 +122,7 @@ push_initials_and_sources(
 				, fn->getName());
 			CreateNodeFn createfn = fn->getCreateFn();
 			EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
-			if(event::acquire_guards(ev)) {
+			if(event::__acquire_guards(ev)) {
 				if(lifo) {
 					events_vec.push_back(ev);
 				} else {
@@ -130,7 +138,7 @@ push_initials_and_sources(
 				, fn->getName());
 			CreateNodeFn createfn = fn->getCreateFn();
 			EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
-			if(event::acquire_guards(ev)) {
+			if(event::__acquire_guards(ev)) {
 				events_vec.push_back(ev);
 			}
 		}

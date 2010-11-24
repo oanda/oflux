@@ -168,7 +168,7 @@ class EventBase;
 typedef boost::shared_ptr<EventBase> EventBasePtr;
 
 namespace flow {
-class Node;
+ class Node;
 } //namespace flow
 
 extern "C" {
@@ -180,22 +180,38 @@ typedef bool (*ConditionFn)(const void *);
 
 typedef EventBasePtr (*CreateNodeFn)(EventBasePtr,const void *, flow::Node *);
 
+namespace doors {
+  struct ServerDoorCookie;
+  class ServerDoorCookieVirtualDestructor;
+} // doors
+
+class RunTimeAbstract;
+
+typedef doors::ServerDoorCookieVirtualDestructor * (*CreateDoorFn)(const char *, const char *, RunTimeAbstract *);
+
 typedef bool (*GuardTransFn)(void *, const void *, atomic::AtomicsHolderAbstract *);
 
 namespace atomic {
  class AtomicMapAbstract;
 } // namespace atomic
 
-struct CreateMap {
+template< typename FP >
+struct FunctionLookup {
 	const char * name;
-	CreateNodeFn createfn;
+	FP createfn;
 };
 
-struct ModularCreateMap {
+typedef FunctionLookup<CreateNodeFn> CreateMap;
+typedef FunctionLookup<CreateDoorFn> CreateDoorMap;
+
+template< typename FP >
+struct ModularFunctionLookup {
 	const char * scope;
-	CreateMap * map;
+	FunctionLookup<FP> * map;
 };
 
+typedef ModularFunctionLookup<CreateNodeFn> ModularCreateMap;
+typedef ModularFunctionLookup<CreateDoorFn> ModularCreateDoorMap;
 
 struct ConditionalMap {
 	const int unionnumber;

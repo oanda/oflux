@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 
 /**
  * @author Mark Pichora
@@ -83,7 +84,7 @@ Flow::pretty_print()
                 _sources[i]->pretty_print(0,'S',&visited);
         }
         /*
-        std::map<std::string, FlowNode *>::iterator mitr = _nodes.begin();
+        std::map<std::string, Node *>::iterator mitr = _nodes.begin();
         while(mitr != _nodes.end()) {
                 (*mitr).second->pretty_print(0);
                 mitr++;
@@ -98,6 +99,9 @@ Flow::add(Node *fn)
 	_nodes.insert(pr);
 	if(fn->getIsSource()) {
 		_sources.push_back(fn);
+	}
+	if(fn->getIsDoor()) {
+		_doors.push_back(fn);
 	}
 }
 
@@ -156,8 +160,9 @@ MagicNumberable * GuardMagicSorter::getMagicNumberable(const char * c)
         return _flow->get<Guard>(cs); 
 }
 
-Flow::Flow(const Flow & existing_flow)
-: _magic_sorter(this)
+Flow::Flow(const Flow & existing_flow, const std::string & name)
+	: _name(name)
+	, _magic_sorter(this)
 {
 	for(size_t i = 0; i < existing_flow._libraries.size(); ++i) {
 		_prev_libraries.push_back(existing_flow._libraries[i]);

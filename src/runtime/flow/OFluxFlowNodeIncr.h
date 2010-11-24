@@ -13,7 +13,7 @@ namespace flow {
 
 class Node;
 
-extern const char * get_node_name(flow::Node *n);
+extern const char * get_node_name(const flow::Node *n);
 
 class NodeCounterIncrementer {
 public:

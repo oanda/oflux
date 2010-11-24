@@ -10,6 +10,7 @@
 #include <cassert>
 #include <string>
 #include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <ctime>
 
@@ -403,6 +404,13 @@ CreateNodeFn
 ExerciseFunctionMaps::lookup_node_function(const char * ) const
 {
 	return create_special;
+}
+
+CreateDoorFn
+ExerciseFunctionMaps::lookup_door_function(const char * ) const
+{
+	assert(0 && "door support incomplete for the exerciser"); // TODO
+	return NULL;
 }
 
 bool 

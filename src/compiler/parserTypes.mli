@@ -12,7 +12,7 @@ type 'a positioned = 'a * position * position
 type mainfun =  { sourcename: string positioned
 		; sourcefunction : string 
 		; successor: string positioned option 
-                ; runonce: bool
+                ; runoncetype: int
                 }
 
 type data_type = { dctypemod: string positioned

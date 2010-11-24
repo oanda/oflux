@@ -1,5 +1,12 @@
 #include "CommonEventunit.h"
 
+namespace oflux {
+ class RunTimeAbstractForShim; 
+} // namespace oflux
+
+oflux::RunTimeAbstractForShim *eminfo = NULL; // need this symbol due to doors
+
+
 std::ostream & operator<<(std::ostream & os, const Empty &) 
 { os << "<empty>"; return os; }
 
@@ -65,9 +72,9 @@ c_nextDetail::nfunctype c_nextDetail::nfunc = &f_next;
 oflux::CreateNodeFn OFluxCommonEventTests::c_next = oflux::create<c_nextDetail>;
 
 OFluxCommonEventTests::OFluxCommonEventTests()
-	: n_source("source",c_source,false,true,false,0,0)
-	, n_succ("source",c_succ,false,false,false,0,0)
-	, n_next("source",c_succ,false,false,false,0,0)
+	: n_source("source",c_source,NULL,false,true,false,false,0,0)
+	, n_succ("source",c_succ,NULL,false,false,false,false,0,0)
+	, n_next("source",c_succ,NULL,false,false,false,false,0,0)
 {
 }
 

@@ -7,7 +7,7 @@
 namespace oflux {
 
 const char *
-Queue::element_name(Element & e)
+Queue::element_name(const Element & e)
 {
 	return flow::get_node_name(e->flow_node());
 }
@@ -26,7 +26,7 @@ Queue::push_priority(Element & e)
 	_FIFO_PUSH(e.get(),element_name(e));
 }
 void
-Queue::push_list(std::vector<Element> & vec)
+Queue::push_list(const std::vector<Element> & vec)
 {
 	for(int i = 0; i < (int)vec.size(); i++) {
 		_q.push_back(vec[i]);
@@ -34,7 +34,7 @@ Queue::push_list(std::vector<Element> & vec)
 	}
 }
 void
-Queue::push_list_priority(std::vector<Element> & vec)
+Queue::push_list_priority(const std::vector<Element> & vec)
 {
 	// reverse
 	for(int i = ((int)vec.size())-1; i >= 0; i--) {

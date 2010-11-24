@@ -42,6 +42,7 @@ OFLUX_OBJS = \
         OFluxRunTimeAbstractForShim.o \
         OFluxRunTimeBase.o \
         OFluxRunTime.o \
+        OFluxDoor.o \
         OFluxMeldingRunTime.o \
 	$(OFLUX_LF_OBJS) \
         OFluxXML.o \

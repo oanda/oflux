@@ -3,10 +3,12 @@
 
 #include <string>
 #include <vector>
+#include "OFlux.h"
 
 namespace oflux {
 
 namespace flow {
+ class Flow;
  class FunctionMapsAbstract;
 } // namespace flow
 
@@ -29,6 +31,7 @@ struct RunTimeConfiguration {
 	const char * plugin_lib_dir;    // plugin lib directory
 	void * init_plugin_params;
 	void (*initAtomicMapsF)(int);
+	const char * doors_dir;
 };
 
 struct EnvironmentVar {
@@ -58,6 +61,11 @@ public:
         virtual void getPluginNames(std::vector<std::string> & result) = 0;
 
 	virtual int thread_count() = 0;
+
+	virtual flow::Flow * flow() = 0;
+
+	virtual void submitEvents(const std::vector<EventBasePtr> & ) = 0;
+	virtual const RunTimeConfiguration & config() const = 0;
 };
 
 namespace runtime {

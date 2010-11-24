@@ -270,7 +270,9 @@ let generate_program pname p =
                     else o_string d edge_string in
         let on_mainfun mf =
                 let n = strip mf.sourcename in
-                let c = if mf.runonce then "lightgrey" else "black"
+                let c = if mf.runoncetype = 1 then "lightgrey" 
+			else if mf.runoncetype = 2 then "purple" (* door *)
+			else "black"
                 in  for_node "" true n c (Some "bold");
                     (match mf.successor with
                         None -> ()

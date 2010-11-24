@@ -40,11 +40,12 @@ class Flow {
 public:
 	typedef FlowHolder ParentObjType;
 
-        Flow() 
-		: _magic_sorter(this) 
+        Flow(const std::string & name) 
+		: _name(name)
+		, _magic_sorter(this) 
 		, _gaveup_libraries(false)
 	{}
-        Flow(const Flow &);
+        Flow(const Flow &, const std::string & name);
         ~Flow();
 
         /**
@@ -52,6 +53,7 @@ public:
          * @return a vector of sources
          **/
         std::vector<Node *> & sources() { return _sources; }
+        std::vector<Node *> & doors() { return _doors; }
 
         /**
          * @brief add a flow node
@@ -65,6 +67,7 @@ public:
 		return NULL;
 	}
 
+	inline const std::string & name() const { return _name; }
 
         /**
          * @brief add a guard to the guard map (internal) for lookup
@@ -115,9 +118,12 @@ public:
         { _magic_sorter.addInequality(before,after); }
         void drainGuardsOfEvents();
 	int sources_count() const { return _sources.size(); }
+	int doors_count() const { return _doors.size(); }
 private:
+	std::string                    _name;
         std::map<std::string, Node *>  _nodes;
         std::vector<Node *>            _sources;
+        std::vector<Node *>            _doors;
         std::map<std::string, Guard *> _guards;
         GuardMagicSorter               _magic_sorter;
         std::vector<Library *>         _libraries;
