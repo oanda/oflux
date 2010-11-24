@@ -9,7 +9,7 @@
 #include "OFluxLogging.h"
 #include <cassert>
 #include <string>
-#include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 namespace oflux {
@@ -401,7 +401,7 @@ exercise_condition_function(const void *v)
 {
 	const ExerciseEventDetail::Out_ * out =
 		reinterpret_cast<const ExerciseEventDetail::Out_ *>(v);
-	oflux_log_debug("  exercise_condition_function %d\n", out->value);
+	oflux_log_trace("  exercise_condition_function %d\n", out->value);
 	bool res = (out->value) % 2;
 	return res;
 }
