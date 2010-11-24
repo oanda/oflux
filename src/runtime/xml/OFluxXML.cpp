@@ -990,10 +990,8 @@ template<>
 flow::Guard *
 flow_element_factory<flow::Guard>(AttributeMap & amap, Reader & reader)
 {
-	const char * name =
-		amap.getOrThrow(XMLVocab::attr_name).c_str();
-	bool is_gc =
-		amap.getOrThrow(XMLVocab::attr_gc).boolVal();
+	const char * name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+	bool is_gc = amap.getOrDefault(XMLVocab::attr_gc, "false").boolVal();
 	atomic::AtomicMapAbstract * atomicmap = reader.fromThisScope()->lookup_atomic_map(name);
 	return new flow::Guard(atomicmap,name,is_gc);
 }
