@@ -11,8 +11,9 @@
 
 namespace oflux {
 namespace flow {
- class FunctionMaps;
+ class FunctionMapsAbstract;
  class Flow;
+ class Library;
 } // namespace flow
 namespace xml {
 
@@ -29,6 +30,7 @@ private:
         std::string _mesg;
 };
 
+flow::Library * flow__Library_factory(const char * dir, const char * name);
 
 /**
  * @brief read a flow from an XML file
@@ -44,7 +46,7 @@ private:
  **/
 flow::Flow *
 read(     const char * filename
-	, flow::FunctionMaps *fmaps
+	, flow::FunctionMapsAbstract *fmaps
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams

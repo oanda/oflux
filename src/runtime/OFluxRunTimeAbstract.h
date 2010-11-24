@@ -7,7 +7,7 @@
 namespace oflux {
 
 namespace flow {
- class FunctionMaps;
+ class FunctionMapsAbstract;
 } // namespace flow
 
 /**
@@ -24,7 +24,7 @@ struct RunTimeConfiguration {
 	int min_waiting_thread_collect; // waiting in pool collector
 	int thread_collection_sample_period;
 	const char * flow_filename;
-	flow::FunctionMaps * flow_maps;
+	flow::FunctionMapsAbstract * flow_maps;
 	const char * plugin_xml_dir;    // plugin xml directory
 	const char * plugin_lib_dir;    // plugin lib directory
 	void * init_plugin_params;

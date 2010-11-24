@@ -13,7 +13,7 @@ None None::nologger;
 
 Abstract * logger = &None::nologger;
 
-static const char * convert_level_to_string(Level lv)
+const char * convert_level_to_string(Level lv)
 {
 	static const char * conv[LL_count] = 
 		{ "trace "

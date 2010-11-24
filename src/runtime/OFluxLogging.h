@@ -24,6 +24,8 @@ enum Level
 	, LL_count = LL_error+1
 	};
 
+const char * convert_level_to_string(Level lv);
+
 /**
  * @class Abstract
  * @brief specifies the abstract interface of a logger (for hooking a framework)

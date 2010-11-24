@@ -1138,14 +1138,14 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 | _ ->
                                         ("if(!("^(fill_expr test_expr)
                                         ^")) { return false; }  ") in
-                let rec wtype grm = 
+                (*let rec wtype grm = 
                         match grm with 
                                 (Read::_) -> 1
                                 | (Write::_) -> 2
                                 | (Upgradeable::_) -> 4
 				| (_::t) -> wtype t
                                 | [] -> 3 
-			in
+			in*)
                 let e_gr (code,donel) gr =
 			let nullok = List.mem NullOk gr.modifiers in
 			let has_garg = 
@@ -1211,7 +1211,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         let mapline = ("{ \""^gn^"\", "
                                 ^(string_of_int u_n)^", "
                                 ^"\""^hash^"\", "
-                                ^(string_of_int (wtype gr.modifiers))^", "
+                                ^(string_of_int (WType.wtype_of gd.SymbolTable.gtype gr.modifiers))^", "
 				^(if has_garg || is_gc then "true" else "false")^", "
                                 ^"&"^gtfunc
                                 ^" },  ") in
@@ -1680,7 +1680,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 		] in
 	let namespaceheader code = expand_namespace_decl_start code ns_broken in
 	let namespacefooter code = expand_namespace_decl_end code ns_broken in
-        let ffunmapname = "oflux::flow::FunctionMaps * flowfunctionmaps_"^file_suffix^"(int style)" in
+        let ffunmapname = "oflux::flow::FunctionMapsAbstract * flowfunctionmaps_"^file_suffix^"(int style)" in
         let h_code = List.fold_left CodePrettyPrinter.add_code h_code
                 [ ""
                 ; "namespace oflux {"

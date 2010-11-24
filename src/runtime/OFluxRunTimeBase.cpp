@@ -1,4 +1,5 @@
 #include "OFluxRunTimeBase.h"
+#include "OFluxLogging.h"
 #include <cstring>
 #include <cstdlib>
 
@@ -25,6 +26,18 @@ EnvironmentVar::EnvironmentVar(int rt_number)
 			const char * v = strtok(NULL,delim);
 			if(v) {
 				runtime_number = atoi(v);
+			}
+		} else if(strcmp(s,"logging") == 0) {
+			const char * v = strtok(NULL,delim);
+			if(v) {
+				size_t l = strlen(v);
+				const char * lev_str = NULL;
+				for(int i = logging::LL_trace; i < logging::LL_count; ++i) {
+					lev_str = logging::convert_level_to_string(static_cast<logging::Level>(i));
+					if(strncmp(lev_str,v,l) == 0) {
+						logging::logger->setLevelOnOff(static_cast<logging::Level>(i),true);
+					}
+				}
 			}
 		}
 	}
