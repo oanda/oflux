@@ -92,6 +92,7 @@ public:
 
 class AtomicFree : public Atomic {
 public:
+	enum { Free = 6 };
 	AtomicFree(void *datap) : _data_ptr(datap) {}
 	virtual ~AtomicFree() {}
 	virtual void ** data() { return &_data_ptr; }
@@ -370,6 +371,7 @@ private:
 
 class AtomicPooled : public Atomic { // implements AtomicScaffold
 public:
+	enum { Pool = 5 };
 	AtomicPooled(AtomicPool & pool,void * data)
 		: _data(data)
 		, _pool(pool)

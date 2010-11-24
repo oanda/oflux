@@ -71,6 +71,8 @@ struct EventBaseHolder {
 		, Write = oflux::atomic::AtomicReadWrite::Write
 		, Exclusive = oflux::atomic::AtomicExclusive::Exclusive 
 		, Upgradeable = oflux::atomic::AtomicReadWrite::Upgradeable
+		, Pool = oflux::atomic::AtomicPooled::Pool
+		, Free = oflux::atomic::AtomicFree::Free
 		};
 
 	EventBaseHolder(  EventBasePtr & a_ev

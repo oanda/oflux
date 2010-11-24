@@ -21,6 +21,7 @@ HEADERS:= \
 	unify.cmi \
 	typeCheck.cmi \
 	flow.cmi \
+	wType.cmi \
 	generateCPP1.cmi \
 	generateXML.cmi \
 	dot.cmi \
@@ -44,6 +45,7 @@ CODE:= \
 	typeCheck.$(OBJECTEXT) \
 	flatten.$(OBJECTEXT) \
 	flow.$(OBJECTEXT) \
+	wType.$(OBJECTEXT) \
 	generateXML.$(OBJECTEXT) \
 	dot.$(OBJECTEXT) \
 	codePrettyPrinter.$(OBJECTEXT) \

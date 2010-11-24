@@ -243,6 +243,7 @@ RunTime_start_door_thread(door_info_t *)
 }               
 #else // ! HAS_DOORS_IPC
 # define OFLUX_SET_RT_FOR_DOORS 
+# define RunTime_start_door_thread
 #endif // HAS_DOORS_IPC
 
 void

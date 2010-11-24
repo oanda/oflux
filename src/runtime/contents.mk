@@ -3,6 +3,7 @@ $(info Reading contents.mk $(COMPONENT_DIR))
 OFLUX_LIB_COMPONENT_DIR:=$(COMPONENT_DIR)
 
 LIBRARIES += liboflux.so libofshim.so
+APPS += exercise
 
 OFLUX_SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
 
@@ -31,6 +32,7 @@ OFLUX_OBJS = \
         OFluxFlowCase.o \
         OFluxFlowGuard.o \
         OFluxFlowFunctions.o \
+        OFluxFlowExerciseFunctions.o \
         OFluxFlowLibrary.o \
         OFluxAtomic.o \
         OFluxAtomicInit.o \
@@ -113,6 +115,9 @@ oflux_vers.cpp: $(VERSDEPEND)
 	;cd $(CURDIR) \
 	; echo "; }" \
 	; echo "") > oflux_vers.cpp
+
+exercise : oflux_exercise.o liboflux.so libofshim.so
+	$(CXX) $(CXXOPTS) $(CXXFLAGS) $(INCS) $(LIBDIRS) $^ liboflux.so libofshim.so $(LIBS) -o $@
 
 OFLUX_DOCUMENTATION += doc/runtime
 

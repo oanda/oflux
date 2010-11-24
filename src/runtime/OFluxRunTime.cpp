@@ -188,6 +188,8 @@ RunTime_start_door_thread(door_info_t *)
 	assert(rt);
 	rt->create_door_thread();
 }
+#else
+# define RunTime_start_door_thread
 #endif // HAS_DOORS_IPC
 
 void 

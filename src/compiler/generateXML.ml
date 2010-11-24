@@ -508,16 +508,18 @@ let emit_program_xml' programname br usesmodel =
 	let one_arg get_argno sp =
 		let argno = get_argno (ParserTypes.strip_position sp)
 		in  argument (string_of_int argno) in *)
-	let rec determine_wtype gtype_str modifiers =
+	(*let rec determine_wtype gtype_str modifiers =
 		match gtype_str, modifiers with
 			("readwrite",(ParserTypes.Read::_)) -> "1"
 			| ("readwrite",(ParserTypes.Write::_)) -> "2"
 			| ("readwrite",(ParserTypes.Upgradeable::_)) -> "4"
-			| ("pool",[]) -> "3" 
+			| ("pool",[]) -> "5" 
 			| ("exclusive",[]) -> "3"
-			| ("free",[]) -> "3"
+			| ("free",[]) -> "6"
 			| ("readwrite",(_::t)) -> determine_wtype gtype_str t
-			| _ -> raise Not_found in
+			| _ -> raise Not_found in *)
+	let determine_wtype gty gmlist =
+		string_of_int (WType.wtype_of gty gmlist) in
 	let emit_one n =
 		let is_dt = is_detached n in
 		let is_ext = is_external n in

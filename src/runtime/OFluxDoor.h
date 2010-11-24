@@ -204,6 +204,7 @@ class ServerDoorCookieVirtualDestructor : public ServerDoorCookie {};
 
 class ServerDoorsContainer {
 public:
+	ServerDoorsContainer(RunTimeAbstract * rt) {}
 	int create_doors() { return 0; } // nothing to do
 };
 } // namespace doors

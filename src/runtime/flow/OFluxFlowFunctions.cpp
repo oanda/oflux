@@ -1,4 +1,5 @@
 #include "flow/OFluxFlowFunctions.h"
+#include "flow/OFluxFlowLibrary.h"
 #include <cstring>
 
 
@@ -18,6 +19,12 @@ FunctionMaps::FunctionMaps(ConditionalMap cond_map[],
         , _atom_map_map(atom_map_map)
         , _ioconverter_map(ioconverter_map)
 {}
+
+Library *
+FunctionMaps::libraryFactory(const char * dir, const char * name)
+{
+	return new Library(dir,name);
+}
 
 // linear searches are fast enough -- its just for XML converstion...
 

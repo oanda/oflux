@@ -24,11 +24,11 @@ public:
 	typedef Flow ParentObjType;
 
         Library( const char * path, const char * filename );
-        ~Library();
+        virtual ~Library();
         
         /** @brief load the library 
          */
-        bool load( int mode = RTLD_NOW | RTLD_GLOBAL );
+        virtual bool load( int mode = RTLD_NOW | RTLD_GLOBAL );
 
         /** @brief grab a typed symbol from the library
          */
@@ -58,8 +58,9 @@ public:
 	void addDependency(const char * d)
 	{ std::string s(d); _dependencies.push_back(s); }
 
+protected:
+        virtual void * _getSymbol(const char * name, bool ignoreError);
 private:
-        void * _getSymbol(const char * name, bool ignoreError);
         Library();
         Library( const Library & );
 

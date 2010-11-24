@@ -93,7 +93,7 @@ private:
 
 class ScopedFunctionMaps {
 public:
-	typedef std::set<flow::FunctionMaps *> Context;
+	typedef std::set<flow::FunctionMapsAbstract *> Context;
 	class Scope {
 	public:
 		Scope(Context & c)
@@ -125,6 +125,15 @@ public:
 
 		FlatIOConversionFun
 		lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+
+		flow::Library *
+		libraryFactory(const char * dir, const char * name)
+		{
+			Context::iterator sitr = _c.begin();
+			flow::FunctionMapsAbstract * fma = 
+				(sitr == _c.end() ? 0 : *sitr);
+			return fma->libraryFactory(dir,name);
+		}
 	private:
 		Context & _c;
 	};
@@ -140,8 +149,9 @@ public:
 	void
 	add(
 		  const char * scopename
-		, flow::FunctionMaps * fmaps
+		, flow::FunctionMapsAbstract * fmaps
 		, const std::vector<std::string> & deps);
+
 private:
 	static void
 	_addIntoContext(
@@ -354,7 +364,7 @@ public:
 	static const char * currentDir;
 
 	// primary interface:
-        Reader(   flow::FunctionMaps *fmaps
+        Reader(   flow::FunctionMapsAbstract *fmaps
 		, const char * pluginxmldir
 		, const char * pluginlibdir
 		, void * initpluginparams
@@ -391,7 +401,7 @@ public:
 			_reader_state = preserve;
 		}
 	}
-	void addLibrary(flow::Library * l, flow::FunctionMaps * fms)
+	void addLibrary(flow::Library * l, flow::FunctionMapsAbstract * fms)
 	{
 		_scope_name = l->getName();
 
@@ -675,7 +685,7 @@ DependencyTracker::canonize(std::string & filename)
 void
 ScopedFunctionMaps::add(
 	  const char * scopename
-	, flow::FunctionMaps * fmaps
+	, flow::FunctionMapsAbstract * fmaps
 	, const std::vector<std::string> & deps)
 {
 	std::pair<std::string,ScopedFunctionMaps::Context> pr;
@@ -893,7 +903,7 @@ pc_add<flow::Node>(
 }
 
 extern "C" {
-typedef flow::FunctionMaps * FlowFunctionMapFunction (int style);
+typedef flow::FunctionMapsAbstract * FlowFunctionMapFunction (int style);
 }
 
 template<>
@@ -1112,12 +1122,13 @@ flow_element_factory<flow::Node>(AttributeMap & amap, Reader & reader)
 	return result;
 }
 
+
 template<>
 flow::Library *
 flow_element_factory<flow::Library>(AttributeMap &amap, Reader & reader)
 {
 	flow::Library * lib =
-		new flow::Library(
+		reader.fromThisScope()->libraryFactory(
 			  reader.pluginLibDir()
 			, amap.getOrThrow(XMLVocab::attr_name).c_str());
 	flow::Library * prev_lib =
@@ -1163,7 +1174,7 @@ template<> const char * ElementName<flow::Case>::name = XMLVocab::element_case;
 const char * Reader::currentDir = ".";
 
 Reader::Reader(
-	  flow::FunctionMaps *fmaps
+	  flow::FunctionMapsAbstract *fmaps
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
@@ -1356,7 +1367,7 @@ void Reader::commentHandler(void *data, const char *comment)
 
 flow::Flow *
 read(     const char * filename
-	, flow::FunctionMaps *fmaps
+	, flow::FunctionMapsAbstract *fmaps
 	, const char * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams

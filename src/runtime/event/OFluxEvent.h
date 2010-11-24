@@ -74,6 +74,7 @@ protected:
 	{ return _im_io_convert ? _im_io_convert->value() : NULL; }
 	inline typename Detail::Out_ * pr_output_type() 
 	{ return &_ot; }
+public:
 	inline typename Detail::Atoms_ * atomics_argument() 
 	{ return &_am; }
 
