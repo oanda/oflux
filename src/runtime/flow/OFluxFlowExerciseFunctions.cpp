@@ -69,6 +69,7 @@ public:
 	virtual void set_wtype(int wtype);
 	virtual oflux::atomic::AtomicMapAbstract * atomic_map()
 	{ return _many.get(); }
+	virtual void report(const char *);
 private:
 	ManyThings<oflux::atomic::AtomicMapAbstract, max_size> _many;
 	AtomicExclusive _exclusive;
@@ -76,6 +77,33 @@ private:
 	AtomicFree _free;
 	AtomicPool _pool;
 };
+
+static void atomic_report(const char * name, atomic::AtomicMapAbstract *ama)
+{
+	int * null_check_vptr = reinterpret_cast<int *>(ama);
+	if(!null_check_vptr || !*null_check_vptr) {
+		oflux_log_info("  %s unused\n", name);
+		return;
+	}
+	atomic::AtomicMapWalker * amw = ama->walker();
+	const void * k = NULL;
+	atomic::Atomic * a = NULL;
+	while(amw->next(k,a)) {
+		oflux_log_info("  %s : %s %s %u %d\n"
+			, name
+			, a->atomic_class()
+			, (a->held() ? "held" : "free")
+			, a->waiter_count()
+			, a->wtype());
+	}
+}
+
+void
+LFAtomic::report(const char * name)
+{
+	atomic::AtomicMapAbstract * ama = _many.get();
+	atomic_report(name,ama);
+}
 
 void 
 LFAtomic::set_wtype(int wtype)
@@ -115,6 +143,7 @@ public:
 	virtual void set_wtype(int wtype);
 	virtual oflux::atomic::AtomicMapAbstract * atomic_map()
 	{ return _many.get(); }
+	virtual void report(const char *);
 private:
 	ManyThings<oflux::atomic::AtomicMapAbstract, max_size> _many;
 	AtomicExclusive _exclusive;
@@ -122,6 +151,13 @@ private:
 	AtomicFree _free;
 	AtomicPool _pool;
 };
+
+void
+ClAtomic::report(const char * name)
+{
+	atomic::AtomicMapAbstract * ama = _many.get();
+	atomic_report(name,ama);
+}
 
 void 
 ClAtomic::set_wtype(int wtype)
@@ -146,10 +182,22 @@ public:
 	enum { Lockfree = 1, Classic = 0 };
 	AtomicSet(int guardstyle) : style(guardstyle) {}
 	virtual AtomicAbstract & get(const char * guardname);
+	virtual void report();
 private:
 	int style;
 	std::map<std::string,AtomicAbstract *> _map;
 };
+
+void
+AtomicSet::report()
+{
+	oflux_log_info("AtomicSet report:\n");
+	std::map<std::string,AtomicAbstract *>::iterator itr = _map.begin();
+	while(itr != _map.end()) {
+		itr->second->report(itr->first.c_str());
+		++itr;
+	}
+}
 
 AtomicAbstract & 
 AtomicSet::get(const char * guardname)
@@ -316,7 +364,7 @@ exercise_source_node_function(
 		, atoms->node_name.c_str()
 		, out->value);
 	atoms->report();
-#define MAX_NSEC_WAIT 300
+#define MAX_NSEC_WAIT 30000
 	WAIT_A_LITTLE((out->value)%MAX_NSEC_WAIT);
 	return 0;
 }

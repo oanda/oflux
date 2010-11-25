@@ -17,11 +17,13 @@ public:
 	virtual ~AtomicAbstract() {}
 	virtual void set_wtype(int wtype) = 0;
 	virtual oflux::atomic::AtomicMapAbstract * atomic_map() = 0;
+	virtual void report(const char * name) = 0;
 };
 
 class AtomicSetAbstract {
 public:
 	virtual AtomicAbstract & get(const char * guardname) = 0;
+	virtual void report() = 0;
 };
 
 } // namespace exercise
@@ -43,7 +45,7 @@ public:
         virtual oflux::atomic::AtomicMapAbstract * lookup_atomic_map(const char * guardname) const;
 
         virtual FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber) const;
-
+	exercise::AtomicSetAbstract * atomic_set() { return _atomic_set; }
 private:
 	exercise::AtomicSetAbstract * _atomic_set;
 };

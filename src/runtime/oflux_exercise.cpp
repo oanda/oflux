@@ -19,12 +19,21 @@
 #include "OFluxIOConversion.h"
 #include "OFluxLogging.h"
 #include <iostream>
+#include <signal.h>
 
 
 boost::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 void
 init_atomic_maps(int) {}
+
+oflux::flow::exercise::AtomicSetAbstract * atomic_set = NULL;
+
+void handlesighup(int)
+{
+	signal(SIGHUP,handlesighup);
+	atomic_set->report();
+}
 
 int
 main(int argc, char * argv[])
@@ -50,8 +59,10 @@ main(int argc, char * argv[])
 	oflux::logging::toStream(std::cout); 
 	oflux::EnvironmentVar env(oflux::runtime::Factory::classic);
 	oflux::flow::ExerciseFunctionMaps ffmaps(env.runtime_number == 4);
+	atomic_set = ffmaps.atomic_set();
 	rtc.flow_maps = &ffmaps;
 	theRT.reset(oflux::runtime::Factory::create(env.runtime_number, rtc));
+	signal(SIGHUP,handlesighup);
 	if(!env.nostart) {
 		theRT->start();
 	}
