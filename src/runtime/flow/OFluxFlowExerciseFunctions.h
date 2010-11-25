@@ -13,6 +13,8 @@ namespace flow {
 
 namespace exercise {
 
+extern int max_nsec_wait;
+
 void node_report(oflux::flow::Flow *);
 
 class AtomicAbstract {

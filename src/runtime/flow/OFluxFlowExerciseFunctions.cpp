@@ -237,6 +237,7 @@ AtomicSet::get(const char * guardname)
 	return *ama;
 }
 
+int max_nsec_wait = 1000;
 
 } // namespace exercise
 
@@ -390,7 +391,7 @@ exercise_source_node_function(
 		, atoms->node_name.c_str()
 		, out->value);
 	atoms->report();
-#define MAX_NSEC_WAIT 30000
+#define MAX_NSEC_WAIT oflux::flow::exercise::max_nsec_wait
 	WAIT_A_LITTLE((out->value)%MAX_NSEC_WAIT);
 	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;

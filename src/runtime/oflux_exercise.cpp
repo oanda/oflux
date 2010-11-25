@@ -44,6 +44,10 @@ main(int argc, char * argv[])
 		std::cout << "provide an XML flow file argument\n";
 		return 9;
 	}
+	char * max_nsec_wait_str = getenv("EXERCISE_SLEEP");
+	if(max_nsec_wait_str) {
+		oflux::flow::exercise::max_nsec_wait = atoi(max_nsec_wait_str);
+	}
 	oflux::RunTimeConfiguration rtc = {
 		  1024*1024 // stack size
 		, 4 // initial threads (ignored really)
