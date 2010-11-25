@@ -136,9 +136,12 @@ public:
         inline int outputUnionNumber() { return _output_unionnumber; }
         void sortGuards();
         bool isGuardsCompletelySorted() { return _is_guards_completely_sorted; }
+	int id() const { return _id; }
 protected:
         int                           _instances; // count active events
-        int                           _executions; // count active events
+        int                           _executions; // count active eventsj
+	int                           _id;
+	static int		      _last_id;
 private:
         std::string                   _name;
         CreateNodeFn                  _createfn;

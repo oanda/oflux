@@ -1,11 +1,14 @@
 #include "flow/OFluxFlowExerciseFunctions.h"
 #include "flow/OFluxFlowLibrary.h"
+#include "flow/OFluxFlowNode.h"
+#include "flow/OFluxFlow.h"
 #include "event/OFluxEvent.h"
 #include "atomic/OFluxAtomicHolder.h"
 #include "atomic/OFluxAtomicInit.h"
 #include "lockfree/atomic/OFluxLFAtomic.h"
 #include "lockfree/atomic/OFluxLFAtomicPooled.h"
 #include "lockfree/atomic/OFluxLFAtomicReadWrite.h"
+#include "lockfree/OFluxDistributedCounter.h"
 #include "OFluxLogging.h"
 #include <cassert>
 #include <string>
@@ -18,6 +21,26 @@ namespace oflux {
 namespace flow {
 
 namespace exercise {
+
+#define MAX_NODES 1024
+
+oflux::lockfree::Counter<long long> node_creations[MAX_NODES];
+oflux::lockfree::Counter<long long> node_executions[MAX_NODES];
+oflux::flow::Node * nodes[MAX_NODES];
+
+void
+node_report(oflux::flow::Flow *)
+{
+	oflux_log_info("Node report:\n");
+	for(size_t i = 0; i < MAX_NODES; ++i) {
+		if(nodes[i]) {
+			oflux_log_info("  %s %lld %lld\n"
+				, nodes[i]->getName()
+				, node_creations[i].value()
+				, node_executions[i].value());
+		}
+	}
+}
 
 template< typename AB, const size_t max_size >
 class ManyThings {
@@ -264,6 +287,7 @@ struct ExerciseEventDetail {
 		void report();
 
 		std::string node_name;
+		int node_id;
 		SingleAtom atoms[MAX_ATOMICS_PER_NODE];
 		int number;
 	}; // Atoms_
@@ -328,6 +352,7 @@ exercise_node_function(
 		, in->value);
 	atoms->report();
 	out->value = in->value;
+	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;
 }
 
@@ -342,6 +367,7 @@ exercise_error_node_function(
 		, atoms->node_name.c_str()
 		, in->value);
 	atoms->report();
+	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;
 }
 
@@ -366,6 +392,7 @@ exercise_source_node_function(
 	atoms->report();
 #define MAX_NSEC_WAIT 30000
 	WAIT_A_LITTLE((out->value)%MAX_NSEC_WAIT);
+	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;
 }
 
@@ -419,6 +446,8 @@ create_special(
         , const void * im_io_convert
         , flow::Node *fn)
 {
+	exercise::node_creations[fn->id()%MAX_NODES]++;
+	exercise::nodes[fn->id()] = fn;
 	if(fn->getIsSource()) {
 		// special case for sources
 		EventBaseTyped<ExerciseSourceEventDetail> * ebt = 
@@ -427,6 +456,7 @@ create_special(
 			, reinterpret_cast<const IOConversionBase<ExerciseSourceEventDetail::In_> *>(im_io_convert)
 			, fn);
 		ebt->atomics_argument()->node_name = fn->getName();
+		ebt->atomics_argument()->node_id = fn->id();
 		return EventBasePtr(ebt);
 	} else if(fn->getIsErrorHandler()) {
 		EventBaseTyped<ExerciseErrorEventDetail> * ebt = 
@@ -435,6 +465,7 @@ create_special(
 			, reinterpret_cast<const IOConversionBase<ExerciseErrorEventDetail::In_> *>(im_io_convert)
 			, fn);
 		ebt->atomics_argument()->node_name = fn->getName();
+		ebt->atomics_argument()->node_id = fn->id();
 		return EventBasePtr(ebt);
 	} else {
 		EventBaseTyped<ExerciseEventDetail> * ebt = 
@@ -443,6 +474,7 @@ create_special(
 			, reinterpret_cast<const IOConversionBase<ExerciseEventDetail::In_> *>(im_io_convert)
 			, fn);
 		ebt->atomics_argument()->node_name = fn->getName();
+		ebt->atomics_argument()->node_id = fn->id();
 		return EventBasePtr(ebt);
 	}
 }

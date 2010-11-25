@@ -9,7 +9,11 @@ namespace atomic {
 } // namespace atomic
 namespace flow {
 
+ class Flow;
+
 namespace exercise {
+
+void node_report(oflux::flow::Flow *);
 
 class AtomicAbstract {
 public:

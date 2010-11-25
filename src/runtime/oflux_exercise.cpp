@@ -28,11 +28,13 @@ void
 init_atomic_maps(int) {}
 
 oflux::flow::exercise::AtomicSetAbstract * atomic_set = NULL;
+oflux::flow::Flow * flow = NULL;
 
 void handlesighup(int)
 {
 	signal(SIGHUP,handlesighup);
 	atomic_set->report();
+	oflux::flow::exercise::node_report(flow);
 }
 
 int
@@ -62,6 +64,7 @@ main(int argc, char * argv[])
 	atomic_set = ffmaps.atomic_set();
 	rtc.flow_maps = &ffmaps;
 	theRT.reset(oflux::runtime::Factory::create(env.runtime_number, rtc));
+	flow = theRT->flow();
 	signal(SIGHUP,handlesighup);
 	if(!env.nostart) {
 		theRT->start();

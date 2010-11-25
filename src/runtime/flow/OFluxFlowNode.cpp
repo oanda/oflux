@@ -170,6 +170,8 @@ SuccessorList::pretty_print(int depth, std::set<std::string> * visited)
         oflux_log_info("%s.\n", create_indention(depth+1).c_str());
 }
 
+int Node::_last_id=0;
+
 Node::Node(const char * name,
                 CreateNodeFn createfn,
                 CreateDoorFn createdoorfn,
@@ -181,6 +183,7 @@ Node::Node(const char * name,
                 int output_unionnumber)
         : _instances(0)
         , _executions(0)
+	, _id(__sync_fetch_and_add(&_last_id,1))
         , _name(name)
         , _createfn(createfn)
         , _createdoorfn(createdoorfn)
