@@ -16,8 +16,184 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctime>
+#include <cstdio>
 
 namespace oflux {
+namespace atomic {
+namespace instrumented {
+
+template<typename D> // D is POD
+class RollingLog {
+public:
+	enum { log_size = 4096*4, d_size = sizeof(D) };
+	RollingLog()
+		: index(1LL)
+	{
+		::bzero(&(log[0]),sizeof(log));
+	}
+	inline D & submit()
+	{
+		long long i = __sync_fetch_and_add(&index,1);
+		log[i%log_size].index = i;
+		return log[i%log_size].d;
+	}
+	void report()
+	{
+#define REPORT_BUFFER_LENGTH 1024
+		char buff[REPORT_BUFFER_LENGTH];
+		long long s_index = (index+1);
+		pthread_t local_tid = pthread_self();
+		oflux_log_info("%lu log tail %p:\n", local_tid, this);
+		size_t zero_repeat = 0;
+		for(size_t i=0; i < log_size; ++i) {
+#define DO_zero_repeat_OUTPUT \
+ if(zero_repeat) { \
+   oflux_log_info("%lu 0] (repeats %u times)\n",local_tid,zero_repeat); \
+   zero_repeat = 0; \
+   }
+			if(log[(i+s_index)%log_size].index) {
+				DO_zero_repeat_OUTPUT
+				log[(i+s_index)%log_size].d.report(buff);
+				oflux_log_info("%lu %lld] %s\n"
+					, local_tid
+					, log[(i+s_index)%log_size].index
+					, buff);
+			} else {
+				++zero_repeat;
+			}
+		}
+		DO_zero_repeat_OUTPUT
+	}
+	inline long long at() { return index; }
+private:
+	long long index;
+	struct S { long long index; D d; } log[log_size];
+};
+
+
+class AtomicAbstract : public oflux::atomic::Atomic {
+public:
+	virtual void report() = 0;
+};
+
+// husk for an Atomic that lets me see what its doing
+template<typename A>
+class Atomic : public oflux::atomic::Atomic {
+public:
+	struct Observation {
+		char name;
+		int wtype;
+		EventBase * evptr;
+		const char * fname;
+		long long term_index;
+		int res;
+		pthread_t tid;
+
+		void report(char * buff)
+		{
+			snprintf(buff, 1000, " %c %d %p %s %lld %d %lu"
+				, name
+				, wtype
+				, evptr
+				, fname ? fname : "<null>"
+				, term_index
+				, res
+				, tid);
+		}
+	};
+
+	RollingLog<Observation> log;
+	long long last_a;
+	long long last_r;
+
+	virtual void report() 
+	{ 
+		if(log.at()) { log.report(); }
+		oflux_log_info("last a @ %lld, last r @ %lld\n"
+			, last_a
+			, last_r);
+	}
+
+	Atomic(void * data)
+		: last_a(0)
+		, last_r(0)
+		, _a(data)
+	{}
+	virtual ~Atomic() {}
+	virtual void ** data() { return _a.data(); }
+	virtual int held() const { return _a.held(); }
+	virtual void release(
+		  std::vector<EventBasePtr> & rel_ev
+		, EventBasePtr & by_ev)
+	{
+		Observation & o = log.submit();
+		last_r = log.at();
+		o.wtype = 0;
+		o.term_index = 0;
+		o.name = 'R';
+		o.evptr = by_ev.get();
+		o.fname = (by_ev->flow_node() ? by_ev->flow_node()->getName() : NULL);
+		o.tid = pthread_self();
+		_a.release(rel_ev,by_ev);
+		o.name = 'r';
+		o.term_index = log.at();
+		o.res = rel_ev.size();
+	}
+	virtual bool acquire_or_wait(
+		  EventBasePtr & ev
+		, int wtype)
+	{
+		Observation & o = log.submit();
+		last_a = log.at();
+		o.wtype = wtype;
+		o.term_index = 0;
+		o.name = 'A';
+		o.evptr = ev.get();
+		o.fname = (ev->flow_node() ? ev->flow_node()->getName() : NULL);
+		o.tid = pthread_self();
+		bool res = _a.acquire_or_wait(ev,wtype);
+		o.name = 'a';
+		o.term_index = log.at();
+		o.res = res;
+		return res;
+	}
+	virtual size_t waiter_count()
+	{
+		return _a.waiter_count();
+	}
+	virtual void relinquish() { _a.relinquish(); }
+	virtual int wtype() const 
+	{
+		return _a.wtype();
+	}
+	virtual const char * atomic_class() const
+	{
+		static bool done = false;
+		static char ac_name[1024] = 
+			"ins:                       " 
+			"                           "
+			"                           ";
+		if(!done) {
+			done = true;
+			strcpy(ac_name+5,_a.atomic_class());
+		}
+		return ac_name;
+	}
+	virtual void log_snapshot_waiters() const
+	{
+		_a.log_snapshot_waiters();
+	}
+	virtual bool is_pool_like() const
+	{
+		return _a.is_pool_like();
+	}
+private:
+	A _a;
+}; // Atomic (instrumented template)
+	
+
+} // namespace instrumented
+} // namespace atomic
 namespace flow {
 
 namespace exercise {
@@ -61,6 +237,7 @@ private:
 	char buffer[max_size];
 };
 
+
 static void
 pool_init(oflux::atomic::AtomicMapAbstract * ama)
 {
@@ -72,7 +249,8 @@ pool_init(oflux::atomic::AtomicMapAbstract * ama)
 class LFAtomic : public AtomicAbstract {
 public:
 	typedef oflux::atomic::AtomicMapTrivial<oflux::lockfree::atomic::AtomicExclusive> AtomicExclusive;
-	typedef oflux::atomic::AtomicMapTrivial<oflux::lockfree::atomic::AtomicReadWrite> AtomicReadWrite;
+	typedef oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicReadWrite> AtomicRW;
+	typedef oflux::atomic::AtomicMapTrivial<AtomicRW> AtomicReadWrite;
 	typedef oflux::atomic::AtomicMapTrivial<oflux::lockfree::atomic::AtomicFree> AtomicFree;
 	typedef oflux::lockfree::atomic::AtomicPool AtomicPool;
 
@@ -92,7 +270,7 @@ public:
 	virtual void set_wtype(int wtype);
 	virtual oflux::atomic::AtomicMapAbstract * atomic_map()
 	{ return _many.get(); }
-	virtual void report(const char *);
+	virtual void report(const char *, bool);
 private:
 	ManyThings<oflux::atomic::AtomicMapAbstract, max_size> _many;
 	AtomicExclusive _exclusive;
@@ -101,7 +279,7 @@ private:
 	AtomicPool _pool;
 };
 
-static void atomic_report(const char * name, atomic::AtomicMapAbstract *ama)
+static void atomic_report(const char * name, atomic::AtomicMapAbstract *ama, bool full)
 {
 	int * null_check_vptr = reinterpret_cast<int *>(ama);
 	if(!null_check_vptr || !*null_check_vptr) {
@@ -112,20 +290,26 @@ static void atomic_report(const char * name, atomic::AtomicMapAbstract *ama)
 	const void * k = NULL;
 	atomic::Atomic * a = NULL;
 	while(amw->next(k,a)) {
+		const char * at_class = a->atomic_class();
 		oflux_log_info("  %s : %s %s %u %d\n"
 			, name
-			, a->atomic_class()
+			, at_class
 			, (a->held() ? "held" : "free")
 			, a->waiter_count()
 			, a->wtype());
+		if(at_class[0] == 'i' && full) {
+			oflux::atomic::instrumented::AtomicAbstract * aa =
+				reinterpret_cast<oflux::atomic::instrumented::AtomicAbstract *>(a);
+			aa->report();
+		}
 	}
 }
 
 void
-LFAtomic::report(const char * name)
+LFAtomic::report(const char * name, bool full)
 {
 	atomic::AtomicMapAbstract * ama = _many.get();
-	atomic_report(name,ama);
+	atomic_report(name,ama,full);
 }
 
 void 
@@ -149,7 +333,8 @@ LFAtomic::set_wtype(int wtype)
 class ClAtomic : public AtomicAbstract {
 public:
 	typedef oflux::atomic::AtomicMapTrivial<oflux::atomic::AtomicExclusive> AtomicExclusive;
-	typedef oflux::atomic::AtomicMapTrivial<oflux::atomic::AtomicReadWrite> AtomicReadWrite;
+	typedef oflux::atomic::instrumented::Atomic<oflux::atomic::AtomicReadWrite> AtomicRW;
+	typedef oflux::atomic::AtomicMapTrivial<AtomicRW > AtomicReadWrite;
 	typedef oflux::atomic::AtomicMapTrivial<oflux::atomic::AtomicFree> AtomicFree;
 	typedef oflux::atomic::AtomicPool AtomicPool;
 
@@ -166,7 +351,7 @@ public:
 	virtual void set_wtype(int wtype);
 	virtual oflux::atomic::AtomicMapAbstract * atomic_map()
 	{ return _many.get(); }
-	virtual void report(const char *);
+	virtual void report(const char *,bool);
 private:
 	ManyThings<oflux::atomic::AtomicMapAbstract, max_size> _many;
 	AtomicExclusive _exclusive;
@@ -176,10 +361,10 @@ private:
 };
 
 void
-ClAtomic::report(const char * name)
+ClAtomic::report(const char * name, bool full)
 {
 	atomic::AtomicMapAbstract * ama = _many.get();
-	atomic_report(name,ama);
+	atomic_report(name,ama,full);
 }
 
 void 
@@ -215,10 +400,16 @@ void
 AtomicSet::report()
 {
 	oflux_log_info("AtomicSet report:\n");
-	std::map<std::string,AtomicAbstract *>::iterator itr = _map.begin();
-	while(itr != _map.end()) {
-		itr->second->report(itr->first.c_str());
-		++itr;
+	char * watch_atomic = getenv("EXERCISE_WATCH");
+	std::map<std::string,AtomicAbstract *>::iterator itr = _map.find(watch_atomic);
+	if(itr == _map.end()) {
+		oflux_log_info(" %s not found\n",watch_atomic);
+	} else {
+		oflux_log_info("found %s\n",watch_atomic);
+	}
+	for(itr = _map.begin(); itr != _map.end(); ++itr) {
+		itr->second->report(itr->first.c_str()
+			, watch_atomic ? strcmp(watch_atomic,itr->first.c_str()) == 0 : false);
 	}
 }
 

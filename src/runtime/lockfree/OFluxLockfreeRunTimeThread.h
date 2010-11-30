@@ -67,6 +67,20 @@ public:
 	bool die();
 	bool asleep() const { return _asleep; }
 	oflux_thread_t self() const { return _tid; }
+	void log_snapshot()
+	{
+		flow::Node * fn = _flow_node_working;
+		const char * fn_name = (fn ? fn->getName() : "<null>");
+		oflux_log_info("thread %d (pthread %lu) %s %s %s q_len:%ld q_alw:%ld %s\n"
+			, _index
+			, _tid
+			, _running ? "running" : "       "
+			, _request_stop ? "req-stop" : "        "
+			, _asleep ? "asleep" : "      "
+			, _queue.size()
+			, _queue_allowance
+			, fn_name);
+	}
 protected:
 	int create();
 	RunTimeThread * _next;

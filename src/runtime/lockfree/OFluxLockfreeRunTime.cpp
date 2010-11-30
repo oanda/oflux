@@ -313,7 +313,22 @@ RunTime::start()
 
 void
 RunTime::log_snapshot()
-{ // FIXME
+{
+	oflux_log_info("RT %s %s %s nthrs:%d slp:%d\n"
+		, _running ? "running" : "       "
+		, _request_death ? "req-death" : "         "
+		, _soft_load_flow ? "s-ld-flow" : "         "
+		, _num_threads
+		, _sleep_count);
+	RunTimeThread * rtt = _threads;
+	while(rtt) {
+		rtt->log_snapshot();
+		rtt = rtt->_next;
+	}
+	if(_doors_thread) {
+		oflux_log_info("doors thread:\n");
+		_doors_thread->log_snapshot();
+	}
 }
 
 void

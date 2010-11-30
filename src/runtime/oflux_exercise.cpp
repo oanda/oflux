@@ -35,6 +35,7 @@ void handlesighup(int)
 	signal(SIGHUP,handlesighup);
 	atomic_set->report();
 	oflux::flow::exercise::node_report(flow);
+	theRT->log_snapshot();
 }
 
 int
@@ -48,9 +49,14 @@ main(int argc, char * argv[])
 	if(max_nsec_wait_str) {
 		oflux::flow::exercise::max_nsec_wait = atoi(max_nsec_wait_str);
 	}
+	int init_threads = 0;
+	char * init_threads_str = getenv("EXERCISE_THREADS");
+	if(init_threads_str) {
+		init_threads = atoi(init_threads_str);
+	}
 	oflux::RunTimeConfiguration rtc = {
 		  1024*1024 // stack size
-		, 4 // initial threads (ignored really)
+		, init_threads // initial threads (ignored really)
 		, 0 // max threads
 		, 0 // max detached
 		, 0 // thread collection threshold

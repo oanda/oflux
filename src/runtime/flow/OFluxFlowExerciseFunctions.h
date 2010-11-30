@@ -23,7 +23,7 @@ public:
 	virtual ~AtomicAbstract() {}
 	virtual void set_wtype(int wtype) = 0;
 	virtual oflux::atomic::AtomicMapAbstract * atomic_map() = 0;
-	virtual void report(const char * name) = 0;
+	virtual void report(const char * name,bool) = 0;
 };
 
 class AtomicSetAbstract {
