@@ -255,7 +255,7 @@ AtomicsHolder::release(
 			}
 
 			size_t post_sz = released_events.size();
-			if(post_sz == pre_sz && a->waiter_count() == 0 && a->held() == 0) {
+			if(post_sz == pre_sz && a->has_no_waiters() && a->held() == 0) {
  				ha->garbage_collect();
  			}
 			ha->atomic(NULL);

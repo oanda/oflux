@@ -3,6 +3,8 @@
 
 #include "lockfree/atomic/OFluxLFAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
+#include <string.h>
+#include <strings.h>
 
 namespace oflux {
 namespace lockfree {
@@ -50,6 +52,7 @@ public:
 		RWWaiterHead rwh(e,rc,m);
 		return compareAndSwap(old_o,rwh);
 	}
+	uint64_t u64() const { return u.u64; }
 public:
 	union U {
 		struct S {
@@ -58,6 +61,27 @@ public:
 		} s;
 		uint64_t u64;
 	} u;
+};
+
+template<typename D> // D is POD
+class RollingLog {
+public:
+	enum { log_size = 4096*4, d_size = sizeof(D) };
+	RollingLog()
+		: index(1LL)
+	{
+		::bzero(&(log[0]),sizeof(log));
+	}
+	inline D & submit()
+	{
+		long long i = __sync_fetch_and_add(&index,1);
+		log[i%log_size].index = i;
+		return log[i%log_size].d;
+	}
+	inline long long at() { return index; }
+private:
+	long long index;
+	struct S { long long index; D d; } log[log_size];
 };
 
 class ReadWriteWaiterList {
@@ -71,6 +95,21 @@ public:
 	void pop(EventBaseHolder * & el, int by_type);
 	void dump();
 	size_t count() const;
+
+	struct Obs {
+		enum { act_none, act_Pop, act_pop, act_Push, act_push } act;
+		EventBaseHolder * e;
+		void * ev;
+		int type;
+		bool res;
+		const char * trans;
+		oflux_thread_t tid;
+		uint64_t u64;
+		long long term_index;
+	};
+
+	RollingLog<Obs> log;
+
 public:
 	RWWaiterHead _head;
 	EventBaseHolder * _tail;
@@ -90,6 +129,11 @@ public:
 	}
 	virtual size_t waiter_count() 
 	{ return _waiters.count(); }
+	virtual bool has_no_waiters()
+	{ 
+		EventBaseHolder * ebh = _waiters._head.head();
+		return (ebh ? ebh->next != 0 : false);
+	}
 	virtual int wtype() const { return _wtype; }
 	virtual const char * atomic_class() const
 	{ return "lockfree::AtomicReadWrite"; }

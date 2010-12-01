@@ -73,6 +73,8 @@ public:
 	*/
 	virtual size_t waiter_count() = 0;
 
+	virtual bool has_no_waiters() { return waiter_count() == 0; }
+
 	/**
 	* @brief let go of this object -- a shorter release when you know
 	*    there are no events using it

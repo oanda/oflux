@@ -161,6 +161,10 @@ public:
 	{
 		return _a.waiter_count();
 	}
+	virtual bool has_no_waiters()
+	{
+		return _a.has_no_waiters();
+	}
 	virtual void relinquish() { _a.relinquish(); }
 	virtual int wtype() const 
 	{

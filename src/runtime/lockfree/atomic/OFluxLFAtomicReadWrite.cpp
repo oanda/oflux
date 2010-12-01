@@ -26,6 +26,17 @@ namespace atomic {
 // 	_tail = { ev=0; type=0; next=0; }
 //            != _head
 
+#define INVARIANT \
+  { RWWaiterHead head_check(_head); \
+    EventBaseHolder * h_check = head_check.head(); \
+    int rcount_check = head_check.rcount(); \
+    bool mkd_check = head_check.mkd() || h_check->next; \
+    assert( (rcount_check >= -1) || (_head.u64() != head_check.u64()) ); \
+    assert( ((mkd_check) ^ (h_check->next == NULL)) || (_head.u64() != head_check.u64())); \
+    assert( ((h_check->next == NULL) || (rcount_check != 0)) || (_head.u64() != head_check.u64())); \
+  }
+    
+
 #define add_tail_waiter(e) \
   EventBaseHolder * t; \
   e->next = NULL; \
@@ -55,6 +66,16 @@ ReadWriteWaiterList::~ReadWriteWaiterList()
 bool
 ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 {
+	Obs & obs = log.submit();
+	obs.act = ReadWriteWaiterList::Obs::act_Push;
+	obs.term_index = 0;
+	obs.e=e;
+	obs.ev=e->ev.get();
+	obs.type=type;
+	obs.res=false;
+	obs.term_index= 0;
+	obs.trans = "";
+	obs.tid = oflux_self();
 	bool res = false;
 	EventBasePtr ev;
 	ev.swap(e->ev);
@@ -65,6 +86,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 	e->type = EventBaseHolder::None;
 	while(true) {
                 RWWaiterHead head(_head);
+		obs.u64 = head.u64();
 		h = head.head();
 		hn = h->next;
 		rcount = head.rcount();
@@ -77,6 +99,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			&& _head.compareAndSwap(head,h,-1,false)
 			) {
 			res = true;
+			obs.trans = "1->2";
 			break;
 		} else if( type == EventBaseHolder::Read
 			&& rcount == 0
@@ -86,6 +109,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			&& _head.compareAndSwap(head,h,1,false)
 			) {
 			res = true;
+			obs.trans = "1->3";
 			break;
 		} else if( rcount == -1
 			&& !mkd
@@ -97,6 +121,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			res = false;
 			e->type = type;
 			e->ev.swap(ev);
+			obs.trans = "2->4";
 			break;
 		} else if( rcount == -1
 			&& mkd
@@ -106,6 +131,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			) {
 			add_tail_waiter(e); // macro
 			res = false;
+			obs.trans = "4->4";
 			break;
 		} else if( type == EventBaseHolder::Read
 			&& rcount > 0
@@ -115,6 +141,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			&& _head.compareAndSwap(head,h,rcount+1,false)
 			) {
 			res = true;
+			obs.trans = "3->3";
 			break;
 		} else if( type == EventBaseHolder::Write
 			&& rcount > 0
@@ -127,6 +154,7 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			res = false;
 			e->type = type;
 			e->ev.swap(ev);
+			obs.trans = "3->5";
 			break;
 		} else if( rcount > 0 
 			&& mkd
@@ -136,9 +164,14 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 			) {
 			add_tail_waiter(e); // macro
 			res = false;
+			obs.trans = "5->5";
 			break;
 		}
 	}
+	obs.term_index = log.at();
+	obs.res = res;
+	obs.act = ReadWriteWaiterList::Obs::act_push;
+	INVARIANT
 	return res;
 }
 
@@ -165,6 +198,15 @@ ReadWriteWaiterList::push(EventBaseHolder * e, int type)
 void
 ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 {
+	Obs & obs = log.submit();
+	obs.act=ReadWriteWaiterList::Obs::act_Pop;
+	obs.e=NULL;
+	obs.ev=NULL;
+	obs.trans = "";
+	obs.type = by_type;
+	obs.res=false;
+	obs.tid = oflux_self();
+	obs.term_index = 0;
 	EventBaseHolder * h;
 	EventBaseHolder * hn;
 	int rcount;
@@ -173,6 +215,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 	el = NULL;
 	while(true) {
 		RWWaiterHead head(_head);
+		obs.u64 = head.u64();
 		h = head.head();
 		hn = h->next;
 		rcount = head.rcount();
@@ -184,6 +227,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 				// 2->1
 			&& _head.compareAndSwap(head,h,0,false)
 			) {
+			obs.trans = "2->1";
 			break;
 		} else if( rcount == 1
 			&& !mkd
@@ -191,6 +235,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 				// 3->1
 			&& _head.compareAndSwap(head,h,0,false)
 			) {
+			obs.trans = "3->1";
 			break;
 		} else if( rcount > 1
 			&& !mkd
@@ -198,6 +243,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 				// 3->3
 			&& _head.compareAndSwap(head,h,rcount-1,false)
 			) {
+			obs.trans = "3->3";
 			break;
 		} else if( rcount == -1
 			&& mkd
@@ -210,6 +256,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			) {
 			el = h;
 			el->next = NULL;
+			obs.trans = "4->2";
 			break;
 		} else if( rcount == -1
 			&& mkd
@@ -222,6 +269,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			) {
 			el = h;
 			el->next = NULL;
+			obs.trans = "4->4";
 			break;
 		} else if( rcount == -1
 			&& mkd
@@ -234,6 +282,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			el = h;
 			el->next = NULL;
 			pop_continue(el);
+			obs.trans = "4->(3,5)";
 			break;
 		} else if( rcount == 1
 			&& mkd
@@ -245,6 +294,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			) {
 			el = h;
 			el->next = NULL;
+			obs.trans = "5->(2,4)";
 			break;
 		} else if( rcount > 1
 			&& mkd
@@ -252,6 +302,7 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 				// 5->5
 			&& _head.compareAndSwap(head,h,rcount-1,true)
 			) {
+			obs.trans = "5->5";
 			break;
 		} else if( rcount == 1
 			&& mkd
@@ -264,10 +315,16 @@ ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
 			el = h;
 			el->next = NULL;
 			pop_continue(el);
+			obs.trans = "5->(3,5) [*]";
 			break;
 		}
 	}
 	if(el) el->busyWaitOnEv();
+	obs.e = el;
+	obs.ev = (el ? el->ev.get() : NULL);
+	obs.act=ReadWriteWaiterList::Obs::act_pop;
+	obs.term_index = log.at();
+	INVARIANT
 }
 
 void
