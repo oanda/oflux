@@ -560,17 +560,22 @@ void Reader::readxmldir()
                 return;
         }
         struct dirent * dir_entry;
+	std::set<std::string> files;
         while((dir_entry = ::readdir(dir)) != NULL) {
                 std::string filename = dir_entry->d_name;
                 size_t found = filename.find_last_of(".");
                 if(filename.substr(found+1) == "xml" ) {
                         filename = (std::string) pluginxmldir + "/" + filename;
-                        if(!_depends_visited.isDependency(filename.c_str())) {
-                                readxmlfile(filename.c_str(), Reader::startPluginHandler, Reader::endPluginHandler);
-                        }
+			files.insert(filename);
                 }
         }
         ::closedir(dir);
+	// std::set makes the ordering of the files deterministic
+	for(std::set<std::string>::iterator itr = files.begin(); itr != files.end(); ++itr) {
+		if(!_depends_visited.isDependency((*itr).c_str())) {
+			readxmlfile((*itr).c_str(), Reader::startPluginHandler, Reader::endPluginHandler);
+		}
+	}
 }
 
 void Reader::finalize()
