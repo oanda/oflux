@@ -10,6 +10,7 @@
 #include "lockfree/atomic/OFluxLFAtomicReadWrite.h"
 #include "lockfree/OFluxDistributedCounter.h"
 #include "OFluxLogging.h"
+#include "OFluxRollingLog.h"
 #include <cassert>
 #include <string>
 #include <strings.h>
@@ -23,40 +24,30 @@ namespace atomic {
 namespace instrumented {
 
 template<typename D> // D is POD
-class RollingLog {
+class LocalRollingLog : public oflux::RollingLog<D> {
 public:
-	enum { log_size = 4096*4, d_size = sizeof(D) };
-	RollingLog()
-		: index(1LL)
-	{
-		::bzero(&(log[0]),sizeof(log));
-	}
-	inline D & submit()
-	{
-		long long i = __sync_fetch_and_add(&index,1);
-		log[i%log_size].index = i;
-		return log[i%log_size].d;
-	}
+	LocalRollingLog()
+	{}
 	void report()
 	{
 #define REPORT_BUFFER_LENGTH 1024
 		char buff[REPORT_BUFFER_LENGTH];
-		long long s_index = (index+1);
+		long long s_index = (this->index+1);
 		pthread_t local_tid = pthread_self();
 		oflux_log_info("%lu log tail %p:\n", local_tid, this);
 		size_t zero_repeat = 0;
-		for(size_t i=0; i < log_size; ++i) {
+		for(size_t i=0; i < oflux::RollingLog<D>::log_size; ++i) {
 #define DO_zero_repeat_OUTPUT \
  if(zero_repeat) { \
    oflux_log_info("%lu 0] (repeats %u times)\n",local_tid,zero_repeat); \
    zero_repeat = 0; \
    }
-			if(log[(i+s_index)%log_size].index) {
+			if(this->log[(i+s_index)%oflux::RollingLog<D>::log_size].index) {
 				DO_zero_repeat_OUTPUT
-				log[(i+s_index)%log_size].d.report(buff);
+				this->log[(i+s_index)%oflux::RollingLog<D>::log_size].d.report(buff);
 				oflux_log_info("%lu %lld] %s\n"
 					, local_tid
-					, log[(i+s_index)%log_size].index
+					, this->log[(i+s_index)%oflux::RollingLog<D>::log_size].index
 					, buff);
 			} else {
 				++zero_repeat;
@@ -64,10 +55,6 @@ public:
 		}
 		DO_zero_repeat_OUTPUT
 	}
-	inline long long at() { return index; }
-private:
-	long long index;
-	struct S { long long index; D d; } log[log_size];
 };
 
 
@@ -102,7 +89,7 @@ public:
 		}
 	};
 
-	RollingLog<Observation> log;
+	LocalRollingLog<Observation> log;
 	long long last_a;
 	long long last_r;
 

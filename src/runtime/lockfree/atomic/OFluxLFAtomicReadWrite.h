@@ -3,116 +3,183 @@
 
 #include "lockfree/atomic/OFluxLFAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
-#include <string.h>
-#include <strings.h>
+#include "OFluxRollingLog.h"
+
 
 namespace oflux {
 namespace lockfree {
 namespace atomic {
 
-class RWWaiterHead {
+namespace readwrite {
+ struct EventBaseHolder;
+} // namespace readwrite
+
+
+class RWWaiterPtr {
 public:
-	RWWaiterHead()
-	{ u.u64 = 0LL; }
-	RWWaiterHead(EventBaseHolder * e, int rc, bool m)
+        RWWaiterPtr()
+        { u._u64 = 0LL; }
+        RWWaiterPtr(
+		  int rc
+		, bool md
+		, bool mk
+		, uint32_t e = 0)
+        {
+                u.s1.epoch = e;
+                u.s1.rcount_mode_mkd = 
+			(rc<<2) 
+			| (md ? 0x0002: 0x0000)
+			| (mk ? 0x0001: 0x0000);
+        }
+        RWWaiterPtr(readwrite::EventBaseHolder * n, uint32_t e = 0)
 	{
-		u.s.h = e;
-		u.s.rcount_mkd = (rc<<1) | (m ? 0x0001: 0x0000);
+		u.s2.epoch = e;
+		u.s2.next = n;
 	}
-	RWWaiterHead(const RWWaiterHead & o)
+        RWWaiterPtr(const RWWaiterPtr & o)
+        {
+                u._u64 = o.u._u64;
+        }
+        RWWaiterPtr(const RWWaiterPtr & o, int incr)
+        {
+                u._u64 = o.u._u64;
+		u.s2.epoch += incr;
+        }
+        RWWaiterPtr & operator=(const RWWaiterPtr & o)
+        {
+                u._u64 = o.u._u64;
+                return *this;
+        }
+	inline bool set(int rc, bool md, bool mk, uint32_t e)
 	{
-		u.u64 = o.u.u64;
+                u.s1.epoch = e;
+                u.s1.rcount_mode_mkd = 
+			(rc<<2) 
+			| (md ? 0x0002: 0x0000)
+			| (mk ? 0x0001: 0x0000);
+		return true;
 	}
-	RWWaiterHead & operator=(const RWWaiterHead & o)
+	inline bool set(readwrite::EventBaseHolder *n, uint32_t e)
 	{
-		u.u64 = o.u.u64;
-		return *this;
+		u.s2.epoch = e;
+		u.s2.next = n;
+		return true;
 	}
-	inline EventBaseHolder * head() const
-	{ return u.s.h; }
-	inline bool mkd() const
-	{ return u.s.rcount_mkd & 0x0001; }
-	inline int rcount() const
-	{ return u.s.rcount_mkd >> 1; }
-	inline bool compareAndSwap(
-		  const RWWaiterHead & old_o
-		, const RWWaiterHead & new_o)
+	inline uint32_t epoch() const
+	{ return u.s1.epoch; }
+        inline bool mkd() const
+        { return u.s1.rcount_mode_mkd & 0x0001; }
+        inline bool mode() const
+		// true iff read
+        { return (u.s1.rcount_mode_mkd & 0x0002) >> 1; }
+        inline int rcount() const
+        { return u.s1.rcount_mode_mkd >> 2; }
+        inline readwrite::EventBaseHolder * ptr() const
+	{ return u.s2.next; }
+        inline bool compareAndSwap(
+                  const RWWaiterPtr & old_o
+                , const RWWaiterPtr & new_o)
+        {
+                return __sync_bool_compare_and_swap(
+                          &(u._u64)
+                        , old_o.u._u64
+                        , new_o.u._u64);
+        }
+        inline bool compareAndSwap(
+                  const RWWaiterPtr & old_o
+                , const int rc
+                , bool md
+		, bool mk
+		, uint32_t e)
+        {
+                RWWaiterPtr rwh(rc,md,mk,e);
+                return compareAndSwap(old_o,rwh);
+        }
+        inline bool compareAndSwap(
+                  const RWWaiterPtr & old_o
+                , readwrite::EventBaseHolder * n
+		, uint32_t e)
+        {
+                RWWaiterPtr rwh(n,e);
+                return compareAndSwap(old_o,rwh);
+        }
+	inline uint64_t u64() const
 	{
-		return __sync_bool_compare_and_swap(
-			  &(u.u64)
-			, old_o.u.u64
-			, new_o.u.u64);
+		return u._u64;
 	}
-	inline bool compareAndSwap(
-		  const RWWaiterHead & old_o
-		, EventBaseHolder * const e
-		, const int rc
-		, bool m)
-	{
-		RWWaiterHead rwh(e,rc,m);
-		return compareAndSwap(old_o,rwh);
-	}
-	uint64_t u64() const { return u.u64; }
 public:
-	union U {
-		struct S {
-			EventBaseHolder * h;
-			int rcount_mkd;
-		} s;
-		uint64_t u64;
-	} u;
+        union U {
+                struct S1 {
+                        uint32_t epoch;
+                        int rcount_mode_mkd;
+                } s1;
+                struct S2 {
+                        uint32_t epoch;
+                        readwrite::EventBaseHolder * next;
+                } s2;
+                uint64_t _u64;
+        } u;
 };
 
-template<typename D> // D is POD
-class RollingLog {
-public:
-	enum { log_size = 4096*4, d_size = sizeof(D) };
-	RollingLog()
-		: index(1LL)
-	{
-		::bzero(&(log[0]),sizeof(log));
-	}
-	inline D & submit()
-	{
-		long long i = __sync_fetch_and_add(&index,1);
-		log[i%log_size].index = i;
-		return log[i%log_size].d;
-	}
-	inline long long at() { return index; }
-private:
-	long long index;
-	struct S { long long index; D d; } log[log_size];
+namespace readwrite {
+struct EventBaseHolder {
+	EventBaseHolder(const EventBasePtr & e, bool md)
+		: next(0,0,0)
+		, val(e)
+		, mode(md)
+	{}
+
+	RWWaiterPtr next;
+	EventBasePtr val;
+	bool mode;
 };
+} // namespace readwrite
 
 class ReadWriteWaiterList {
 public:
-	ReadWriteWaiterList()
-		: _head(AtomicCommon::allocator.get(EventBase::no_event,EventBaseHolder::None), 0, false)
-		, _tail(_head.head())
-	{}
-	~ReadWriteWaiterList();
-	bool push(EventBaseHolder * e, int type);
-	void pop(EventBaseHolder * & el, int by_type);
-	void dump();
-	size_t count() const;
-
-	struct Obs {
-		enum { act_none, act_Pop, act_pop, act_Push, act_push } act;
-		EventBaseHolder * e;
-		void * ev;
-		int type;
-		bool res;
+#define LF_RW_WAITER_INSTRUMENTATION
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+	struct Observation {
+		enum    { Action_none
+			, Action_A_o_w
+			, Action_Rel 
+			, Action_a_o_w
+			, Action_rel 
+			} action;
 		const char * trans;
-		oflux_thread_t tid;
+		int res;
+		const readwrite::EventBaseHolder * e;
+		bool mode;
 		uint64_t u64;
+		unsigned retries;
+		pthread_t tid;
+		EventBase * ev;
 		long long term_index;
 	};
 
-	RollingLog<Obs> log;
+	RollingLog<Observation> log;
+
+#endif // LF_RW_WAITER_INSTRUMENTATION
+	static Allocator<readwrite::EventBaseHolder> allocator;
+
+	ReadWriteWaiterList()
+		: _head(allocator.get(EventBase::no_event,0))
+		, _tail(_head)
+	{}
+	~ReadWriteWaiterList();
+	bool push(readwrite::EventBaseHolder * e);
+	void pop( readwrite::EventBaseHolder * & el
+		, const EventBasePtr & by_ev
+		, int mode);
+	void dump();
+	size_t count_waiters() const;
+	bool held() const;
+	bool has_waiters() const;
+	size_t rcount() const;
 
 public:
-	RWWaiterHead _head;
-	EventBaseHolder * _tail;
+	readwrite::EventBaseHolder * _head;
+	readwrite::EventBaseHolder * _tail;
 };
 
 class AtomicReadWrite : public AtomicCommon {
@@ -124,22 +191,22 @@ public:
 	virtual ~AtomicReadWrite() {}
 	virtual int held() const 
 	{ 
-		int rcount = _waiters._head.rcount();
+		int rcount = _waiters.rcount();
 		return rcount < 0 ? 1 : rcount;
 	}
 	virtual size_t waiter_count() 
-	{ return _waiters.count(); }
+	{ return _waiters.count_waiters(); }
 	virtual bool has_no_waiters()
 	{ 
-		EventBaseHolder * ebh = _waiters._head.head();
-		return (ebh ? ebh->next != 0 : false);
+		return !_waiters.has_waiters();
 	}
 	virtual int wtype() const { return _wtype; }
 	virtual const char * atomic_class() const
 	{ return "lockfree::AtomicReadWrite"; }
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
-		EventBaseHolder * ebh = allocator.get(ev,wtype);
+		readwrite::EventBaseHolder * ebh = 
+			ReadWriteWaiterList::allocator.get(ev,wtype);
 		// Upgradable could be stuck into the lower-level
 		// lf queue, but the added complexity is probably not worth it
 		//  we tolerate: that sometimes upgradable will grab Write
@@ -151,25 +218,24 @@ public:
 			    ? EventBaseHolder::Read 
 			    : EventBaseHolder::Write)
 			: wtype);
-		bool acqed = _waiters.push(
-			  ebh
-			, local_wtype);
+		ebh->mode = (local_wtype == EventBaseHolder::Read);
+		bool acqed = _waiters.push(ebh);
 		if(acqed) {
 			oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
 				, ev->flow_node()->getName()
 				, ev.get()
 				, this
 				, wtype
-				, _waiters._head.rcount());
+				, _waiters.rcount());
 			_wtype = local_wtype;
-			AtomicCommon::allocator.put(ebh); 
+			ReadWriteWaiterList::allocator.put(ebh); 
 		} else {
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
 				, ev->flow_node()->getName()
 				, ev.get()
 				, this
 				, wtype
-				, _waiters._head.rcount());
+				, _waiters.rcount());
 		}
 		return acqed;
 	}
@@ -177,33 +243,36 @@ public:
 		  std::vector<EventBasePtr > & rel_ev
                 , EventBasePtr & by_e)
 	{
-		EventBaseHolder * el = NULL;
+		readwrite::EventBaseHolder * el = NULL;
 		oflux_log_trace2("RW::rel   %s %p %p releasing %d %d\n"
 			, by_e->flow_node()->getName()
 			, by_e.get()
 			, this
 			, _wtype
-			, _waiters._head.rcount());
-		_waiters.pop(el,_wtype);
+			, _waiters.rcount());
+		_waiters.pop(el,by_e,_wtype == EventBaseHolder::Read);
 		//_wtype = EventBaseHolder::None;
-		EventBaseHolder * e = el;
-		EventBaseHolder * n_e = NULL;
-		store_load_barrier();
+		readwrite::EventBaseHolder * e = el;
+		readwrite::EventBaseHolder * n_e = NULL;
 		while(e) {
-			n_e = e->next;
-			_wtype = e->type;
+			assert(!e->next.mkd()
+				&& "rw atom should not have released a marked ebh");
+			n_e = e->next.ptr();
+			_wtype = (e->mode
+				? EventBaseHolder::Read
+				: EventBaseHolder::Write);
 			oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
-				, e->ev.get() ? e->ev->flow_node()->getName() : "<null>"
-				, e->ev.get()
+				, e->val.get() ? e->val->flow_node()->getName() : "<null>"
+				, e->val.get()
 				, this
 				, e->type
-				, _waiters._head.rcount());
-			if(e->ev.get()) { 
-				rel_ev.push_back(e->ev); 
+				, _waiters.rcount());
+			if(e->val.get()) { 
+				rel_ev.push_back(e->val); 
 			} else {
 				oflux_log_error("RW::rel   put out a NULL event\n");
 			}
-			AtomicCommon::allocator.put(e);
+			ReadWriteWaiterList::allocator.put(e);
 			e = n_e;
 		}
 	}

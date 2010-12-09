@@ -5,381 +5,327 @@ namespace oflux {
 namespace lockfree {
 namespace atomic {
 
+Allocator<readwrite::EventBaseHolder> ReadWriteWaiterList::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
+
+
 /////////////////////////////////////////////////////////////////////////////
 // ReadWriteWaiterList States:
 //
-// 1. empty
-// 	{ _head = { ev=0; type=0; next=0; }; rcount = 0; mkd = false;}
-// 	_tail = _head;
-// 2. exclusive0
-// 	{ _head = { ev=0; type=0; next=0; }; rcount = -1; mkd = false;}
-// 	_tail = _head;
-// 3. readingN0
-// 	{ _head = { ev=0; type=0; next=0; }; rcount > 0; mkd=false;}
-// 	_tail = _head;
-// 4. exclusiveM
-// 	{ _head = { ev!=0; type!=0; next!=0; }; rcount = -1; mkd=true;}
-// 	_tail = { ev=0; type=0; next=0; }
-//            != _head
-// 5. readingNM
-// 	{ _head = { ev!=0; type!=0; next!=0; }; rcount > 0; mkd=true;}
-// 	_tail = { ev=0; type=0; next=0; }
-//            != _head
-
-#define INVARIANT \
-  { RWWaiterHead head_check(_head); \
-    EventBaseHolder * h_check = head_check.head(); \
-    int rcount_check = head_check.rcount(); \
-    bool mkd_check = head_check.mkd() || h_check->next; \
-    assert( (rcount_check >= -1) || (_head.u64() != head_check.u64()) ); \
-    assert( ((mkd_check) ^ (h_check->next == NULL)) || (_head.u64() != head_check.u64())); \
-    assert( ((h_check->next == NULL) || (rcount_check != 0)) || (_head.u64() != head_check.u64())); \
-  }
-    
-
-#define add_tail_waiter(e) \
-  EventBaseHolder * t; \
-  e->next = NULL; \
-  do { \
-    t = _tail; \
-    while(t && t->next) { \
-      t = t->next; \
-    } \
-  } while(!__sync_bool_compare_and_swap(&(t->next),NULL,e)); \
-  _tail = e; \
-  t->type = type; \
-  t->ev.swap(ev);
+// rcount indicates the number of holders
+//  mode: true/1 means read, false/0 means write
+//
+// 1. Empty
+//    head == tail; head.next = 0x0000
+// 2. HeldNoWaiters
+//    head == tail; 
+//    head.next = 0x0001 
+//        | (read_mode ? 0x0002 : 0)
+//        | (rcount << 2)
+// 3. HeldSomeWaiters
+//    head != tail;
+//    head.next is valid ptr: (lsb is 0) and != 0x0000
 
 ReadWriteWaiterList::~ReadWriteWaiterList()
 {
-	EventBaseHolder * e = _head.head();
-	EventBaseHolder * en;
-	while((en = e->next)) {
-		AtomicCommon::allocator.put(e);
+	readwrite::EventBaseHolder * e = _head;
+	readwrite::EventBaseHolder * en;
+	while((en = e->next.ptr()) && !e->next.mkd()) {
+		allocator.put(e);
 		e = en;
 	}
 	if(e) {
-		AtomicCommon::allocator.put(e);
+		allocator.put(e);
 	}
 }
 
 bool
-ReadWriteWaiterList::push(EventBaseHolder * e, int type)
+ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 {
-	Obs & obs = log.submit();
-	obs.act = ReadWriteWaiterList::Obs::act_Push;
-	obs.term_index = 0;
-	obs.e=e;
-	obs.ev=e->ev.get();
-	obs.type=type;
-	obs.res=false;
-	obs.term_index= 0;
-	obs.trans = "";
-	obs.tid = oflux_self();
 	bool res = false;
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.tid = pthread_self();
+	obs.action = Observation::Action_A_o_w;
+	obs.trans = "";
+	obs.res = 0;
+	obs.e = e;
+	obs.ev = e->val.get();
+	obs.mode = e->mode;
+	obs.retries = 0;
+	obs.term_index = 0;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 	EventBasePtr ev;
-	ev.swap(e->ev);
-	EventBaseHolder * hn;
-	EventBaseHolder * h;
-	int rcount;
-	bool mkd;
-	e->type = EventBaseHolder::None;
-	while(true) {
-                RWWaiterHead head(_head);
-		obs.u64 = head.u64();
-		h = head.head();
-		hn = h->next;
-		rcount = head.rcount();
-		mkd = head.mkd() || hn;
-		if(        type == EventBaseHolder::Write
-			&& rcount == 0 
-			&& !mkd 
-			&& !hn
-				// 1->2
-			&& _head.compareAndSwap(head,h,-1,false)
+	ev.swap(e->val);
+	int mode = e->mode;
+	while(1) {
+		readwrite::EventBaseHolder * h = _head;
+		readwrite::EventBaseHolder * t = _tail;
+		RWWaiterPtr rwptr(t->next);
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+		obs.u64=rwptr.u64();
+#endif // LF_RW_WAITER_INSTRUMENTATION
+		if(        h==t 
+			&& !rwptr.ptr()
+			&& t->next.compareAndSwap(
+				  rwptr
+				, 1 // count
+				, e->mode
+				, 1 // mkd
+				, rwptr.epoch())
 			) {
-			res = true;
+#ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "1->2";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			res = true; // acquire
+			e->val.swap(ev);
+			e->mode = mode;
 			break;
-		} else if( type == EventBaseHolder::Read
-			&& rcount == 0
-			&& !mkd
-			&& !hn
-				// 1->3
-			&& _head.compareAndSwap(head,h,1,false)
+		} else if( h==t 
+			&& rwptr.mkd()
+			&& rwptr.mode() // read
+			&& e->mode
+			&& t->next.compareAndSwap(
+				  rwptr
+				, rwptr.rcount()+1
+				, true // mode (read)
+				, true // mkd
+				, rwptr.epoch()+1)
 			) {
-			res = true;
-			obs.trans = "1->3";
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			obs.trans = "2->2";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			res = true; // acquire
+			e->val.swap(ev);
+			e->mode = mode;
 			break;
-		} else if( rcount == -1
-			&& !mkd
-			&& !hn
-				// 2->4
-			&& (e->next = h)
-			&& _head.compareAndSwap(head,e,-1,true)
+		} else if( h==t
+			&& rwptr.mkd()
+			&& !(e->mode && rwptr.mode())
+			&& e->next.set(
+				  rwptr.rcount()
+				, rwptr.mode()
+				, true
+				, rwptr.epoch())
+			&& t->next.compareAndSwap(
+				  rwptr
+				, e
+				, rwptr.epoch()+1)
 			) {
-			res = false;
-			e->type = type;
-			e->ev.swap(ev);
-			obs.trans = "2->4";
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			obs.trans = "2->3";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			_tail = e;
+			t->mode = mode;
+			t->val.swap(ev);
+			res = false; // wait
 			break;
-		} else if( rcount == -1
-			&& mkd
-			&& hn
-				// 4->4
-			&& _head.compareAndSwap(head,h,-1,true)
+		} else if( h!=t
+			&& !h->next.mkd()
+			&& rwptr.mkd()
+			&& e->next.set(
+				  rwptr.rcount()
+				, rwptr.mode()
+				, true
+				, rwptr.epoch())
+			&& t->next.compareAndSwap(
+				  rwptr
+				, e
+				, rwptr.epoch()+1)
 			) {
-			add_tail_waiter(e); // macro
-			res = false;
-			obs.trans = "4->4";
-			break;
-		} else if( type == EventBaseHolder::Read
-			&& rcount > 0
-			&& !mkd
-			&& !hn
-				// 3->3
-			&& _head.compareAndSwap(head,h,rcount+1,false)
-			) {
-			res = true;
+#ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "3->3";
-			break;
-		} else if( type == EventBaseHolder::Write
-			&& rcount > 0
-			&& !mkd
-			&& !hn
-				// 3->5
-			&& (e->next = h)
-			&& _head.compareAndSwap(head,e,rcount,true)
-			) {
-			res = false;
-			e->type = type;
-			e->ev.swap(ev);
-			obs.trans = "3->5";
-			break;
-		} else if( rcount > 0 
-			&& mkd
-			&& hn
-				// 5->5
-			&& _head.compareAndSwap(head,h,rcount,true)
-			) {
-			add_tail_waiter(e); // macro
-			res = false;
-			obs.trans = "5->5";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			_tail = e;
+			t->mode = mode;
+			t->val.swap(ev);
+			res = false; // wait
 			break;
 		}
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+		++obs.retries;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 	}
-	obs.term_index = log.at();
+#ifdef LF_RW_WAITER_INSTRUMENTATION
 	obs.res = res;
-	obs.act = ReadWriteWaiterList::Obs::act_push;
-	INVARIANT
+	obs.term_index = log.at();
+	obs.action = Observation::Action_a_o_w;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 	return res;
 }
 
-#define pop_continue(el) \
-  EventBaseHolder * h2; \
-  EventBaseHolder * hn2; \
-  int rcount2; \
-  bool mkd2; \
-  RWWaiterHead head2; \
-  do { \
-    head2 = _head; \
-    h2 = head2.head(); \
-    rcount2 = head2.rcount(); \
-    hn2 = h2->next; \
-    mkd2 = head2.mkd(); \
-  } while( h2->type == EventBaseHolder::Read \
-	&& h2->next != NULL \
-	&& h2->ev.get() \
-	&& mkd2 \
-	&& _head.compareAndSwap(head2,hn2,rcount2+1,hn2->next!=NULL) \
-	&& (h2->next = el) \
-	&& (el = h2))
-
 void
-ReadWriteWaiterList::pop(EventBaseHolder * & el, int by_type)
+ReadWriteWaiterList::pop(
+	  readwrite::EventBaseHolder * & el
+	, const EventBasePtr & by_ev
+	, int mode)
 {
-	Obs & obs = log.submit();
-	obs.act=ReadWriteWaiterList::Obs::act_Pop;
-	obs.e=NULL;
-	obs.ev=NULL;
-	obs.trans = "";
-	obs.type = by_type;
-	obs.res=false;
-	obs.tid = oflux_self();
-	obs.term_index = 0;
-	EventBaseHolder * h;
-	EventBaseHolder * hn;
-	int rcount;
-	int ht;
-	bool mkd;
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.action = Observation::Action_Rel;
+	obs.tid = pthread_self();
+	obs.trans="";
+	obs.res=0;
+	obs.e = 0;
+	obs.mode = mode;
+	obs.ev = by_ev.get();
+	obs.retries=0;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 	el = NULL;
-	while(true) {
-		RWWaiterHead head(_head);
-		obs.u64 = head.u64();
-		h = head.head();
-		hn = h->next;
-		rcount = head.rcount();
-		ht = h->type;
-		mkd = head.mkd() || hn;
-		if(        rcount == -1
-			&& !mkd
-			&& !hn
-				// 2->1
-			&& _head.compareAndSwap(head,h,0,false)
-			) {
-			obs.trans = "2->1";
-			break;
-		} else if( rcount == 1
-			&& !mkd
-			&& !hn
-				// 3->1
-			&& _head.compareAndSwap(head,h,0,false)
-			) {
-			obs.trans = "3->1";
-			break;
-		} else if( rcount > 1
-			&& !mkd
-			&& !hn
-				// 3->3
-			&& _head.compareAndSwap(head,h,rcount-1,false)
-			) {
-			obs.trans = "3->3";
-			break;
-		} else if( rcount == -1
-			&& mkd
-			&& ht == EventBaseHolder::Write
-			&& h->ev.get()
-			&& hn
-			&& !hn->next
-				// 4->2
-			&& _head.compareAndSwap(head,hn,-1,false)
-			) {
-			el = h;
-			el->next = NULL;
-			obs.trans = "4->2";
-			break;
-		} else if( rcount == -1
-			&& mkd
-			&& ht == EventBaseHolder::Write
-			&& h->ev.get()
-			&& hn
-			&& hn->next
-				// 4->4
-			&& _head.compareAndSwap(head,hn,-1,true)
-			) {
-			el = h;
-			el->next = NULL;
-			obs.trans = "4->4";
-			break;
-		} else if( rcount == -1
-			&& mkd
-			&& ht == EventBaseHolder::Read
-			&& h->ev.get()
-			&& hn
-				// 4->(3,5)
-			&& _head.compareAndSwap(head,hn,1,hn->next!=NULL)
-			) {
-			el = h;
-			el->next = NULL;
-			pop_continue(el);
-			obs.trans = "4->(3,5)";
-			break;
-		} else if( rcount == 1
-			&& mkd
-			&& h->ev.get()
-			&& ht == EventBaseHolder::Write
-			&& hn
-				// 5->(2,4)
-			&& _head.compareAndSwap(head,hn,-1,hn->next!=NULL)
-			) {
-			el = h;
-			el->next = NULL;
-			obs.trans = "5->(2,4)";
-			break;
-		} else if( rcount > 1
-			&& mkd
-			&& hn
-				// 5->5
-			&& _head.compareAndSwap(head,h,rcount-1,true)
-			) {
-			obs.trans = "5->5";
-			break;
-		} else if( rcount == 1
-			&& mkd
-			&& h->ev.get()
-			&& ht == EventBaseHolder::Read
-			&& hn
-				// 5->(3,5) [*]
-			&& _head.compareAndSwap(head,hn,1,hn->next!=NULL)
-			) {
-			el = h;
-			el->next = NULL;
-			pop_continue(el);
-			obs.trans = "5->(3,5) [*]";
-			break;
+	while(1) {
+		readwrite::EventBaseHolder * h = _head;
+		readwrite::EventBaseHolder * t = _tail;
+		RWWaiterPtr rwptr(t->next);
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+		obs.u64 = rwptr.u64();
+#endif // LF_RW_WAITER_INSTRUMENTATION
+		if(!rwptr.mkd()) {
+			continue;
 		}
+		assert(mode == rwptr.mode()
+			&& "release mode should match waiter state");
+		if(        h==t
+			/*&& rwptr.mkd()*/
+			&& rwptr.rcount()==1
+			&& t->next.compareAndSwap(
+				  rwptr
+				, 0 // count
+				, false // mode
+				, false
+				, rwptr.epoch()+1) // mkd
+			) {
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			obs.trans = "2->1";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			el = NULL;
+			break;
+		} else if( /* rwptr.mkd()*/
+			   rwptr.rcount() > 1
+			&& t->next.compareAndSwap(
+				  rwptr
+				, rwptr.rcount()-1
+				, rwptr.mode()
+				, rwptr.mkd()
+				, rwptr.epoch()+1)
+			) {
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			obs.trans = "(2,3)->(2,3)";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			el = NULL;
+			break;
+		} else if( h!=t
+			&& h->val
+			&& h->next.ptr()
+			&& !h->next.mkd()
+			/*&& rwptr.mkd()*/
+			&& rwptr.rcount() == 1
+			) {
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			obs.trans = "3->(2,3)";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			el = h;
+			int new_rcount = 1;
+			while(h->next.ptr() 
+				&& el->mode // read
+				&& h->next.ptr()->mode // read
+				&& h->val
+				&& !h->next.ptr()->next.mkd()) {
+				h = h->next.ptr();
+				++new_rcount;
+			}
+			if(t->next.compareAndSwap(
+				  rwptr
+				, new_rcount
+				, el->mode
+				, true
+				, rwptr.epoch()+1)
+				) {
+				if( __sync_bool_compare_and_swap(&_head,el,h->next.ptr())) {
+					h->next.set(0,0);
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+					obs.res = new_rcount;
+					obs.e = el;
+					obs.ev = el->val.get();
+#endif // LF_RW_WAITER_INSTRUMENTATION
+					break;
+				} else {
+					assert(0 && "the Head CAS should always succeed");
+				}
+			}
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			obs.trans = "";
+#endif // LF_RW_WAITER_INSTRUMENTATION
+			// continuing here
+		}
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+		++obs.retries;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 	}
-	if(el) el->busyWaitOnEv();
-	obs.e = el;
-	obs.ev = (el ? el->ev.get() : NULL);
-	obs.act=ReadWriteWaiterList::Obs::act_pop;
+#ifdef LF_RW_WAITER_INSTRUMENTATION
 	obs.term_index = log.at();
-	INVARIANT
+	obs.action = Observation::Action_rel;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 }
 
 void
 ReadWriteWaiterList::dump()
 {
-	RWWaiterHead head(_head);
-	EventBaseHolder * tail = _tail;
+        // todo at oflux_log_trace()
+	readwrite::EventBaseHolder * h = _head;
+	readwrite::EventBaseHolder * t = _tail;
+	RWWaiterPtr rwptr(t->next);
 	const char * state =
-		(head.rcount() == 0 ?
-                        "empty      [1]"
-		: (head.rcount() > 0 ?
-		  (head.mkd() ?
-                        "readingNM  [5]"
-		  :
-                        "readingN0  [3]"
-		  )
-		: (head.mkd() ?
-                        "exclusiveM [4]"
-		  :
-                        "exclusive0 [2]"
-		  )));
-        oflux_log_trace(" atomic[%p] in state %s\n"
-                , this
-                , state);
-	size_t at = 0;
+		(h == t
+			? (rwptr.mkd() ? 
+				"empty           [1]"
+				:
+				"heldNoWaiters   [2]")
+			:       "heldSomeWaiters [3]");
+	oflux_log_trace(" atomic[%p] in state %s\n"
+		, this
+		, state);
 	char buff[5000];
-        at += snprintf(buff+at,5000-at,"  head = ");
-        EventBaseHolder * e = head.head();
-        while(e != NULL) {
-                at += snprintf(buff+at,5000-at,"%p%s->"
-			, e->ev.get()
-			, (e->type == EventBaseHolder::Read ? "R" : (e->type == EventBaseHolder::Write ? "W" : "")));
-                e = e->next;
-        }
-        if(e == NULL) {
-                at += snprintf(buff+at,5000-at,"(0x0)\n");
-        } else {
-                at += snprintf(buff+at,5000-at,"\n");
-        }
-	oflux_log_trace("%s",buff);
-        oflux_log_trace("  tail = %p\n", tail->ev.get());
-        oflux_log_trace("  rcount = %d\n", head.rcount());
-        oflux_log_trace("  mkd = %d\n", head.mkd());
+	size_t at = 0;
+	at += snprintf(buff+at,5000-at,"  head = ");
 }
 
 size_t
-ReadWriteWaiterList::count() const
+ReadWriteWaiterList::count_waiters() const
 {
-	EventBaseHolder * e = _head.head();
+	readwrite::EventBaseHolder * e = _head;
 	size_t res = 0;
-	while(e && e->next) {
-		e = e->next;
+	while(e && e->next.ptr() && !e->next.mkd()) {
+		e = e->next.ptr();
 		++res;
 	}
 	return res;
+}
+
+bool
+ReadWriteWaiterList::has_waiters() const
+{
+	readwrite::EventBaseHolder * e = _head;
+	return e && e->next.ptr() && !e->next.mkd();
+}
+
+bool
+ReadWriteWaiterList::held() const
+{
+	readwrite::EventBaseHolder * e = _tail;
+	return e->next.mkd();
+}
+
+size_t
+ReadWriteWaiterList::rcount() const
+{
+	while(1) {
+		readwrite::EventBaseHolder * t = _tail;
+		RWWaiterPtr rwptr(t->next);
+		if(_head == t && !rwptr.mkd()) {
+			return 0;
+		} else if(rwptr.mkd()) {
+			return rwptr.rcount();
+		}
+	}
 }
 
 } // namespace atomic
