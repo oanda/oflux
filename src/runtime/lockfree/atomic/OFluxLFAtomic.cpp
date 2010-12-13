@@ -95,7 +95,7 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 {
 	e->next = NULL;
 	EventBaseHolder * t = NULL;
-	EventBasePtr ev; // hold the event locally
+	SafeEventBasePtr ev; // hold the event locally
 	ev.swap(e->ev);
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;

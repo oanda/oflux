@@ -76,6 +76,8 @@ main(int argc, char * argv[])
 	rtc.flow_maps = &ffmaps;
 	theRT.reset(oflux::runtime::Factory::create(env.runtime_number, rtc));
 	flow = theRT->flow();
+	oflux::flow::exercise::AtomicAbstract::P atomic_array[atomic_set->size()+1];
+	atomic_set->fill(atomic_array);
 	signal(SIGHUP,handlesighup);
 	if(!env.nostart) {
 		theRT->start();

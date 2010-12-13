@@ -205,6 +205,7 @@ public:
 	{ return "lockfree::AtomicReadWrite"; }
 	virtual bool acquire_or_wait(EventBasePtr & ev, int wtype)
 	{
+		store_load_barrier();
 		readwrite::EventBaseHolder * ebh = 
 			ReadWriteWaiterList::allocator.get(ev,wtype);
 		// Upgradable could be stuck into the lower-level
@@ -228,6 +229,7 @@ public:
 				, wtype
 				, _waiters.rcount());
 			_wtype = local_wtype;
+			store_load_barrier();
 			ReadWriteWaiterList::allocator.put(ebh); 
 		} else {
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
