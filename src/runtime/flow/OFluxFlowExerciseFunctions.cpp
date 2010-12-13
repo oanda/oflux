@@ -378,14 +378,38 @@ ClAtomic::set_wtype(int wtype)
 
 class AtomicSet : public AtomicSetAbstract {
 public:
+
 	enum { Lockfree = 1, Classic = 0 };
+	
 	AtomicSet(int guardstyle) : style(guardstyle) {}
 	virtual AtomicAbstract & get(const char * guardname);
 	virtual void report();
+	virtual size_t size() const { return _map.size(); }
+	virtual void fill(AtomicAbstract::P arr[]);
 private:
 	int style;
 	std::map<std::string,AtomicAbstract *> _map;
 };
+
+void
+AtomicSet::fill(AtomicAbstract::P arr[])
+{
+	std::map<std::string,AtomicAbstract *>::iterator itr = _map.begin();
+	std::map<std::string,AtomicAbstract *>::iterator itr_end = _map.end();
+	size_t i =0;
+	while(itr != itr_end) {
+		arr[i].name = (*itr).first.c_str();
+		int k = 0;
+		arr[i].atomic = NULL;
+		oflux::atomic::AtomicMapAbstract * amap = (*itr).second->atomic_map();
+		if(amap && *(reinterpret_cast<int *>(amap))) {
+			amap->get(arr[i].atomic,&k);
+		}
+		++i;
+		++itr;
+	}
+}
+
 
 void
 AtomicSet::report()

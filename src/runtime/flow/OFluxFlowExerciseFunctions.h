@@ -6,6 +6,7 @@
 namespace oflux {
 namespace atomic {
  class AtomicMapAbstract;
+ class Atomic;
 } // namespace atomic
 namespace flow {
 
@@ -19,6 +20,10 @@ void node_report(oflux::flow::Flow *);
 
 class AtomicAbstract {
 public:
+	struct P {
+		const char * name;
+		oflux::atomic::Atomic * atomic;
+	};
 	AtomicAbstract() {}
 	virtual ~AtomicAbstract() {}
 	virtual void set_wtype(int wtype) = 0;
@@ -30,6 +35,8 @@ class AtomicSetAbstract {
 public:
 	virtual AtomicAbstract & get(const char * guardname) = 0;
 	virtual void report() = 0;
+	virtual size_t size() const = 0;
+	virtual void fill(AtomicAbstract::P arr[]) = 0;
 };
 
 } // namespace exercise

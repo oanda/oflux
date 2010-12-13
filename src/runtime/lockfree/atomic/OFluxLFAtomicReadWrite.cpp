@@ -56,8 +56,9 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	obs.retries = 0;
 	obs.term_index = 0;
 #endif // LF_RW_WAITER_INSTRUMENTATION
-	EventBasePtr ev;
+	SafeEventBasePtr ev;
 	ev.swap(e->val);
+	assert(!e->val.get());
 	int mode = e->mode;
 	e->mode = EventBaseHolder::None;
 	while(1) {
@@ -84,6 +85,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			res = true; // acquire
 			e->val.swap(ev);
 			e->mode = mode;
+			assert(!ev.get());
 			break;
 		} else if( h==t 
 			&& rwptr.mkd()
@@ -102,6 +104,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			res = true; // acquire
 			e->mode = mode;
 			e->val.swap(ev);
+			assert(!ev.get());
 			break;
 		} else if( h==t
 			&& rwptr.mkd()
@@ -120,8 +123,10 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			obs.trans = "2->3";
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			_tail = e;
+			assert(t->val.get() == 0);
 			t->mode = mode;
 			t->val.swap(ev);
+			assert(ev.get() == 0);
 			res = false; // wait
 			break;
 		} else if( h!=t
@@ -158,6 +163,23 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	return res;
 }
+
+namespace readwrite {
+inline void busyWaitOnEv(const EventBasePtr & ev)
+{
+	size_t retries = 0;
+	size_t warning_level = 1;
+	while(ev.get() == NULL) {
+		if(retries > warning_level) {
+			oflux_log_error("readwrite::busyWaitOnEv retries at %d\n", retries);
+			warning_level = std::max(warning_level, warning_level << 1);
+		}
+		sched_yield();
+		store_load_barrier();
+		++retries;
+	}
+}
+} // namespace readwrite
 
 void
 ReadWriteWaiterList::pop(
@@ -246,12 +268,13 @@ ReadWriteWaiterList::pop(
 			}
 			if(__sync_bool_compare_and_swap(&_head,el,h->next.ptr())) {
 				// we are commited to changing the state, since we ripped things off the head
-				while(t != _tail || !t->next.mkd() || !t->next.compareAndSwap( rwptr
+				while(t != _tail || !t->next.mkd() || !t->next.compareAndSwap( 
+					  rwptr
 					, new_rcount
 					, el->mode == EventBaseHolder::Read
 					, true
 					, rwptr.epoch()+1)
-				) {
+					) {
 					t = _tail;
 					rwptr = t->next;
 				}
@@ -271,6 +294,11 @@ ReadWriteWaiterList::pop(
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 		++obs.retries;
 #endif // LF_RW_WAITER_INSTRUMENTATION
+	}
+	readwrite::EventBaseHolder * el_traverse = el;
+	while(el_traverse) {
+		readwrite::busyWaitOnEv(el_traverse->val);
+		el_traverse = el_traverse->next.ptr();
 	}
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	obs.term_index = log.at();

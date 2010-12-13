@@ -2,6 +2,7 @@
 #define OFLUX_LOCKFREE_ATOMIC
 
 #include <inttypes.h>
+#include <strings.h>
 #include "atomic/OFluxAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
 #include "event/OFluxEventBase.h"
@@ -63,6 +64,21 @@ inline bool mkd(T * p)
 		, V \
 		, B \
 		, B->resource_loc)
+
+struct SafeEventBasePtr : public EventBasePtr {
+        ~SafeEventBasePtr()
+        {
+                if(!get()) {
+                        // This is dangerous and won't work if
+                        // EventBasePtr ever grows a vtable.
+                        // reasoning is that the shared count can be corrupted
+                        // on a swap with a thread that is checking for !=NULL o
+                        //
+                        // This avoid the awkward call to release() on 0xdeadbee
+                        bzero(this,sizeof(*this));
+                }
+        }
+};
 
 struct EventBaseHolder {
 	enum WType 
