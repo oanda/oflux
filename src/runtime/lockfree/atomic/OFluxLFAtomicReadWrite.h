@@ -25,16 +25,20 @@ public:
 		, bool mk
 		, uint32_t e = 0)
         {
-                u.s1.epoch = e;
-                u.s1.rcount_mode_mkd = 
+		U uu;
+                uu.s1.epoch = e;
+                uu.s1.rcount_mode_mkd = 
 			(rc<<2) 
 			| (md ? 0x0002: 0x0000)
 			| (mk ? 0x0001: 0x0000);
+		u._u64 = uu._u64;
         }
         RWWaiterPtr(readwrite::EventBaseHolder * n, uint32_t e = 0)
 	{
-		u.s2.epoch = e;
-		u.s2.next = n;
+		U uu;
+		uu.s2.epoch = e;
+		uu.s2.next = n;
+		u._u64 = uu._u64;
 	}
         RWWaiterPtr(const RWWaiterPtr & o)
         {
@@ -52,17 +56,21 @@ public:
         }
 	inline bool set(int rc, bool md, bool mk, uint32_t e)
 	{
-                u.s1.epoch = e;
-                u.s1.rcount_mode_mkd = 
+		U uu;
+                uu.s1.epoch = e;
+                uu.s1.rcount_mode_mkd = 
 			(rc<<2) 
 			| (md ? 0x0002: 0x0000)
 			| (mk ? 0x0001: 0x0000);
+		u._u64 = uu._u64;
 		return true;
 	}
 	inline bool set(readwrite::EventBaseHolder *n, uint32_t e)
 	{
-		u.s2.epoch = e;
-		u.s2.next = n;
+		U uu;
+		uu.s2.epoch = e;
+		uu.s2.next = n;
+		u._u64 = uu._u64;
 		return true;
 	}
 	inline uint32_t epoch() const
@@ -131,7 +139,7 @@ struct EventBaseHolder {
 
 	RWWaiterPtr next;
 	EventBasePtr val;
-	bool mode;
+	int mode;
 };
 } // namespace readwrite
 
@@ -149,7 +157,9 @@ public:
 		const char * trans;
 		int res;
 		const readwrite::EventBaseHolder * e;
-		bool mode;
+		const readwrite::EventBaseHolder * h;
+		const readwrite::EventBaseHolder * t;
+		int mode;
 		uint64_t u64;
 		unsigned retries;
 		pthread_t tid;
@@ -218,7 +228,7 @@ public:
 			    ? EventBaseHolder::Read 
 			    : EventBaseHolder::Write)
 			: wtype);
-		ebh->mode = (local_wtype == EventBaseHolder::Read);
+		ebh->mode = local_wtype;
 		bool acqed = _waiters.push(ebh);
 		if(acqed) {
 			oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
@@ -250,7 +260,7 @@ public:
 			, this
 			, _wtype
 			, _waiters.rcount());
-		_waiters.pop(el,by_e,_wtype == EventBaseHolder::Read);
+		_waiters.pop(el,by_e,_wtype);
 		//_wtype = EventBaseHolder::None;
 		readwrite::EventBaseHolder * e = el;
 		readwrite::EventBaseHolder * n_e = NULL;
@@ -258,9 +268,8 @@ public:
 			assert(!e->next.mkd()
 				&& "rw atom should not have released a marked ebh");
 			n_e = e->next.ptr();
-			_wtype = (e->mode
-				? EventBaseHolder::Read
-				: EventBaseHolder::Write);
+			_wtype = e->mode;
+			store_load_barrier();
 			oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
 				, e->val.get() ? e->val->flow_node()->getName() : "<null>"
 				, e->val.get()

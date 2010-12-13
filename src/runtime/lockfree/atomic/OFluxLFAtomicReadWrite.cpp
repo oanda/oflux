@@ -45,6 +45,8 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	Observation & obs = log.submit();
 	obs.tid = pthread_self();
+	obs.h = 0;
+	obs.t = 0;
 	obs.action = Observation::Action_A_o_w;
 	obs.trans = "";
 	obs.res = 0;
@@ -57,11 +59,14 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	EventBasePtr ev;
 	ev.swap(e->val);
 	int mode = e->mode;
+	e->mode = EventBaseHolder::None;
 	while(1) {
 		readwrite::EventBaseHolder * h = _head;
 		readwrite::EventBaseHolder * t = _tail;
 		RWWaiterPtr rwptr(t->next);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
+		obs.h = h;
+		obs.t = t;
 		obs.u64=rwptr.u64();
 #endif // LF_RW_WAITER_INSTRUMENTATION
 		if(        h==t 
@@ -69,7 +74,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			&& t->next.compareAndSwap(
 				  rwptr
 				, 1 // count
-				, e->mode
+				, mode == EventBaseHolder::Read
 				, 1 // mkd
 				, rwptr.epoch())
 			) {
@@ -83,7 +88,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 		} else if( h==t 
 			&& rwptr.mkd()
 			&& rwptr.mode() // read
-			&& e->mode
+			&& mode == EventBaseHolder::Read
 			&& t->next.compareAndSwap(
 				  rwptr
 				, rwptr.rcount()+1
@@ -95,12 +100,12 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			obs.trans = "2->2";
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			res = true; // acquire
-			e->val.swap(ev);
 			e->mode = mode;
+			e->val.swap(ev);
 			break;
 		} else if( h==t
 			&& rwptr.mkd()
-			&& !(e->mode && rwptr.mode())
+			&& !(mode==EventBaseHolder::Read && rwptr.mode())
 			&& e->next.set(
 				  rwptr.rcount()
 				, rwptr.mode()
@@ -142,6 +147,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			break;
 		}
 #ifdef LF_RW_WAITER_INSTRUMENTATION
+		obs.trans="a_retry";
 		++obs.retries;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	}
@@ -162,12 +168,15 @@ ReadWriteWaiterList::pop(
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	Observation & obs = log.submit();
 	obs.action = Observation::Action_Rel;
+	obs.h = 0;
+	obs.t = 0;
 	obs.tid = pthread_self();
 	obs.trans="";
 	obs.res=0;
 	obs.e = 0;
 	obs.mode = mode;
 	obs.ev = by_ev.get();
+	obs.term_index = 0;
 	obs.retries=0;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	el = NULL;
@@ -176,12 +185,14 @@ ReadWriteWaiterList::pop(
 		readwrite::EventBaseHolder * t = _tail;
 		RWWaiterPtr rwptr(t->next);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
+		obs.h = h;
+		obs.t = t;
 		obs.u64 = rwptr.u64();
 #endif // LF_RW_WAITER_INSTRUMENTATION
 		if(!rwptr.mkd()) {
 			continue;
 		}
-		assert(mode == rwptr.mode()
+		assert((mode==EventBaseHolder::Read ? 1 : 0) == rwptr.mode()
 			&& "release mode should match waiter state");
 		if(        h==t
 			/*&& rwptr.mkd()*/
@@ -215,6 +226,7 @@ ReadWriteWaiterList::pop(
 		} else if( h!=t
 			&& h->val
 			&& h->next.ptr()
+			&& h->mode != EventBaseHolder::None
 			&& !h->next.mkd()
 			/*&& rwptr.mkd()*/
 			&& rwptr.rcount() == 1
@@ -225,34 +237,34 @@ ReadWriteWaiterList::pop(
 			el = h;
 			int new_rcount = 1;
 			while(h->next.ptr() 
-				&& el->mode // read
-				&& h->next.ptr()->mode // read
+				&& el->mode == EventBaseHolder::Read 
 				&& h->val
+				&& h->next.ptr()->mode  == EventBaseHolder::Read 
 				&& !h->next.ptr()->next.mkd()) {
 				h = h->next.ptr();
 				++new_rcount;
 			}
-			if(t->next.compareAndSwap(
-				  rwptr
-				, new_rcount
-				, el->mode
-				, true
-				, rwptr.epoch()+1)
+			if(__sync_bool_compare_and_swap(&_head,el,h->next.ptr())) {
+				// we are commited to changing the state, since we ripped things off the head
+				while(t != _tail || !t->next.mkd() || !t->next.compareAndSwap( rwptr
+					, new_rcount
+					, el->mode == EventBaseHolder::Read
+					, true
+					, rwptr.epoch()+1)
 				) {
-				if( __sync_bool_compare_and_swap(&_head,el,h->next.ptr())) {
-					h->next.set(0,0);
-#ifdef LF_RW_WAITER_INSTRUMENTATION
-					obs.res = new_rcount;
-					obs.e = el;
-					obs.ev = el->val.get();
-#endif // LF_RW_WAITER_INSTRUMENTATION
-					break;
-				} else {
-					assert(0 && "the Head CAS should always succeed");
+					t = _tail;
+					rwptr = t->next;
 				}
+				h->next.set(0,0);
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+				obs.res = new_rcount;
+				obs.e = el;
+				obs.ev = el->val.get();
+#endif // LF_RW_WAITER_INSTRUMENTATION
+				break;
 			}
 #ifdef LF_RW_WAITER_INSTRUMENTATION
-			obs.trans = "";
+			obs.trans = "r_retry";
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			// continuing here
 		}
