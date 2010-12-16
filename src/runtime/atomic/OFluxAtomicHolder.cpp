@@ -202,8 +202,9 @@ AtomicsHolder::release(
 			if(released_events.size() - pre_sz > 0) {
 				oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release %s %p released no events\n"
 					, oflux_self()
+					, by_ev->flow_node()->getName()
 					, by_ev.get()
-					, by_ev->flow_node()->getName());
+					);
 			}
 			// acquisition happens here for released events
 			bool should_relinquish = false;

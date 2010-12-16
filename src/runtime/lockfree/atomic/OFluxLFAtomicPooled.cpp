@@ -242,8 +242,8 @@ PoolEventList::dump()
 	} else {
 		at += snprintf(buff+at,5000-at,"\n");
 	}
-	oflux_log_trace("[%d] %s",oflux_self(),buff);
-	oflux_log_trace("[%d]   tail = e%p/r%p\n"
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] %s",oflux_self(),buff);
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "]   tail = e%p/r%p\n"
 		, oflux_self()
 		, _tail->ev
 		, _tail->resource);
@@ -280,7 +280,7 @@ AtomicPooled::AtomicPooled(AtomicPool * pool,void * data)
 void
 AtomicPooled::relinquish()
 {
-	oflux_log_trace2("[%d] APD::relinquish APD*this:%p\n"
+	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] APD::relinquish APD*this:%p\n"
 		, oflux_self()
 		, this);
 	_pool->release(this);
@@ -297,7 +297,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
 	assert(_by_ebh);
-	oflux_log_trace("[%d] AP::a_o_w ev %s ev*:%p  atom APD*this:%p "
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::a_o_w ev %s ev*:%p  atom APD*this:%p "
 		" _by_ebh:%p _by_ebh->rsrc_loc: %p\n"
 		, oflux_self()
 		, ev->flow_node()->getName()
@@ -329,7 +329,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 		assert(ev.recover());
 	}
 	//assert(_by_ebh->resource_loc == &_resource_ebh);
-	oflux_log_trace("[%d] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
 		, oflux_self()
 		, evb->flow_node()->getName()
 		, evb
@@ -352,7 +352,7 @@ AtomicPooled::release(
 #endif // OFLUX_DEEP_LOGGING
 	assert(_resource_ebh);
 	assert(_resource_ebh->resource != NULL);
-	oflux_log_trace2("[%d] AP::rel   ev %s ev*:%p  APD*this:%p _by_ebh:%p _res_ebh->res:%p\n"
+	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AP::rel   ev %s ev*:%p  APD*this:%p _by_ebh:%p _res_ebh->res:%p\n"
 		, oflux_self()
 		, ev ? ev->flow_node()->getName() : "<NULL>"
 		, ev
@@ -366,7 +366,7 @@ AtomicPooled::release(
 		assert(rel_ebh != _by_ebh);
 		assert(rel_ebh->ev);
 		assert((*(rel_ebh->resource_loc))->resource);
-		oflux_log_trace("[%d] AP::rel   ev %s ev*:%p APD*this:%p passed to %s rel_ebh->ev:%p rel_ebh->res_loc:%p rsrc:%p\n"
+		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::rel   ev %s ev*:%p APD*this:%p passed to %s rel_ebh->ev:%p rel_ebh->res_loc:%p rsrc:%p\n"
 			, oflux_self()
 			, ev.get() ? ev->flow_node()->getName() : "<NULL>"
 			, ev.get()
@@ -383,7 +383,7 @@ AtomicPooled::release(
 			, __LINE__);
 		AtomicCommon::allocator.put(rel_ebh);
 	} else {
-		oflux_log_trace("[%d] AP::rel   ev %s ev*:%p  APD*this:%p rsrc nothing out\n"
+		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::rel   ev %s ev*:%p  APD*this:%p rsrc nothing out\n"
 			, oflux_self()
 			, ev.get() ? ev->flow_node()->getName() : "<NULL>"
 			, ev.get()
@@ -424,7 +424,7 @@ AtomicPool::~AtomicPool()
 void
 AtomicPool::release(AtomicPooled *ap)
 {
-	oflux_log_trace2("[%d] AP::release APD*:%p\n",oflux_self(),ap);
+	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AP::release APD*:%p\n",oflux_self(),ap);
 	ap->init();
 	// put it on the free list
 	AtomicPooled * h;
@@ -448,9 +448,9 @@ AtomicPool::get(oflux::atomic::Atomic * & a_out,const void *)
 	if(!ap_out) {
 		void * p = NULL;
 		ap_out = AtomicPool::allocator.get(this,p);
-		oflux_log_trace2("[%d] AP::get APD*:%p new\n",oflux_self(),ap_out);
+		oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AP::get APD*:%p new\n",oflux_self(),ap_out);
 	} else {
-		oflux_log_trace2("[%d] AP::get APD*:%p old\n",oflux_self(),ap_out);
+		oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AP::get APD*:%p old\n",oflux_self(),ap_out);
 	}
 	a_out = ap_out;
 	//ap_out->check();
@@ -465,15 +465,18 @@ AtomicPooled::check()
 
 class AtomicPoolWalker : public oflux::atomic::AtomicMapWalker {
 public:
-	AtomicPoolWalker(PoolEventList &pool);
+	AtomicPoolWalker(AtomicPool &pool)
+		: _done(false)
+		, _atomic(&pool,NULL)
+	{}
 	virtual ~AtomicPoolWalker();
 	virtual bool next(const void * & key,oflux::atomic::Atomic * &atom);
+	// so we pretend there is only one atomic
+	// this is cool for most applications of this walker -- I think
 private:
+	bool _done;
+	AtomicPooled _atomic;
 };
-
-AtomicPoolWalker::AtomicPoolWalker(PoolEventList & pool)
-{
-}
 
 AtomicPoolWalker::~AtomicPoolWalker()
 {
@@ -482,14 +485,19 @@ AtomicPoolWalker::~AtomicPoolWalker()
 bool 
 AtomicPoolWalker::next(const void * &, oflux::atomic::Atomic * &atom)
 {
-	bool res = false;
+	bool res = _done;
+	atom = NULL;
+	if(res) {
+		_done = true;
+		atom = &_atomic;
+	}
 	return res;
 }
 
 oflux::atomic::AtomicMapWalker *
 AtomicPool::walker()
 {
-	return new AtomicPoolWalker(waiters);
+	return new AtomicPoolWalker(*this);
 }
 
 } // namespace atomic

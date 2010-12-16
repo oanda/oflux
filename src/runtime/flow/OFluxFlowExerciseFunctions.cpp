@@ -244,12 +244,21 @@ pool_init(oflux::atomic::AtomicMapAbstract * ama)
 {
 	oflux::atomic::GuardInserter populator(ama);
 	// just one item for now
-	populator.insert(NULL,new int(0));
+	size_t pool_size = 1;
+	char * num_items = getenv("EXERCISE_POOLSIZE");
+	if(num_items) {
+		pool_size = atoi(num_items);
+	}
+	oflux_log_info("pool_init sizes to %u items\n", pool_size);
+	for(size_t i = 0; i < pool_size; ++i) {
+		populator.insert(NULL,new int(0));
+	}
 }
 
 class LFAtomic : public AtomicAbstract {
 public:
-	typedef oflux::atomic::AtomicMapTrivial<oflux::lockfree::atomic::AtomicExclusive> AtomicExclusive;
+	typedef oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive> AtomicEx;
+	typedef oflux::atomic::AtomicMapTrivial<AtomicEx> AtomicExclusive;
 	typedef oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicReadWrite> AtomicRW;
 	typedef oflux::atomic::AtomicMapTrivial<AtomicRW> AtomicReadWrite;
 	typedef oflux::atomic::AtomicMapTrivial<oflux::lockfree::atomic::AtomicFree> AtomicFree;
@@ -665,6 +674,21 @@ convert<flow::ExerciseEventDetail::Out_ >( flow::ExerciseEventDetail::Out_::base
 
 namespace flow {
 
+static bool
+check_guard_duplication(flow::Node * fn)
+{
+	bool res = false;
+	std::vector<GuardReference *> grefs = fn->guards();
+	for(size_t i = 0; i < grefs.size(); ++i) {
+		for(size_t j = i+1; j < grefs.size(); ++j) {
+			if(grefs[i]->magic_number() == grefs[j]->magic_number()) {
+				res = true;
+			}
+		}
+	}
+	return res;
+}
+
 
 EventBasePtr
 create_special( 
@@ -674,6 +698,7 @@ create_special(
 {
 	exercise::node_creations[fn->id()%MAX_NODES]++;
 	exercise::nodes[fn->id()] = fn;
+	assert(!check_guard_duplication(fn));
 	if(fn->getIsSource()) {
 		// special case for sources
 		EventBaseTyped<ExerciseSourceEventDetail> * ebt = 
