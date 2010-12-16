@@ -3,6 +3,7 @@
 #include "flow/OFluxFlowGuard.h"
 #include "flow/OFluxFlowCommon.h"
 #include "OFluxLogging.h"
+#include <algorithm>
 
 namespace oflux {
 namespace flow {

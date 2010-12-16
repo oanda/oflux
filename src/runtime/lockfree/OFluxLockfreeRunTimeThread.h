@@ -12,7 +12,7 @@
 #include "OFluxThreads.h"
 #include "OFluxRunTimeThreadAbstract.h"
 #include "lockfree/OFluxWorkStealingDeque.h"
-#include <boost/shared_ptr.hpp>
+#include "OFluxSharedPtr.h"
 #include <signal.h>
 
 #include "OFluxLogging.h"
@@ -55,7 +55,7 @@ public:
 			ebptr.swap(e->ev);
 			allocator.put(e);
 		}
-		oflux_log_trace("[%d] steal  %s %p from thread [%d]\n"
+		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] steal  %s %p from thread [" PTHREAD_PRINTF_FORMAT "]\n"
 			, oflux_self()
 			, ebptr.get() ? ebptr->flow_node()->getName() : "<null>"
 			, ebptr.get()
@@ -71,7 +71,7 @@ public:
 	{
 		flow::Node * fn = _flow_node_working;
 		const char * fn_name = (fn ? fn->getName() : "<null>");
-		oflux_log_info("thread %d (pthread %lu) %s %s %s q_len:%ld q_alw:%ld %s\n"
+		oflux_log_info("thread %d (pthread %lu) %s %s %s q_len:%ld q_alw:%ld slps:%lu e.run:%lu e.stl:%lu e.stl.at:%lu %s\n"
 			, _index
 			, _tid
 			, _running ? "running" : "       "
@@ -79,6 +79,10 @@ public:
 			, _asleep ? "asleep" : "      "
 			, _queue.size()
 			, _queue_allowance
+			, _stats.sleeps
+			, _stats.events.run
+			, _stats.events.stolen
+			, _stats.events.attempts_to_steal
 			, fn_name);
 	}
 protected:
@@ -93,7 +97,7 @@ private:
 			ebptr.swap(e->ev);
 			allocator.put(e);
 		}
-		oflux_log_trace("[%d] popLocal %s %p\n"
+		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] popLocal %s %p\n"
 			, self()
 			, (ebptr.get() ? ebptr->flow_node()->getName() : "<null>")
 			, ebptr.get());
@@ -101,7 +105,7 @@ private:
 	}
 	inline void pushLocal(const EventBasePtr & ev)
 	{
-		oflux_log_trace("[%d] pushLocal %s %p\n"
+		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] pushLocal %s %p\n"
 			, self()
 			, ev->flow_node()->getName()
 			, ev.get());
@@ -109,6 +113,7 @@ private:
 		_queue.pushBottom(e);
 	}
 	int handle(EventBasePtr & ev);
+	inline bool critical() const { return _running && _queue_allowance<0; }
 private:
 	RunTime & _rt;
 	int _index;
@@ -127,6 +132,16 @@ private:
 	oflux_cond_t _cond;
 		// conditional used for parking this thread
 	flow::Node *_flow_node_working;
+	struct Stats {
+		Stats() : sleeps(0) {}
+		struct Events {
+			Events() : run(0), stolen(0), attempts_to_steal(0) {}
+			unsigned long run;
+			unsigned long stolen;
+			unsigned long attempts_to_steal;
+		} events;
+		unsigned long sleeps;
+	} _stats;
 };
 
 } // namespace lockfree

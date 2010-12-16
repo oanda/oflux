@@ -76,8 +76,8 @@ public:
 	{
 		const EventBaseHolder * hp = _head.get();
 		size_t res = 0;
-		while(!mkd(hp) && hp->ev.get()) {
-			if(hp->ev.get()) {
+		while(!mkd(hp) && hp->ev) {
+			if(hp->ev) {
 				++res;
 			}
 			hp = hp->next;
@@ -130,7 +130,7 @@ public:
 	inline void init()
 	{
 		_next = NULL;
-		_by_ebh->ev.reset();
+		_by_ebh->ev = NULL;
 		resource_loc_asgn(_by_ebh,&_resource_ebh);
 		oflux_log_trace2("APD::init() APD*this:%p\n",this);
 		_by_ebh->resource_loc = &_resource_ebh;

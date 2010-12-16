@@ -1,11 +1,14 @@
 #ifndef _O_FLUX
 #define _O_FLUX
-#include <boost/shared_ptr.hpp>
+#include "OFluxSharedPtr.h"
 #ifdef Darwin
 #include <boost/tr1/tr1/functional>
 #else
+#include <string>
+#include <functional>
 #include <tr1/functional_hash.h>
 #endif
+
 
 /**
  * @mainpage OFlux Runtime (and compiler)
@@ -165,7 +168,7 @@ extern E theE;
 
 class EventBase;
 
-typedef boost::shared_ptr<EventBase> EventBasePtr;
+typedef shared_ptr<EventBase> EventBasePtr;
 
 namespace flow {
  class Node;

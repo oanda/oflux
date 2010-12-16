@@ -131,14 +131,14 @@ public:
 
 namespace readwrite {
 struct EventBaseHolder {
-	EventBaseHolder(const EventBasePtr & e, bool md)
+	EventBaseHolder(EventBasePtr & e, bool md)
 		: next(0,0,0)
-		, val(e)
+		, val(e.get())
 		, mode(md)
 	{}
 
 	RWWaiterPtr next;
-	EventBasePtr val;
+	EventBase * val;
 	int mode;
 };
 } // namespace readwrite
@@ -160,6 +160,7 @@ public:
 		const readwrite::EventBaseHolder * h;
 		const readwrite::EventBaseHolder * t;
 		int mode;
+		int r_mode;
 		uint64_t u64;
 		unsigned retries;
 		pthread_t tid;
@@ -234,7 +235,7 @@ public:
 		if(acqed) {
 			oflux_log_trace2("RW::a_o_w %s %p %p acqed %d %d\n"
 				, ev->flow_node()->getName()
-				, ev.get()
+				, ev
 				, this
 				, wtype
 				, _waiters.rcount());
@@ -242,9 +243,10 @@ public:
 			store_load_barrier();
 			ReadWriteWaiterList::allocator.put(ebh); 
 		} else {
+			assert(ev.recover());
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
 				, ev->flow_node()->getName()
-				, ev.get()
+				, ev
 				, this
 				, wtype
 				, _waiters.rcount());
@@ -262,6 +264,7 @@ public:
 			, this
 			, _wtype
 			, _waiters.rcount());
+		store_load_barrier();
 		_waiters.pop(el,by_e,_wtype);
 		//_wtype = EventBaseHolder::None;
 		readwrite::EventBaseHolder * e = el;
@@ -273,13 +276,13 @@ public:
 			_wtype = e->mode;
 			store_load_barrier();
 			oflux_log_trace2("RW::rel   %s %p %p came out %d %d\n"
-				, e->val.get() ? e->val->flow_node()->getName() : "<null>"
-				, e->val.get()
+				, e->val ? e->val->flow_node()->getName() : "<null>"
+				, e->val
 				, this
 				, e->type
 				, _waiters.rcount());
-			if(e->val.get()) { 
-				rel_ev.push_back(e->val); 
+			if(e->val) { 
+				rel_ev.push_back(EventBasePtr(e->val)); 
 			} else {
 				oflux_log_error("RW::rel   put out a NULL event\n");
 			}

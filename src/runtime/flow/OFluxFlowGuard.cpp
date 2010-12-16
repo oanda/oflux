@@ -20,7 +20,7 @@ void
 Guard::drain()
 {
         std::vector<EventBasePtr> rel_vector;
-        boost::shared_ptr<atomic::AtomicMapWalker> walker(_amap->walker());
+        shared_ptr<atomic::AtomicMapWalker> walker(_amap->walker());
         const void * v = NULL;
         atomic::Atomic * a = NULL;
 	EventBasePtr nullPtr; 

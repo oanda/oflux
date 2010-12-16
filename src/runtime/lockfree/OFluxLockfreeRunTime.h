@@ -71,7 +71,8 @@ public:
 		int start = rand() % _num_threads;
 		int local_index = _tn.index;
 		while(rtt) {
-			if(rtt->index() >= start && rtt->index() != local_index) {
+			if((rtt->index() >= start)
+					&& rtt->index() != local_index) {
 				ev = rtt->steal();
 				if(ev.get()) {
 					return ev;

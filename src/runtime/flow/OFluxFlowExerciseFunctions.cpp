@@ -9,6 +9,7 @@
 #include "lockfree/atomic/OFluxLFAtomicPooled.h"
 #include "lockfree/atomic/OFluxLFAtomicReadWrite.h"
 #include "lockfree/OFluxDistributedCounter.h"
+#include "OFluxThreads.h"
 #include "OFluxLogging.h"
 #include "OFluxRollingLog.h"
 #include <cassert>
@@ -33,19 +34,19 @@ public:
 #define REPORT_BUFFER_LENGTH 1024
 		char buff[REPORT_BUFFER_LENGTH];
 		long long s_index = (this->index+1);
-		pthread_t local_tid = pthread_self();
-		oflux_log_info("%lu log tail %p:\n", local_tid, this);
+		oflux_thread_t local_tid = oflux_self();
+		oflux_log_info(PTHREAD_PRINTF_FORMAT " log tail %p:\n", local_tid, this);
 		size_t zero_repeat = 0;
 		for(size_t i=0; i < oflux::RollingLog<D>::log_size; ++i) {
 #define DO_zero_repeat_OUTPUT \
  if(zero_repeat) { \
-   oflux_log_info("%lu 0] (repeats %u times)\n",local_tid,zero_repeat); \
+   oflux_log_info(PTHREAD_PRINTF_FORMAT " 0] (repeats %u times)\n",local_tid,zero_repeat); \
    zero_repeat = 0; \
    }
 			if(this->log[(i+s_index)%oflux::RollingLog<D>::log_size].index) {
 				DO_zero_repeat_OUTPUT
 				this->log[(i+s_index)%oflux::RollingLog<D>::log_size].d.report(buff);
-				oflux_log_info("%lu %lld] %s\n"
+				oflux_log_info(PTHREAD_PRINTF_FORMAT " %lld] %s\n"
 					, local_tid
 					, this->log[(i+s_index)%oflux::RollingLog<D>::log_size].index
 					, buff);
@@ -71,21 +72,24 @@ public:
 		char name;
 		int wtype;
 		EventBase * evptr;
+		EventBase * revptr;
 		const char * fname;
 		long long term_index;
 		int res;
-		pthread_t tid;
+		oflux_thread_t tid;
 
 		void report(char * buff)
 		{
-			snprintf(buff, 1000, " %c %d %p %s %lld %d %lu"
+			snprintf(buff, 1000, " %c %d %p %p %lld %d " PTHREAD_PRINTF_FORMAT " %s"
 				, name
 				, wtype
 				, evptr
-				, fname ? fname : "<null>"
+				, revptr
 				, term_index
 				, res
-				, tid);
+				, tid
+				, fname ? fname : "<null>"
+				);
 		}
 	};
 
@@ -119,12 +123,17 @@ public:
 		o.term_index = 0;
 		o.name = 'R';
 		o.evptr = by_ev.get();
+		o.revptr = 0;
 		o.fname = (by_ev->flow_node() ? by_ev->flow_node()->getName() : NULL);
-		o.tid = pthread_self();
+		o.tid = oflux_self();
+		size_t pre_sz = rel_ev.size();
 		_a.release(rel_ev,by_ev);
 		o.name = 'r';
 		o.term_index = log.at();
-		o.res = rel_ev.size();
+		o.res = rel_ev.size()-pre_sz;
+		if(o.res) {
+			o.revptr = rel_ev[pre_sz].get();
+		}
 	}
 	virtual bool acquire_or_wait(
 		  EventBasePtr & ev
@@ -135,9 +144,10 @@ public:
 		o.wtype = wtype;
 		o.term_index = 0;
 		o.name = 'A';
+		o.revptr = 0;
 		o.evptr = ev.get();
 		o.fname = (ev->flow_node() ? ev->flow_node()->getName() : NULL);
-		o.tid = pthread_self();
+		o.tid = oflux_self();
 		bool res = _a.acquire_or_wait(ev,wtype);
 		o.name = 'a';
 		o.term_index = log.at();
@@ -416,9 +426,14 @@ AtomicSet::report()
 {
 	oflux_log_info("AtomicSet report:\n");
 	char * watch_atomic = getenv("EXERCISE_WATCH");
-	std::map<std::string,AtomicAbstract *>::iterator itr = _map.find(watch_atomic);
+	std::map<std::string,AtomicAbstract *>::iterator itr = _map.end();
+	if(watch_atomic) {
+		itr = _map.find(watch_atomic);
+	}
 	if(itr == _map.end()) {
-		oflux_log_info(" %s not found\n",watch_atomic);
+		if(watch_atomic) {
+			oflux_log_info(" %s not found\n",watch_atomic);
+		}
 	} else {
 		oflux_log_info("found %s\n",watch_atomic);
 	}
@@ -540,10 +555,14 @@ struct ExerciseErrorEventDetail : public ExerciseEventDetail {
 void
 ExerciseEventDetail::Atoms_::fill(oflux::atomic::AtomicsHolder *ah)
 {
+	static int dontcare = 0;
 	number = std::min(MAX_ATOMICS_PER_NODE,ah->number());
 	for(int i = 0; i < number; ++i) {
 		oflux::atomic::Atomic * atomic = ah->get(i,oflux::atomic::AtomicsHolder::HA_get_lexical)->atomic();
 		atoms[i].data = atomic->data();
+		if(!*(atoms[i].data)) {
+			*(reinterpret_cast<int * *>(atoms[i].data)) = &dontcare;
+		}
 		atoms[i].wtype = atomic->wtype();
 	}
 }

@@ -44,21 +44,22 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	bool res = false;
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	Observation & obs = log.submit();
-	obs.tid = pthread_self();
+	obs.tid = oflux_self();
+	obs.r_mode = 0;
 	obs.h = 0;
 	obs.t = 0;
 	obs.action = Observation::Action_A_o_w;
 	obs.trans = "";
 	obs.res = 0;
 	obs.e = e;
-	obs.ev = e->val.get();
+	obs.ev = e->val;
 	obs.mode = e->mode;
 	obs.retries = 0;
 	obs.term_index = 0;
 #endif // LF_RW_WAITER_INSTRUMENTATION
-	SafeEventBasePtr ev;
-	ev.swap(e->val);
-	assert(!e->val.get());
+	EventBase * ev = NULL;
+	ev_swap(ev,e->val);
+	assert(!e->val);
 	int mode = e->mode;
 	e->mode = EventBaseHolder::None;
 	while(1) {
@@ -83,9 +84,9 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			obs.trans = "1->2";
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			res = true; // acquire
-			e->val.swap(ev);
+			ev_swap(e->val,ev);
 			e->mode = mode;
-			assert(!ev.get());
+			assert(!ev);
 			break;
 		} else if( h==t 
 			&& rwptr.mkd()
@@ -103,8 +104,8 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			res = true; // acquire
 			e->mode = mode;
-			e->val.swap(ev);
-			assert(!ev.get());
+			ev_swap(e->val,ev);
+			assert(!ev);
 			break;
 		} else if( h==t
 			&& rwptr.mkd()
@@ -123,10 +124,10 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			obs.trans = "2->3";
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			_tail = e;
-			assert(t->val.get() == 0);
+			assert(t->val == 0);
 			t->mode = mode;
-			t->val.swap(ev);
-			assert(ev.get() == 0);
+			ev_swap(t->val,ev);
+			assert(ev == 0);
 			res = false; // wait
 			break;
 		} else if( h!=t
@@ -147,7 +148,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			_tail = e;
 			t->mode = mode;
-			t->val.swap(ev);
+			ev_swap(t->val,ev);
 			res = false; // wait
 			break;
 		}
@@ -165,11 +166,11 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 }
 
 namespace readwrite {
-inline void busyWaitOnEv(const EventBasePtr & ev)
+inline void busyWaitOnEv(EventBase * const & ev)
 {
 	size_t retries = 0;
 	size_t warning_level = 1;
-	while(ev.get() == NULL) {
+	while(ev == NULL) {
 		if(retries > warning_level) {
 			oflux_log_error("readwrite::busyWaitOnEv retries at %d\n", retries);
 			warning_level = std::max(warning_level, warning_level << 1);
@@ -192,7 +193,8 @@ ReadWriteWaiterList::pop(
 	obs.action = Observation::Action_Rel;
 	obs.h = 0;
 	obs.t = 0;
-	obs.tid = pthread_self();
+	obs.tid = oflux_self();
+	obs.r_mode = 0;
 	obs.trans="";
 	obs.res=0;
 	obs.e = 0;
@@ -266,6 +268,14 @@ ReadWriteWaiterList::pop(
 				h = h->next.ptr();
 				++new_rcount;
 			}
+			while(     t==h->next.ptr() 
+				&& el->mode == EventBaseHolder::Write // going to write mode
+				&& rwptr.mode() // in read mode now
+				&& !t->next.compareAndSwap(rwptr, 1, false, true, rwptr.epoch()+1)) {
+				t = _tail;
+				rwptr = t->next;
+			}
+				
 			if(__sync_bool_compare_and_swap(&_head,el,h->next.ptr())) {
 				// we are commited to changing the state, since we ripped things off the head
 				while(t != _tail || !t->next.mkd() || !t->next.compareAndSwap( 
@@ -280,9 +290,10 @@ ReadWriteWaiterList::pop(
 				}
 				h->next.set(0,0);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
+				obs.r_mode = el->mode;
 				obs.res = new_rcount;
 				obs.e = el;
-				obs.ev = el->val.get();
+				obs.ev = el->val;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 				break;
 			}

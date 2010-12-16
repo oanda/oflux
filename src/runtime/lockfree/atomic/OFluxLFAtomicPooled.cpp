@@ -78,10 +78,10 @@ PoolEventList::push(EventBaseHolder * e)
 			&& hn) {
 			// action:
 
-			EventBasePtr ev;
+			EventBase * ev;
 			EventBaseHolder ** resource_loc = e->resource_loc;
 			e->next = NULL;
-			e->ev.swap(ev);
+			ev_swap(ev,e->ev);
 			resource_loc_asgn(e,NULL);
 			e->resource_loc = NULL;
 
@@ -90,10 +90,10 @@ PoolEventList::push(EventBaseHolder * e)
 				_tail = e;
 				resource_loc_asgn(t,resource_loc);
 				t->resource_loc = resource_loc;
-				t->ev.swap(ev);
+				ev_swap(t->ev,ev);
 				return false;
 			}
-			e->ev.swap(ev);
+			ev_swap(e->ev,ev);
 			resource_loc_asgn(e,resource_loc);
 			e->resource_loc = resource_loc;
 		}
@@ -110,7 +110,7 @@ PoolEventList::complete_pop()
 	}
 	EventBaseHolder * hen = unmk(he)->next;
 	if(hen && !mkd(hen) 
-		&& hen->ev.get() != NULL 
+		&& hen->ev != NULL 
 		&& hen->resource_loc != NULL
 		&& hen->resource == NULL) {
 		// proceed
@@ -173,7 +173,7 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 			// condition:
 			!mkd(hp)
 			&& (hp == t)
-			&& hp->ev.get() == 0
+			&& hp->ev == 0
 			&& !hn) {
 			// action:
 			r->next = hp;
@@ -186,7 +186,7 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 			!mkd(hp)
 			&& (hp != t)
 			&& !mkd(hn)
-			&& hp->ev.get() != 0
+			&& hp->ev != 0
 			&& unmk(hn) != NULL) {
 			// action:
 			if(_head.cas(h,unmk(hn))) {
@@ -214,7 +214,7 @@ PoolEventList::dump()
 			"empty      [2]" :       
 			"waitingM   [3]" )));
 
-	oflux_log_trace("[%d]  atomic[%p] in state %s\n"
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "]  atomic[%p] in state %s\n"
 		, oflux_self()
 		, this
 		, state);
@@ -229,7 +229,7 @@ PoolEventList::dump()
 				, mkd(e) ? 'm' : ' ',unmk(e)->resource);
 		} else {
 			at += snprintf(buff+at,5000-at,"e%c%p->"
-				, mkd(e) ? 'm' : ' ',unmk(e)->ev.get());
+				, mkd(e) ? 'm' : ' ',unmk(e)->ev);
 		}
 		if(at >= 5000) return; \
 		e  = unmk(e)->next;
@@ -244,7 +244,7 @@ PoolEventList::dump()
 	oflux_log_trace("[%d] %s",oflux_self(),buff);
 	oflux_log_trace("[%d]   tail = e%p/r%p\n"
 		, oflux_self()
-		, _tail->ev.get()
+		, _tail->ev
 		, _tail->resource);
 }
 
@@ -304,7 +304,8 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 		, this
 		, _by_ebh
 		, _by_ebh->resource_loc);
-	_by_ebh->ev = ev;
+	EventBase * evb = ev.get();
+	_by_ebh->ev = evb;
 	_by_ebh->type = t;
 	if(_resource_ebh) {
 		assert(_resource_ebh->resource == NULL);
@@ -315,7 +316,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 		_resource_ebh = NULL;
 	}
 	//assert(_by_ebh->resource_loc == &_resource_ebh);
-	EventBaseHolder *local_by_ebh = _by_ebh;
+	EventBaseHolder * local_by_ebh = _by_ebh;
 	_by_ebh = AtomicCommon::allocator.get('\0',&_resource_ebh);
 	oflux_log_trace2("AC::alloc.g %p %d\n",_by_ebh,__LINE__);
 	init();
@@ -323,12 +324,14 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	assert(!acqed || _resource_ebh->resource);
 	if(acqed) {
 		AtomicCommon::allocator.put(local_by_ebh);
+	} else {
+		assert(ev.recover());
 	}
 	//assert(_by_ebh->resource_loc == &_resource_ebh);
 	oflux_log_trace("[%d] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
 		, oflux_self()
-		, ev->flow_node()->getName()
-		, ev.get()
+		, evb->flow_node()->getName()
+		, evb
 		, this
 		, acqed);
 #ifdef OFLUX_DEEP_LOGGING
@@ -350,8 +353,8 @@ AtomicPooled::release(
 	assert(_resource_ebh->resource != NULL);
 	oflux_log_trace2("[%d] AP::rel   ev %s ev*:%p  APD*this:%p _by_ebh:%p _res_ebh->res:%p\n"
 		, oflux_self()
-		, ev.get() ? ev->flow_node()->getName() : "<NULL>"
-		, ev.get()
+		, ev ? ev->flow_node()->getName() : "<NULL>"
+		, ev
 		, this
 		, _by_ebh
 		, _resource_ebh->resource);
@@ -360,7 +363,7 @@ AtomicPooled::release(
 	//assert(_by_ebh->resource_loc == &_resource_ebh);
 	if(rel_ebh) { 
 		assert(rel_ebh != _by_ebh);
-		assert(rel_ebh->ev.get());
+		assert(rel_ebh->ev);
 		assert((*(rel_ebh->resource_loc))->resource);
 		oflux_log_trace("[%d] AP::rel   ev %s ev*:%p APD*this:%p passed to %s rel_ebh->ev:%p rel_ebh->res_loc:%p rsrc:%p\n"
 			, oflux_self()
@@ -368,12 +371,12 @@ AtomicPooled::release(
 			, ev.get()
 			, this
 			, rel_ebh->ev->flow_node()->getName()
-			, rel_ebh->ev.get()
+			, rel_ebh->ev
 			, rel_ebh->resource_loc
 			, (*(rel_ebh->resource_loc))->resource);
 		//_by_ebh.ev = rel_ebh->ev;
 		//_by_ebh.type = rel_ebh->type;
-		rel_ev_vec.push_back(rel_ebh->ev);
+		rel_ev_vec.push_back(EventBasePtr(rel_ebh->ev));
 		oflux_log_trace2("AC::alloc.p rel_ebh:%p %d\n"
 			, rel_ebh
 			, __LINE__);

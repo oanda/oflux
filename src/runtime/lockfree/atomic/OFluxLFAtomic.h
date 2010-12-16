@@ -6,11 +6,12 @@
 #include "atomic/OFluxAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
 #include "event/OFluxEventBase.h"
-#include "boost/shared_ptr.hpp"
+#include "OFluxSharedPtr.h"
 #include "OFluxAllocator.h"
 
 #include "OFlux.h"
 #include "OFluxLogging.h"
+#include "OFluxRollingLog.h"
 #include "flow/OFluxFlowNode.h"
 
 namespace oflux {
@@ -58,13 +59,14 @@ inline bool mkd(T * p)
 }
 
 #define resource_loc_asgn(B,V) \
-	oflux_log_trace2("[%d] on line %d assigning %p to %p->%p\n" \
+	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT  "] on line %d assigning %p to %p->%p\n" \
 		, oflux_self() \
 		, __LINE__ \
 		, V \
 		, B \
 		, B->resource_loc)
 
+/*
 struct SafeEventBasePtr : public EventBasePtr {
         ~SafeEventBasePtr()
         {
@@ -79,6 +81,14 @@ struct SafeEventBasePtr : public EventBasePtr {
                 }
         }
 };
+*/
+
+inline void ev_swap(EventBase * & ev1, EventBase * & ev2)
+{
+	EventBase * ev = ev1;
+	ev1 = ev2;
+	ev2 = ev;
+}
 
 struct EventBaseHolder {
 	enum WType 
@@ -93,7 +103,7 @@ struct EventBaseHolder {
 
 	EventBaseHolder(  EventBasePtr & a_ev
 			, int a_type = None)
-		: ev(a_ev)
+		: ev(a_ev.get())
 		, next(NULL)
 		, type(a_type)
 		, resource_loc(NULL)
@@ -104,19 +114,20 @@ struct EventBaseHolder {
 	EventBaseHolder(  EventBasePtr & a_ev
 			, EventBaseHolder ** a_resource_loc
 			, int a_type = None)
-		: ev(a_ev)
+		: ev(a_ev.recover())
 		, next(NULL)
 		, type(a_type)
 		, resource_loc(a_resource_loc)
 		, resource(NULL)
 	{
+		assert(ev);
 		resource_loc_asgn(this,a_resource_loc);
 	}
 
 	EventBaseHolder(  char c
 			, EventBaseHolder ** a_resource_loc
 			, int a_type = None)
-		: ev()
+		: ev(NULL)
 		, next(NULL)
 		, type(a_type)
 		, resource_loc(a_resource_loc)
@@ -126,7 +137,7 @@ struct EventBaseHolder {
 	}
 
 	EventBaseHolder( void * a_resource )
-		: ev()
+		: ev(NULL)
 		, next(NULL)
 		, type(None)
 		, resource_loc(NULL)
@@ -135,7 +146,7 @@ struct EventBaseHolder {
 		resource_loc_asgn(this,NULL);
 	}
 	EventBaseHolder()
-		: ev()
+		: ev(NULL)
 		, next(NULL)
 		, type(None)
 		, resource_loc(NULL)
@@ -148,7 +159,7 @@ struct EventBaseHolder {
 	{
 		size_t retries = 0;
 		size_t warning_level = 1;
-		while(ev.get() == NULL) {
+		while(ev == NULL) {
 			if(retries > warning_level) {
 				oflux_log_error("EventBaseHolder::busyWaitOnEv retries at %d\n", retries);
 				warning_level = std::max(warning_level, warning_level << 1);
@@ -159,7 +170,7 @@ struct EventBaseHolder {
 		}
 	}
 
-	EventBasePtr ev;
+	EventBase * ev;
 	EventBaseHolder * next;
 	int type;
 	EventBaseHolder ** resource_loc;
@@ -197,11 +208,16 @@ public:
 	{
 		size_t res = 0;
 		EventBaseHolder * h = _head;
-		while(h && !is_val<0x0001>(h) && !is_val<0x0003>(h) && h->ev.get()) {
+		while(h && !is_val<0x0001>(h) && !is_val<0x0003>(h) && h->ev) {
 			++res;
 			h = h->next;
 		}
 		return res;
+	}
+	inline bool has_waiters() const
+	{
+		EventBaseHolder * h = _head;
+		return !is_val<0x0001>(h) && (h != NULL);
 	}
 public:
 	EventBaseHolder * _head;
@@ -210,6 +226,29 @@ public:
 
 class ExclusiveWaiterList : public WaiterList {
 public:
+#define LF_EX_WAITER_INSTRUMENTATION
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+	struct Observation {
+		enum    { Action_none
+			, Action_A_o_w
+			, Action_Rel 
+			, Action_a_o_w
+			, Action_rel 
+			} action;
+		const char * trans;
+		int res;
+		const EventBaseHolder * e;
+		const EventBaseHolder * h;
+		const EventBaseHolder * t;
+		unsigned retries;
+		pthread_t tid;
+		EventBase * ev;
+		long long term_index;
+	};
+
+	RollingLog<Observation> log;
+#endif // LF_EX_WAITER_INSTRUMENTATION
+
 	~ExclusiveWaiterList();
 	bool push(EventBaseHolder * e);
 	EventBaseHolder * pop();
@@ -224,6 +263,7 @@ public:
 	virtual ~AtomicExclusive() {}
 	virtual int held() const { return ! _waiters.empty(); }
 	virtual size_t waiter_count() { return _waiters.count(); }
+	virtual bool has_no_waiters() { return !_waiters.has_waiters(); }
 	virtual int wtype() const { return EventBaseHolder::Exclusive; }
 	virtual const char * atomic_class() const
 	{ return "lockfree::AtomicExclusive"; }
@@ -233,7 +273,7 @@ public:
 	{
 		EventBaseHolder * ebh = _waiters.pop();
 		if(ebh) {
-			rel_ev.push_back(ebh->ev);
+			rel_ev.push_back(EventBasePtr(ebh->ev));
 			AtomicCommon::allocator.put(ebh);
 		}
 	}
@@ -243,6 +283,8 @@ public:
 		bool acqed = _waiters.push(ebh);
 		if(acqed) {
 			AtomicCommon::allocator.put(ebh); // not in use - return it to pool
+		} else {
+			assert(ev.recover());
 		}
 		return acqed;
 	}

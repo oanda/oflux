@@ -37,7 +37,7 @@ AtomicCommon::_log_snapshot_waiters(const WaiterList * wlp)
 	const char * this_name = NULL;
 	const char * last_wtype = "";
 	const char * last_name = "";
-	while(e && e != wlp->_tail && !is_one(e) && !is_three(e) && e->ev.get()) {
+	while(e && e != wlp->_tail && !is_one(e) && !is_three(e) && e->ev) {
 		this_wtype = convert_wtype_to_string(e->type);
 		this_name = e->ev->flow_node()->getName();
 		if(this_wtype == last_wtype && this_name == last_name) {
@@ -93,24 +93,48 @@ ExclusiveWaiterList::~ExclusiveWaiterList()
 bool
 ExclusiveWaiterList::push(EventBaseHolder *e)
 {
+	bool res = false;
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.tid = oflux_self();
+	obs.h = 0;
+	obs.t = 0;
+	obs.action = Observation::Action_A_o_w;
+	obs.trans = "";
+	obs.res = 0;
+	obs.e = e;
+	obs.ev = e->ev;
+	obs.retries = 0;
+	obs.term_index = 0;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 	e->next = NULL;
 	EventBaseHolder * t = NULL;
-	SafeEventBasePtr ev; // hold the event locally
-	ev.swap(e->ev);
+	EventBase * ev = NULL; // hold the event locally
+	ev_swap(ev,e->ev);
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
 	EventBaseHolder * old_t = NULL;
 	while(1) {
 		h = _head;
 		hn = h->next;
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+		obs.h = h;
+#endif // LF_EX_WAITER_INSTRUMENTATION
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+#endif // LF_EX_WAITER_INSTRUMENTATION
+
 		if(is_one(hn) 
 				&& __sync_bool_compare_and_swap(
 				  &(_head->next)
 				, 0x0001
 				, NULL)) {
 			// 1->2
-			e->ev.swap(ev);
-			return true;
+			ev_swap(e->ev,ev);
+			res = true; 
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.trans = "1->2";
+#endif // LF_EX_WAITER_INSTRUMENTATION
+			break;
 		} else {
 			// (2,3)->3
 			t = _tail;
@@ -129,18 +153,42 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 					, NULL
 					, e)) {
 				_tail = e;
-				t->ev.swap(ev);
+				ev_swap(t->ev,ev);
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+				obs.t = t;
+				obs.trans = "(2,3)->3";
+#endif // LF_EX_WAITER_INSTRUMENTATION
 				break;
 			}
 		}
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+		++obs.retries;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 	}
-	return false;
-
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+	obs.res = res;
+	obs.term_index = log.at();
+	obs.action = Observation::Action_a_o_w;
+#endif // LF_RW_WAITER_INSTRUMENTATION
+	return res;
 }
 
 EventBaseHolder * 
 ExclusiveWaiterList::pop()
 {
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.action = Observation::Action_Rel;
+	obs.h = 0;
+	obs.t = 0;
+	obs.tid = oflux_self();
+	obs.trans = "";
+	obs.res = 0;
+	obs.e = 0;
+	obs.ev = 0;
+	obs.term_index = 0;
+	obs.retries = 0;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 	EventBaseHolder * r = NULL;
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
@@ -151,6 +199,10 @@ ExclusiveWaiterList::pop()
 		hn = h->next;
 		t = _tail;
 		old_t = t;
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+		obs.h = h;
+		obs.t = t;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 		while(unmk(t) && unmk(t->next)) {
 			t = t->next;
 		}
@@ -162,24 +214,41 @@ ExclusiveWaiterList::pop()
 		}
 		if(h != _tail && hn != NULL 
 				&& !is_one(hn)
-				&& h->ev.get() != NULL
+				&& h->ev != NULL
 				&& __sync_bool_compare_and_swap(
 					  &_head
 					, h
 					, hn)) {
 			// 3->2
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.trans = "3->2";
+#endif // LF_EX_WAITER_INSTRUMENTATION
 			r = h;
 			r->next = NULL;
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.e = r;
+			obs.ev = r->ev;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 			break;
 		} else if(hn==NULL && __sync_bool_compare_and_swap(
 				  &(_head->next)
 				, hn
 				, 0x0001)) {
 			// 2->1
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.trans = "2->1";
+#endif // LF_EX_WAITER_INSTRUMENTATION
 			break; //empty
 		}
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+		++obs.retries;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 	}
 	if(r) r->busyWaitOnEv();
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+	obs.term_index = log.at();
+	obs.action = Observation::Action_rel;
+#endif // LF_EX_WAITER_INSTRUMENTATION
 	return r;
 }
 
@@ -201,7 +270,7 @@ ExclusiveWaiterList::dump()
         at += snprintf(buff+at,5000-at,"  head = ");
         EventBaseHolder * e = _head;
         while(e != NULL && !is_one(e)) {
-                at += snprintf(buff+at,5000-at,"%p->",e->ev.get());
+                at += snprintf(buff+at,5000-at,"%p->",e->ev);
                 e  = e->next;
         }
         if(e == NULL) {
@@ -212,7 +281,7 @@ ExclusiveWaiterList::dump()
                 at += snprintf(buff+at,5000-at,"\n");
         }
 	oflux_log_trace("%s",buff);
-        oflux_log_trace("  tail = %p\n",_tail->ev.get());
+        oflux_log_trace("  tail = %p\n",_tail->ev);
 }
 
 } // namespace atomic

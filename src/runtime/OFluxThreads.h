@@ -91,5 +91,10 @@ namespace oflux {
   }
 }
 #endif
+#ifdef LINUX
+# define PTHREAD_PRINTF_FORMAT "%lu"
+#else
+# define PTHREAD_PRINTF_FORMAT "%x"
+#endif
 
 #endif // _OFLUX_THREADS

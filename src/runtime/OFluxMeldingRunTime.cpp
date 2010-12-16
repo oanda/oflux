@@ -51,7 +51,10 @@ int RunTimeThread::execute_detached(
                                         && ev->atomics().number() == 0) {
                                 flow::IOConverter * iocon = fsucc_first_case->ioConverter();
                                 CreateNodeFn createfn = fsucc_first->getCreateFn();
-                                oflux_log_info("melding two detached nodes %s -> %s (thread %d)\n", 
+                                oflux_log_info("melding two detached nodes %s "
+					"-> %s (thread " 
+					PTHREAD_PRINTF_FORMAT
+					")\n", 
                                         _flow_node_working->getName(),
                                         fsucc_first->getName(),
                                         oflux_self());

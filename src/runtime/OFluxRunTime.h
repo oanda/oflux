@@ -11,7 +11,7 @@
 #include "OFluxWrappers.h"
 #include "OFluxQueue.h"
 #include "OFluxLinkedList.h"
-#include "boost/shared_ptr.hpp"
+#include "OFluxSharedPtr.h"
 #include "OFluxDoor.h"
 
 namespace oflux {

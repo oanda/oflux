@@ -99,7 +99,11 @@ RunTimeThread::die()
 	int res = 0;
 	__ignore_sig_int = true;
 	while(oflux_self() != _tid && _running && retries && res == 0) {
-		oflux_log_trace("OFluxLockfreeRunTimeThread::die() sending tid %d (index %d) a SIGINT from %d (%d)\n", _tid, index(), pthread_self(), _tn.index);
+		oflux_log_trace("OFluxLockfreeRunTimeThread::die() sending tid "
+			PTHREAD_PRINTF_FORMAT
+			" (index %d) a SIGINT from " 
+			PTHREAD_PRINTF_FORMAT
+			" (%d)\n", _tid, index(), oflux_self(), _tn.index);
 		res = oflux_kill_int(_tid);
 		if(_running) usleep(50000); // 50 ms rest
 	}
@@ -122,7 +126,9 @@ void
 RunTimeThread::start()
 {
 	AutoLock al(&_lck); 
-	oflux_log_trace("[%d] RunTimeThread::start() called -- thread index %d\n"
+	oflux_log_trace("[" 
+			PTHREAD_PRINTF_FORMAT
+			"] RunTimeThread::start() called -- thread index %d\n"
 			, oflux_self()
 			, index());
 		// only this thread locks its own _lck
@@ -131,14 +137,28 @@ RunTimeThread::start()
 	int no_ev_iterations = 0;
 	while(!_request_stop && !_rt.was_soft_killed()) {
 		if(_rt.caught_soft_load_flow()) {
-			oflux_log_trace("[%d] RunTimeThread::start() called -- reloading flow %d\n"
+			oflux_log_trace("[" 
+				PTHREAD_PRINTF_FORMAT
+				"] RunTimeThread::start() called -- reloading flow %d\n"
 				, oflux_self()
 				, index());
 			_rt.load_flow();
 		}
-		EventBasePtr ev = popLocal();
+		enum Q_Stealing {
+			QS_Frequency = 100
+		};
+		EventBasePtr ev;
+		if((_queue_allowance%QS_Frequency) ==0) {
+			// skip pop local now and then 
+			//   to contribute some stealing
+			--_queue_allowance;
+		} else {
+			ev = popLocal();
+		}
 		if(!ev.get()) {
+			++_stats.events.attempts_to_steal;
 			ev = _rt.steal_first_random();
+			_stats.events.stolen += (ev.get() ? 1 : 0);
 		}
 		if(!ev.get()) {
 			++no_ev_iterations;
@@ -153,7 +173,9 @@ RunTimeThread::start()
 			int num_new_evs = handle(ev);
 			int num_alive_threads __attribute__((unused)) = _rt.nonsleepers();
 			int threads_to_wake = num_new_evs;
-			oflux_log_trace("[%d] RunTimeThread::start() calling handle %d wt: %d\n"
+			oflux_log_trace("[" 
+				PTHREAD_PRINTF_FORMAT
+				"] RunTimeThread::start() calling handle %d wt: %d\n"
 				, oflux_self()
 				, index()
 				, threads_to_wake);
@@ -163,6 +185,7 @@ RunTimeThread::start()
 		_asleep = true;
 		if(no_ev_iterations > NO_EV_CRITICAL && _rt.incr_sleepers()) {
 			// have permission to sleep now
+			++_stats.sleeps;
 			oflux_log_trace("RunTimeThread::start() sleeping %d\n",index());
 			oflux_cond_wait(&_cond, &_lck);
 			_asleep = false;
@@ -211,12 +234,13 @@ int
 RunTimeThread::handle(EventBasePtr & ev)
 {
 	_flow_node_working = ev->flow_node();
-	oflux_log_trace("[%d] RunTimeThread::handle() on %s %p\n"
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] RunTimeThread::handle() on %s %p\n"
 		, oflux_self()
 		, _flow_node_working->getName()
 		, ev.get());
 	// ---------------- Execution -------------------
 	int return_code = ev->execute();
+	++_stats.events.run;
         // ----------- Successor processing -------------
         std::vector<EventBasePtr> successor_events;
         if(return_code) { // error encountered
@@ -231,7 +255,7 @@ RunTimeThread::handle(EventBasePtr & ev)
         }
 #ifdef OFLUX_DEEP_LOGGING
 	for(size_t i = 0; i < successor_events.size(); ++i) {
-		oflux_log_trace2("[%d] successor of %s %p ---> %s %p\n"
+		oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] successor of %s %p ---> %s %p\n"
 			, oflux_self()
 			, ev->flow_node()->getName()
 			, ev.get()
@@ -248,7 +272,7 @@ RunTimeThread::handle(EventBasePtr & ev)
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
                         successor_events.push_back(successor_events_released[i]);
                 } else {
-			oflux_log_trace2("[%d] acquire_all_or_wait() failure for "
+			oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] acquire_all_or_wait() failure for "
 				"%s %p on guards acquisition"
 				, oflux_self()
 				, succ_ev->flow_node()->getName()
@@ -256,45 +280,100 @@ RunTimeThread::handle(EventBasePtr & ev)
 		}
         }
 
-#define CRITICAL_Q_SIZE 1024
+	// ---------- Queue State and Control ---------
+	// Queue is: 
+	//   * cold when it has 0 to < Q_Hot_size elements
+	//   * hot when it has Q_Hot_size to < Q_Critical_size elements
+	//   * critical when it has >= Q_Critical_size
+
+	enum QueueControlParams 
+		{ Q_Critical_size = 1024
+		, Q_Hot_size = 256
+		};
 	if(_queue_allowance<=0) {
-		_queue_allowance = CRITICAL_Q_SIZE - _queue.size();
+		_queue_allowance = Q_Critical_size - _queue.size();
 	} else {
 		--_queue_allowance;
 	}
 	bool push_sources_first = (_queue_allowance < 0);
+	bool push_all_guards_last = (_queue_allowance < Q_Critical_size-Q_Hot_size);
+
+	// -------- Categorization of successors ---------
+	//  This will order them for pushing based on:
+	//  * queue allowance
+	//  * whether the event is:
+	//    + a source
+	//    + how many atomics it is holding
+
+	enum SCategories 
+		{ SC_high_guards = 0
+		, SC_low_guards = SC_high_guards+1
+		, SC_source = SC_low_guards+1
+		, SC_no_guards = SC_source+1
+		, SC_num_categories = SC_no_guards+1
+		, SC_high_atomics_count = 3 // what is considered high
+		, SC_low_atomics_count = 1  // what is considered low
+		};
+	std::vector<EventBasePtr> successors_categorized[SC_num_categories];
 	
+        for(size_t i = 0; i < successor_events.size(); ++i) {
+		// categorizing successors:
+		EventBasePtr & ev_ptr = successor_events[i];
+		int num_atomics_held = ev_ptr->atomics().number();
+		if(ev_ptr->flow_node()->getIsSource()) {
+			successors_categorized[SC_source].push_back(ev_ptr);
+		} else if(num_atomics_held >= SC_high_atomics_count) {
+			successors_categorized[SC_high_guards].push_back(ev_ptr);
+		} else if(num_atomics_held >= SC_low_atomics_count) {
+			successors_categorized[SC_low_guards].push_back(ev_ptr);
+		} else {
+			successors_categorized[SC_no_guards].push_back(ev_ptr);
+		}
+	}
 	size_t ind =0;
-        for(size_t i = 0; i < successor_events.size(); ++i) {
-		if(push_sources_first == successor_events[i]->flow_node()->getIsSource()) {
-			oflux_log_trace("[%d] %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
-				, oflux_self()
-				, index()
-				, _flow_node_working->getName()
-				, ev.get()
-				, ind
-				, successor_events[i]->flow_node()->getName()
-				, successor_events[i].get()
-				, return_code);
-			pushLocal(successor_events[i]);
-			++ind;
-		}
+#define PUSH_EVENTS_FOR(X) \
+	for(size_t i = 0; i < successors_categorized[X].size(); ++i) { \
+		EventBasePtr & ev_ptr = successors_categorized[X][i]; \
+		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] %u handle: %s %p (%d) succcessor %s %p pushed %d\n" \
+			, oflux_self() \
+			, index() \
+			, _flow_node_working->getName() \
+			, ev.get() \
+			, ind \
+			, ev_ptr->flow_node()->getName() \
+			, ev_ptr.get() \
+			, return_code); \
+		pushLocal(ev_ptr); \
+		++ind; \
 	}
-        for(size_t i = 0; i < successor_events.size(); ++i) {
-		if(push_sources_first != successor_events[i]->flow_node()->getIsSource()) {
-			oflux_log_trace("[%d] %u handle: %s %p (%d) succcessor %s %p pushed %d\n"
-				, oflux_self()
-				, index()
-				, _flow_node_working->getName()
-				, ev.get()
-				, ind
-				, successor_events[i]->flow_node()->getName()
-				, successor_events[i].get()
-				, return_code);
-			pushLocal(successor_events[i]);
-			++ind;
-		}
+
+	const char * queue_temp = "cold";
+	if(push_sources_first) { // queue is critical
+		PUSH_EVENTS_FOR(SC_source);
+		PUSH_EVENTS_FOR(SC_no_guards);
+		PUSH_EVENTS_FOR(SC_low_guards);
+		queue_temp = "crit";
+	} else if(push_all_guards_last) { // queue is hot
+		PUSH_EVENTS_FOR(SC_no_guards);
+		PUSH_EVENTS_FOR(SC_source);
+		PUSH_EVENTS_FOR(SC_low_guards);
+		queue_temp = "hot ";
+	} else { // queue is cold
+		PUSH_EVENTS_FOR(SC_no_guards);
+		PUSH_EVENTS_FOR(SC_source);
+		PUSH_EVENTS_FOR(SC_low_guards);
 	}
+	PUSH_EVENTS_FOR(SC_high_guards);
+	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "] push evs hg:%u lg:%u sr:%u ng:%u %s %d\n"
+		, oflux_self()
+		, successors_categorized[SC_high_guards].size()
+		, successors_categorized[SC_low_guards].size()
+		, successors_categorized[SC_source].size()
+		, successors_categorized[SC_no_guards].size()
+		, queue_temp
+		, _queue.size()
+		);
+
 	_flow_node_working = NULL;
 	return successor_events.size();
 }

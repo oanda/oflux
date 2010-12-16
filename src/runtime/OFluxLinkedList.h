@@ -4,7 +4,7 @@
 #include <cassert>
 #include <stdlib.h>
 #include "OFlux.h"
-#include <boost/shared_ptr.hpp>
+#include "OFluxSharedPtr.h"
 
 namespace oflux {
 
@@ -56,24 +56,24 @@ public:
 		: _next(next)
 		, _content(content)
 		{}
-	SharedPtrNode(boost::shared_ptr<C> & content, SharedPtrNode<C> * next = NULL)
+	SharedPtrNode(shared_ptr<C> & content, SharedPtrNode<C> * next = NULL)
 		: _next(next)
 		, _content(content)
 		{}
 	inline SharedPtrNode<C> * next() { return _next; }
 	inline void next(SharedPtrNode<C> *n) { _next = n; }
-	inline boost::shared_ptr<C> & shared_content() { return _content; }
+	inline shared_ptr<C> & shared_content() { return _content; }
 	inline C * content() { return _content.get(); }
 	static SharedPtrNode<C> * create(C * c) 
 		{ assert(0); return NULL; }
-	static SharedPtrNode<C> * create(boost::shared_ptr<C> & c) 
+	static SharedPtrNode<C> * create(shared_ptr<C> & c) 
 		{ return new SharedPtrNode<C>(c); }
 	static void destroy(SharedPtrNode<C> * n) { delete n; }
 
 	inline SharedPtrNode<C> ** _next_location() { return &_next; }
 protected:
 	SharedPtrNode<C> *   _next;
-	boost::shared_ptr<C> _content;
+	shared_ptr<C> _content;
 };
 
 template<class C, class N>
@@ -95,7 +95,7 @@ public:
 		: N(c,next)
 		, _previous(prev)
 		{}
-	Removable(boost::shared_ptr<C> & c,Removable<C,N> ** prev=NULL,N * next = NULL)
+	Removable(shared_ptr<C> & c,Removable<C,N> ** prev=NULL,N * next = NULL)
 		: N(c,next)
 		, _previous(prev)
 		{}
@@ -132,7 +132,7 @@ protected:
 				return static_cast<Removable<C,N> *>(N::create(c));
 			}
 		}
-	static Removable<C,N> * create(boost::shared_ptr<C> & c)
+	static Removable<C,N> * create(shared_ptr<C> & c)
 		{
 			CompileTimeAssert<N::create_does_new && N::can_share_ptr> __attribute__((unused)) cta;
 			return new Removable<C,N>(c,NULL);
@@ -171,7 +171,7 @@ public:
 			insert_front(n);
 			return n;
 		}
-	inline N * insert_front(boost::shared_ptr<C> & csp)
+	inline N * insert_front(shared_ptr<C> & csp)
 		{
 			CompileTimeAssert<N::can_share_ptr> __attribute__((unused)) cta;
 			N * n = N::create(csp);
@@ -242,7 +242,7 @@ public:
 			LinkedListRemovable<C,N>::insert_front(n);
 			return n;
 		}
-	inline N * insert_front(boost::shared_ptr<C> & csp)
+	inline N * insert_front(shared_ptr<C> & csp)
 		{
 			CompileTimeAssert<N::can_share_ptr> __attribute__((unused)) cta;
 			N * n = N::create(csp);
@@ -266,7 +266,7 @@ public:
 			LinkedListRemovable<C,N>::insert_back(n);
 			return n;
 		}
-	inline N * insert_back(boost::shared_ptr<C> & csp)
+	inline N * insert_back(shared_ptr<C> & csp)
 		{
 			CompileTimeAssert<N::can_share_ptr> __attribute__((unused)) cta;
 			N * n = N::create(csp);

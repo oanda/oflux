@@ -24,7 +24,7 @@ public:
                 : classic::RunTimeThread(rt,tid)
                 { _condition_context_switch = true; }
 	virtual ~RunTimeThread() {}
-	virtual int execute_detached(boost::shared_ptr<EventBase> & ev,
+	virtual int execute_detached(EventBasePtr & ev,
                 int & detached_count_to_increment);
 };
 

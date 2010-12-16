@@ -22,7 +22,7 @@
 #include <signal.h>
 
 
-boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 void
 init_atomic_maps(int) {}
@@ -37,6 +37,8 @@ void handlesighup(int)
 	oflux::flow::exercise::node_report(flow);
 	theRT->log_snapshot();
 }
+
+oflux::flow::exercise::AtomicAbstract::P * _atomic_array;
 
 int
 main(int argc, char * argv[])
@@ -77,6 +79,7 @@ main(int argc, char * argv[])
 	theRT.reset(oflux::runtime::Factory::create(env.runtime_number, rtc));
 	flow = theRT->flow();
 	oflux::flow::exercise::AtomicAbstract::P atomic_array[atomic_set->size()+1];
+	_atomic_array = &atomic_array[0];
 	atomic_set->fill(atomic_array);
 	signal(SIGHUP,handlesighup);
 	if(!env.nostart) {

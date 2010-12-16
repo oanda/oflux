@@ -114,14 +114,14 @@ AtomicsHolder::acquire_all_or_wait(
 	AtomicsHolderTraversal given_aht(given_atomics);
 	AtomicsHolderTraversal my_aht(*this,_working_on);
 	bool more_given = given_aht.next(given_ha);
-	oflux_log_trace2("[%d] AH::aaow: %s %p needs %d atomics\n"
+	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: %s %p needs %d atomics\n"
 		, oflux_self()
 		, ev_name
 		, ev.get()
 		, _number);
 	while(blocking_index == -1 && my_aht.next(my_ha)) {
 		my_ha->build(node_in,this,true);
-		oflux_log_trace2("[%d] AH::aaow: %s given: %s %p %s%s my: %s %p %s%s  compare: %d\n"
+		oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: %s given: %s %p %s%s my: %s %p %s%s  compare: %d\n"
 			, oflux_self()
 			, ev_name
 			, more_given && given_ha->atomic() 
@@ -144,34 +144,42 @@ AtomicsHolder::acquire_all_or_wait(
 		}
 		if(my_ha->haveit() || my_ha->skipit()) {
 			// nothing to do
+			_working_on = std::max(_working_on,my_aht.index()-1);
+		/** no passing 
 		} else if(more_given 
                                 && (!given_ha->skipit())
                                 && given_ha->compare(*my_ha) == 0 
 				&& given_ha->haveit()) {
 			my_ha->takeit(*given_ha);
-			oflux_log_trace2("[%d] AH::aaow: takeit\n", oflux_self());
+			oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: takeit\n", oflux_self());
 			_GUARD_ACQUIRE(
 				  my_ha->flow_guard_ref()->getName().c_str()
 				, ev_name
 				, 1);
+			_working_on = std::max(_working_on,my_aht.index()-1);
+		**/
 		} else {
 			if(!my_ha->acquire_or_wait(ev,ev_name)) {
 				// event is now queued
 				// for waiting
 				blocking_index = my_aht.index()-1; // next-1
-				oflux_log_trace2("[%d] AH::aaow: wait\n", oflux_self());
+				oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: wait\n", oflux_self());
 			} else {
-				oflux_log_trace2("[%d] AH::aaow: acquire\n", oflux_self());
+				oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: acquire\n", oflux_self());
 			}
 		}
 	}
-        _working_on = std::max(blocking_index,_working_on);
+	//int __attribute__((unused)) working_on_local = _working_on;
+        //_working_on = std::max(blocking_index,_working_on);
+	//assert( (_working_on > 0 ? _sorted[_working_on-1]->haveit() : true) );
+	// NOTE: can't access this thing after you fail to acquire
+	//       since it is not your event (atomic holder) any more
 	if(blocking_index == -1) {
 		_NODE_HAVEALLGUARDS(
 			  static_cast<void *>(ev_bptr)
 			, ev_name);
 	}
-	oflux_log_trace2("[%d] AH::aaow: return %d\n"
+	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: return %d\n"
 		, oflux_self()
 		, blocking_index);
 	return blocking_index == -1;
@@ -192,8 +200,9 @@ AtomicsHolder::release(
 			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
 			if(released_events.size() - pre_sz > 0) {
-				oflux_log_trace2("[%d] AH::release %s released no events\n"
+				oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release %s %p released no events\n"
 					, oflux_self()
+					, by_ev.get()
 					, by_ev->flow_node()->getName());
 			}
 			// acquisition happens here for released events
@@ -204,10 +213,12 @@ AtomicsHolder::release(
 				AtomicsHolder & rel_atomics = rel_ev->atomics();
 				bool fd = false;
 				HeldAtomic * rel_ha_ptr = NULL;
-				oflux_log_trace2("[%d] AH::release %s released %s on recver atomic %p %s which is %s\n"
+				oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release %s %p released %s %p on recver atomic %p %s which is %s\n"
 					, oflux_self()
 					, by_ev->flow_node()->getName()
+					, by_ev.get()
 					, rel_ev->flow_node()->getName()
+					, rel_ev.get()
 					, a
 					, ha->haveit() ? "have it" : ""
 					, ha->flow_guard_ref()->getName().c_str());
@@ -218,14 +229,14 @@ AtomicsHolder::release(
 						; j < rel_atomics.number()
 						; ++j) {
 					rel_ha_ptr = rel_atomics.get(j);
-					oflux_log_trace2("[%d] AH::release                  sender atomic %p %s which is %s (compare %d)\n"
+					oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::release                  sender atomic %p %s which is %s (compare %d)\n"
 						, oflux_self()
 						, rel_ha_ptr->atomic()
 						, rel_ha_ptr->haveit() ? "have it" : ""
 						, rel_ha_ptr->flow_guard_ref()->getName().c_str()
 						, rel_ha_ptr->compare(*ha)
 						);
-					oflux_log_trace2("[%d] AH::release                  fd %d haveit %d pool_like %d\n"
+					oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::release                  fd %d haveit %d pool_like %d\n"
 						, oflux_self()
 						, fd
 						, rel_ha_ptr->haveit()
@@ -238,7 +249,10 @@ AtomicsHolder::release(
 						rel_ha_ptr->halftakeit(*ha);
 						fd = true;
 						if(j==rel_atomics.working_on()) {
-							++rel_atomics._working_on;
+							rel_atomics._working_on = std::max(rel_atomics._working_on, j+1);
+							assert( (_working_on > 0 
+								? _sorted[_working_on-1]->haveit() || _sorted[_working_on-1]->skipit()
+								: true) );
 						}
 						_GUARD_ACQUIRE(
 							  rel_ha_ptr->flow_guard_ref()->getName().c_str()

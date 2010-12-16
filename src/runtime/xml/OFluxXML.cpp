@@ -1,4 +1,5 @@
 #include <string.h>
+#include "OFluxSharedPtr.h"
 #include "xml/OFluxXML.h"
 #include "flow/OFluxFlow.h"
 #include "flow/OFluxFlowNode.h"
@@ -138,12 +139,12 @@ public:
 		Context & _c;
 	};
 
-	boost::shared_ptr<Scope>
+	shared_ptr<Scope>
 	get(const char * scopename) {
 		std::map<std::string, Context>::iterator itr =
 			_map.find(scopename);
 		assert(itr != _map.end());
-		return boost::shared_ptr<Scope>(new Scope(itr->second));
+		return shared_ptr<Scope>(new Scope(itr->second));
 	}
 
 	void
@@ -425,7 +426,7 @@ public:
                 _add_targets.push_back(at);
 	}
 
-	typedef boost::shared_ptr<ScopedFunctionMaps::Scope> ScopePtr;
+	typedef shared_ptr<ScopedFunctionMaps::Scope> ScopePtr;
 
 	ScopePtr fromThisScope(const char * s = NULL)
 	{ return _scoped_fmaps.get(s ? s : _scope_name.c_str()); }

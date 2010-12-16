@@ -19,6 +19,7 @@
 #endif
 #include <vector>
 #include "OFlux.h"
+#include "event/OFluxEventBase.h"
 #include "OFluxLogging.h"
 
 namespace oflux {

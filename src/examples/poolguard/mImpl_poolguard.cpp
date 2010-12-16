@@ -2,11 +2,12 @@
 #include "OFluxGenerate_poolguard.h"
 #include "atomic/OFluxAtomicInit.h"
 #include "OFluxRunTimeAbstract.h"
+#include "OFluxThreads.h"
 #include <pthread.h>
 
 int c = 0;
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int S(const S_in *, S_out * out, S_atoms * atoms)
 {
@@ -14,7 +15,11 @@ int S(const S_in *, S_out * out, S_atoms * atoms)
 	assert(ptr);
 	out->b = (*ptr) + c * 3 ;
         c++;
-	printf(":::[%d] s out: %d is %s off pooled int %d\n", pthread_self(), out->b, (ptr == NULL ? "    null" : "not null"), (unsigned int)*ptr);
+	printf(":::[" PTHREAD_PRINTF_FORMAT "] s out: %d is %s off pooled int %d\n"
+		, pthread_self()
+		, out->b
+		, (ptr == NULL ? "    null" : "not null")
+		, (unsigned int)*ptr);
 	//if(c > 100) theRT->soft_kill();
 	return 0;
 }
@@ -22,7 +27,10 @@ int S(const S_in *, S_out * out, S_atoms * atoms)
 int NS(const NS_in *in, NS_out *, NS_atoms * atoms)
 {
 	int * & ptr = atoms->I();
-	printf(":::[%d] ns out: %d is %s off pooled int %d\n", pthread_self(), in->b, (ptr == NULL ? "    null" : "not null"), (unsigned int)*ptr);
+	printf(":::[" PTHREAD_PRINTF_FORMAT "] ns out: %d is %s off pooled int %d\n"
+		, pthread_self()
+		, in->b, (ptr == NULL ? "    null" : "not null")
+		, (unsigned int)*ptr);
 	return 0;
 }
 	
