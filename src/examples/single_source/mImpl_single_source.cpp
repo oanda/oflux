@@ -3,7 +3,7 @@
 #include "OFluxRunTime.h"
 #include "OFluxProfiling.h"
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int Start(const Start_in *, Start_out *, Start_atoms *)
 {

@@ -3,7 +3,7 @@
 #include "OFluxRunTimeAbstract.h"
 #include <unistd.h>
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 bool
 isNotNull(Aob * x) 

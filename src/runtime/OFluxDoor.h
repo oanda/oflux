@@ -207,6 +207,13 @@ public:
 	ServerDoorsContainer(RunTimeAbstract * rt) {}
 	int create_doors() { return 0; } // nothing to do
 };
+template<typename T>
+class ClientDoor {
+public:
+	ClientDoor(const char * door_filename) {}
+	int send(const T * in) { return 0; }
+};
+
 } // namespace doors
 
 template< typename TDetail >

@@ -2,7 +2,7 @@
 #include "OFluxGenerate_tc.h"
 #include "OFluxRunTime.h"
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int Src(const Src_in *, Src_out * out, Src_atoms *)
 {

@@ -28,4 +28,4 @@ int Sink(const Sink_in *in, Sink_out * out, Sink_atoms * atoms)
 }
 
 using namespace oflux;
-boost::shared_ptr<RunTimeAbstract> theRT;
+oflux::shared_ptr<RunTimeAbstract> theRT;

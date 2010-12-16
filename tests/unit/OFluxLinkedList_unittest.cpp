@@ -161,11 +161,11 @@ TEST_F(OFluxLinkedListTests,Test2) {
 	RSNPC * n5 = NULL;
 
 	{ // manage lifetimes
-		boost::shared_ptr<C> c1(new C(1));
-		boost::shared_ptr<C> c2(new C(2));
-		boost::shared_ptr<C> c3(new C(3));
-		boost::shared_ptr<C> c4(new C(4));
-		boost::shared_ptr<C> c5(new C(5));
+		shared_ptr<C> c1(new C(1));
+		shared_ptr<C> c2(new C(2));
+		shared_ptr<C> c3(new C(3));
+		shared_ptr<C> c4(new C(4));
+		shared_ptr<C> c5(new C(5));
 
                 validate_contents(ll);
 		n1 = ll.insert_front(c1);
@@ -180,7 +180,7 @@ TEST_F(OFluxLinkedListTests,Test2) {
                 validate_contents(ll, 4, 2, 1, 3, 5);
 	}
 
-	boost::shared_ptr<C> cs1(n1->shared_content());
+	shared_ptr<C> cs1(n1->shared_content());
         validate_contents(ll, 4, 2, 1, 3, 5);
 	ll.remove(n3);
         validate_contents(ll, 4, 2, 1, 5);

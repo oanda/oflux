@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <iostream>
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int NumberGenerator(const NumberGenerator_in * in, NumberGenerator_out * out, NumberGenerator_atoms * atoms)
 {

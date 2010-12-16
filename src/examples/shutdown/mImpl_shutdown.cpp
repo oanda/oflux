@@ -3,7 +3,7 @@
 #include "OFluxLogging.h"
 #include "OFluxRunTimeAbstract.h"
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int init(int argc, char * argv[])
 {

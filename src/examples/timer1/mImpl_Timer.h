@@ -1,7 +1,7 @@
 #ifndef TIMER_MIMPL_H
 #define TIMER_MIMPL_H
 
-#include <boost/shared_ptr.hpp>
+#include "OFluxSharedPtr.h"
 #include "OFluxThreads.h"
 #include "atomic/OFluxAtomicInit.h"
 #include <signal.h>
@@ -43,7 +43,7 @@ protected:
 	time_t _expiry_time;
 };
 
-typedef boost::shared_ptr<EventBase> EventBasePtr;
+typedef oflux::shared_ptr<EventBase> EventBasePtr;
 
 class State;
 

@@ -2,7 +2,7 @@
 #include "OFluxRunTimeBase.h"
 #include <unistd.h>
 
-extern boost::shared_ptr<oflux::RunTimeBase> theRT;
+extern oflux::shared_ptr<oflux::RunTimeBase> theRT;
 
 bool
 isNotNull(void * x)

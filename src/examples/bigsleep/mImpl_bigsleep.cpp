@@ -4,17 +4,17 @@
 #include "OFluxProfiling.h"
 #include <signal.h>
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 void handlesigusr1(int)
 {
     signal(SIGUSR1,handlesigusr1);
-    if(theRT) theRT->soft_kill();
+    if(theRT.get()) theRT->soft_kill();
 }
 void handlesigint(int)
 {
     signal(SIGUSR2,handlesigint);
-    if(theRT) theRT->hard_kill();
+    if(theRT.get()) theRT->hard_kill();
 }
 
 void init(int, char * argv[])

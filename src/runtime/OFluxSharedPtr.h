@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <iostream>
 
 //
 // The boost one is just not the ticket
@@ -33,6 +34,10 @@ public:
 	~shared_ptr()
 	{
 		unlink();
+	}
+	operator bool () const
+	{
+		return _px != 0;
 	}
 	inline shared_ptr<T> & operator=(const shared_ptr<T> &sp)
 	{
@@ -68,10 +73,10 @@ public:
 	{
 		*this = p;
 	}
-	inline bool operator==(const shared_ptr<T> & sp)
+	inline bool operator==(const shared_ptr<T> & sp) const
 	{
 		return _px == sp._px
-			&& _pn == sp.pn;
+			&& _pn == sp._pn;
 	}
 	inline void swap(shared_ptr<T> & sp)
 	{
@@ -119,6 +124,12 @@ private:
 	int * _pn;
 };
 
+template<typename T>
+std::ostream& operator<<(std::ostream& o, const shared_ptr<T> & sp)
+{
+	o << sp.get();
+	return o;
+}
 
 } // namespace oflux
 

@@ -10,7 +10,7 @@
 #include <cstring>
 
 using namespace oflux;
-extern boost::shared_ptr<RunTimeAbstract> theRT;
+extern oflux::shared_ptr<RunTimeAbstract> theRT;
 
 extern int pmain(int argc, char * argv[]);
 
@@ -49,13 +49,13 @@ int pmain(int argc, char * argv[])
 void handlesighup(int)
 {
     signal(SIGHUP,handlesighup);
-    if(theRT) theRT->soft_load_flow();
+    if(theRT.get()) theRT->soft_load_flow();
 }
 
 void handlesigusr1(int)
 {
     signal(SIGUSR1,handlesigusr1);
-    if(theRT) theRT->soft_kill();
+    if(theRT.get()) theRT->soft_kill();
 }
 
 int main(int argc, char * argv[])

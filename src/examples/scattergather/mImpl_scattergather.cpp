@@ -16,7 +16,7 @@ isLast(const oflux::Scatter<GatherObj> & so)
 	return so->count() == 1;
 }
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int
 Foo(      const Foo_in * in

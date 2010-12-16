@@ -1,7 +1,7 @@
 #ifndef SPLAYTEST2_M_IMPL_H
 #define SPLAYTEST2_M_IMPL_H
 
-#include <boost/shared_ptr.hpp>
+#include "OFluxSharedPtr.h"
 #include <iostream>
 
 class Foo {
@@ -19,6 +19,6 @@ class Foo {
     int foo_;
 };
 
-typedef boost::shared_ptr<Foo> FooPtr;
+typedef oflux::shared_ptr<Foo> FooPtr;
 
 #endif

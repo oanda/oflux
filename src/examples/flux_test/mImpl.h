@@ -12,7 +12,7 @@ namespace oflux {
 class RunTimeBase;
 };
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 #define OFLUX_SNAPSHOT theRT->log_snapshot();
 

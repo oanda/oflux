@@ -4,7 +4,7 @@
 #include <iostream>
 #include "atomic/OFluxAtomicInit.h"
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 void init(int, char * argv[])
 {

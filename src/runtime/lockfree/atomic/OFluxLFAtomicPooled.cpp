@@ -1,4 +1,5 @@
 #include "lockfree/atomic/OFluxLFAtomicPooled.h"
+#include <cstdio>
 
 namespace oflux {
 namespace lockfree {

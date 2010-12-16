@@ -6,7 +6,7 @@
 
 int count = 0;
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 int B(const B_in * in, B_out * out, B_atoms *)
 {

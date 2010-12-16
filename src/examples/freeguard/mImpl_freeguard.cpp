@@ -28,7 +28,7 @@ void FList::insert(FLEl * el)
 
 const size_t max_b = 10000;
 
-extern boost::shared_ptr<oflux::RunTimeAbstract> theRT;
+extern oflux::shared_ptr<oflux::RunTimeAbstract> theRT;
 
 
 int 

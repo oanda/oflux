@@ -21,4 +21,4 @@ Toast(const Toast_in *, Toast_out *, Toast_atoms *)
 }
 
 using namespace oflux;
-boost::shared_ptr<RunTimeAbstract> theRT;
+oflux::shared_ptr<RunTimeAbstract> theRT;
