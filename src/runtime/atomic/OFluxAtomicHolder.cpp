@@ -15,7 +15,6 @@ namespace atomic {
 EventBasePtr &
 AtomicsHolder::no_event = EventBase::no_event;
 
-#define AH_INSTRUMENTATION
 #ifdef AH_INSTRUMENTATION
 struct Observation {
 	enum { max_at_index = 5 };
@@ -262,6 +261,9 @@ AtomicsHolder::acquire_all_or_wait(
 	obs.res = (blocking_index == -1);
 	obs.action = Observation::Action_acq;
 	obs.term_index = log.at();
+	if(obs.res) {
+		_full_acquire_time = gethrtime();
+	}
 #endif // AH_INSTRUMENTATION
 	return blocking_index == -1;
 	// return true when all guards are acquired
@@ -279,6 +281,22 @@ AtomicsHolder::release(
 	obs.ev = by_ev.get();
 	obs.ev_name = by_ev->flow_node()->getName();
 	obs.action = Observation::Action_Rel;
+	hrtime_t curr_hr_time = gethrtime();
+	if(curr_hr_time - _full_acquire_time > 1000) {
+		// threshold based log line at info level
+		oflux_log_info("AtomicsHolder::release saw %s %p take %lld nsec from full acquire to release (held %d things: %d, %d)\n"
+			, obs.ev_name
+			, obs.ev
+			, curr_hr_time - _full_acquire_time
+			, _number
+			, _holders[0]._flow_guard_ref()
+				? _holders[0]._flow_guard_ref()->wtype()
+				: 0
+			, _holders[1]._flow_guard_ref()
+				? _holders[1]._flow_guard_ref()->wtype()
+				: 0
+			);
+	}
 #endif // AH_INSTRUMENTATION
 	// reverse order
 	for(int i = _number-1; i >= 0; --i) {

@@ -121,6 +121,8 @@ exercise : oflux_exercise.o liboflux.so libofshim.so
 
 exercise : LIBS += $(UMEMLIB)
 
+oflux_exercise.o: ofluxprobe.h
+
 OFLUX_DOCUMENTATION += doc/runtime
 
 doc/runtime: oflux.dox $(OFLUX_OBJS) oflux_vers.cpp

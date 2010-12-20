@@ -8,6 +8,8 @@
  * (partly based on value)
  */
 
+#define AH_INSTRUMENTATION
+#include <sys/time.h>
 
 #include <vector>
 #include <cassert>
@@ -277,6 +279,9 @@ private:
 	bool         _is_sorted_and_keyed;
         bool         _is_completely_sorted;
         int          _working_on;
+#ifdef AH_INSTRUMENTATION
+	hrtime_t               _full_acquire_time;
+#endif // AH_INSTRUMENTATION
 };
 
 } // namespace atomic
