@@ -8,10 +8,10 @@
 
 namespace oflux {
 
-template<typename D> // D is POD
+template<typename D, const size_t sz=4*4096> // D is POD
 class RollingLog {
 public:
-	enum { log_size = 4096*4, d_size = sizeof(D) };
+	enum { log_size = sz, d_size = sizeof(D) };
 	RollingLog()
 		: index(1LL)
 	{

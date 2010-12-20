@@ -159,6 +159,7 @@ public:
 		const readwrite::EventBaseHolder * e;
 		const readwrite::EventBaseHolder * h;
 		const readwrite::EventBaseHolder * t;
+		const readwrite::EventBaseHolder * e_t;
 		int mode;
 		int r_mode;
 		uint64_t u64;

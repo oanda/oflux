@@ -6,6 +6,7 @@
 #include "OFluxLibDTrace.h"
 
 #include "OFluxLogging.h"
+#include "OFluxRollingLog.h"
 
 
 namespace oflux {
@@ -13,6 +14,54 @@ namespace atomic {
 
 EventBasePtr &
 AtomicsHolder::no_event = EventBase::no_event;
+
+#define AH_INSTRUMENTATION
+#ifdef AH_INSTRUMENTATION
+struct Observation {
+	enum { max_at_index = 5 };
+	enum Action {
+		Action_none,
+		Action_Acq,
+		Action_acq,
+		Action_Rel,
+		Action_rel,
+	} action;
+	oflux_thread_t tid;
+	EventBase * ev;
+	const char * ev_name;
+	struct {
+		const char * name;
+		int wtype;
+		bool haveit;
+		bool skipit;
+		bool called;
+		size_t released;
+		EventBase * rel_ev;
+		const char * rel_ev_name;
+
+		void init() 
+		{ name = ""; wtype = 0; haveit = false; 
+		  skipit = false; called = false; 
+		  released = 0; rel_ev = 0; rel_ev_name = name;
+		}
+	} atomics[max_at_index];
+	int at_index;
+	bool res;
+	long long term_index;
+
+	void init()
+	{ action = Action_none; tid = 0; ev = 0; ev_name = "";
+	  at_index = -1;
+	  for(size_t i = 0; i < max_at_index; ++i) {
+	    atomics[i].init();
+	  }
+	  res = false;
+	  term_index = 0; }
+};
+
+RollingLog<Observation,256*4096> log;
+#endif // AH_INSTRUMENTATION
+
 
 void 
 AtomicsHolder::add(flow::GuardReference * fg)
@@ -92,6 +141,14 @@ AtomicsHolder::acquire_all_or_wait(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev)
 {
+#ifdef AH_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.init();
+	obs.tid = oflux_self();
+	obs.ev = ev.get();
+	obs.ev_name = ev->flow_node()->getName();
+	obs.action = Observation::Action_Acq;
+#endif // AH_INSTRUMENTATION
 	AtomicsHolder & given_atomics =
 		( pred_ev.get() 
 		? pred_ev->atomics()
@@ -142,6 +199,15 @@ AtomicsHolder::acquire_all_or_wait(
                                         || given_ha->compare(*my_ha) < 0)) {
 			more_given = given_aht.next(given_ha);
 		}
+#ifdef AH_INSTRUMENTATION
+		obs.at_index = my_aht.index()-1;
+		if(obs.at_index < Observation::max_at_index) {
+			obs.atomics[obs.at_index].haveit = my_ha->haveit();
+			obs.atomics[obs.at_index].skipit = my_ha->skipit();
+			obs.atomics[obs.at_index].name = my_ha->flow_guard_ref()->getName().c_str();
+			obs.atomics[obs.at_index].wtype = my_ha->flow_guard_ref()->wtype();
+		}
+#endif // AH_INSTRUMENTATION
 		if(my_ha->haveit() || my_ha->skipit()) {
 			// nothing to do
 			_working_on = std::max(_working_on,my_aht.index()-1);
@@ -159,12 +225,22 @@ AtomicsHolder::acquire_all_or_wait(
 			_working_on = std::max(_working_on,my_aht.index()-1);
 		**/
 		} else {
+#ifdef AH_INSTRUMENTATION
+			if(obs.at_index < Observation::max_at_index) {
+				obs.atomics[obs.at_index].called = true;
+			}
+#endif // AH_INSTRUMENTATION
 			if(!my_ha->acquire_or_wait(ev,ev_name)) {
 				// event is now queued
 				// for waiting
 				blocking_index = my_aht.index()-1; // next-1
 				oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: wait\n", oflux_self());
 			} else {
+#ifdef AH_INSTRUMENTATION
+				if(obs.at_index < Observation::max_at_index) {
+					obs.atomics[obs.at_index].released = 1; // acquire note
+				}
+#endif // AH_INSTRUMENTATION
 				oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: acquire\n", oflux_self());
 			}
 		}
@@ -182,6 +258,11 @@ AtomicsHolder::acquire_all_or_wait(
 	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: return %d\n"
 		, oflux_self()
 		, blocking_index);
+#ifdef AH_INSTRUMENTATION
+	obs.res = (blocking_index == -1);
+	obs.action = Observation::Action_acq;
+	obs.term_index = log.at();
+#endif // AH_INSTRUMENTATION
 	return blocking_index == -1;
 	// return true when all guards are acquired
 }
@@ -191,10 +272,27 @@ AtomicsHolder::release(
 	  std::vector<EventBasePtr> & released_events
 	, EventBasePtr & by_ev)
 {
+#ifdef AH_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.init();
+	obs.tid = oflux_self();
+	obs.ev = by_ev.get();
+	obs.ev_name = by_ev->flow_node()->getName();
+	obs.action = Observation::Action_Rel;
+#endif // AH_INSTRUMENTATION
 	// reverse order
 	for(int i = _number-1; i >= 0; --i) {
 		HeldAtomic * ha = get(i);
 		assert(ha);
+#ifdef AH_INSTRUMENTATION
+		obs.at_index = i;
+		if(i < Observation::max_at_index) {
+			obs.atomics[i].name = ha->flow_guard_ref()->getName().c_str();
+			obs.atomics[i].wtype = ha->flow_guard_ref()->wtype();
+			obs.atomics[i].haveit = ha->haveit();
+		}
+#endif // AH_INSTRUMENTATION
+		assert(ha->haveit() || ha->skipit());
 		if(ha->haveit()) {
 			Atomic * a = ha->atomic();
 			size_t pre_sz = released_events.size();
@@ -206,6 +304,16 @@ AtomicsHolder::release(
 					, by_ev.get()
 					);
 			}
+#ifdef AH_INSTRUMENTATION
+			if(i < Observation::max_at_index) {
+				obs.atomics[i].called = true;
+				obs.atomics[i].released = released_events.size() - pre_sz;
+				if(obs.atomics[i].released) {
+					obs.atomics[i].rel_ev = released_events[pre_sz].get();
+					obs.atomics[i].rel_ev_name = released_events[pre_sz]->flow_node()->getName();
+				}
+			}
+#endif // AH_INSTRUMENTATION
 			// acquisition happens here for released events
 			bool should_relinquish = false;
 			for(size_t k = pre_sz; k < released_events.size(); ++k) {
@@ -279,8 +387,20 @@ AtomicsHolder::release(
 					? released_events.back()->flow_node()->getName() 
 					: "<nil>")
 				, post_sz - pre_sz);
+		} else {
+			oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release skipping %d atomic for event %s %p since !haveit()\n"
+				, oflux_self()
+				, i
+				, by_ev->flow_node()->getName()
+				, by_ev.get()
+				);
 		}
 	}
+#ifdef AH_INSTRUMENTATION
+	obs.res = released_events.size();
+	obs.action = Observation::Action_rel;
+	obs.term_index = log.at();
+#endif // AH_INSTRUMENTATION
 }
 
 AtomicsHolder AtomicsHolder::empty_ah;

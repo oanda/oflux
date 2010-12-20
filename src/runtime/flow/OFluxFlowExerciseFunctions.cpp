@@ -80,7 +80,7 @@ public:
 
 		void report(char * buff)
 		{
-			snprintf(buff, 1000, " %c %d %p %p %lld %d " PTHREAD_PRINTF_FORMAT " %s"
+			snprintf(buff, 1000, " %c %d %-8p %-8p %lld %d " PTHREAD_PRINTF_FORMAT " %s"
 				, name
 				, wtype
 				, evptr
@@ -436,19 +436,32 @@ AtomicSet::report()
 	oflux_log_info("AtomicSet report:\n");
 	char * watch_atomic = getenv("EXERCISE_WATCH");
 	std::map<std::string,AtomicAbstract *>::iterator itr = _map.end();
+	char * setofwatched[20];
+	setofwatched[0] = 0;
+	char buff[4096*4];
 	if(watch_atomic) {
-		itr = _map.find(watch_atomic);
-	}
-	if(itr == _map.end()) {
-		if(watch_atomic) {
-			oflux_log_info(" %s not found\n",watch_atomic);
+		strncpy(buff,watch_atomic,sizeof(buff));
+		char * lasts = NULL;
+		const char * delim = ",";
+		size_t i = 0;
+		for(char * s = strtok_r(buff,delim,&lasts)
+			; s && (i < sizeof(setofwatched)/sizeof(char*) -1)
+			; s=strtok_r(NULL,delim,&lasts)) {
+			setofwatched[i] = s;
+			oflux_log_info("exercise watching %s.\n",s);
+			++i;
 		}
-	} else {
-		oflux_log_info("found %s\n",watch_atomic);
+		setofwatched[i] = 0;
 	}
 	for(itr = _map.begin(); itr != _map.end(); ++itr) {
-		itr->second->report(itr->first.c_str()
-			, watch_atomic ? strcmp(watch_atomic,itr->first.c_str()) == 0 : false);
+		bool fd = false;
+		for(size_t i = 0; setofwatched[i]; ++i) {
+			if(strcmp(setofwatched[i],itr->first.c_str()) == 0) {
+				fd = true;
+			}
+		}
+		
+		itr->second->report(itr->first.c_str(), fd);
 	}
 }
 
@@ -517,7 +530,7 @@ struct ExerciseEventDetail {
 		void fill(oflux::atomic::AtomicsHolder *);
 		void report();
 
-		std::string node_name;
+		const char * node_name;
 		int node_id;
 		SingleAtom atoms[MAX_ATOMICS_PER_NODE];
 		int number;
@@ -583,7 +596,7 @@ exercise_node_function(
 	, ExerciseEventDetail::Atoms_ * atoms)
 {
 	oflux_log_debug("exercise_node_function %s %d\n"
-		, atoms->node_name.c_str()
+		, atoms->node_name
 		, in->value);
 	atoms->report();
 	out->value = in->value;
@@ -599,7 +612,7 @@ exercise_error_node_function(
 	, int)
 {
 	oflux_log_debug("exercise_error_node_function %s %d\n"
-		, atoms->node_name.c_str()
+		, atoms->node_name
 		, in->value);
 	atoms->report();
 	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
@@ -622,7 +635,7 @@ exercise_source_node_function(
 	static unsigned seed = 334;
 	out->value = rand_r(&seed);
 	oflux_log_debug("exercise_source_node_function %s %d\n"
-		, atoms->node_name.c_str()
+		, atoms->node_name
 		, out->value);
 	atoms->report();
 #define MAX_NSEC_WAIT oflux::flow::exercise::max_nsec_wait

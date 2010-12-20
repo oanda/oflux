@@ -14,6 +14,7 @@
 #include "atomic/OFluxAtomic.h"
 #include "flow/OFluxFlowGuard.h"
 #include "OFluxLibDTrace.h"
+#include "lockfree/OFluxMachineSpecific.h"
 
 #include "OFluxLogging.h"
 
@@ -104,7 +105,7 @@ public:
 		assert(ha._haveit);
 		_haveit = ha._haveit;
 	}
-	inline void swap(HeldAtomic & ha) 
+	/*inline void swap(HeldAtomic & ha) 
 	{
 		Atomic * atom = _atom;
 		bool hi = _haveit;
@@ -113,7 +114,7 @@ public:
 		_haveit = ha._haveit;
 		ha._atom = atom;
 		ha._haveit = hi;
-	}
+	}*/
 	/**
 	 * @brief populate the key given the input node argument
 	 * @param node_in a void ptr to the input node data structure
@@ -141,30 +142,32 @@ public:
 	{
 		assert(_key);
 		assert(_atom);
+		_haveit = false; 
 		oflux_log_trace2("[%d] HA: _haveit assignment a_o_w %p\n", oflux_self(), this);
 		bool res;
-		_haveit = false;
-		res = _atom->acquire_or_wait(ev,_flow_guard_ref->wtype());
+		flow::GuardReference * flow_guard_ref = _flow_guard_ref;
+		oflux::lockfree::store_load_barrier();
+		res = _atom->acquire_or_wait(ev,flow_guard_ref->wtype());
 		if(res) _haveit = true;
 		if(res) {
 			_GUARD_ACQUIRE(
-				  _flow_guard_ref->getName().c_str()
+				  flow_guard_ref->getName().c_str()
 				, ev_name
 				, 0); 
 		} else {
 			_GUARD_WAIT(
-				  _flow_guard_ref->getName().c_str()
+				  flow_guard_ref->getName().c_str()
 				, ev_name
-				, _flow_guard_ref->wtype()); 
+				, flow_guard_ref->wtype()); 
 		}
 		oflux_log_trace2("[%d] HA::acquire_or_wait %s %s %s atom %p  (data %p) for %d\n"
 			, oflux_self()
 			, ev_name
 			, (res ? "takes": "waits on")
-			, _flow_guard_ref->getName().c_str()
+			, flow_guard_ref->getName().c_str()
 			, _atom
 			, _atom && _atom ? *(_atom->data()) : NULL
-			, _flow_guard_ref->wtype());
+			, flow_guard_ref->wtype());
 		return res;
 	}
 	//inline const void * key() { return _key; }

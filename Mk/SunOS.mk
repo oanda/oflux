@@ -2,6 +2,7 @@
 # Define ARCH_FLAGS for architecture specific compile flags
 
 LIBS += -lsocket -lrt -ldoor
+UMEMLIB= -lumem
 CXXFLAGS += -DHAS_DOORS_IPC
 LD = /usr/ccs/bin/ld 
 

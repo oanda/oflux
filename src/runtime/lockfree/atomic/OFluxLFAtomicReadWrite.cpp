@@ -48,6 +48,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	obs.r_mode = 0;
 	obs.h = 0;
 	obs.t = 0;
+	obs.e_t = 0;
 	obs.action = Observation::Action_A_o_w;
 	obs.trans = "";
 	obs.res = 0;
@@ -193,6 +194,7 @@ ReadWriteWaiterList::pop(
 	obs.action = Observation::Action_Rel;
 	obs.h = 0;
 	obs.t = 0;
+	obs.e_t = 0;
 	obs.tid = oflux_self();
 	obs.r_mode = 0;
 	obs.trans="";
@@ -293,6 +295,7 @@ ReadWriteWaiterList::pop(
 				obs.r_mode = el->mode;
 				obs.res = new_rcount;
 				obs.e = el;
+				obs.e_t = h;
 				obs.ev = el->val;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 				break;

@@ -65,7 +65,7 @@ public:
 	* Acquisition fails when the atomic is held by another event.
 	* @param ev event which would wait on failure
 	* @param wtype mode of the acquire
-	* @return 
+	* @return true when acquired and false when wait-ed
 	*/
 	virtual bool acquire_or_wait(EventBasePtr & ev,int wtype) = 0;
 	/**
