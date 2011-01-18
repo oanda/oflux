@@ -17,6 +17,7 @@
 #include "atomic/OFluxAtomicHolder.h"
 #include "OFluxRunTimeBase.h"
 #include "OFluxIOConversion.h"
+#include "OFluxEarlyRelease.h"
 #include "OFluxLogging.h"
 #include <iostream>
 #include <signal.h>
@@ -40,9 +41,17 @@ void handlesighup(int)
 
 oflux::flow::exercise::AtomicAbstract::P * _atomic_array;
 
+void 
+ex_release_guards()
+{
+	oflux::release_all_guards(theRT.get());
+}
+
 int
 main(int argc, char * argv[])
 {
+	oflux::flow::exercise::release_guards = ex_release_guards;
+
 	if(argc <= 1) {
 		std::cout << "provide an XML flow file argument\n";
 		return 9;

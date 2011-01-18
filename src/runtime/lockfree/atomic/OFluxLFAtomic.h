@@ -8,6 +8,7 @@
 #include "event/OFluxEventBase.h"
 #include "OFluxSharedPtr.h"
 #include "OFluxAllocator.h"
+#include "lockfree/allocator/OFluxSMR.h"
 
 #include "OFlux.h"
 #include "OFluxLogging.h"
@@ -179,9 +180,12 @@ struct EventBaseHolder {
 
 class WaiterList;
 
+typedef ::oflux::lockfree::smr::DeferFree DeferFree;
+//typedef ::oflux::DefaultDeferFree DeferFree;
+
 class AtomicCommon : public oflux::atomic::Atomic {
 public:
-	static Allocator<EventBaseHolder> allocator;
+	static Allocator<EventBaseHolder,DeferFree> allocator;
 
 	AtomicCommon(void * d)
 		: _data_ptr(d)
@@ -239,10 +243,14 @@ public:
 		int res;
 		const EventBaseHolder * e;
 		const EventBaseHolder * h;
+		const EventBaseHolder * hn;
 		const EventBaseHolder * t;
+                EventBaseHolder * const * cas_addr;
+                const EventBaseHolder * cas_val;
 		unsigned retries;
 		pthread_t tid;
 		EventBase * ev;
+		int tail_up;
 		long long term_index;
 	};
 
@@ -273,6 +281,7 @@ public:
 	{
 		EventBaseHolder * ebh = _waiters.pop();
 		if(ebh) {
+			set_three(ebh->next);
 			rel_ev.push_back(EventBasePtr(ebh->ev));
 			AtomicCommon::allocator.put(ebh);
 		}
@@ -282,6 +291,7 @@ public:
 		EventBaseHolder * ebh = allocator.get(ev,wtype);
 		bool acqed = _waiters.push(ebh);
 		if(acqed) {
+			set_three(ebh->next);
 			AtomicCommon::allocator.put(ebh); // not in use - return it to pool
 		} else {
 			assert(ev.recover());

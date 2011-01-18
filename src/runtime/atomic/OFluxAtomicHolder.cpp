@@ -195,8 +195,8 @@ AtomicsHolder::release(
 	for(int i = _number-1; i >= 0; --i) {
 		HeldAtomic * ha = get(i);
 		assert(ha);
-		if(ha->haveit()) {
-			Atomic * a = ha->atomic();
+		Atomic * a = ha->atomic();
+		if(ha->haveit() && a != NULL) {
 			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
 			if(released_events.size() - pre_sz > 0) {

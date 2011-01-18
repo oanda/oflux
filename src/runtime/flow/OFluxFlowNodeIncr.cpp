@@ -14,12 +14,11 @@ NodeCounterIncrementer::NodeCounterIncrementer(Node * flow_node)
 	: _flow_node(flow_node)
 {
 	_flow_node->_instances++;
-	_flow_node->_executions++;
 }
 
 NodeCounterIncrementer::~NodeCounterIncrementer()
 {
-    _flow_node->_instances--;
+    //_flow_node->_instances--;   Now cumulative number
 }
 
 

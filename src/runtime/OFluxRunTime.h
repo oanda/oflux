@@ -119,6 +119,7 @@ class RunTimeThread : public RunTimeThreadNode,
 public:
 	RunTimeThread(RunTime * rt, oflux_thread_t tid = 0)
 		: _rt(rt)
+		, _this_event(NULL)
                 , _condition_context_switch(false)
 		, _bootstrap(true)
 		, _system_running(rt->_running)
@@ -148,6 +149,7 @@ public:
 	void hard_die() { _request_death = true; oflux_cancel(_tid); }
 	bool running() { return _thread_running; }
 	virtual void submitEvents(const std::vector<EventBasePtr> &);
+	virtual EventBase * thisEvent() const { return _this_event; }
 	inline void wait_to_run() 
 	{
 		_wait_state = RTTWS_wtr;
@@ -170,6 +172,7 @@ protected:
         inline void enqueue_list(std::vector<EventBasePtr > & events) { _rt->_queue.push_list(events); }
 protected:
 	RunTime *      _rt;
+	EventBase *    _this_event;
         bool           _condition_context_switch;
 	bool           _bootstrap;
 	bool &         _system_running;

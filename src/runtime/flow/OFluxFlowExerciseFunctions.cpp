@@ -9,6 +9,7 @@
 #include "lockfree/atomic/OFluxLFAtomicPooled.h"
 #include "lockfree/atomic/OFluxLFAtomicReadWrite.h"
 #include "lockfree/OFluxDistributedCounter.h"
+#include "OFluxEarlyRelease.h"
 #include "OFluxThreads.h"
 #include "OFluxLogging.h"
 #include "OFluxRollingLog.h"
@@ -199,10 +200,12 @@ namespace flow {
 
 namespace exercise {
 
+ReleaseGuardsFn release_guards = NULL;
+
 #define MAX_NODES 1024
 
-oflux::lockfree::Counter<long long> node_creations[MAX_NODES];
-oflux::lockfree::Counter<long long> node_executions[MAX_NODES];
+//oflux::lockfree::Counter<long long> node_creations[MAX_NODES];
+//oflux::lockfree::Counter<long long> node_executions[MAX_NODES];
 oflux::flow::Node * nodes[MAX_NODES];
 
 void
@@ -213,8 +216,8 @@ node_report(oflux::flow::Flow *)
 		if(nodes[i]) {
 			oflux_log_info("  %s %lld %lld\n"
 				, nodes[i]->getName()
-				, node_creations[i].value()
-				, node_executions[i].value());
+				, nodes[i]->instances()
+				, nodes[i]->executions());
 		}
 	}
 }
@@ -427,6 +430,7 @@ AtomicSet::fill(AtomicAbstract::P arr[])
 		++i;
 		++itr;
 	}
+	arr[i].name = 0;
 }
 
 
@@ -587,7 +591,7 @@ exercise_node_function(
 		, in->value);
 	atoms->report();
 	out->value = in->value;
-	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
+	//oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;
 }
 
@@ -602,7 +606,7 @@ exercise_error_node_function(
 		, atoms->node_name.c_str()
 		, in->value);
 	atoms->report();
-	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
+	//oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;
 }
 
@@ -625,9 +629,12 @@ exercise_source_node_function(
 		, atoms->node_name.c_str()
 		, out->value);
 	atoms->report();
+	if(exercise::release_guards) {
+		(*exercise::release_guards)();
+	}
 #define MAX_NSEC_WAIT oflux::flow::exercise::max_nsec_wait
 	WAIT_A_LITTLE((out->value)%MAX_NSEC_WAIT);
-	oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
+	//oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
 	return 0;
 }
 
@@ -696,7 +703,7 @@ create_special(
         , const void * im_io_convert
         , flow::Node *fn)
 {
-	exercise::node_creations[fn->id()%MAX_NODES]++;
+	//exercise::node_creations[fn->id()%MAX_NODES]++;
 	exercise::nodes[fn->id()] = fn;
 	assert(!check_guard_duplication(fn));
 	if(fn->getIsSource()) {

@@ -12,14 +12,14 @@
 
 #include <cstdlib>
 #include "lockfree/OFluxThreadNumber.h"
+#include "lockfree/OFluxMachineSpecific.h"
 
-#define DEFAULT_MEMPOOL_MAX_THREADS  1024
 
 namespace oflux {
 namespace lockfree {
 
 template< typename CT
-	, size_t num_threads=DEFAULT_MEMPOOL_MAX_THREADS>
+	, size_t num_threads=MachineSpecific::Max_Threads_Liberal>
 class Counter {
 public:
 	Counter()
@@ -28,6 +28,13 @@ public:
 			_v[i] = 0;
 		}
 	}
+	Counter(const CT & ct)
+	{
+		for(size_t i = 0; i < num_threads; ++i) {
+			_v[i] = 0;
+		}
+		_v[0] = ct;
+	}	
 	CT operator+=(CT by) { // add by
 		return _v[_tn.index] += by;
 	}
@@ -52,7 +59,7 @@ public:
 	CT value() const
 	{
 		CT res = 0;
-		for(size_t i = 0; i < std::max(ThreadNumber::num_threads,num_threads); ++i) {
+		for(size_t i = 0; i < std::min(ThreadNumber::num_threads,num_threads); ++i) {
 			res += _v[i];
 		}
 		return res;

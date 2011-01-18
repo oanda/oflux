@@ -223,7 +223,6 @@ create_door(
         , const char * door_node_name
         , RunTimeAbstract * rt)
 {
-#warning "no door IPC support"
 	return NULL;
 } 
 

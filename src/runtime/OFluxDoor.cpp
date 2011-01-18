@@ -135,4 +135,6 @@ ServerDoorsContainer::create_doors(RunTime_start_door_function sdfc)
 
 } // namespace doors
 } // namespace oflux
+#else
+# warning "no door IPC support"
 #endif // HAS_DOORS_IPC

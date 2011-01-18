@@ -14,6 +14,10 @@ namespace flow {
 
 namespace exercise {
 
+typedef void (*ReleaseGuardsFn)();
+
+extern ReleaseGuardsFn release_guards;
+
 extern int max_nsec_wait;
 
 void node_report(oflux::flow::Flow *);

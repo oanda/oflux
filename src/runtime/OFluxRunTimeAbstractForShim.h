@@ -29,7 +29,8 @@ public: // sorry C++ ppl
 	oflux_mutex_t  _manager_lock;
 };
 
-class RunTimeThreadAbstractForShim;
+typedef RunTimeThreadAbstract RunTimeThreadAbstractForShim;
+
 
 /**
  * @class RunTimeAbstract
@@ -64,7 +65,7 @@ public:
 	 **/
 	virtual int wake_another_thread() = 0;
 
-	virtual RunTimeThreadAbstractForShim * thread() = 0;
+	virtual RunTimeThreadAbstract * thread() = 0;
 public: // sorry C++ ppl
 	ConditionVariable<IntegerCounter>     _waiting_to_run;
 #ifdef THREAD_COLLECTION
@@ -75,27 +76,6 @@ public: // sorry C++ ppl
 		_waiting_in_pool;
 };
 
-enum RTT_WaitState 
-	{ RTTWS_running = 0
-	, RTTWS_wtr = 1
-	, RTTWS_wip = 2
-	, RTTWS_blockingcall = 3
-	, RTTWS_wtrshim = 4 
-	, RTTWS_door_service = 5 
-	, RTTWS_door_wait = 6 
-	};
-
-class RunTimeThreadAbstractForShim : public RunTimeThreadAbstract {
-public:
-	virtual ~RunTimeThreadAbstractForShim() {}
-	virtual bool is_detached() = 0;
-	virtual void set_detached(bool d) = 0;
-#ifdef PROFILING
-	virtual TimerList & timer_list() = 0;
-#endif
-	virtual void wait_state(RTT_WaitState) = 0;
-	virtual oflux_thread_t tid() = 0;
-};
 
 class WaitingToRunRAII {
 public:
@@ -115,9 +95,6 @@ private:
 #endif
 };
 
-class RunTimeAbort {
-public:
-};
 
 /**
  * @brief an RAII class for unlocking a runtime

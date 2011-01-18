@@ -13,6 +13,7 @@ namespace oflux {
 namespace lockfree {
 
 class MachineSpecific {
+public:
 	enum    //                          presumed log-size of a cache line
 		{ Cache_Line_Scale          = 
 #if sparc_HOST_ARCH
@@ -22,9 +23,13 @@ class MachineSpecific {
 #endif
 		//                          presumed size of a cache line
 		, Cache_Line_Size           = (1 << Cache_Line_Scale) 
-		//                          number of entries in each bucket
+		
+		, Max_Threads_Conserve      = 32
+		, Max_Threads_Liberal       = 1024
 		};
 };
+
+#define DEFAULT_MEMPOOL_MAX_THREADS  (oflux::lockfree::MachineSpecific::Max_Threads_Conserve)
 
 # define INLINE_HEADER static inline
 # define STATIC_INLINE INLINE_HEADER

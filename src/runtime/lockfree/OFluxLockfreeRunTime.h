@@ -13,6 +13,7 @@
 #include "lockfree/OFluxLockfreeRunTimeThread.h"
 #include "lockfree/OFluxThreadNumber.h"
 #include "OFluxDoor.h"
+#include "OFluxThreads.h"
 #include <vector>
 
 namespace oflux {
@@ -39,6 +40,7 @@ public:
 		return _soft_load_flow && __sync_bool_compare_and_swap(&_soft_load_flow,true,false);
 	}
 	virtual int thread_count() { return _num_threads; }
+	virtual RunTimeThreadAbstract * thread() { return _thread; }
 	virtual void soft_kill();
 	virtual void hard_kill() { soft_kill(); }
 	bool was_soft_killed() { return _request_death; }
@@ -47,6 +49,7 @@ public:
 	virtual void log_snapshot_guard(const char *);
 	virtual void getPluginNames(std::vector<std::string> & result);
 	virtual int atomics_style() const { return 2; }
+	//
 	bool incr_sleepers(); // false if that would put it at _num_threads
 	void decr_sleepers();
 	bool all_asleep_except_me() const { return _sleep_count+1 == _num_threads; }
@@ -126,6 +129,8 @@ private:
 	ActiveFlow * _active_flow;
 	doors::ServerDoorsContainer _doors;
 	RunTimeThread * _doors_thread;
+public:
+	static __thread RunTimeThread * _thread;
 };
 
 } // namespace lockfree

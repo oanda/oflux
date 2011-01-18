@@ -42,6 +42,8 @@ public:
 	int  runtime_number;
 };
 
+class RunTimeThreadAbstract;
+
 class RunTimeAbstract {
 public:
 	virtual ~RunTimeAbstract() {}
@@ -61,6 +63,7 @@ public:
         virtual void getPluginNames(std::vector<std::string> & result) = 0;
 
 	virtual int thread_count() = 0;
+	virtual RunTimeThreadAbstract * thread() = 0;
 
 	virtual flow::Flow * flow() = 0;
 

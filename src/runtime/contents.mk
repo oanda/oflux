@@ -16,7 +16,8 @@ OFLUX_LF_SRC := \
   OFluxLockfreeRunTimeThread.cpp \
   OFluxLFAtomic.cpp \
   OFluxLFAtomicReadWrite.cpp \
-  OFluxLFAtomicPooled.cpp
+  OFluxLFAtomicPooled.cpp \
+  OFluxSMR.cpp
 
 OFLUX_LF_OBJS = $(OFLUX_LF_SRC:.cpp=.o)
 
@@ -37,6 +38,7 @@ OFLUX_OBJS = \
         OFluxAtomic.o \
         OFluxAtomicInit.o \
         OFluxAtomicHolder.o \
+        OFluxEarlyRelease.o \
         OFluxEventBase.o \
         OFluxEventOperations.o \
         OFluxRunTimeAbstractForShim.o \

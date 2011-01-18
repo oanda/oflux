@@ -162,12 +162,11 @@ private:
 };
 
 #define DEFAULT_MEMPOOL_NUM_ELEMENTS (8*1024)
-#define DEFAULT_MEMPOOL_MAX_THREADS  32
 
 template< size_t el_sz
         , size_t num_threads =DEFAULT_MEMPOOL_MAX_THREADS
         , size_t num_elements=DEFAULT_MEMPOOL_NUM_ELEMENTS >
-class MemoryPool : public oflux::AllocatorImplementation<el_sz> {
+class MemoryPool : public oflux::AllocatorImplementation {
 public:
 	typedef typename RawMemPool<num_elements,el_sz>::El El;
 

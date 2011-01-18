@@ -8,6 +8,7 @@
 #include "event/OFluxEventOperations.h"
 #include "atomic/OFluxAtomicHolder.h"
 #include "lockfree/allocator/OFluxLFMemoryPool.h"
+#include "lockfree/allocator/OFluxSMR.h"
 #include "OFluxLogging.h"
 
 #include "atomic/OFluxLFAtomic.h"
@@ -25,6 +26,7 @@ RunTimeThread::allocator; //(new allocator::MemoryPool<sizeof(RunTimeThread::WSQ
 RunTimeThread::RunTimeThread(RunTime & rt, int index, oflux_thread_t tid)
 	: _next(NULL)
 	, _rt(rt)
+	, _this_event(NULL)
 	, _index(index)
 	, _running(false)
 	, _request_stop(false)
@@ -69,6 +71,7 @@ RunTimeThread_start_thread(void *pthis)
 {
         RunTimeThread * rtt = static_cast<RunTimeThread*>(pthis);
 	ThreadNumber::init(rtt->index());
+	::oflux::lockfree::smr::DeferFree::init();
         rtt->start();
 	oflux_log_trace("thread index %d finished\n",rtt->index());
         return NULL;
@@ -125,6 +128,7 @@ RunTimeThread::create()
 void
 RunTimeThread::start()
 {
+	_rt._thread = this; // thread local reference
 	AutoLock al(&_lck); 
 	oflux_log_trace("[" 
 			PTHREAD_PRINTF_FORMAT
@@ -239,7 +243,11 @@ RunTimeThread::handle(EventBasePtr & ev)
 		, _flow_node_working->getName()
 		, ev.get());
 	// ---------------- Execution -------------------
+	_this_event = ev.get();
+	assert(ev->state != 5 && "detect double execution");
 	int return_code = ev->execute();
+	ev->state = 5;
+	_this_event = NULL;
 	++_stats.events.run;
         // ----------- Successor processing -------------
         std::vector<EventBasePtr> successor_events;
@@ -270,7 +278,7 @@ RunTimeThread::handle(EventBasePtr & ev)
         for(size_t i = 0; i < successor_events_released.size(); ++i) {
                 EventBasePtr & succ_ev = successor_events_released[i];
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
-                        successor_events.push_back(successor_events_released[i]);
+                        successor_events.push_back(succ_ev);
                 } else {
 			oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] acquire_all_or_wait() failure for "
 				"%s %p on guards acquisition"
@@ -310,9 +318,11 @@ RunTimeThread::handle(EventBasePtr & ev)
 		, SC_low_guards = SC_high_guards+1
 		, SC_source = SC_low_guards+1
 		, SC_no_guards = SC_source+1
-		, SC_num_categories = SC_no_guards+1
+		, SC_exec_gapped = SC_no_guards+1
+		, SC_num_categories = SC_exec_gapped+1
 		, SC_high_atomics_count = 3 // what is considered high
 		, SC_low_atomics_count = 1  // what is considered low
+		, SC_critical_execution_gap = 100
 		};
 	std::vector<EventBasePtr> successors_categorized[SC_num_categories];
 	
@@ -320,7 +330,11 @@ RunTimeThread::handle(EventBasePtr & ev)
 		// categorizing successors:
 		EventBasePtr & ev_ptr = successor_events[i];
 		int num_atomics_held = ev_ptr->atomics().number();
-		if(ev_ptr->flow_node()->getIsSource()) {
+		oflux::flow::Node * fn = ev_ptr->flow_node();
+		long long execution_gap = fn->instances() - fn->executions();
+		if(execution_gap > SC_critical_execution_gap) {
+			successors_categorized[SC_exec_gapped].push_back(ev_ptr);
+		} else if(fn->getIsSource()) {
 			successors_categorized[SC_source].push_back(ev_ptr);
 		} else if(num_atomics_held >= SC_high_atomics_count) {
 			successors_categorized[SC_high_guards].push_back(ev_ptr);
@@ -364,8 +378,10 @@ RunTimeThread::handle(EventBasePtr & ev)
 		PUSH_EVENTS_FOR(SC_low_guards);
 	}
 	PUSH_EVENTS_FOR(SC_high_guards);
-	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "] push evs hg:%u lg:%u sr:%u ng:%u %s %d\n"
+	PUSH_EVENTS_FOR(SC_exec_gapped);
+	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "] push evs eg:%u hg:%u lg:%u sr:%u ng:%u %s %d\n"
 		, oflux_self()
+		, successors_categorized[SC_exec_gapped].size()
 		, successors_categorized[SC_high_guards].size()
 		, successors_categorized[SC_low_guards].size()
 		, successors_categorized[SC_source].size()

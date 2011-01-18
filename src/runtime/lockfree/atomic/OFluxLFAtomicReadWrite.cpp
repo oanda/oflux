@@ -1,11 +1,12 @@
 #include "OFluxLFAtomicReadWrite.h"
+#include "lockfree/allocator/OFluxSMR.h"
 #include <cstdio>
 
 namespace oflux {
 namespace lockfree {
 namespace atomic {
 
-Allocator<readwrite::EventBaseHolder> ReadWriteWaiterList::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
+Allocator<readwrite::EventBaseHolder,DeferFree> ReadWriteWaiterList::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -51,7 +52,9 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	obs.action = Observation::Action_A_o_w;
 	obs.trans = "";
 	obs.res = 0;
+	obs.tailup = -1;
 	obs.e = e;
+	obs.by_ev = 0;
 	obs.ev = e->val;
 	obs.mode = e->mode;
 	obs.retries = 0;
@@ -62,9 +65,13 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	assert(!e->val);
 	int mode = e->mode;
 	e->mode = EventBaseHolder::None;
+	readwrite::EventBaseHolder * h;
+	readwrite::EventBaseHolder * t;
 	while(1) {
-		readwrite::EventBaseHolder * h = _head;
-		readwrite::EventBaseHolder * t = _tail;
+		//h = _head;
+		HAZARD_PTR_ASSIGN(h,_head,0);
+		//t = _tail;
+		HAZARD_PTR_ASSIGN(t,_tail,1);
 		RWWaiterPtr rwptr(t->next);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 		obs.h = h;
@@ -122,8 +129,13 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "2->3";
+			obs.tailup =
 #endif // LF_RW_WAITER_INSTRUMENTATION
-			_tail = e;
+			//_tail = e;
+			__sync_bool_compare_and_swap(
+				  &_tail
+				, t
+				, e);
 			assert(t->val == 0);
 			t->mode = mode;
 			ev_swap(t->val,ev);
@@ -145,8 +157,13 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "3->3";
+			obs.tailup =
 #endif // LF_RW_WAITER_INSTRUMENTATION
-			_tail = e;
+			//_tail = e;
+			__sync_bool_compare_and_swap(
+				  &_tail
+				, t
+				, e);
 			t->mode = mode;
 			ev_swap(t->val,ev);
 			res = false; // wait
@@ -157,6 +174,8 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 		++obs.retries;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	}
+	HAZARD_PTR_RELEASE(0);
+	HAZARD_PTR_RELEASE(1);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	obs.res = res;
 	obs.term_index = log.at();
@@ -195,18 +214,24 @@ ReadWriteWaiterList::pop(
 	obs.t = 0;
 	obs.tid = oflux_self();
 	obs.r_mode = 0;
+	obs.tailup = -1;
 	obs.trans="";
 	obs.res=0;
 	obs.e = 0;
 	obs.mode = mode;
-	obs.ev = by_ev.get();
+	obs.by_ev = by_ev.get();
+	obs.ev = 0;
 	obs.term_index = 0;
 	obs.retries=0;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	el = NULL;
+	readwrite::EventBaseHolder * h;
+	readwrite::EventBaseHolder * t;
 	while(1) {
-		readwrite::EventBaseHolder * h = _head;
-		readwrite::EventBaseHolder * t = _tail;
+		//h = _head;
+		HAZARD_PTR_ASSIGN(h,_head,0);
+		//t = _tail;
+		HAZARD_PTR_ASSIGN(t,_tail,1);
 		RWWaiterPtr rwptr(t->next);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 		obs.h = h;
@@ -214,6 +239,9 @@ ReadWriteWaiterList::pop(
 		obs.u64 = rwptr.u64();
 #endif // LF_RW_WAITER_INSTRUMENTATION
 		if(!rwptr.mkd()) {
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+			++obs.retries;
+#endif // LF_RW_WAITER_INSTRUMENTATION
 			continue;
 		}
 		assert((mode==EventBaseHolder::Read ? 1 : 0) == rwptr.mode()
@@ -306,6 +334,8 @@ ReadWriteWaiterList::pop(
 		++obs.retries;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	}
+	HAZARD_PTR_RELEASE(0);
+	HAZARD_PTR_RELEASE(1);
 	readwrite::EventBaseHolder * el_traverse = el;
 	while(el_traverse) {
 		readwrite::busyWaitOnEv(el_traverse->val);

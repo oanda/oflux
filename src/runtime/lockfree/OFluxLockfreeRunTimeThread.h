@@ -46,6 +46,13 @@ public:
 	~RunTimeThread();
 	void start();
 	virtual void submitEvents(const std::vector<EventBasePtr> &);
+	virtual EventBase * thisEvent() const { return _this_event; }
+	// a few functions just there for the abstract interface
+	virtual bool is_detached() { return true; }
+	virtual void set_detached(bool) {}
+	virtual void wait_state(RTT_WaitState) {}
+	virtual oflux_thread_t tid() { return _tid; }
+	//
 	inline EventBasePtr steal()
 	{
 		EventBasePtr ebptr;
@@ -54,6 +61,7 @@ public:
 				&& e != &WorkStealingDeque::abort) {
 			ebptr.swap(e->ev);
 			allocator.put(e);
+			ebptr->state = 3;
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] steal  %s %p from thread [" PTHREAD_PRINTF_FORMAT "]\n"
 			, oflux_self()
@@ -71,7 +79,7 @@ public:
 	{
 		flow::Node * fn = _flow_node_working;
 		const char * fn_name = (fn ? fn->getName() : "<null>");
-		oflux_log_info("thread %d (pthread %lu) %s %s %s q_len:%ld q_alw:%ld slps:%lu e.run:%lu e.stl:%lu e.stl.at:%lu %s\n"
+		oflux_log_info("thread %d (pthread %lu) %s %s %s q_len:%ld q_alw:%ld slps:%lu e.run:%lu e.stl:%lu e.stl.at:%lu %s %p\n"
 			, _index
 			, _tid
 			, _running ? "running" : "       "
@@ -83,7 +91,8 @@ public:
 			, _stats.events.run
 			, _stats.events.stolen
 			, _stats.events.attempts_to_steal
-			, fn_name);
+			, fn_name
+			, thisEvent());
 	}
 protected:
 	int create();
@@ -96,6 +105,7 @@ private:
 		if(e && e != &WorkStealingDeque::empty) {
 			ebptr.swap(e->ev);
 			allocator.put(e);
+			ebptr->state = 2;
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] popLocal %s %p\n"
 			, self()
@@ -105,6 +115,7 @@ private:
 	}
 	inline void pushLocal(const EventBasePtr & ev)
 	{
+		ev->state = 1;
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] pushLocal %s %p\n"
 			, self()
 			, ev->flow_node()->getName()
@@ -116,6 +127,7 @@ private:
 	inline bool critical() const { return _running && _queue_allowance<0; }
 private:
 	RunTime & _rt;
+	EventBase * _this_event;
 	int _index;
 public:
 	bool _running;

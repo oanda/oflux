@@ -386,6 +386,7 @@ RunTime::create_door_thread()
 {
 	if(!_door_thread) {
 		_door_thread =  new_RunTimeThread();
+		_door_thread->set_detached(true);
 		oflux_create_thread(
 			  _rtc.stack_size // stack size
 			, RunTimeThread_start_door_thread // run function
@@ -397,8 +398,13 @@ RunTime::create_door_thread()
 void
 RunTime::submitEvents(const std::vector<EventBasePtr> & evs)
 {
-	AutoLock al(&_manager_lock);
-	_queue.push_list(evs);
+	// avoid double locking
+	if(thread()->is_detached()) {
+		AutoLock al(&_manager_lock);
+		_queue.push_list(evs);
+	} else {
+		_queue.push_list(evs);
+	}
 	wake_another_thread();
 }
 
@@ -522,12 +528,14 @@ RunTimeThread::handle(EventBasePtr & ev)
 		TimerStartPausable oflux_timing_execution(ev->flow_node()->oflux_timer_stats(), _timer_list);
 		_oflux_timer = & oflux_timing_execution;
 #endif
+		_this_event = ev.get();
 		if( ev->getIsDetached() && _rt->canDetachMore()) {
 			return_code = execute_detached(ev,_rt->_detached_count);
 			wait_to_run();
 		} else {
 			return_code = ev->execute();
 		}
+		_this_event = NULL;
 #ifdef PROFILING
 		_oflux_timer = NULL;
 #endif

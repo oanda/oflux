@@ -69,6 +69,8 @@ private:
 protected:
 	int _error_code;
 	atomic::AtomicsHolder & _atomics_ref;
+public:
+	int state;
 };
 
 

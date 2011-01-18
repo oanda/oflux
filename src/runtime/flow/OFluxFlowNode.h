@@ -11,6 +11,7 @@
 
 #include "OFlux.h"
 #include "OFluxProfiling.h"
+#include "lockfree/OFluxDistributedCounter.h"
 #include <vector>
 #include <deque>
 #include <map>
@@ -130,16 +131,17 @@ public:
         inline TimerStats * real_timer_stats() { return &_real_timer_stats; }
         inline TimerStats * oflux_timer_stats() { return &_oflux_timer_stats; }
 #endif
-        inline int instances() { return _instances; }
+        inline long long instances() { return _instances.value(); }
+        inline long long executions() { return _executions.value(); }
         inline void turn_off_source() { _is_source = false; }
         inline int inputUnionNumber() { return _input_unionnumber; }
         inline int outputUnionNumber() { return _output_unionnumber; }
         void sortGuards();
         bool isGuardsCompletelySorted() { return _is_guards_completely_sorted; }
 	int id() const { return _id; }
-protected:
-        int                           _instances; // count active events
-        int                           _executions; // count active eventsj
+public:
+        oflux::lockfree::Counter<long long> _instances; // cumulative created events
+        oflux::lockfree::Counter<long long> _executions; // cumulative executed events
 	int                           _id;
 	static int		      _last_id;
 private:

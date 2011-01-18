@@ -3,6 +3,7 @@
 
 #include "OFluxLFAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
+#include "OFluxRollingLog.h"
 
 namespace oflux {
 namespace lockfree {
@@ -45,6 +46,7 @@ public:
 			, old_sp._content._uint
 			, new_content._uint);
 	}
+	uint64_t u64() const { return _content._uint; }
 private:
 	struct S {
 		int stamp;
@@ -58,6 +60,31 @@ private:
 
 class PoolEventList { // thread safe
 public:
+#define POOL_WAITERLIST_INSTRUMENTATION
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+	struct Observation {
+		enum    { Action_none
+			, Action_A_o_w
+			, Action_Rel
+			, Action_a_o_w
+			, Action_rel
+			} action;
+		const char * trans;
+		int res;
+		EventBaseHolder * e;
+		EventBaseHolder * r;
+		uint64_t h64;
+		EventBaseHolder * t;
+		int tb;
+		unsigned retries;
+		oflux_thread_t tid;
+		EventBase * ev;
+		long long term_index;
+	};
+
+	RollingLog<Observation> log;
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+
 	PoolEventList() 
 		: _head(AtomicCommon::allocator.get()) //new EventBaseHolder(NULL))
 		, _tail(_head.get())
@@ -76,7 +103,7 @@ public:
 	{
 		const EventBaseHolder * hp = _head.get();
 		size_t res = 0;
-		while(!mkd(hp) && hp->ev) {
+		while(hp && !mkd(hp) && hp->ev) {
 			if(hp->ev) {
 				++res;
 			}
@@ -99,7 +126,7 @@ class AtomicPool : public oflux::atomic::AtomicMapAbstract {
 public:
 	friend class AtomicPooled;
 
-	static Allocator<AtomicPooled> allocator;
+	static Allocator<AtomicPooled,DeferFree> allocator;
 
 	AtomicPool();
 	virtual ~AtomicPool();

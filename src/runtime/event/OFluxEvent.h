@@ -116,6 +116,7 @@ public:
 	virtual int execute()
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));
+		EventBase::flow_node()->_executions++;
 		const char * ev_name __attribute__((unused)) = 
 			EventBase::flow_node()->getName();
 		PUBLIC_NODE_START(
@@ -153,6 +154,7 @@ public:
 	virtual int execute()
 	{ 
 		EventBaseTyped<Detail>::atomics_argument()->fill(&(this->atomics()));
+		EventBase::flow_node()->_executions++;
 		const char * ev_name __attribute__((unused)) = 
 			EventBase::flow_node()->getName();
 		PUBLIC_NODE_START(

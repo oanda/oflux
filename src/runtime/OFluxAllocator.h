@@ -12,7 +12,6 @@
 
 namespace oflux {
 
-template<const size_t size>
 class AllocatorImplementation {
 public:
 	virtual ~AllocatorImplementation() {}
@@ -26,7 +25,7 @@ public:
  */
 
 template<const size_t size>
-class MallocAllocatorImplementation : public AllocatorImplementation<size> {
+class MallocAllocatorImplementation : public AllocatorImplementation {
 public:
 	MallocAllocatorImplementation() {}
 	virtual ~MallocAllocatorImplementation() {}
@@ -34,6 +33,23 @@ public:
 	virtual void put(void * o) { free(o); }
 };
 
+class DefaultDeferFree {
+public:
+	inline static void defer_put(void *v, AllocatorImplementation & ai)
+	{
+		ai.put(v); // no deferring happening
+	}
+};
+
+
+template< const size_t sz >
+inline AllocatorImplementation *
+default_allocator()
+{
+	static MallocAllocatorImplementation<sz> impl;
+	AllocatorImplementation * i = &impl;
+	return i;
+}
 
 /**
  * @class Allocator
@@ -41,18 +57,19 @@ public:
  * destruction via pattern new etc.
  */
 
-template<typename T>
+template< typename T
+	, typename DF = DefaultDeferFree >
 class Allocator {
 public:
-	static MallocAllocatorImplementation<sizeof(T)> default_allocator;
 
-	Allocator(AllocatorImplementation<sizeof(T)> * impl = &default_allocator)
+	Allocator(AllocatorImplementation * impl 
+			= default_allocator<sizeof(T)>())
 		: _impl(impl)
 	{}
-	inline AllocatorImplementation<sizeof(T)> * reset(
-		AllocatorImplementation<sizeof(T)> * new_allocator)
+	inline AllocatorImplementation * reset(
+		AllocatorImplementation * new_allocator)
 	{
-		AllocatorImplementation<sizeof(T)> * old = _impl;
+		AllocatorImplementation * old = _impl;
 		_impl = new_allocator;
 		return old;
 	}
@@ -60,7 +77,7 @@ public:
 	{
 		if(t) {
 			t->~T();
-			_impl->put(t); 
+			DF::defer_put(t,*_impl);
 		}
 	}
 	inline T * get() 
@@ -75,12 +92,9 @@ public:
 	inline T * get(R1 r1,R2 r2,R3 r3)
 	{ return new (_impl->get()) T(r1,r2,r3); } // pattern new
 private:
-	AllocatorImplementation<sizeof(T)> * _impl;
+	AllocatorImplementation * _impl;
 };
 
-template<typename T>
-MallocAllocatorImplementation<sizeof(T)>
-Allocator<T>::default_allocator;
 
 
 } // namespace oflux

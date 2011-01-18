@@ -161,9 +161,11 @@ public:
 		const readwrite::EventBaseHolder * t;
 		int mode;
 		int r_mode;
+		int tailup;
 		uint64_t u64;
 		unsigned retries;
 		pthread_t tid;
+		EventBase * by_ev;
 		EventBase * ev;
 		long long term_index;
 	};
@@ -171,7 +173,7 @@ public:
 	RollingLog<Observation> log;
 
 #endif // LF_RW_WAITER_INSTRUMENTATION
-	static Allocator<readwrite::EventBaseHolder> allocator;
+	static Allocator<readwrite::EventBaseHolder,DeferFree> allocator;
 
 	ReadWriteWaiterList()
 		: _head(allocator.get(EventBase::no_event,0))

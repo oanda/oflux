@@ -1,5 +1,6 @@
 #include "lockfree/atomic/OFluxLFAtomic.h"
 #include "lockfree/allocator/OFluxLFMemoryPool.h"
+#include "lockfree/allocator/OFluxSMR.h"
 #include "flow/OFluxFlowNode.h"
 #include "OFluxLogging.h"
 
@@ -7,7 +8,7 @@ namespace oflux {
 namespace lockfree {
 namespace atomic {
 
-Allocator<EventBaseHolder> AtomicCommon::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
+Allocator<EventBaseHolder,DeferFree> AtomicCommon::allocator; //(new allocator::MemoryPool<sizeof(EventBaseHolder)>());
 
 static const char *
 convert_wtype_to_string(int wtype)
@@ -98,11 +99,15 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 	Observation & obs = log.submit();
 	obs.tid = oflux_self();
 	obs.h = 0;
+	obs.hn = 0;
 	obs.t = 0;
 	obs.action = Observation::Action_A_o_w;
 	obs.trans = "";
 	obs.res = 0;
 	obs.e = e;
+	obs.cas_addr = 0;
+	obs.cas_val = 0;
+	obs.tail_up =-1;
 	obs.ev = e->ev;
 	obs.retries = 0;
 	obs.term_index = 0;
@@ -113,46 +118,55 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 	ev_swap(ev,e->ev);
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
-	EventBaseHolder * old_t = NULL;
 	while(1) {
-		h = _head;
+		//h = _head;
+		HAZARD_PTR_ASSIGN(h,_head,0); // 
 		hn = h->next;
 #ifdef LF_EX_WAITER_INSTRUMENTATION
 		obs.h = h;
+		obs.hn = hn;
 #endif // LF_EX_WAITER_INSTRUMENTATION
 #ifdef LF_EX_WAITER_INSTRUMENTATION
 #endif // LF_EX_WAITER_INSTRUMENTATION
 
 		if(is_one(hn) 
 				&& __sync_bool_compare_and_swap(
-				  &(_head->next)
+				  &(h->next)
 				, 0x0001
 				, NULL)) {
 			// 1->2
 			ev_swap(e->ev,ev);
 			res = true; 
 #ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.cas_addr = &(h->next);
+			obs.cas_val = NULL;
 			obs.trans = "1->2";
 #endif // LF_EX_WAITER_INSTRUMENTATION
 			break;
 		} else {
 			// (2,3)->3
-			t = _tail;
-			old_t = t;
-			while(unmk(t) && unmk(t->next)) {
-				t = t->next;
-			}
-			if(t != _tail && t->next == NULL) {
-				__sync_bool_compare_and_swap(
-					  &_tail
-					, old_t
-					, t);
+			//t = _tail;
+			HAZARD_PTR_ASSIGN(t,_tail,1); // 
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.t = t;
+#endif // LF_EX_WAITER_INSTRUMENTATION
+			if(unmk(t->next)) {
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+				++obs.retries;
+#endif // LF_EX_WAITER_INSTRUMENTATION
+				continue;
 			}
 			if(unmk(t) && __sync_bool_compare_and_swap(
 					  &(t->next)
 					, NULL
 					, e)) {
-				_tail = e;
+
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+				obs.cas_addr = &(t->next);
+				obs.cas_val = e;
+				obs.tail_up =
+#endif // LF_EX_WAITER_INSTRUMENTATION
+				__sync_bool_compare_and_swap(&_tail,t,e);
 				ev_swap(t->ev,ev);
 #ifdef LF_EX_WAITER_INSTRUMENTATION
 				obs.t = t;
@@ -165,11 +179,13 @@ ExclusiveWaiterList::push(EventBaseHolder *e)
 		++obs.retries;
 #endif // LF_EX_WAITER_INSTRUMENTATION
 	}
-#ifdef LF_RW_WAITER_INSTRUMENTATION
+	HAZARD_PTR_RELEASE(0);
+	HAZARD_PTR_RELEASE(1);
+#ifdef LF_EX_WAITER_INSTRUMENTATION
 	obs.res = res;
 	obs.term_index = log.at();
 	obs.action = Observation::Action_a_o_w;
-#endif // LF_RW_WAITER_INSTRUMENTATION
+#endif // LF_EX_WAITER_INSTRUMENTATION
 	return res;
 }
 
@@ -180,11 +196,13 @@ ExclusiveWaiterList::pop()
 	Observation & obs = log.submit();
 	obs.action = Observation::Action_Rel;
 	obs.h = 0;
+	obs.hn = 0;
 	obs.t = 0;
 	obs.tid = oflux_self();
 	obs.trans = "";
 	obs.res = 0;
 	obs.e = 0;
+	obs.tail_up =-1;
 	obs.ev = 0;
 	obs.term_index = 0;
 	obs.retries = 0;
@@ -193,24 +211,22 @@ ExclusiveWaiterList::pop()
 	EventBaseHolder * h = NULL;
 	EventBaseHolder * hn = NULL;
 	EventBaseHolder * t = NULL;
-	EventBaseHolder * old_t = NULL;
 	while(1) {
-		h = _head;
+		HAZARD_PTR_ASSIGN(h,_head,0); // 
+		//h = _head;
 		hn = h->next;
-		t = _tail;
-		old_t = t;
+		HAZARD_PTR_ASSIGN(t,_tail,1); // 
+		//t = _tail;
 #ifdef LF_EX_WAITER_INSTRUMENTATION
 		obs.h = h;
+		obs.hn = hn;
 		obs.t = t;
 #endif // LF_EX_WAITER_INSTRUMENTATION
-		while(unmk(t) && unmk(t->next)) {
-			t = t->next;
-		}
-		if(t != _tail && t->next == NULL) {
-			__sync_bool_compare_and_swap(
-				  &_tail
-				, old_t
-				, t);
+		if(unmk(t) && unmk(t->next)) {
+#ifdef LF_EX_WAITER_INSTRUMENTATION
+			++obs.retries;
+#endif // LF_EX_WAITER_INSTRUMENTATION
+			continue;
 		}
 		if(h != _tail && hn != NULL 
 				&& !is_one(hn)
@@ -221,6 +237,8 @@ ExclusiveWaiterList::pop()
 					, hn)) {
 			// 3->2
 #ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.cas_addr = &_head;
+			obs.cas_val = hn;
 			obs.trans = "3->2";
 #endif // LF_EX_WAITER_INSTRUMENTATION
 			r = h;
@@ -231,11 +249,13 @@ ExclusiveWaiterList::pop()
 #endif // LF_EX_WAITER_INSTRUMENTATION
 			break;
 		} else if(hn==NULL && __sync_bool_compare_and_swap(
-				  &(_head->next)
+				  &(h->next)
 				, hn
 				, 0x0001)) {
 			// 2->1
 #ifdef LF_EX_WAITER_INSTRUMENTATION
+			obs.cas_addr = &(h->next);
+			obs.cas_val = reinterpret_cast<const EventBaseHolder *> (0x0001);
 			obs.trans = "2->1";
 #endif // LF_EX_WAITER_INSTRUMENTATION
 			break; //empty
@@ -244,8 +264,11 @@ ExclusiveWaiterList::pop()
 		++obs.retries;
 #endif // LF_EX_WAITER_INSTRUMENTATION
 	}
+	HAZARD_PTR_RELEASE(0);
+	HAZARD_PTR_RELEASE(1);
 	if(r) r->busyWaitOnEv();
 #ifdef LF_EX_WAITER_INSTRUMENTATION
+	obs.res = (r!=0);
 	obs.term_index = log.at();
 	obs.action = Observation::Action_rel;
 #endif // LF_EX_WAITER_INSTRUMENTATION

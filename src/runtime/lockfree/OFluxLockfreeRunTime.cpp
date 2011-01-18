@@ -1,5 +1,6 @@
 #include "lockfree/OFluxLockfreeRunTime.h"
 #include "lockfree/OFluxThreadNumber.h"
+#include "lockfree/allocator/OFluxSMR.h"
 #include "event/OFluxEventOperations.h"
 #include "flow/OFluxFlow.h"
 #include "xml/OFluxXML.h"
@@ -35,7 +36,10 @@ RunTime::RunTime(const RunTimeConfiguration &rtc)
 	, _doors(this)
 	, _doors_thread(NULL)
 {
+	_thread = NULL;
 	oflux_log_info("oflux::lockfree::RunTime initializing\n");
+	ThreadNumber::init(0); // count yourself in
+	::oflux::lockfree::smr::DeferFree::init();
 	if(rtc.initAtomicMapsF) {
 		// create the AtomicMaps (guards)
 		(*(rtc.initAtomicMapsF))(atomics_style());
@@ -272,6 +276,7 @@ RunTime::start()
 		distribute_events(_threads,events_vec); 
 	}	
 	RunTimeThread * this_rtt = _threads; 
+	_thread = this_rtt;
 		// [0] indexed thread is the initial thread.
 	if(!this_rtt) return; // no threads allocated
 	// setup all the threads after thread 0
@@ -329,6 +334,7 @@ RunTime::log_snapshot()
 		oflux_log_info("doors thread:\n");
 		_doors_thread->log_snapshot();
 	}
+	oflux_log_info("RTend\n");
 }
 
 void
@@ -343,6 +349,9 @@ RunTime::getPluginNames(std::vector<std::string> & result)
         flow::Flow * f = flow();
         if(f) f->getLibraryNames(result);
 }
+
+__thread RunTimeThread * RunTime::_thread;
+
 
 } // namespace lockfree
 } // namespace oflux

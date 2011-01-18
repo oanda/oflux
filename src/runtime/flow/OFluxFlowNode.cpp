@@ -285,13 +285,13 @@ void
 Node::log_snapshot()
 {
 #ifdef PROFILING
-        oflux_log_info("%s (%c%c%c) %d instances %d executions (time real:avg %lf max %lf oflux:avg %lf max %lf)\n", 
+        oflux_log_info("%s (%c%c%c) %lld instances %lld executions (time real:avg %lf max %lf oflux:avg %lf max %lf)\n", 
                 _name.c_str(),
                 (_is_source ? 's' : '-'),
                 (_is_detached ? 'd' : '-'),
                 (_is_error_handler ? 'e' : '-'),
-                _instances,
-                _executions,
+                _instances.value(),
+                _executions.value(),
                 _real_timer_stats.avg_usec(),
                 _real_timer_stats.max_usec(),
                 _oflux_timer_stats.avg_usec(),
@@ -302,8 +302,8 @@ Node::log_snapshot()
                 (_is_source ? 's' : '-'),
                 (_is_detached ? 'd' : '-'),
                 (_is_error_handler ? 'e' : '-'),
-                _instances,
-                _executions);
+                _instances.value(),
+                _executions.value());
 #endif
 }
 

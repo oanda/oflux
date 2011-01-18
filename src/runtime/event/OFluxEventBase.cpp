@@ -78,6 +78,7 @@ EventBase::EventBase(        EventBasePtr & predecessor
 	, _predecessor(predecessor)
 	, _error_code(0)
 	, _atomics_ref(atomics)
+	, state(0)
 {
 	PUBLIC_EVENT_BORN(this,flow_node->getName());
 }

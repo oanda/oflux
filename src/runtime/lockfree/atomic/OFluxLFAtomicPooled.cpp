@@ -1,4 +1,5 @@
 #include "lockfree/atomic/OFluxLFAtomicPooled.h"
+#include "lockfree/allocator/OFluxSMR.h"
 #include <cstdio>
 
 namespace oflux {
@@ -35,6 +36,22 @@ PoolEventList::~PoolEventList()
 bool
 PoolEventList::push(EventBaseHolder * e)
 {
+	bool res = false;
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.trans = "";
+	obs.action = Observation::Action_A_o_w;
+	obs.res = 0;
+	obs.e = e;
+	obs.r = 0;
+	obs.h64 = 0;
+	obs.t = 0;
+	obs.tb = -1;
+	obs.retries = 0;
+	obs.tid = oflux_self();
+	obs.ev = e->ev;
+	obs.term_index = 0;
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 	//*(e->resource_loc) = NULL;
 	//e->next = NULL;
 	EventBaseHolder * t = NULL;
@@ -45,11 +62,21 @@ PoolEventList::push(EventBaseHolder * e)
 	while(1) {
 		h = _head;
 		hp = h.get();
+		// hazard ptr on head
+		::oflux::lockfree::smr::set(hp,0);
+		if(hp != _head.get()) continue;
+                //
 		hn = unmk(hp)->next;
-		t = _tail;
+		//t = _tail;
+		HAZARD_PTR_ASSIGN(t,_tail,1);
+
 		while(t->next) {
 			t = t->next;
 		}
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+		obs.t = t;
+		obs.h64 = h.u64();
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 		if(	// condition:
 			mkd(hp)
 			&& unmk(hn) != NULL) {
@@ -57,7 +84,11 @@ PoolEventList::push(EventBaseHolder * e)
 			*(e->resource_loc) = unmk(hp);
 			if(_head.cas(h, hn)) {
 				// 1->(1,2)
-				return true;
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+				obs.trans = "1->(1,2)";
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+				res = true;
+				break;
 			}
 			*(e->resource_loc) = NULL;
 		} else if( //condition
@@ -69,7 +100,11 @@ PoolEventList::push(EventBaseHolder * e)
 			e->next = hp;
 			if(_head.cas(h,e)) {
 				// 2->3
-				return false;
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+				obs.trans="2->3";
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+				res = false;
+				break;
 			}
 		} else if( //condition:
 			hp 
@@ -86,20 +121,39 @@ PoolEventList::push(EventBaseHolder * e)
 			resource_loc_asgn(e,NULL);
 			e->resource_loc = NULL;
 
-			if(__sync_bool_compare_and_swap(&(t->next),NULL,e)) {
+			if(__sync_bool_compare_and_swap(
+					  &(t->next)
+					, NULL
+					, e)) {
 				// 3->3
-				_tail = e;
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+				obs.trans="3->3";
+				obs.tb =
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+				__sync_bool_compare_and_swap(&_tail,t,e);
+				//_tail = e;
 				resource_loc_asgn(t,resource_loc);
 				t->resource_loc = resource_loc;
 				ev_swap(t->ev,ev);
-				return false;
+				res = false;
+				break;
 			}
 			ev_swap(e->ev,ev);
 			resource_loc_asgn(e,resource_loc);
 			e->resource_loc = resource_loc;
 		}
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+		++obs.retries;
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 	}
-	return NULL;
+	HAZARD_PTR_RELEASE(0);
+	HAZARD_PTR_RELEASE(1);
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+	obs.res = res;
+	obs.action = Observation::Action_a_o_w;
+	obs.term_index = log.at();
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+	return res;
 }
 
 EventBaseHolder *
@@ -122,7 +176,10 @@ PoolEventList::complete_pop()
 	EventBaseHolder * hp = h.get();
 	EventBaseHolder * hn = unmk(hp)->next;
 	if(mkd(hp) && unmk(hn) && _head.cas(h,hn)) {
-		if(__sync_bool_compare_and_swap(&(unmk(he)->next),hen,hen->next)) {
+		if(__sync_bool_compare_and_swap(
+				  &(unmk(he)->next)
+				, hen
+				, hen->next)) {
 			*(hen->resource_loc) = unmk(hp);
 			oflux_log_trace2("  ::complete_pop() success\n");
 			hen->busyWaitOnEv();
@@ -146,6 +203,22 @@ PoolEventList::complete_pop()
 EventBaseHolder *
 PoolEventList::pop(EventBaseHolder * by_ev)
 {
+	EventBaseHolder * res = NULL;
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+	Observation & obs = log.submit();
+	obs.trans = "";
+	obs.action = Observation::Action_Rel;
+	obs.res = 0;
+	obs.e = by_ev;
+	obs.r = 0;
+	obs.h64 = 0;
+	obs.t = 0;
+	obs.tb = -1;
+	obs.retries = 0;
+	obs.tid = oflux_self();
+	obs.ev = obs.e->ev;
+	obs.term_index = 0;
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 	EventBaseHolder * r = *(by_ev->resource_loc);
 	*(by_ev->resource_loc) = NULL;
 	StampedPtr<EventBaseHolder> h = NULL;
@@ -155,11 +228,20 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 	while(1) {
 		h = _head;
 		hp = h.get();
+		// hazard on head
+		::oflux::lockfree::smr::set(hp,0);
+		if(hp != _head.get()) continue;
+		//
 		hn = unmk(hp)->next;
-		t = _tail;
+		//t = _tail;
+		HAZARD_PTR_ASSIGN(t,_tail,1);
 		while(t->next) {
 			t = t->next;
 		}
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+		obs.h64 = h.u64();
+		obs.t = t;
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 		if(	// condition:
 			mkd(hp)
 			&& unmk(hn) != NULL
@@ -168,7 +250,11 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 			r->next = mk(hp);
 			if(_head.cas(h,mk(r))) {
 				// 1->1
-				return complete_pop();
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+				obs.trans = "1->1";
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+				res = complete_pop();
+				break;
 			}
 		} else if(
 			// condition:
@@ -180,7 +266,11 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 			r->next = hp;
 			if(_head.cas(h,mk(r))) {
 				// 2->1
-				return complete_pop();
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+				obs.trans="2->1";
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+				res = complete_pop();
+				break;
 			}
 		} else if(
 			// condition:
@@ -192,13 +282,28 @@ PoolEventList::pop(EventBaseHolder * by_ev)
 			// action:
 			if(_head.cas(h,unmk(hn))) {
 				// 3->(2,3)
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+				obs.trans = "3->(2,3)";
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 				*(hp->resource_loc) = r;
 				hp->busyWaitOnEv();
-				return hp;
+				res = hp;
+				break;
 			}
 		}
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+		++obs.retries;
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
 	}
-	return NULL;
+	HAZARD_PTR_RELEASE(0);
+	HAZARD_PTR_RELEASE(1);
+#ifdef POOL_WAITERLIST_INSTRUMENTATION
+	obs.res = (res != NULL);
+	obs.r = res;
+	obs.action = Observation::Action_rel;
+	obs.term_index = log.at();
+#endif  // POOL_WAITERLIST_INSTRUMENTATION
+	return res;
 }
 
 
@@ -401,7 +506,7 @@ AtomicPooled::release(
 	}
 }
 
-Allocator<AtomicPooled> AtomicPool::allocator; // (new allocator::MemoryPool<sizeof(AtomicPooled)>());
+Allocator<AtomicPooled,DeferFree> AtomicPool::allocator; // (new allocator::MemoryPool<sizeof(AtomicPooled)>());
 
 AtomicPool::AtomicPool()
 	: head_free(NULL)
@@ -485,7 +590,7 @@ AtomicPoolWalker::~AtomicPoolWalker()
 bool 
 AtomicPoolWalker::next(const void * &, oflux::atomic::Atomic * &atom)
 {
-	bool res = _done;
+	bool res = !_done;
 	atom = NULL;
 	if(res) {
 		_done = true;
