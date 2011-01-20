@@ -654,10 +654,10 @@ let emit_io_conversion_functions pluginopt modulenameopt conseq_res symtable use
                                 let fstr = as_name f_name in
                                 let t_u_n_str = string_of_int t_u_n in
                                 let f_u_n_str = string_of_int f_u_n 
-                                in  add_code code ("{ "^f_u_n_str^", "^t_u_n_str^", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" > }, ")
+                                in  add_code code ("{ "^f_u_n_str^", "^t_u_n_str^", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" >, \""^tstr^"\",\""^fstr^"\",__FILE__, __LINE__ }, ")
                 in
         let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res uses_model thisname
-        in  List.fold_left add_code code [ "{ 0, 0, NULL }  " ; "};" ]
+        in  List.fold_left add_code code [ "{ 0, 0, NULL, NULL, NULL, NULL, 0 }  " ; "};" ]
         
 
         
@@ -1475,11 +1475,11 @@ let emit_test_main code =
 		; ", \"lib\""
 		; ", NULL"
 		; "};"
+		; "logging::toStream(std::cout); // comment out if no oflux logging is desired"
 		; "theRT.reset(create_"
                   ^(CmdLine.get_runtime_engine())
                   ^"_runtime(rtc));"
 		; "signal(SIGHUP,handlesighup); // install SIGHUP handling"
-		; "logging::toStream(std::cout); // comment out if no oflux logging is desired"
 		; "const char * oflux_config=getenv(\"OFLUX_CONFIG\");"
                 ; "if(oflux_config == NULL || NULL==strstr(oflux_config,\"nostart\")) {"
 		; "theRT->start();"

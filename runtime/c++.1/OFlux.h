@@ -218,6 +218,10 @@ struct IOConverterMap {
         int from;
         int to;
         FlatIOConversionFun conversion_fun;
+	const char * to_str_name;
+	const char * from_str_name;
+	const char * file;
+	int line;
 };
 
 

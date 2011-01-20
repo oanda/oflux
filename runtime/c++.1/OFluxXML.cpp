@@ -458,12 +458,17 @@ void AddTarget::execute(flow::Flow * f)
         assert(fsrc);
         _fc->setTargetNode(fsrc);
         _target_input_unionnumber = fsrc->inputUnionNumber();
+	oflux_log_info("target IO conversion lookup for %s and scope %s "
+		, _name.c_str()
+		, _scope_name.c_str());
         FlatIOConversionFun fiocf =
 		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
         if(fiocf) {
                 assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
                 _fc->setIOConverter(new flow::IOConverter(fiocf));
-        }
+        } else {
+		oflux_log_info(" -> none\n");
+	}
 }
 
 void SetErrorHandler::execute(flow::Flow * f)

@@ -125,6 +125,12 @@ FunctionMaps::lookup_io_conversion(
         while(ptr->from > 0) {
                 if(ptr->from == from_unionnumber && ptr->to == to_unionnumber) {
                         res = ptr->conversion_fun;
+			oflux_log_info("found entry at %s:%d for "
+				"IO conversion from %s to %s\n"
+				, ptr->file
+				, ptr->line
+				, ptr->from_str_name
+				, ptr->to_str_name);
                         break;
                 }
                 ptr++;
