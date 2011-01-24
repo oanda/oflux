@@ -80,6 +80,7 @@ $(1)_OFLUX_KERNEL_DIR:=$$($(1)_OFLUX_KERNEL:%.cpp=%dir)
 $(1)_OFLUX_MODULE_CPPS:=$$($(1)_OFLUX_MODULES:%.flux=OFluxGenerate_$(1)_%.cpp)
 $(1)_OFLUX_OPTS+=$$(if $$($(1)_OFLUX_KERNEL),-absterm,) -duribase ''
 $(1)_OFLUX_MAIN_OBJ_DEP:=$$(if $$($(1)_OFLUX_KERNEL),$$($(1)_OFLUX_KERNEL:%.cpp=%.o),$$($(1)_OFLUX_OBJS))
+$(1)_HAS_PLUGINS:=$$(foreach P,$(OFLUX_PLUGIN_PROJECTS),$$(if $$(filter $(1),$$($$(P)_FROM_PROJECT)), $$(P),))
 $(1)_OFLUX_MAIN_TARGET:=$$($(1)_OFLUX_MAIN:%.flux=%)
 $(1)_RUN_SCRIPT:=$$($(1)_OFLUX_MAIN:%.flux=run-%.sh)
 $(1)_OFLUX_SVG:= $$(foreach S,$$($(1)_OFLUX_MAIN:.flux=.svg) $$($(1)_OFLUX_MAIN:.flux=-flat.svg) $$($(1)_OFLUX_MODULES:.flux=.svg),doc/examples/$$(S))
@@ -115,6 +116,9 @@ $$($(1)_RUN_SCRIPT) : $$($(1)_OFLUX_MAIN_TARGET) $$($(1)_OFLUX_KERNEL_DIR) libof
 
 $(1)_load_test: $$($(1)_RUN_SCRIPT)
 	OFLUX_CONFIG=nostart $(CURDIR)/$$($(1)_RUN_SCRIPT) $$($(1)_LOADTEST_ARGS) > $$@
+
+$(1)_verify_load: $(1)_load_test $$($(1)_OFLUX_GEN_HEADERS) $$(foreach P,$$($(1)_HAS_PLUGINS), $$($$(P)_OFLUX_GEN_HEADERS) $$(P)_done)
+	((cat $$(filter %.h,$$?) | sed 's/^/C /g'); sed 's/^/L /g' $(1)_load_test) | awk -f $(SRCDIR)/tests/build/verify_io_conv.awk
 
 $$($(1)_OFLUX_MAIN:.flux=-flat.dot) $$($(1)_OFLUX_MAIN:.flux=.dot) : OFluxGenerate_$(1).h
 $$($(1)_OFLUX_MODULES:.flux=.dot) : %.dot : OFluxGenerate_$(1)_%.h

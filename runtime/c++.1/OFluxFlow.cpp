@@ -59,14 +59,14 @@ ConditionFn
 FunctionMaps::lookup_conditional(
 	  const char * n
 	, int argno
-	, int unionnumber) const
+	, const char * unionhash) const
 {
         ConditionFn res = NULL;
         ConditionalMap * cm = _cond_map;
         while(cm->name) {
                 if(strcmp(cm->name, n) == 0
                         && argno == cm->argno
-                        && unionnumber == cm->unionnumber) {
+                        && strcmp(unionhash,cm->unionhash) == 0) {
                         res = cm->condfn;
                         break;
                 }
@@ -78,7 +78,7 @@ FunctionMaps::lookup_conditional(
 GuardTransFn 
 FunctionMaps::lookup_guard_translator(
 	  const char * guardname
-	, int union_number
+	, const char * unionhash
 	, const char * hash
 	, int wtype
 	, bool late) const
@@ -87,7 +87,7 @@ FunctionMaps::lookup_guard_translator(
         GuardTransMap * ptr = _guard_trans_map;
         while(ptr->guardname != NULL) {
                 if(strcmp(guardname, ptr->guardname) == 0
-                                && union_number == ptr->union_number
+                                && strcmp(unionhash, ptr->unionhash) == 0
                                 && 0 == strcmp(hash,ptr->hash)
                                 && wtype == ptr->wtype
                                 && late == ptr->late
@@ -117,13 +117,14 @@ FunctionMaps::lookup_atomic_map(const char * guardname) const
 
 FlatIOConversionFun 
 FunctionMaps::lookup_io_conversion(
-	  int from_unionnumber
-	, int to_unionnumber) const
+	  const char * from_unionhash
+	, const char * to_unionhash) const
 {
         FlatIOConversionFun res = NULL;
         IOConverterMap * ptr = _ioconverter_map;
-        while(ptr->from > 0) {
-                if(ptr->from == from_unionnumber && ptr->to == to_unionnumber) {
+        while(ptr->from_unionhash > 0) {
+                if(strcmp(ptr->from_unionhash,from_unionhash) == 0
+				&& strcmp(ptr->to_unionhash, to_unionhash) == 0) {
                         res = ptr->conversion_fun;
 			oflux_log_info("found entry at %s:%d for "
 				"IO conversion from %s to %s\n"
@@ -324,23 +325,25 @@ SuccessorList::pretty_print(int depth, std::set<std::string> * visited)
         oflux_log_info("%s.\n", create_indention(depth+1).c_str());
 }
 
-Node::Node(const char * name,
+Node::Node(     const char * name,
+		const char * function_name,
                 CreateNodeFn createfn,
                 bool is_error_handler,
                 bool is_source,
                 bool is_detached,
-                int input_unionnumber,
-                int output_unionnumber)
+                const char * input_unionhash,
+                const char * output_unionhash)
         : _instances(0)
         , _executions(0)
         , _name(name)
+	, _function_name(function_name)
         , _createfn(createfn)
         , _is_error_handler(is_error_handler)
         , _is_source(is_source)
         , _is_detached(is_detached)
         , _this_case(this,NULL)
-        , _input_unionnumber(input_unionnumber)
-        , _output_unionnumber(output_unionnumber)
+        , _input_unionhash(input_unionhash)
+        , _output_unionhash(output_unionhash)
         , _is_guards_completely_sorted(false)
 { 
 }

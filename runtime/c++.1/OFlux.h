@@ -192,7 +192,7 @@ struct ModularCreateMap {
 
 
 struct ConditionalMap {
-	const int unionnumber;
+	const char * unionhash;
 	const int argno;
 	const char * name;
 	ConditionFn condfn;
@@ -200,7 +200,7 @@ struct ConditionalMap {
 
 struct GuardTransMap {
 	const char * guardname;
-	const int union_number;
+	const char * unionhash;
         const char * hash;
         const int wtype;
         const bool late;
@@ -215,9 +215,10 @@ struct AtomicMapMap {
 typedef void * (*FlatIOConversionFun)(const void *);
 
 struct IOConverterMap {
-        int from;
-        int to;
+        const char * from_unionhash;
+        const char * to_unionhash;
         FlatIOConversionFun conversion_fun;
+	// rest is for troubleshooting
 	const char * to_str_name;
 	const char * from_str_name;
 	const char * file;

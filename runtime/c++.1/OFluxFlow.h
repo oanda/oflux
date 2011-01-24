@@ -54,15 +54,15 @@ public:
          * @brief lookup a conditional function usable on a particular input
          * @param n  name of the conditional
          * @param argno  the number of the field in the object
-         * @param unionnumber  OFluxUnionX number
+         * @param unionhash  OFluxUnionX hash string
          * @return 
          **/
-        ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
+        ConditionFn lookup_conditional(const char * n, int argno, const char * unionhash) const;
 	/**
 	 * @brief lookup a guard translator function
 	 * @remark these functions can translate an input structure to a guard key structure
 	 * @param guardname name of the guard
-	 * @param union_number union number (indicates the input structure)
+	 * @param unionhash union hash (indicates the input structure)
 	 * @param hash is the hash result of on the expression (compiler's)
 	 * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
 	 * @param late is true when this lookup is done for a late guard acquisition
@@ -70,7 +70,7 @@ public:
 	 */
         GuardTransFn lookup_guard_translator(
 		  const char * guardname
-                , int union_number
+                , const char * unionhash
                 , const char * hash
                 , int wtype
 		, bool late) const;
@@ -86,7 +86,7 @@ public:
          * @brief lookup the conversion from one type union to another
          * @return a generic function that can create an object that does the job
          */
-        FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber) const;
+        FlatIOConversionFun lookup_io_conversion(const char * from_unionhash, const char * to_unionhash) const;
 private:
         ConditionalMap *   _cond_map;
         ModularCreateMap * _create_map;
@@ -403,17 +403,19 @@ private:
 class Node {
 public:
         friend class NodeCounterIncrementer;
-        Node(const char * name,
+        Node(   const char * name,
+		const char * function_name,
                 CreateNodeFn createfn,
                 bool is_error_handler,
                 bool is_source,
                 bool is_detached,
-                int input_unionnumber,
-                int output_unionnumber);
+                const char * input_unionhash,
+                const char * output_unionhash);
         ~Node();
         void setErrorHandler(Node *fn);
         SuccessorList & successor_list() { return _successor_list; }
         inline const char * getName() { return &(_name[0]); }
+        inline const char * getFunctionName() { return _function_name.c_str(); }
         inline bool getIsSource() { return _is_source; }
         inline bool getIsErrorHandler() { return _is_error_handler; }
         inline bool getIsDetached() { return _is_detached; }
@@ -447,8 +449,8 @@ public:
 #endif
         inline int instances() { return _instances; }
         inline void turn_off_source() { _is_source = false; }
-        inline int inputUnionNumber() { return _input_unionnumber; }
-        inline int outputUnionNumber() { return _output_unionnumber; }
+        inline const char * inputUnionHash() { return _input_unionhash.c_str(); }
+        inline const char * outputUnionHash() { return _output_unionhash.c_str(); }
         void sortGuards();
         bool isGuardsCompletelySorted() { return _is_guards_completely_sorted; }
 protected:
@@ -456,6 +458,7 @@ protected:
         int                           _executions; // count active events
 private:
         std::string                   _name;
+        std::string		      _function_name;
         CreateNodeFn                  _createfn;
         bool                          _is_error_handler;
         bool                          _is_source;
@@ -464,8 +467,8 @@ private:
         Case                          _error_handler_case;
         Case                          _this_case;
         std::vector<GuardReference *> _guard_refs;
-        int                           _input_unionnumber;
-        int                           _output_unionnumber;
+        std::string                   _input_unionhash;
+        std::string                   _output_unionhash;
         bool                          _is_guards_completely_sorted;
 #ifdef PROFILING
         TimerStats                    _real_timer_stats;

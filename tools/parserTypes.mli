@@ -24,6 +24,8 @@ type decl_formal =
 		; name: string positioned
 		}
 
+val hash_decl_formal_list : decl_formal list -> string
+
 type guardmod = Read | Write | Upgradeable | NullOk
 
 type uninterp_expr =

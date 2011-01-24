@@ -69,6 +69,10 @@ let rec expand_namespace_decl_end code nsn_broken =
 
 let get_decls stable (name,isin) = SymbolTable.get_decls stable (name,isin)
 
+let get_unionhash_from_strio stable strio =
+	let dfl = get_decls stable strio
+	in  ParserTypes.hash_decl_formal_list dfl
+
 (*
 let metadeclbase s = 
         if has_namespaced_name s then "" 
@@ -479,8 +483,8 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res u
                             None -> raise Not_found
                             | (Some (_,res)) -> res
                 with Not_found -> List.hd (List.sort compare ec) in
+	let as_string (s,io) = s^(if io then "_in" else "_out") in
         let primary_name ec =
-                let as_string (s,io) = s^(if io then "_in" else "_out") in
                 let p_string x = Debug.dprint_string ((as_string x)^",") in
                 let pn = primary_name ec
                 in  ( Debug.dprint_string "primary choice [ "
@@ -495,6 +499,13 @@ let generic_cross_equiv_weak_unify code code_assignopt_fun symtable conseq_res u
                 let _ = Debug.dprint_string ("primary_name: "^(as_string h)^" -> "^(as_string r)^"\n")
                 in  r
                 in*)
+	let get_copy_code a b =
+		let sa = as_string a in
+		let sb = as_string b
+		in
+		match get_copy_code a b with
+			(Some x) -> ((Debug.dprint_string ("get_copy_code "^sa^" "^sb^" found assignment\n")); Some x)
+			| None -> ((Debug.dprint_string ("get_copy_code "^sa^" "^sb^" has no assignment\n"));None) in
         let equivc = List.map primary_name conseq_res.TypeCheck.equiv_classes in
         let cross_no_equal ll1 ll2 =
                 let rec mfun ll x = 
@@ -648,16 +659,14 @@ let emit_io_conversion_functions pluginopt modulenameopt conseq_res symtable use
                         None -> code
                         | (Some []) -> code
                         | (Some _) -> 
-                                let t_u_n = TypeCheck.get_union_from_strio conseq_res t_name in
-                                let f_u_n = TypeCheck.get_union_from_strio conseq_res f_name in
+                                let t_u_h = get_unionhash_from_strio symtable t_name in
+                                let f_u_h = get_unionhash_from_strio symtable f_name in
                                 let tstr = as_name t_name in
-                                let fstr = as_name f_name in
-                                let t_u_n_str = string_of_int t_u_n in
-                                let f_u_n_str = string_of_int f_u_n 
-                                in  add_code code ("{ "^f_u_n_str^", "^t_u_n_str^", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" >, \""^tstr^"\",\""^fstr^"\",__FILE__, __LINE__ }, ")
+                                let fstr = as_name f_name 
+                                in  add_code code ("{ \""^f_u_h^"\", \""^t_u_h^"\", &oflux::create_real_io_conversion<"^tstr^", "^fstr^" >, \""^tstr^"\",\""^fstr^"\",__FILE__, __LINE__ }, ")
                 in
         let code = generic_cross_equiv_weak_unify code code_table_entry symtable conseq_res uses_model thisname
-        in  List.fold_left add_code code [ "{ 0, 0, NULL, NULL, NULL, NULL, 0 }  " ; "};" ]
+        in  List.fold_left add_code code [ "{ NULL, NULL, NULL, NULL, NULL, NULL, 0 }  " ; "};" ]
         
 
         
@@ -1016,7 +1025,7 @@ let emit_guard_trans_map (with_proto,with_code,with_argnos,with_map)
 *)
 
 let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable code =
-        let get_u_n x = TypeCheck.get_union_from_strio conseq_res (x,true) in
+        let get_u_h x = get_unionhash_from_strio symtable (x,true) in
 	let code = if with_code then
 			let code =
 				let gtfunc = "g_trans_nop" in
@@ -1049,7 +1058,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 		List.exists is_garg uel in
         let e_n nn nd (code,donel) =
                 let nf = nd.functionname in
-                let u_n = get_u_n nf in
+                let u_h = get_u_h nf in
 		let get_lexical_ind_and_type s =
 			let ttos dt =
 				(strip_position dt.dctypemod)
@@ -1161,7 +1170,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 				then "g_trans_nop"
 				else gtfunc in
                         let mapline = ("{ \""^gn^"\", "
-                                ^(string_of_int u_n)^", "
+                                ^"\""^(u_h)^"\", "
                                 ^"\""^hash^"\", "
                                 ^(string_of_int (wtype gr.modifiers))^", "
 				^(if has_garg || is_gc then "true" else "false")^", "
@@ -1387,7 +1396,7 @@ let emit_cond_map conseq_res symtable code =
 		in  match Unify.unify_single s' t' with
 			(Some _) -> false
 			| _ -> true in
-	let try_arg n nf unionnumber d (i,code) arg =
+	let try_arg n nf (unionhash,unionnumber) d (i,code) arg =
 		let endswith c str =
 			let len = String.length str
 			in  if len > 0 then c = (str.[len-1]) else false in
@@ -1397,7 +1406,7 @@ let emit_cond_map conseq_res symtable code =
 		in  (i+1,if unify d arg then 
 			let tlen = String.length t in
 			let last_is_amp = endswith '&' t
-			in add_code code ("{ "^(string_of_int unionnumber)
+			in add_code code ("{ \""^(unionhash)^"\""
 					^", "^(string_of_int i)
 					^", \""^nf^"\", "
 					^"&oflux::eval_condition_argn"
@@ -1416,9 +1425,10 @@ let emit_cond_map conseq_res symtable code =
 		in
 	let try_union cond_n condfunc_n d code u =
 		let n,isin = List.hd u in
+		let unionhash = get_unionhash_from_strio symtable (n,isin) in
 		let unionnumber = TypeCheck.get_union_from_strio conseq_res (n,isin) in
 		let args = get_decls symtable (n,isin) in
-		let _,code = List.fold_left (try_arg cond_n condfunc_n unionnumber d) (1,code) args
+		let _,code = List.fold_left (try_arg cond_n condfunc_n (unionhash,unionnumber) d) (1,code) args
 		in code in
 	let e_one n cond code =
 		match cond.SymbolTable.arguments with
@@ -1432,7 +1442,7 @@ let emit_cond_map conseq_res symtable code =
 			] in
 	let code = SymbolTable.fold_conditionals e_one symtable code
 	in  List.fold_left add_code code 
-			[ "{ 0, 0, NULL, NULL }  "
+			[ "{ NULL, 0, NULL, NULL }  "
 			; "};" 
 			; "" 
 			]
@@ -1626,7 +1636,7 @@ let emit_plugin_cpp pluginname brbef braft um deplist =
 				"oflux::GuardTransMap __theGuardTransMap[] = {" in
 		let cpp_code = emit_guard_trans_map (false,false,true)  conseq_res stable cpp_code in
 		let cpp_code = List.fold_left add_code cpp_code 
-				[ "{ NULL,0,0,0, NULL}  "; "};" ] in
+				[ "{ NULL,NULL,0,0, NULL}  "; "};" ] in
                 let cpp_code = emit_io_conversion_functions (Some pluginname) None conseq_res stable um cpp_code
 		in  cpp_code in
 	let cpp_code = List.fold_left CodePrettyPrinter.add_code cpp_code [""; "};"; "   //namespace"; "" ] in
