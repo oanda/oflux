@@ -116,9 +116,9 @@ CreateNodeFn OFluxAtomicTests::c_next =
         create<Data2,Empty,AtomsEmpty,&f_next>;
 
 OFluxAtomicTests::OFluxAtomicTests(Atomic * aptr)
-	: n_source("source",c_source,false,true,false,0,0)
-	, n_succ("succ",c_succ,false,false,false,0,0)
-	, n_next("next",c_succ,false,false,false,0,0)
+	: n_source("source","c_source",c_source,false,true,false,"","")
+	, n_succ("succ","c_succ",c_succ,false,false,false,"","")
+	, n_next("next","c_succ",c_succ,false,false,false,"","")
         , _atomic_ptr(aptr)
 {
         createfn_source = n_source.getCreateFn();

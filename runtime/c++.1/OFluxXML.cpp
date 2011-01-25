@@ -28,13 +28,13 @@ class AddTarget {
 public:
         AddTarget(flow::Case * fc
 		, const char * name
-		, int node_output_unionnumber
+		, const char * node_output_unionhash
 		, Reader * xmlreader
 		, const std::string & scope_name)
         : _fc(fc)
         , _name(name)
-        , _node_output_unionnumber(node_output_unionnumber)
-        , _target_input_unionnumber(0)
+        , _node_output_unionhash(node_output_unionhash)
+        , _target_input_unionhash()
         , _xmlreader(xmlreader)
 	, _scope_name(scope_name)
         {}
@@ -46,8 +46,8 @@ public:
 private:
         flow::Case * _fc;
         std::string  _name; //target
-        int          _node_output_unionnumber;
-        int          _target_input_unionnumber;
+        std::string  _node_output_unionhash;
+        std::string  _target_input_unionhash;
         Reader *     _xmlreader;
 	std::string  _scope_name;
 };
@@ -87,7 +87,7 @@ private:
 
 class ScopedFunctionMaps {
 public:
-	typedef std::set<flow::FunctionMaps *> Context;
+	typedef std::vector<flow::FunctionMaps *> Context;
 	class Scope {
 	public:
 		Scope(Context & c)
@@ -101,12 +101,12 @@ public:
 		lookup_conditional(
 			  const char * n
 			, int argno
-			, int unionnumber);
+			, const char * unionhash);
 
 		GuardTransFn
 		lookup_guard_translator(
 			  const char * guardname
-			, int union_number
+			, const char * unionhash
 			, const char * hash
 			, int wtype
 			, bool late);
@@ -115,7 +115,9 @@ public:
 		lookup_atomic_map(const char * guardname);
 
 		FlatIOConversionFun
-		lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+		lookup_io_conversion(
+			  const char * from_unionhash
+			, const char * to_unionhash);
 	private:
 		Context & _c;
 	};
@@ -139,9 +141,9 @@ private:
 		  Context & c1
 		, const Context & c2)
 	{
-		Context::iterator itr = c2.begin();
+		Context::const_iterator itr = c2.begin();
 		while(itr != c2.end()) {
-			c1.insert(*itr);
+			c1.push_back(*itr);
 			++itr;
 		}
 	}
@@ -158,7 +160,7 @@ ScopedFunctionMaps::add(
 {
 	std::pair<std::string,ScopedFunctionMaps::Context> pr;
 	pr.first = scopename;
-	pr.second.insert(fmaps);
+	pr.second.push_back(fmaps);
 	std::vector<std::string>::const_iterator itr = deps.begin();
 	while(itr != deps.end()) {
 		std::map<std::string,Context>::iterator fitr = _map.find(*itr);
@@ -173,8 +175,8 @@ CreateNodeFn
 ScopedFunctionMaps::Scope::lookup_node_function(const char *n)
 {
         CreateNodeFn res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_node_function(n);
 		++itr;
         }
@@ -185,12 +187,12 @@ ConditionFn
 ScopedFunctionMaps::Scope::lookup_conditional(
 	  const char * n
 	, int argno
-	, int unionnumber)
+	, const char * unionhash)
 {
         ConditionFn res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
-                res = (*itr)->lookup_conditional(n,argno,unionnumber);
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
+                res = (*itr)->lookup_conditional(n,argno,unionhash);
 		++itr;
         }
         return res;
@@ -199,17 +201,17 @@ ScopedFunctionMaps::Scope::lookup_conditional(
 GuardTransFn
 ScopedFunctionMaps::Scope::lookup_guard_translator(
 	  const char * guardname
-        , int union_number
+        , const char * unionhash
         , const char * hash
         , int wtype
 	, bool late)
 {
         GuardTransFn res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_guard_translator(
 			  guardname
-                        , union_number
+                        , unionhash
                         , hash
                         , wtype
 			, late);
@@ -222,8 +224,8 @@ AtomicMapAbstract *
 ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
 {
         AtomicMapAbstract * res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_atomic_map(guardname);
 		++itr;
         }
@@ -232,15 +234,15 @@ ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
 
 FlatIOConversionFun
 ScopedFunctionMaps::Scope::lookup_io_conversion(
-	  int from_unionnumber
-	, int to_unionnumber)
+	  const char * from_unionhash
+	, const char * to_unionhash)
 {
         FlatIOConversionFun res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_io_conversion(
-			  from_unionnumber
-			, to_unionnumber);
+			  from_unionhash
+			, to_unionhash);
 		++itr;
         }
         return res;
@@ -286,10 +288,11 @@ public:
          **/
         flow::Flow * flow() { return _flow; }
         flow::Case * flow_case() { return _flow_case; }
-        void new_flow_case(const char * targetnodename, int node_output_unionnumber)
+        void new_flow_case(const char * targetnodename
+		, const char * node_output_unionhash)
         {
                 _flow_case = new flow::Case(NULL);
-                AddTarget at(_flow_case,targetnodename, node_output_unionnumber, this, _scope_name);
+                AddTarget at(_flow_case,targetnodename, node_output_unionhash, this, _scope_name);
                 _add_targets.push_back(at);
         }
         void addremove_flow_case(bool front=false)
@@ -331,13 +334,13 @@ public:
         void new_flow_guardprecedence(const char * before, const char * after)
         { _flow->addGuardPrecedence(before,after); }
         void new_flow_guard_reference(flow::Guard * fg
-                , int unionnumber
+                , const char * unionhash
                 , const char * hash
                 , int wtype
 		, bool late)
         {
                 _flow_guard_reference = new flow::GuardReference(fg,wtype,late);
-                _flow_guard_ref_unionnumber = unionnumber;
+                _flow_guard_ref_unionhash = unionhash;
                 _flow_guard_ref_hash = hash;
                 _flow_guard_ref_wtype = wtype;
         }
@@ -347,7 +350,7 @@ public:
                 GuardTransFn guardfn =
 			_scoped_fmaps.get(_scope_name.c_str())->lookup_guard_translator(
 				  name
-				, _flow_guard_ref_unionnumber
+				, _flow_guard_ref_unionhash.c_str()
 				, _flow_guard_ref_hash.c_str()
 				, _flow_guard_ref_wtype
 				, _flow_guard_reference->late());
@@ -358,21 +361,24 @@ public:
         }
         //void flow_guard_ref_add_argument(int an) { _flow_guard_ref_args.push_back(an); }
         flow::Node * flow_node() { return _flow_node; }
-        void new_flow_node(const char * name, CreateNodeFn createfn,
+        void new_flow_node(const char * name, 
+			const char * function_name,
+			CreateNodeFn createfn,
                         bool is_error_handler,
                         bool is_src,
                         bool is_detached,
-                        int input_unionnumber,
-                        int output_unionnumber)
+                        const char * input_unionhash,
+                        const char * output_unionhash)
         {
                 _flow_node = new flow::Node(
                                         name,
+					function_name,
                                         createfn,
                                         is_error_handler,
                                         is_src,
                                         is_detached,
-                                        input_unionnumber,
-                                        output_unionnumber);
+                                        input_unionhash,
+                                        output_unionhash);
                 _flow_successor_list = &(_flow_node->successor_list());
         }
         void add_flow_node()
@@ -436,7 +442,7 @@ private:
         flow::Successor *                 _flow_successor;
         flow::Case *                      _flow_case;
         flow::GuardReference *            _flow_guard_reference;
-        int                               _flow_guard_ref_unionnumber;
+        std::string                       _flow_guard_ref_unionhash;
         std::string                       _flow_guard_ref_hash;
         int                               _flow_guard_ref_wtype;
         std::vector<AddTarget>            _add_targets;
@@ -457,12 +463,14 @@ void AddTarget::execute(flow::Flow * f)
         flow::Node *fsrc = f->get(_name);
         assert(fsrc);
         _fc->setTargetNode(fsrc);
-        _target_input_unionnumber = fsrc->inputUnionNumber();
-	oflux_log_info("target IO conversion lookup for %s and scope %s "
-		, _name.c_str()
+        _target_input_unionhash = fsrc->inputUnionHash();
+	oflux_log_info("target IO conversion lookup(%s,%s) for %s and scope %s "
+		, _node_output_unionhash.c_str()
+		, _target_input_unionhash.c_str()
+		, fsrc->getFunctionName()
 		, _scope_name.c_str());
         FlatIOConversionFun fiocf =
-		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
+		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionhash.c_str(), _target_input_unionhash.c_str());
         if(fiocf) {
                 assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
                 _fc->setIOConverter(new flow::IOConverter(fiocf));
@@ -492,7 +500,7 @@ Reader::Reader(
         , _flow_successor(NULL)
         , _flow_case(NULL)
         , _flow_guard_reference(NULL)
-	, _flow_guard_ref_unionnumber(0)
+	, _flow_guard_ref_unionhash()
 	, _flow_guard_ref_wtype(0)
         , _is_external_node(false)
         , _is_existing_successor(false)
@@ -603,9 +611,9 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         const char * el_source = NULL;
         const char * el_isnegated = NULL;
         const char * el_iserrhandler = NULL;
-        const char * el_unionnumber = NULL;
-        const char * el_inputunionnumber = NULL;
-        const char * el_outputunionnumber = NULL;
+        const char * el_unionhash = NULL;
+        const char * el_inputunionhash = NULL;
+        const char * el_outputunionhash = NULL;
         const char * el_detached = NULL;
         const char * el_wtype = NULL;
         const char * el_function = NULL;
@@ -629,12 +637,12 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                         el_iserrhandler = attr[i+1];
                 } else if(strcmp(attr[i],"detached") == 0) {
                     	el_detached = attr[i+1];
-                } else if(strcmp(attr[i],"unionnumber") == 0) {
-                        el_unionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"inputunionnumber") == 0) {
-                        el_inputunionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"outputunionnumber") == 0) {
-                        el_outputunionnumber = attr[i+1];
+                } else if(strcmp(attr[i],"unionhash") == 0) {
+                        el_unionhash = attr[i+1];
+                } else if(strcmp(attr[i],"inputunionhash") == 0) {
+                        el_inputunionhash = attr[i+1];
+                } else if(strcmp(attr[i],"outputunionhash") == 0) {
+                        el_outputunionhash = attr[i+1];
                 } else if(strcmp(attr[i],"after") == 0) {
                         el_after = attr[i+1];
                 } else if(strcmp(attr[i],"before") == 0) {
@@ -658,9 +666,9 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
         bool is_errorhandler = (el_iserrhandler ? strcmp(el_iserrhandler,"true")==0 : false);
         bool is_detached = (el_detached ? strcmp(el_detached,"true")==0 : false);
         int argno = (el_argno ? atoi(el_argno) : 0);
-        int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
-        int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
-        int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
+        //int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
+        //int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
+        //int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
         const char * hash = el_hash;
         if(strcmp(el,"argument") == 0) {
@@ -682,18 +690,18 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 // has children: argument(s)
                 flow::Guard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype, is_late);
+                pthis->new_flow_guard_reference(fg, el_unionhash, hash, wtype, is_late);
         } else if(strcmp(el,"condition") == 0) {
                 // has attributes: name, argno, isnegated
                 // has no children
-                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
+                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,el_unionhash);
                 assert(condfn != NULL);
                 flow::Condition * fc = new flow::Condition(condfn,is_negated);
                 pthis->flow_case()->add(fc);
         } else if(strcmp(el,"case") == 0) {
                 // has attributes: nodetarget
                 // has children: condition
-                pthis->new_flow_case(el_nodetarget,pthis->flow_node()->outputUnionNumber());
+                pthis->new_flow_case(el_nodetarget,pthis->flow_node()->outputUnionHash());
         } else if(strcmp(el,"successor") == 0) {
                 // has attribute: name
                 // has children: case
@@ -711,7 +719,7 @@ void Reader::startMainHandler(void *data, const char *el, const char **attr)
                 // has children: errorhandler, guardref(s), successorlist
                 CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
                 assert(createfn != NULL);
-                pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
+                pthis->new_flow_node(el_name, el_function, createfn, is_errorhandler, is_source, is_detached, el_inputunionhash, el_outputunionhash);
         }
 }
 
@@ -750,13 +758,13 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         const char * el_iserrhandler = NULL;
         const char * el_detached = NULL;
         const char * el_external = NULL;
-        const char * el_inputunionnumber = NULL;
-        const char * el_outputunionnumber = NULL;
+        const char * el_inputunionhash = NULL;
+        const char * el_outputunionhash = NULL;
 
         // condition attributes
         const char * el_argno = NULL;
         const char * el_isnegated = NULL;
-        const char * el_unionnumber = NULL;
+        const char * el_unionhash = NULL;
 
         // case attribute
         const char * el_nodetarget = NULL;
@@ -783,17 +791,17 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                     	el_detached = attr[i+1];
                 } else if(strcmp(attr[i],"external") == 0) {
                     	el_external = attr[i+1];
-                } else if(strcmp(attr[i],"inputunionnumber") == 0) {
-                    	el_inputunionnumber = attr[i+1];
-                } else if(strcmp(attr[i],"outputunionnumber") == 0) {
-                    	el_outputunionnumber = attr[i+1];
+                } else if(strcmp(attr[i],"inputunionhash") == 0) {
+                    	el_inputunionhash = attr[i+1];
+                } else if(strcmp(attr[i],"outputunionhash") == 0) {
+                    	el_outputunionhash = attr[i+1];
                 // condition attributes
                 } else if(strcmp(attr[i],"argno") == 0) {
                     	el_argno = attr[i+1];
                 } else if(strcmp(attr[i],"isnegated") == 0) {
                     	el_isnegated = attr[i+1];
-                } else if(strcmp(attr[i],"unionnumber") == 0) {
-                    	el_unionnumber = attr[i+1];
+                } else if(strcmp(attr[i],"unionhash") == 0) {
+                    	el_unionhash = attr[i+1];
                 // case attribute
                 } else if(strcmp(attr[i],"nodetarget") == 0) {
                     	el_nodetarget = attr[i+1];
@@ -822,9 +830,9 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
         bool is_negated = (el_isnegated ? strcmp(el_isnegated,"true")==0 : false);
 
         int argno = (el_argno ? atoi(el_argno) : 0);
-        int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
-        int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
-        int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
+        //int unionnumber = (el_unionnumber ? atoi(el_unionnumber) : 0);
+        //int inputunionnumber = (el_inputunionnumber ? atoi(el_inputunionnumber) : 0);
+        //int outputunionnumber = (el_outputunionnumber ? atoi(el_outputunionnumber) : 0);
         int wtype = (el_wtype ? atoi(el_wtype) : 0);
         const char * hash = el_hash;
 
@@ -856,7 +864,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 // has children: argument(s)
                 flow::Guard * fg = pthis->flow()->getGuard(el_name);
                 assert(fg);
-                pthis->new_flow_guard_reference(fg, unionnumber, hash, wtype, is_late);
+                pthis->new_flow_guard_reference(fg, el_unionhash, hash, wtype, is_late);
         } else if(strcmp(el,"argument") == 0 && is_ok_to_create) {
                 // has attributes: argno
                 // had no children
@@ -875,7 +883,7 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 } else {
                         CreateNodeFn createfn = pthis->fromThisScope()->lookup_node_function(el_function);
                         assert(createfn != NULL);
-                        pthis->new_flow_node(el_name, createfn, is_errorhandler, is_source, is_detached, inputunionnumber, outputunionnumber);
+                        pthis->new_flow_node(el_name, el_function, createfn, is_errorhandler, is_source, is_detached, el_inputunionhash, el_outputunionhash);
                 }
         } else if(strcmp(el,"successorlist") == 0) {
                 // has no attribute
@@ -893,11 +901,11 @@ void Reader::startPluginHandler(void *data, const char *el, const char **attr)
                 // has attributes: nodetarget
                 // has children: condition
                 // no virtual nodetarget allowed in a plugin
-                pthis->new_flow_case(el_nodetarget, pthis->flow_node()->outputUnionNumber());
+                pthis->new_flow_case(el_nodetarget, pthis->flow_node()->outputUnionHash());
         } else if(strcmp(el,"condition") == 0 && is_ok_to_create) {
                 // has attributes: name, argno, isnegated
                 // has no children
-                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,unionnumber);
+                ConditionFn condfn = pthis->fromThisScope()->lookup_conditional(el_name,argno,el_unionhash);
                 assert(condfn != NULL);
                 flow::Condition * fc = new flow::Condition(condfn,is_negated);
                 pthis->flow_case()->add(fc);

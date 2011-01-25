@@ -8,16 +8,16 @@ open Flow
  general program structure is as follows:
   <flow name=... ofluxversion=...>
    <guard name=... magicnumber=.../>
-   <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionnumber=... outputunionnumber=...> <!-- name of the node -->
+   <node name=... source=[true|false] iserrhandler=[true|false] detached=[true|false] inputunionhash=... outputunionhash=...> <!-- name of the node -->
     <guardref name=... wtype=... hash=... late=.../>
     <errorhandler name=.../>
     <successorlist> <!-- a list of concurrent branches -- all are taken -->
       <successor name=...> <!-- a list of choices -->
        <case nodetarget=...> <!-- name of the node -->
 		<!-- all must be satisfied to goto the node target -->
-        <condition name=... argno=... isnegated=[true|false] unionnumber=.../>
-        <condition name=... argno=... isnegated=[true|false] unionnumber=.../>
-        <condition name=... argno=... isnegated=[true|false] unionnumber=.../>
+        <condition name=... argno=... isnegated=[true|false] unionnumberhash=.../>
+        <condition name=... argno=... isnegated=[true|false] unionnumberhash=.../>
+        <condition name=... argno=... isnegated=[true|false] unionnumberhash=.../>
        </case>
       </successor>
     </successorlist>
@@ -76,9 +76,9 @@ let xml_magicnumber_str = "magicnumber"
 let xml_name_str = "name"
 let xml_function_str = "function"
 let xml_argno_str = "argno"
-let xml_unionnumber_str = "unionnumber"
-let xml_inputunionnumber_str = "inputunionnumber"
-let xml_outputunionnumber_str = "outputunionnumber"
+let xml_unionhash_str = "unionhash"
+let xml_inputunionhash_str = "inputunionhash"
+let xml_outputunionhash_str = "outputunionhash"
 let xml_wtype_str = "wtype"
 let xml_detached_str = "detached"
 let xml_external_str = "external"
@@ -109,12 +109,12 @@ let depend el_name =
                   ]
                 , [])
 
-let condition el_name el_argno el_isnegated el_unionnumber = 
+let condition el_name el_argno el_isnegated el_unionhash = 
 	Element (xml_condition_str
 		, [ xml_name_str,el_name
 		  ; xml_argno_str,el_argno
 		  ; xml_isnegated_str,el_isnegated
-		  ; xml_unionnumber_str,el_unionnumber
+		  ; xml_unionhash_str,el_unionhash
 		  ]
 		, [])
 
@@ -133,10 +133,10 @@ let guardprecedence el_before el_after =
                   ]
                 , [])
 
-let guardref el_name el_unionnumber el_hash el_wtype el_late =
+let guardref el_name el_unionhash el_hash el_wtype el_late =
 	Element (xml_guardref_str
 		, [ xml_name_str, el_name
-		  ; xml_unionnumber_str, el_unionnumber
+		  ; xml_unionhash_str, el_unionhash
                   ; xml_hash_str, el_hash
 		  ; xml_wtype_str, el_wtype
 		  ; xml_late_str, el_late
@@ -168,7 +168,7 @@ let successorlist successors =
 		,[]
 		,successors)
 
-let node el_name el_function el_source el_iserrorhandler el_detached el_external el_inputunionnumber el_outputunionnumber guardrefs errorhandler_opt successorlist =
+let node el_name el_function el_source el_iserrorhandler el_detached el_external el_inputunionhash el_outputunionhash guardrefs errorhandler_opt successorlist =
 	Element(xml_node_str
 		,[ xml_name_str,el_name
 		 ; xml_function_str,el_function
@@ -176,8 +176,8 @@ let node el_name el_function el_source el_iserrorhandler el_detached el_external
 		 ; xml_iserrhandler_str,el_iserrorhandler
 		 ; xml_detached_str,el_detached
 		 ; xml_external_str,el_external
-		 ; xml_inputunionnumber_str,el_inputunionnumber
-		 ; xml_outputunionnumber_str,el_outputunionnumber
+		 ; xml_inputunionhash_str,el_inputunionhash
+		 ; xml_outputunionhash_str,el_outputunionhash
 		 ]
 		,match errorhandler_opt with
 			None -> guardrefs @ [successorlist]
@@ -306,42 +306,44 @@ let emit_program_xml' programname br usesmodel =
 		else let n = get_name ehfl
                      in Some(errorhandler n, n) in
 	let gdecll = TypeCheck.get_decl_list_from_union conseq_res stable in
-        let convert_argn t_u_n u_n j =
-                if t_u_n = u_n then j
+        let convert_argn (t_u_h,t_dfl) (u_h,dfl) j =
+                if t_u_h = u_h then j
                 else 
                 try 
-                        let t_is = gdecll t_u_n in
-                        let is = gdecll u_n in
+                        (*let t_is = gdecll t_u_n in
+                        let is = gdecll u_n in*)
                         let rec pick j ll = 
                                 match ll with
                                         (h::t) ->
                                                 if j <= 1 then h
                                                 else pick (j-1) t 
                                         | _ -> raise Not_found in
-                        let df = (pick j t_is) in
+                        let df = (pick j t_dfl) in
                         let name = ParserTypes.strip_position df.ParserTypes.name in
                         let rec find i dfl =
                                 match dfl with
                                         (h::t) -> 
                                                 if (ParserTypes.strip_position h.ParserTypes.name)=name then i
                                                 else find (i+1) t
-                                        | _ -> raise (XMLConversion ("can't find arg conversion "^(string_of_int t_u_n)^" -> "^(string_of_int u_n),ParserTypes.noposition))
-                        in  find 1 is 
+                                        | _ -> raise (XMLConversion ("can't find arg conversion "
+							^(t_u_h)^" -> "
+							^(u_h),ParserTypes.noposition))
+                        in  find 1 dfl 
                 with Not_found -> j
                 in
-	let rec gen_cond' t_u_n u_n i ccond =
+	let rec gen_cond' (t_u_h,t_dfl) (u_h,dfl) i ccond =
 		match ccond with
 			(h::t) ->
 				(List.map (fun (s,neg) -> 
                                         condition s 
-                                                (let i = convert_argn t_u_n u_n i
+                                                (let i = convert_argn (t_u_h,t_dfl) (u_h,dfl) i 
                                                 in  string_of_int i) 
                                                 (if neg then "true" else "false")
-                                                (string_of_int u_n)) h)
-				@ (gen_cond' t_u_n u_n (i+1) t)
+                                                (u_h)) h)
+				@ (gen_cond' (t_u_h,t_dfl) (u_h,dfl) (i+1) t)
 			| _ -> [] in
-	let gen_cond t_u_n u_n i ccond =
-		List.rev (gen_cond' t_u_n u_n i ccond) in
+	let gen_cond (t_u_h,t_dfl) (u_h,dfl) i ccond =
+		List.rev (gen_cond' (t_u_h,t_dfl) (u_h,dfl) i ccond) in
 	(*let rec prod f ll1 ll2 =
 		match ll2 with
 			(h::t) -> (List.map (fun x -> f x h) ll1)
@@ -357,7 +359,17 @@ let emit_program_xml' programname br usesmodel =
 	let find_union_number (y,io) = 
 		let nd = SymbolTable.lookup_node_symbol stable y
 		in  unionmap_find (nd.SymbolTable.functionname,io) in
-	let rec gen_succ' n_out_u_n ccond fl = 
+	let find_decl_formal_opt (y,io) =
+		let nd = SymbolTable.lookup_node_symbol stable y in
+		let dfo = if io then
+			Some nd.SymbolTable.nodeinputs
+			else nd.SymbolTable.nodeoutputs
+		in  dfo in
+	let find_union_hash (y,io) = 
+		match find_decl_formal_opt (y,io) with
+			(Some df) -> ParserTypes.hash_decl_formal_list df
+			| _ -> "" in
+	let rec gen_succ' (n_out_uh,n_out_dfl) ccond fl = 
 		(***********************************
 		 * returns a ((case list) list)
 		 * intention is  that each (case list) becomes a successor
@@ -378,10 +390,14 @@ let emit_program_xml' programname br usesmodel =
 					print_string "; "
 					end
 				in  List.iter pp_cs ll in*)
-			let u_n = 
-				if (List.length ccond) = (List.length (gdecll n_out_u_n)) 
-				then n_out_u_n 
-				else find_union_number (n,true) in
+			let u_h,u_dfl = (*FIXME*)
+				if (List.length ccond) = (List.length n_out_dfl)
+				then (n_out_uh, n_out_dfl)
+				else 
+					let dfo = find_decl_formal_opt (n,true) 
+					in  match dfo with
+						None -> ("",[])
+						| (Some dfl) -> (ParserTypes.hash_decl_formal_list dfl, dfl) in
                         let ist = (if CmdLine.get_abstract_termination() then is_abstract n else false ) || (is_terminate n) in
                         let _ = if (not ist) && (is_abstract n) then 
 				    raise (XMLConversion ("the node "
@@ -397,7 +413,7 @@ let emit_program_xml' programname br usesmodel =
 						^" n_out_u_n="^(string_of_int n_out_u_n)
 						^"\n"))
 				in*)
-				[[case n (gen_cond u_n n_out_u_n 1 ccond)]] in
+				[[case n (gen_cond (u_h,u_dfl) (n_out_uh,n_out_dfl) 1 ccond)]] in
 			(***************************
 			 * return a successor list with one successor in it on the given condition
 		         * going to the given target
@@ -436,7 +452,7 @@ let emit_program_xml' programname br usesmodel =
                                                 ; condneg (* accumulated negative condition, upto this case *)
 						] in
                                 let condneg = and_canon_condition condneg negccond'
-                                in  condneg, ((gen_succ' n_out_u_n ccondlocal flr)::sofar) in
+                                in  condneg, ((gen_succ' (n_out_uh,n_out_dfl) ccondlocal flr)::sofar) in
 			let _,part_res = List.fold_left onfold (condunit,[]) solfl in
 			let tmp = List.fold_left 
 					(if CmdLine.get_exclusive_tests() 
@@ -445,7 +461,7 @@ let emit_program_xml' programname br usesmodel =
 				[[]] part_res 
                         in  tmp in
                 let coefun _ fll = 
-                        let tmp = List.concat (List.map (gen_succ' n_out_u_n ccond) fll) 
+                        let tmp = List.concat (List.map (gen_succ' (n_out_uh,n_out_dfl) ccond) fll) 
 			(****************************
 			 * so basically concatenate the successor lists
 			 ****************************)
@@ -489,7 +505,7 @@ let emit_program_xml' programname br usesmodel =
 			let imap,i = get_iv ns
 			in  imap,((if (String.length ns) > 0 then (ns^".") else "")^(string_of_int i))
 		in (successor (nsprefix_succname) caselist), imap in
-	let gen_succ n_out_u_n ccond fl =
+	let gen_succ (n_out_uh,n_out_dfl) ccond fl =
                 let foldfun (resl,imap) s =
                         if s = [] then resl,imap 
 			else 
@@ -497,7 +513,7 @@ let emit_program_xml' programname br usesmodel =
 			    in (r::resl),imap
                         in
                 let resl,_ = List.fold_left foldfun ([],[]) 
-                        (List.rev (gen_succ' n_out_u_n ccond fl))
+                        (List.rev (gen_succ' (n_out_uh,n_out_dfl) ccond fl))
                 in resl in
 	let is_error_handler n = List.mem n errhandlers in
 	(*let number_inputs (i,ll) df = (i+1,(ParserTypes.strip_position df.ParserTypes.name,i)::ll) in
@@ -534,7 +550,7 @@ let emit_program_xml' programname br usesmodel =
 			(*let _,gr_pos,_ = gr.ParserTypes.guardname in*)
 			guardref 
 				(ParserTypes.strip_position gr.ParserTypes.guardname)
-				(string_of_int (unionmap_find (nd.SymbolTable.functionname,true)))
+				(ParserTypes.hash_decl_formal_list nd.SymbolTable.nodeinputs)
 				(HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
 				(determine_wtype gr.ParserTypes.modifiers)
 				(if has_gargs then "true" else "false")
@@ -545,16 +561,21 @@ let emit_program_xml' programname br usesmodel =
 		let chefun _ _ = Flow.null_flow in
 		let coefun _ _ = Flow.null_flow in
 		let nfun _ = Flow.null_flow in
-                let n_in_u_n = find_union_number (n,true) in
-                let n_out_u_n = find_union_number (n,false) in
+                (*let n_in_u_n = find_union_number (n,true) in
+                let n_out_u_n = find_union_number (n,false) in*)
+		let n_in_uh = ParserTypes.hash_decl_formal_list nd.SymbolTable.nodeinputs in
+		let n_out_uh,n_out_dfl = match nd.SymbolTable.nodeoutputs with
+					None -> "",[]
+					| (Some dfl) -> (ParserTypes.hash_decl_formal_list dfl)
+						, dfl in
 		let succ = Flow.flow_apply (sfun,chefun,coefun,sfun,nfun) fl
 		in  node n f 
                         (if is_src then "true" else "false")
 			(if is_eh then "true" else "false")
 			(if is_dt then "true" else "false")
 			(if is_ext then "true" else "false")
-                        (string_of_int n_in_u_n)
-                        (string_of_int n_out_u_n)
+                        (n_in_uh)
+                        (n_out_uh)
 			(List.map do_gr nd.SymbolTable.nodeguardrefs)
 			(let sfun _ _ _ eh = 
                                 (match gen_eh eh with
@@ -566,7 +587,7 @@ let emit_program_xml' programname br usesmodel =
 			let coefun _ _ = None in
 			let nfun _ = None
 			in  Flow.flow_apply (sfun, chefun, coefun, sfun, nfun) fl)
-			(successorlist ((gen_succ n_out_u_n [] succ)
+			(successorlist ((gen_succ (n_out_uh,n_out_dfl) [] succ)
 				@ (if is_src && (not is_ro_src) then [successor "erste" [case n []]] else []))) in
 	let guard_ff (ll,i) (gname,gc) = 
 		let element = guard gname (*(string_of_int i)*) 
@@ -677,12 +698,12 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
 			with Not_found -> "") in
 		let bef_name_ifthere = get_name_ifthere befattribs in
 		let aft_name_ifthere = get_name_ifthere aftattribs in
-		let is_unionnumber attrib =
-			List.mem attrib [ xml_unionnumber_str
-					; xml_inputunionnumber_str
-					; xml_outputunionnumber_str ] in
-		let explain_un br unstr = 
-			explain_union_number br (int_of_string unstr) in
+		let is_unionhash attrib =
+			List.mem attrib [ xml_unionhash_str
+					; xml_inputunionhash_str
+					; xml_outputunionhash_str ] in
+		(*let explain_un br unstr = 
+			explain_union_number br (int_of_string unstr) in*)
                 let _ = if not (beftag=afttag) then
                                 raise (XMLConversion ("plugin caused XML tag difference ["
 					^beftag^"/"^afttag^"]"
@@ -697,12 +718,12 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
 					^bef_name_ifthere
 					^"\n   before/after attribute "^attr_name
 					^" ["^bef_val^"/"^aft_val^"]"
-					^(if is_unionnumber attr_name then
+					(*^(if is_unionnumber attr_name then
 						"\nbefore: "^bef_val
 						^"\n"^(explain_un br_bef bef_val)
 						^"\nafter: "^aft_val
 						^"\n"^(explain_un br_aft aft_val)
-					 else "")
+					 else "")*)
 					,noposition))
                         else ()
                 in  if (beftag = xml_successorlist_str) || (beftag = xml_successor_str) then

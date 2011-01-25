@@ -129,4 +129,7 @@ let trace_thing _ = ()
 
 let strip_position (x,_,_) = x
 
-
+let hash_decl_formal_list dfl =
+	let break df = (strip_position df.ctypemod),(strip_position df.ctype),(strip_position df.name) in
+	let noposl = List.map break dfl
+	in  HashString.hash noposl

@@ -99,10 +99,12 @@ CreateNodeFn OFluxEventTests::c_succ =
 CreateNodeFn OFluxEventTests::c_next = 
         create<Data2,Empty,AtomsEmpty,&f_next>;
 
+const char * empty = "";
+
 OFluxEventTests::OFluxEventTests()
-	: n_source("source",c_source,false,true,false,0,0)
-	, n_succ("source",c_succ,false,false,false,0,0)
-	, n_next("source",c_succ,false,false,false,0,0)
+	: n_source("source", "c_source",c_source,false,true,false,empty,empty)
+	, n_succ("source", "c_source",c_succ,false,false,false,empty,empty)
+	, n_next("source", "c_source",c_succ,false,false,false,empty,empty)
 {
 }
 
