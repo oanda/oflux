@@ -21,6 +21,8 @@ namespace oflux {
 
 extern const char * runtime_version;
 
+extern "C" void trigger_probe_aha_exception_begin_throw(int i);
+
 #define OFLUX_RUNTIME_VERSION runtime_version
 
 namespace logging {
@@ -98,6 +100,7 @@ public:
 	T getDataLexicalThrowOnNull(int i) {
 		void * vp = getDataLexical(i);
 		if(vp == NULL) {
+			trigger_probe_aha_exception_begin_throw(i);
 			throw AHAException(i,__FUNCTION__);
 		}
 		return reinterpret_cast<T>(vp);

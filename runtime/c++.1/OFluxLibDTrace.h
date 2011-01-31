@@ -26,6 +26,8 @@
 # define OFLUX_EVENT_BORN(E,X)
 # define OFLUX_EVENT_DEATH(E,X)
 
+# define OFLUX_AHA_EXCEPTION_BEGIN_THROW(A)
+
 #endif // HAS_DTRACE
 
 #define _EVENT_BORN(E,X) \
@@ -58,5 +60,9 @@
     OFLUX_FIFO_PUSH(static_cast<void *>(E),const_cast<char *>(Y))
 #define _FIFO_POP(E,Y) \
     OFLUX_FIFO_POP(static_cast<void *>(E),const_cast<char *>(Y))
+
+
+#define _AHA_EXCEPTION_BEGIN_THROW(A) \
+    OFLUX_AHA_EXCEPTION_BEGIN_THROW(A)
 
 #endif

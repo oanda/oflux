@@ -12,6 +12,7 @@ DTRACE_FLAGS := -G
 
 OBJS := \
         OFlux.o \
+        OFluxExceptionsDTrace.o \
         OFluxLogging.o \
         OFluxProfiling.o \
         OFluxQueue.o \

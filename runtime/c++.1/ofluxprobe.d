@@ -80,4 +80,12 @@ provider oflux {
                 , char *  /*first event name*/ 
                 , int     /*num events released*/
                 );
+
+        /*
+         * Exception-related probes
+         */
+
+        probe aha__exception__begin__throw(
+                  int /*guard num*/
+                );
 };
