@@ -3,7 +3,7 @@
 #
 function report_on(i,s) {
  stat_val = stat[s,i] - ( i > 1 ? stat[s,i-1] : 0);
- printf " %-10s per sec  total is %-10.2f for incr total %-10d cumu total %-12d\n", s, stat_val / (end_time[i]-( i > 1 ? end_time[i-1] : start_time)), stat_val, stat[s,i];
+ printf " %-10s per sec  total is %-10.2f for incr %-10d cumu %-12d\n", s, stat_val / (end_time[i]-( i > 1 ? end_time[i-1] : start_time)), stat_val, stat[s,i];
 }
 function report(i) {
  print "over " ( i > 1 ? "the next " : "")  "" (end_time[i]-( i > 1 ? end_time[i-1] : start_time)) " seconds";

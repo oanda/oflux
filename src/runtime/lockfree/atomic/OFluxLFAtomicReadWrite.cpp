@@ -39,6 +39,12 @@ ReadWriteWaiterList::~ReadWriteWaiterList()
 	}
 }
 
+readwrite::EventBaseHolder ReadWriteWaiterList::sentinel(EventBase::no_event, false);
+
+#define rwwl_assert(X)
+
+//#define rwwl_assert(X) assert(X)
+
 bool
 ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 {
@@ -59,6 +65,8 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	obs.mode = e->mode;
 	obs.retries = 0;
 	obs.term_index = 0;
+	obs.rwptr.u._u64 = 0;
+	obs.n_rwptr.u._u64 = 0;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	EventBase * ev = NULL;
 	ev_swap(ev,e->val);
@@ -76,7 +84,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 		obs.h = h;
 		obs.t = t;
-		obs.u64=rwptr.u64();
+		obs.rwptr=rwptr;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 		if(        h==t 
 			&& !rwptr.ptr()
@@ -85,10 +93,11 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 				, 1 // count
 				, mode == EventBaseHolder::Read
 				, 1 // mkd
-				, rwptr.epoch())
+				, rwptr.epoch()+1)
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "1->2";
+			obs.n_rwptr = t->next;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			res = true; // acquire
 			ev_swap(e->val,ev);
@@ -108,6 +117,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "2->2";
+			obs.n_rwptr = t->next;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			res = true; // acquire
 			e->mode = mode;
@@ -121,7 +131,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 				  rwptr.rcount()
 				, rwptr.mode()
 				, true
-				, rwptr.epoch())
+				, rwptr.epoch()+1)
 			&& t->next.compareAndSwap(
 				  rwptr
 				, e
@@ -129,6 +139,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "2->3";
+			obs.n_rwptr = t->next;
 			obs.tailup =
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			//_tail = e;
@@ -149,7 +160,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 				  rwptr.rcount()
 				, rwptr.mode()
 				, true
-				, rwptr.epoch())
+				, rwptr.epoch()+1)
 			&& t->next.compareAndSwap(
 				  rwptr
 				, e
@@ -157,6 +168,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "3->3";
+			obs.n_rwptr = t->next;
 			obs.tailup =
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			//_tail = e;
@@ -181,6 +193,10 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 	obs.term_index = log.at();
 	obs.action = Observation::Action_a_o_w;
 #endif // LF_RW_WAITER_INSTRUMENTATION
+	rwwl_assert(!obs.res || 
+		( _owner == (EventBase*)&EventBase::no_event
+		? __sync_bool_compare_and_swap(&_owner,(EventBase*)&EventBase::no_event,obs.ev) || true
+		: __sync_bool_compare_and_swap(&_owner,0,obs.ev) || (++_error_count < 200)));
 	return res;
 }
 
@@ -223,6 +239,8 @@ ReadWriteWaiterList::pop(
 	obs.ev = 0;
 	obs.term_index = 0;
 	obs.retries=0;
+	obs.rwptr.u._u64 = 0;
+	obs.n_rwptr.u._u64 = 0;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 	el = NULL;
 	readwrite::EventBaseHolder * h;
@@ -236,7 +254,7 @@ ReadWriteWaiterList::pop(
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 		obs.h = h;
 		obs.t = t;
-		obs.u64 = rwptr.u64();
+		obs.rwptr = rwptr;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 		if(!rwptr.mkd()) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
@@ -258,6 +276,7 @@ ReadWriteWaiterList::pop(
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "2->1";
+			obs.n_rwptr = t->next;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			el = NULL;
 			break;
@@ -272,6 +291,7 @@ ReadWriteWaiterList::pop(
 			) {
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			obs.trans = "(2,3)->(2,3)";
+			obs.n_rwptr = t->next;
 #endif // LF_RW_WAITER_INSTRUMENTATION
 			el = NULL;
 			break;
@@ -292,32 +312,50 @@ ReadWriteWaiterList::pop(
 				&& el->mode == EventBaseHolder::Read 
 				&& h->val
 				&& h->next.ptr()->mode  == EventBaseHolder::Read 
-				&& !h->next.ptr()->next.mkd()) {
+				&& !h->next.ptr()->next.mkd()
+				&& h->next.ptr() != &sentinel
+				) {
 				h = h->next.ptr();
 				++new_rcount;
+			}
+			if(h->next.ptr() == &sentinel) {
+				continue;
 			}
 			while(     t==h->next.ptr() 
 				&& el->mode == EventBaseHolder::Write // going to write mode
 				&& rwptr.mode() // in read mode now
-				&& !t->next.compareAndSwap(rwptr, 1, false, true, rwptr.epoch()+1)) {
+				&& !t->next.compareAndSwap(
+					  rwptr
+					, 1     // rcount of 1
+					, false // mode is write
+					, true  // mkd
+					, rwptr.epoch()+1)) {
 				t = _tail;
 				rwptr = t->next;
 			}
 				
-			if(__sync_bool_compare_and_swap(&_head,el,h->next.ptr())) {
+			if(__sync_bool_compare_and_swap(
+					  &_head
+					, el
+					, h->next.ptr())) {
 				// we are commited to changing the state, since we ripped things off the head
-				while(t != _tail || !t->next.mkd() || !t->next.compareAndSwap( 
-					  rwptr
-					, new_rcount
-					, el->mode == EventBaseHolder::Read
-					, true
-					, rwptr.epoch()+1)
-					) {
+				while(t != _tail || !t->next.mkd() 
+					|| !t->next.compareAndSwap( 
+						  rwptr
+						, new_rcount
+						, el->mode == EventBaseHolder::Read
+						, true
+						, rwptr.epoch()+1)
+						) {
 					t = _tail;
 					rwptr = t->next;
-				}
-				h->next.set(0,0);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
+					obs.rwptr = rwptr;
+#endif // LF_RW_WAITER_INSTRUMENTATION
+				}
+				h->next.set(&sentinel,0);
+#ifdef LF_RW_WAITER_INSTRUMENTATION
+				obs.n_rwptr = t->next;
 				obs.r_mode = el->mode;
 				obs.res = new_rcount;
 				obs.e = el;
@@ -337,7 +375,7 @@ ReadWriteWaiterList::pop(
 	HAZARD_PTR_RELEASE(0);
 	HAZARD_PTR_RELEASE(1);
 	readwrite::EventBaseHolder * el_traverse = el;
-	while(el_traverse) {
+	while(el_traverse && el_traverse != &sentinel) {
 		readwrite::busyWaitOnEv(el_traverse->val);
 		el_traverse = el_traverse->next.ptr();
 	}
@@ -345,6 +383,7 @@ ReadWriteWaiterList::pop(
 	obs.term_index = log.at();
 	obs.action = Observation::Action_rel;
 #endif // LF_RW_WAITER_INSTRUMENTATION
+	rwwl_assert( __sync_bool_compare_and_swap(&_owner,obs.by_ev,obs.ev) || (++_error_count < 200));
 }
 
 void

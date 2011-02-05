@@ -145,6 +145,7 @@ struct EventBaseHolder {
 
 class ReadWriteWaiterList {
 public:
+	static readwrite::EventBaseHolder sentinel;
 #define LF_RW_WAITER_INSTRUMENTATION
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	struct Observation {
@@ -162,7 +163,8 @@ public:
 		int mode;
 		int r_mode;
 		int tailup;
-		uint64_t u64;
+		RWWaiterPtr rwptr;
+		RWWaiterPtr n_rwptr;
 		unsigned retries;
 		pthread_t tid;
 		EventBase * by_ev;
@@ -178,6 +180,8 @@ public:
 	ReadWriteWaiterList()
 		: _head(allocator.get(EventBase::no_event,0))
 		, _tail(_head)
+		//, _owner((EventBase*)&EventBase::no_event)
+		//, _error_count(0)
 	{}
 	~ReadWriteWaiterList();
 	bool push(readwrite::EventBaseHolder * e);
@@ -193,6 +197,8 @@ public:
 public:
 	readwrite::EventBaseHolder * _head;
 	readwrite::EventBaseHolder * _tail;
+	//EventBase * _owner;
+	//size_t _error_count;
 };
 
 class AtomicReadWrite : public AtomicCommon {
@@ -271,7 +277,7 @@ public:
 		//_wtype = EventBaseHolder::None;
 		readwrite::EventBaseHolder * e = el;
 		readwrite::EventBaseHolder * n_e = NULL;
-		while(e) {
+		while(e && e != &ReadWriteWaiterList::sentinel) {
 			assert(!e->next.mkd()
 				&& "rw atom should not have released a marked ebh");
 			n_e = e->next.ptr();

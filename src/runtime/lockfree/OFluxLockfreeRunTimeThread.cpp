@@ -139,6 +139,7 @@ RunTimeThread::start()
 		// this is only needed for the _cond (signalling)
 	SetTrue st(_running);
 	int no_ev_iterations = 0;
+	assert(_tn.index == _index);
 	while(!_request_stop && !_rt.was_soft_killed()) {
 		if(_rt.caught_soft_load_flow()) {
 			oflux_log_trace("[" 
