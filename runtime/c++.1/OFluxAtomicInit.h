@@ -82,6 +82,12 @@ private:
                         } \
                 } \
         }
+#define OFLUX_MODULE_INIT_PLUGIN(PLUGIN,MODULENAME,INST, ...) \
+        { \
+                OFLUX_GUARD_POPULATER_PLUGIN(PLUGIN,INST##_self,instpop); \
+                MODULENAME::ModuleConfig * mc = MODULENAME::init( __VA_ARGS__ ); \
+                instpop.insert(NULL, mc); \
+        }
 #define OFLUX_MODULE_INIT_NS(NS,MODULENAME,INST, ...) \
         { \
                 OFLUX_GUARD_POPULATER_NS(NS,INST##_self,instpop); \
