@@ -81,7 +81,7 @@ public:
 
 		void report(char * buff)
 		{
-			snprintf(buff, 1000, " %c %d %p %p %lld %d " PTHREAD_PRINTF_FORMAT " %s"
+			snprintf(buff, 1000, " %c %d %-8p %-8p %lld %d " PTHREAD_PRINTF_FORMAT " %s"
 				, name
 				, wtype
 				, evptr
@@ -440,19 +440,32 @@ AtomicSet::report()
 	oflux_log_info("AtomicSet report:\n");
 	char * watch_atomic = getenv("EXERCISE_WATCH");
 	std::map<std::string,AtomicAbstract *>::iterator itr = _map.end();
+	char * setofwatched[20];
+	setofwatched[0] = 0;
+	char buff[4096*4];
 	if(watch_atomic) {
-		itr = _map.find(watch_atomic);
-	}
-	if(itr == _map.end()) {
-		if(watch_atomic) {
-			oflux_log_info(" %s not found\n",watch_atomic);
+		strncpy(buff,watch_atomic,sizeof(buff));
+		char * lasts = NULL;
+		const char * delim = ",";
+		size_t i = 0;
+		for(char * s = strtok_r(buff,delim,&lasts)
+			; s && (i < sizeof(setofwatched)/sizeof(char*) -1)
+			; s=strtok_r(NULL,delim,&lasts)) {
+			setofwatched[i] = s;
+			oflux_log_info("exercise watching %s.\n",s);
+			++i;
 		}
-	} else {
-		oflux_log_info("found %s\n",watch_atomic);
+		setofwatched[i] = 0;
 	}
 	for(itr = _map.begin(); itr != _map.end(); ++itr) {
-		itr->second->report(itr->first.c_str()
-			, watch_atomic ? strcmp(watch_atomic,itr->first.c_str()) == 0 : false);
+		bool fd = false;
+		for(size_t i = 0; setofwatched[i]; ++i) {
+			if(strcmp(setofwatched[i],itr->first.c_str()) == 0) {
+				fd = true;
+			}
+		}
+		
+		itr->second->report(itr->first.c_str(), fd);
 	}
 }
 
@@ -471,7 +484,7 @@ AtomicSet::get(const char * guardname)
 	return *ama;
 }
 
-int max_nsec_wait = 1000;
+long max_nsec_wait = 1000;
 
 } // namespace exercise
 
@@ -521,7 +534,7 @@ struct ExerciseEventDetail {
 		void fill(oflux::atomic::AtomicsHolder *);
 		void report();
 
-		std::string node_name;
+		const char * node_name;
 		int node_id;
 		SingleAtom atoms[MAX_ATOMICS_PER_NODE];
 		int number;
@@ -586,8 +599,9 @@ exercise_node_function(
 	, ExerciseEventDetail::Out_ * out
 	, ExerciseEventDetail::Atoms_ * atoms)
 {
-	oflux_log_debug("exercise_node_function %s %d\n"
-		, atoms->node_name.c_str()
+	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "] exercise_node_function %s %d\n"
+		, oflux_self()
+		, atoms->node_name
 		, in->value);
 	atoms->report();
 	out->value = in->value;
@@ -602,8 +616,9 @@ exercise_error_node_function(
 	, ExerciseEventDetail::Atoms_ * atoms
 	, int)
 {
-	oflux_log_debug("exercise_error_node_function %s %d\n"
-		, atoms->node_name.c_str()
+	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "]exercise_error_node_function %s %d\n"
+		, oflux_self()
+		, atoms->node_name
 		, in->value);
 	atoms->report();
 	//oflux::flow::exercise::node_executions[atoms->node_id%MAX_NODES]++;
@@ -614,7 +629,9 @@ exercise_error_node_function(
 	{ \
 	timespec twait = {0 /*sec*/, L /*nsec*/}; \
 	timespec trem; \
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] WAIT_A_LITTLE start %ld.%ld\n", oflux_self(), twait.tv_sec, twait.tv_nsec); \
 	nanosleep(&twait,&trem); \
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] WAIT_A_LITTLE done \n", oflux_self()); \
 	}
 
 int
@@ -625,8 +642,9 @@ exercise_source_node_function(
 {
 	static unsigned seed = 334;
 	out->value = rand_r(&seed);
-	oflux_log_debug("exercise_source_node_function %s %d\n"
-		, atoms->node_name.c_str()
+	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "] exercise_source_node_function %s %d\n"
+		, oflux_self()
+		, atoms->node_name
 		, out->value);
 	atoms->report();
 	if(exercise::release_guards) {
@@ -756,7 +774,9 @@ exercise_condition_function(const void *v)
 {
 	const ExerciseEventDetail::Out_ * out =
 		reinterpret_cast<const ExerciseEventDetail::Out_ *>(v);
-	oflux_log_trace("  exercise_condition_function %d\n", out->value);
+	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "]  exercise_condition_function %d\n"
+		, oflux_self()
+		, out->value);
 	bool res = (out->value) % 2;
 	return res;
 }
