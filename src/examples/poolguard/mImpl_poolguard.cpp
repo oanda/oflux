@@ -39,7 +39,8 @@ void init(int, char * argv[])
 	OFLUX_GUARD_POPULATER(IntPool,IntPoolPop);
         IntPool_key ipk;
 	int * ip = NULL;
-	for(size_t i = 0 ; i < 3; ++i) {
+#define NUMBER_IN_POOL 3
+	for(size_t i = 0 ; i < NUMBER_IN_POOL; ++i) {
 		ip = new int(i);
 		IntPoolPop.insert(&ipk,ip);
 		printf("pool element at %p is %d\n", ip, *ip);

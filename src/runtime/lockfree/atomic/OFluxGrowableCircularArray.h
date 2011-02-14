@@ -162,26 +162,17 @@ public:
 		bool res = 0;
 		Implementation * impl = NULL;
 		static T * const u_sentin = Implementation::uninit_sentinel();
-		//while(impl != _impl) {
-			impl = _impl;
-			while(impl && impl->_data[i%impl->size()].ptr == u_sentin) {
-				impl = impl->_old;
-			}
-			assert(impl);
-			i_mod = i % impl->size();
-			/*if(impl->_data[i_mod].ptr == u_sentin) {
-				TEntry * r = get(i);
-				if(r->ptr == n && res) {
-					// cas-ed on a lower level
-					return res;
-				}
-			}*/
-			(impl->_data)[i_mod].at = i;
-			res = __sync_bool_compare_and_swap(
-				& ((impl->_data)[i_mod].ptr)
-				, NULL
-				, n);
-		//}
+		impl = _impl;
+		while(impl && impl->_data[i%impl->size()].ptr == u_sentin) {
+			impl = impl->_old;
+		}
+		assert(impl);
+		i_mod = i % impl->size();
+		(impl->_data)[i_mod].at = i;
+		res = __sync_bool_compare_and_swap(
+			& ((impl->_data)[i_mod].ptr)
+			, NULL
+			, n);
 		return res;
 	}
 	inline bool cas_to_null(long i, T * o) 
@@ -190,34 +181,22 @@ public:
 		bool res = 0;
 		Implementation * impl = NULL;
 		static T * const u_sentin = Implementation::uninit_sentinel();
-		//while(impl != _impl) {
-			impl = _impl;
-			while(impl && impl->_data[i%impl->size()].ptr == u_sentin) {
-				impl = impl->_old;
-			}
-			assert(impl);
-			i_mod = i % impl->size();
-			/*if(impl->_data[i_mod].ptr == u_sentin) {
-				TEntry * r = get(i);
-				if(r->ptr == NULL && res) {
-					// cas-ed on a lower level
-					return res;
-				}
-			}*/
-			impl->_data[i_mod].at = -1;
-			res = __sync_bool_compare_and_swap(
-				& (impl->_data[i_mod].ptr)
-				, o
-				, NULL);
-		//}
-		/*if(res) {
-			printf("cas to null(1) at %p\n",& (impl->_data[i_mod].ptr));
-		}*/
+		impl = _impl;
+		while(impl && impl->_data[i%impl->size()].ptr == u_sentin) {
+			impl = impl->_old;
+		}
+		assert(impl);
+		i_mod = i % impl->size();
+		impl->_data[i_mod].at = -1;
+		res = __sync_bool_compare_and_swap(
+			& (impl->_data[i_mod].ptr)
+			, o
+			, NULL);
 		return res;
 	}
 	inline long impl_size()
 	{ return _impl->size(); }
-	inline void grow() 
+	inline bool grow() 
 		// make it 2x bigger (ret true if you did it)
 		// given i is the starting point for the copy
 		//  which indicates where to copy things to
@@ -232,8 +211,11 @@ public:
 			printf(" deleted\n");
 			assert(_impl != impl && _impl->size() > initial_sz);
 		}
+		return true;
 	}
-protected:
+private:
+	CircularArray(const CircularArray &); // not implemented
+public:
 	Implementation * _impl;
 };
 
@@ -245,7 +227,6 @@ public:
 	LFArrayQueue()
 		: _in(0)
 		, _out(0)
-		, _from(0)
 	{}
 	inline T * pop() // return NULL when non available
 	{
@@ -253,6 +234,7 @@ public:
 		T * res = NULL;
 		TEntry * r = NULL;
 		long out = 0;
+		/*
 		const size_t ie_sz = 5;
 		struct IE {
 			long out;
@@ -268,14 +250,14 @@ public:
 			ies[k].ptr = ies[k].impl->_data[ies[k].ind ].ptr;
 			ies[k].at = ies[k].impl->_data[ies[k].ind ].at;
 			ies[k+1].impl = ies[k].impl->_old;
-		}
+		}*/
 		do {
 			out = _out;
 			if(out >= _in) {
 				res = NULL;
 				break; // empty
 			}
-			r = CircularArray<T>::get(out,false); //out > _from);
+			r = CircularArray<T>::get(out,false);
 				// safe to start updating once past from
 			res = r->ptr;
 			++retries;
@@ -296,6 +278,7 @@ public:
 		long retries = 0;
 		assert(o);
 		long in = 0;
+		/*
 		const size_t ie_sz = 5;
 		struct IE {
 			long in;
@@ -312,10 +295,10 @@ public:
 			ies[k].at = ies[k].impl->_data[ies[k].ind ].at;
 			ies[k+1].impl = ies[k].impl->_old;
 		}
+		*/
 		while(1) {
 			in = _in;
 			if((in-_out)+1 >= CircularArray<T>::impl_size()) {
-				__sync_fetch_and_add(&_from, _in-_from);
 				CircularArray<T>::grow(); // grow it bigger
 			}
 			TEntry * t = CircularArray<T>::get(in);
@@ -339,7 +322,6 @@ private:
 	/** invariant: _out <= _in **/
 	volatile long _in; // index for pushes
 	volatile long _out; // index for pops
-	volatile long _from;
 };
 
 } // namespace growable

@@ -4,120 +4,149 @@
 #include "OFluxLFAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
 #include "OFluxRollingLog.h"
+#include "OFluxGrowableCircularArray.h"
 
 namespace oflux {
 namespace lockfree {
 namespace atomic {
 
 
-
-template<typename T>
-class StampedPtr {
+class PoolEventList {
 public:
-	StampedPtr(T * tptr = NULL)
-	{ 
-		_content.s.stamp = 0;
-		_content.s.ptr = tptr;
-	}
+	typedef oflux::lockfree::growable::TStructEntry<EventBaseHolder> EBHolderEntry;
 
-	StampedPtr(const StampedPtr<T> & sp)
+	PoolEventList()
+		: _ev_q_out(0)
+		, _rs_q_out(0)
 	{
-		_content.s = sp._content.s;
+		_uin.u64 = 0ULL;
+		oflux_log_info("PoolEventList() %p has _rs_q._impl of %p\n"
+			, this
+			, _rs_q._impl);
 	}
 
-	StampedPtr<T> & operator=(const StampedPtr<T> & sp)
+	void dump() { /*TBD*/ }
+
+	inline bool acquire_or_wait(EventBaseHolder * ev)
 	{
-		_content.s = sp._content.s;
-		return *this;
-	}
-
-	inline int & stamp() { return _content.s.stamp; }
-
-	inline T * & get() { return _content.s.ptr; }
-	inline T * const & get() const { return _content.s.ptr; }
-
-	bool cas(const StampedPtr<T> & old_sp,T * new_ptr)
-	{ 
-		union { uint64_t _uint; S s; } new_content;
-		new_content.s.stamp = old_sp._content.s.stamp+1; 
-		new_content.s.ptr = new_ptr;
-		return __sync_bool_compare_and_swap(
-			  &(_content._uint)
-			, old_sp._content._uint
-			, new_content._uint);
-	}
-	uint64_t u64() const { return _content._uint; }
-private:
-	struct S {
-		int stamp;
-		T * ptr;
-	};
-	union { 
-		uint64_t _uint; // for alignment
-		S s;
-	} _content;
-};
-
-class PoolEventList { // thread safe
-public:
-#define POOL_WAITERLIST_INSTRUMENTATION
-#ifdef POOL_WAITERLIST_INSTRUMENTATION
-	struct Observation {
-		enum    { Action_none
-			, Action_A_o_w
-			, Action_Rel
-			, Action_a_o_w
-			, Action_rel
-			} action;
-		const char * trans;
-		int res;
-		EventBaseHolder * e;
-		EventBaseHolder * r;
-		uint64_t h64;
-		EventBaseHolder * t;
-		int tb;
-		unsigned retries;
-		oflux_thread_t tid;
-		EventBase * ev;
-		long long term_index;
-	};
-
-	RollingLog<Observation> log;
-#endif  // POOL_WAITERLIST_INSTRUMENTATION
-
-	PoolEventList() 
-		: _head(AtomicCommon::allocator.get()) //new EventBaseHolder(NULL))
-		, _tail(_head.get())
-	{}
-	~PoolEventList();
-	bool push(EventBaseHolder *e); // acquire a pool item
-	EventBaseHolder * pop(EventBaseHolder * r); //release a pool item
-
-	inline bool empty() const 
-	{ 
-		const EventBaseHolder * hp = _head.get();
-		return !mkd(hp) && (hp->next == NULL);
-	}
-
-	inline size_t count() const
-	{
-		const EventBaseHolder * hp = _head.get();
-		size_t res = 0;
-		while(hp && !mkd(hp) && hp->ev) {
-			if(hp->ev) {
-				++res;
+		bool res = false;
+		long rs_q_out;
+		UIn uin;
+		UIn n_uin;
+		EventBaseHolder * resource = NULL;
+		EBHolderEntry * ebptr;
+		EBHolderEntry * ebholderptr;
+		long retries = 0;
+		while(1) {
+			rs_q_out = _rs_q_out;
+			uin.u64 = _uin.u64;
+			n_uin.u64 = uin.u64;
+			++n_uin.s._ev_q_in;
+			if((_uin.s._ev_q_in - _ev_q_out) <= 0
+				&& (_uin.s._rs_q_in - _rs_q_out) > 0
+				&& (ebholderptr = _rs_q.get(rs_q_out,false))
+				&& (resource = ebholderptr->ptr)
+				&& resource != NULL
+				&& ebholderptr->at >= 0
+				// pop a resource
+				&& __sync_bool_compare_and_swap(
+					& _rs_q_out
+					, rs_q_out
+					, rs_q_out+1
+				)) {
+				bool cas_res = _rs_q.cas_to_null(rs_q_out,resource);
+				assert(cas_res && "must write a NULL on an rs pop");
+				*(ev->resource_loc) = resource;
+				res = true;
+				break;
+			} else if((_uin.s._rs_q_in - rs_q_out) <= 0
+				&& (uin.s._ev_q_in - _ev_q_out +1 >= _ev_q.impl_size() ? _ev_q.grow() : 1)
+				&& (ebptr = _ev_q.get(uin.s._ev_q_in))
+				&& !ebptr->ptr
+				// push ev
+				&& __sync_bool_compare_and_swap(
+					& _uin.u64
+					, uin.u64
+					, n_uin.u64
+				)) {
+				bool cas_res = _ev_q.cas_from_null(uin.s._ev_q_in, ev);
+				assert(cas_res && "must write on ev push");
+				res = false;
+				break;
 			}
-			hp = hp->next;
+			++retries;
 		}
 		return res;
 	}
-	void dump();
+	inline EventBaseHolder * release(EventBaseHolder * by_ev)
+	{
+		EventBaseHolder * res = NULL;
+		EventBaseHolder * ev_out = NULL;
+		long ev_q_out;
+		UIn uin;
+		UIn n_uin;
+		EBHolderEntry * ebptr;
+		EBHolderEntry * ebholderptr;
+		EventBaseHolder * resource = *(by_ev->resource_loc);
+		*(by_ev->resource_loc) = NULL;
+		long retries = 0;
+		while(1) {
+			ev_q_out = _ev_q_out;
+			uin.u64 = _uin.u64;
+			n_uin.u64 = uin.u64;
+			++n_uin.s._rs_q_in;
+			
+			if((_uin.s._ev_q_in - ev_q_out) > 0
+				&& (ebptr = _ev_q.get(ev_q_out,false))
+				&& (ev_out = ebptr->ptr)
+				&& ev_out != NULL
+				&& ebptr->at >= 0
+				// pop on ev_q
+				&& __sync_bool_compare_and_swap(
+					& _ev_q_out
+					, ev_q_out
+					, ev_q_out+1
+					)) {
+				bool cas_res = _ev_q.cas_to_null(ev_q_out,ev_out);
+				assert(cas_res && "must write NULL on ev pop");
+				*(ev_out->resource_loc) = resource;
+				res = ev_out;
+				break;
+			} else if((_uin.s._ev_q_in - ev_q_out) <= 0
+				// grow if needed
+				&& (uin.s._rs_q_in - _rs_q_out+1 >= _rs_q.impl_size() ? _rs_q.grow() : 1)
+				&& (ebholderptr = _rs_q.get(uin.s._rs_q_in))
+				&& !ebholderptr->ptr
+				
+				// push resource
+				&& __sync_bool_compare_and_swap(
+					& _uin.u64
+					, uin.u64
+					, n_uin.u64
+					)) {
+				bool cas_res = _rs_q.cas_from_null(uin.s._rs_q_in,resource);
+				assert(cas_res && "must write on an rs push");
+				res = NULL;
+				break;
+			}
+			++retries;
+		}
+		return res;
+	}
+	size_t waiter_count() const
+	{ return static_cast<size_t>(_uin.s._ev_q_in - _ev_q_out); }
 
 private:
-	EventBaseHolder * complete_pop();
-
-	StampedPtr<EventBaseHolder> _head;
-	EventBaseHolder * _tail;
+	PoolEventList(const PoolEventList &); // not implemented
+private:
+	oflux::lockfree::growable::CircularArray<EventBaseHolder> _ev_q;
+	oflux::lockfree::growable::CircularArray<EventBaseHolder> _rs_q;
+	volatile long _ev_q_out;
+	volatile long _rs_q_out;
+	volatile union UIn { 
+		uint64_t u64; 
+		struct S { long _ev_q_in; long _rs_q_in; } s; 
+		} _uin;
 };
 
 class AtomicPooled;
@@ -137,11 +166,11 @@ public:
 	virtual int compare (const void * v_k1, const void * v_k2) const
 	{ return 0; /* == always */ }
 	void release(AtomicPooled *ap);
-	void _dump() { waiters.dump(); }
+	void _dump() { waiters->dump(); }
 	static void dump(oflux::atomic::AtomicMapAbstract * map)
 	{ reinterpret_cast<AtomicPool *>(map)->_dump(); }
 protected:
-	PoolEventList waiters;
+	PoolEventList * waiters;
 	AtomicPooled * head_free;
 };
 
@@ -164,8 +193,10 @@ public:
 		//check();
 	}
 	void check();
-	virtual int held() const { return ! _pool->waiters.empty(); }
-	virtual size_t waiter_count() { return _pool->waiters.count(); }
+	virtual int held() const 
+	{ return _pool->waiters->waiter_count() > 0; }
+	virtual size_t waiter_count() 
+	{ return _pool->waiters->waiter_count(); }
 	virtual int wtype() const { return 0; }
 	virtual bool acquire_or_wait(EventBasePtr & ev,int);
 	virtual void release(
@@ -189,79 +220,7 @@ private:
 	static const char * atomic_class_str;
 	AtomicPool * _pool;
 	EventBaseHolder * _resource_ebh;
-	// ownership of _resource_ebh based on state of this object:
-	// STATE 0: constructed or fresh from _pool->head_free
-	//  _resource_ebh
-	//         points to EventBaseHolder {
-	//                 ev = NULL
-	//                 next = NULL
-        //                 resource_loc = NULL
-        //                 resource = ? (could be assigned from get()..data())
-	//         }
-	//  can release() --> STATE 1
-	//  can acquire_or_wait() success --> STATE 2
-	//  can acquire_or_wait() failure --> STATE 3
-	// STATE 1: released
-	//  old _resource_ebh belongs to _pool or to rel_ebh (ret from pop())
-	//  _resource_ebh = allocator.get() // new one is had
-	//  pool->release(this) called (here or in relinquish elsewhere)
-	//  [ AtomicPooled ontop of rel_ebh was in STATE 3 with
-	//    its own _resource_ebh == NULL, but now == this atomic's passed
-	//    non-NULL value.
-	//  ]
-	//  --> STATE 0
-	// STATE 2: acquired
-	//  _resource_ebh reclaimed by allocator.put() and set to NULL
-	//  _pool->waiters.push() ret true
-	//   side-effect: _resource_ebh is written with a populated
-	//         (resource != NULL) item
-	//         so pool is giving that item up
-	//  can release() --> STATE 1
-	// STATE 3: waited
-	//  _resource_ebh reclaimed by allocator.put() and set to NULL
-	//  _pool->waiters.push() ret false
-	//  [ when another AtomicPooled does STATE 1 transition and hits this,
-	//     _resource_ebh goes to non-NULL
-	//  ]
-	//  release() --> STATE 1
-
 	EventBaseHolder * _by_ebh;
-	// ownership of _by_ebh based on state of this object:
-	// STATE 0: constructed or fresh from _pool->head_free
-	//  _by_ebh
-	//         points to EventBaseHolder {
-	//                 ev = ? // may be NULL if from a GuardInserter
-	//                 next = NULL
-        //                 resource_loc = &_resource_ebh
-        //                 resource = NULL
-	//         }
-	//  can release() --> STATE 1
-	//  can acquire_or_wait() success --> STATE 2
-	//  can acquire_or_wait() failure --> STATE 3
-	// STATE 1: released
-	//  *(_by_ebh->resource_loc) = NULL so _resource_ebh = NULL
-	//    [ the released rel_ebh has a non-NULL *(rel_ebh->resource_loc)
-	//      so that AtomicPooled will have a non-NULL _resource_ebh
-	//	his _by_ebh is _not_ related at all to rel_ebh
-	//    ]
-	//  if rel_ebh non-NULL then strip out its ev
-	//     and reclaim it with allocator.put()
-	//  --> STATE 0
-	// STATE 2: acquired
-	//  _by_ebh.ev = ev
-	//  _by_ebh was not really used so no need for a new one
-	//  can release() --> STATE 1
-	// STATE 3: wait
-	//  _by_ebh.ev = ev
-	//  _by_ebh is given up to _pool since it is waiting
-	//  _by_ebh = allocator.get()
-	//  [ when another AtomicPooled does STATE 1, we'll
-	//    get a _resource_ebh that is non-NULL out of it
-	//    the local _by_ebh is not involved tho, and the given up
-	//    one may not be directly used since the lockfree content
-	//    swap may have happened (PoolEventList::push() for detail)
-	//  ]
-	// release() --> STATE 1
 };
 
 
@@ -269,4 +228,4 @@ private:
 } // namespace lockfree
 } // namespace oflux
 
-#endif // OFLUX_LOCKFREE_ATOMIC_RW
+#endif // OFLUX_LOCKFREE_ATOMIC_POOLED
