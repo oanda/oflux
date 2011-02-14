@@ -282,18 +282,22 @@ AtomicsHolder::release(
 	obs.ev_name = by_ev->flow_node()->getName();
 	obs.action = Observation::Action_Rel;
 	hrtime_t curr_hr_time = gethrtime();
-	if(curr_hr_time - _full_acquire_time > 1000) {
+	if(curr_hr_time - _full_acquire_time > 100000) {
 		// threshold based log line at info level
-		oflux_log_info("AtomicsHolder::release saw %s %p take %lld nsec from full acquire to release (held %d things: %d, %d)\n"
+		oflux_log_info("[" PTHREAD_PRINTF_FORMAT "] AH::release saw %s %p take %lld nsec from full acquire to release (held %d things: %d, %d, %d)\n"
+			, oflux_self()
 			, obs.ev_name
 			, obs.ev
 			, curr_hr_time - _full_acquire_time
 			, _number
-			, _holders[0]._flow_guard_ref()
-				? _holders[0]._flow_guard_ref()->wtype()
+			, _holders[0].flow_guard_ref()
+				? _holders[0].flow_guard_ref()->wtype()
 				: 0
-			, _holders[1]._flow_guard_ref()
-				? _holders[1]._flow_guard_ref()->wtype()
+			, _holders[1].flow_guard_ref()
+				? _holders[1].flow_guard_ref()->wtype()
+				: 0
+			, _holders[2].flow_guard_ref()
+				? _holders[2].flow_guard_ref()->wtype()
 				: 0
 			);
 	}

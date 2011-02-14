@@ -8,7 +8,7 @@
  * (partly based on value)
  */
 
-#define AH_INSTRUMENTATION
+//#define AH_INSTRUMENTATION
 #include <sys/time.h>
 
 #include <vector>

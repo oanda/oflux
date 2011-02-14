@@ -14,7 +14,7 @@ namespace flow {
 
 namespace exercise {
 
-extern int max_nsec_wait;
+extern long max_nsec_wait;
 
 void node_report(oflux::flow::Flow *);
 

@@ -63,6 +63,7 @@ public:
 			| (md ? 0x0002: 0x0000)
 			| (mk ? 0x0001: 0x0000);
 		u._u64 = uu._u64;
+		store_load_barrier();
 		return true;
 	}
 	inline bool set(readwrite::EventBaseHolder *n, uint32_t e)
@@ -101,6 +102,7 @@ public:
 		, uint32_t e)
         {
                 RWWaiterPtr rwh(rc,md,mk,e);
+		store_load_barrier();
                 return compareAndSwap(old_o,rwh);
         }
         inline bool compareAndSwap(

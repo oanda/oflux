@@ -287,8 +287,8 @@ RunTimeThread::handle(EventBasePtr & ev)
 	//   * critical when it has >= Q_Critical_size
 
 	enum QueueControlParams 
-		{ Q_Critical_size = 1024
-		, Q_Hot_size = 256
+		{ Q_Critical_size = 32 // 1024
+		, Q_Hot_size = 8 // 256
 		};
 	if(_queue_allowance<=0) {
 		_queue_allowance = Q_Critical_size - _queue.size();
