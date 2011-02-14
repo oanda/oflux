@@ -68,7 +68,7 @@ main(int argc, char * argv[])
 	oflux::RunTimeConfiguration rtc = {
 		  1024*1024 // stack size
 		, init_threads // initial threads (ignored really)
-		, 0 // max threads
+		, 64 // max threads
 		, 0 // max detached
 		, 0 // thread collection threshold
 		, 1000 // thread collection sample period (every N node execs)
