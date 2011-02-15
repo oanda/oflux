@@ -52,8 +52,9 @@ int Streamed::oflux_log(Level lv, const char * fmt, ...)
 		va_list args;
 		va_start (args, fmt);
 		int sz = BUFFERLONGENOUGH;
-		snprintf(buffer,sz,"%ld %s",
-			fast_time(NULL),
+		snprintf(buffer,sz,
+			//"%lld %s", gethrtime(), 
+			"%ld %s", fast_time(NULL),
 			convert_level_to_string(lv));
 		int hsz = strlen(buffer);
 		sz -= hsz;

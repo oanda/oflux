@@ -17,7 +17,7 @@ __acquire_guards(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev = EventBase::no_event)
 {
-	int working_on_local = ev->atomics().working_on();
+	int __attribute__((unused)) working_on_local = ev->atomics().working_on();
 	bool res = ev->atomics().acquire_all_or_wait(
 		  ev
 		, pred_ev);

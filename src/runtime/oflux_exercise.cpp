@@ -58,7 +58,7 @@ main(int argc, char * argv[])
 	}
 	char * max_nsec_wait_str = getenv("EXERCISE_SLEEP");
 	if(max_nsec_wait_str) {
-		oflux::flow::exercise::max_nsec_wait = atoi(max_nsec_wait_str);
+		oflux::flow::exercise::max_nsec_wait = atol(max_nsec_wait_str);
 	}
 	int init_threads = 0;
 	char * init_threads_str = getenv("EXERCISE_THREADS");
@@ -68,7 +68,7 @@ main(int argc, char * argv[])
 	oflux::RunTimeConfiguration rtc = {
 		  1024*1024 // stack size
 		, init_threads // initial threads (ignored really)
-		, 0 // max threads
+		, 64 // max threads
 		, 0 // max detached
 		, 0 // thread collection threshold
 		, 1000 // thread collection sample period (every N node execs)
@@ -80,7 +80,7 @@ main(int argc, char * argv[])
 		, init_atomic_maps
 		};
 	oflux::logging::toStream(std::cout); 
-	oflux_log_info(" exercise::max_nsec_wait is %d\n", oflux::flow::exercise::max_nsec_wait);
+	oflux_log_info(" exercise::max_nsec_wait is %ld\n", oflux::flow::exercise::max_nsec_wait);
 	oflux::EnvironmentVar env(oflux::runtime::Factory::classic);
 	oflux::flow::ExerciseFunctionMaps ffmaps(env.runtime_number == 4);
 	atomic_set = ffmaps.atomic_set();
