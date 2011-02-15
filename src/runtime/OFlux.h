@@ -24,6 +24,8 @@ namespace oflux {
 
 extern const char * runtime_version;
 
+extern "C" void trigger_probe_aha_exception_begin_throw(int i);
+
 #define OFLUX_RUNTIME_VERSION runtime_version
 
 namespace logging {
@@ -101,6 +103,7 @@ public:
 	T getDataLexicalThrowOnNull(int i) {
 		void * vp = getDataLexical(i);
 		if(vp == NULL) {
+			trigger_probe_aha_exception_begin_throw(i);
 			throw AHAException(i,__FUNCTION__);
 		}
 		return reinterpret_cast<T>(vp);
@@ -217,7 +220,7 @@ typedef ModularFunctionLookup<CreateNodeFn> ModularCreateMap;
 typedef ModularFunctionLookup<CreateDoorFn> ModularCreateDoorMap;
 
 struct ConditionalMap {
-	const int unionnumber;
+	const char * unionhash;
 	const int argno;
 	const char * name;
 	ConditionFn condfn;
@@ -225,7 +228,7 @@ struct ConditionalMap {
 
 struct GuardTransMap {
 	const char * guardname;
-	const int union_number;
+	const char * unionhash;
         const char * hash;
         const int wtype;
         const bool late;
@@ -240,9 +243,14 @@ struct AtomicMapMap {
 typedef void * (*FlatIOConversionFun)(const void *);
 
 struct IOConverterMap {
-        int from;
-        int to;
+        const char * from_unionhash;
+        const char * to_unionhash;
         FlatIOConversionFun conversion_fun;
+	// rest is for troubleshooting
+	const char * to_str_name;
+	const char * from_str_name;
+	const char * file;
+	int line;
 };
 
 

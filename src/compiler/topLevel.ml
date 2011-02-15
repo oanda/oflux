@@ -134,7 +134,7 @@ let semantic_analysis p mod_defs =
 	in  builtflow
 	
 (*PASS 3*)
-let generate fn deplist br br_aft_opt um =
+let generate fn deplist xmldeplist br br_aft_opt um =
 	let debug = !Debug.debug in
 	let _ = Debug.dprint_string "FINAL FMAP\n"; Flow.pp_flow_map debug br.Flow.fmap in
 	let h_code,cpp_code = 
@@ -150,7 +150,7 @@ let generate fn deplist br br_aft_opt um =
 	let xmlopt = match CmdLine.get_module_name(),br_aft_opt with
                 (None,None) -> Some (GenerateXML.emit_program_xml fn br)
                 | (None,(Some br_aft)) -> 
-                        Some (GenerateXML.emit_plugin_xml fn deplist br br_aft um)
+                        Some (GenerateXML.emit_plugin_xml fn (deplist@xmldeplist) br br_aft um)
                 | _ -> None
 	in  xmlopt,cpp_code,h_code
 
@@ -276,20 +276,22 @@ let xmain do_result fn =
 		| (Some pres, incluses) ->
                         let _ = parse_timer () in
                         let flatten_timer = Debug.timer "flatten" in
-			let pres_flat, pres_flat_after_opt, deplist = 
+			let pres_flat, pres_flat_after_opt, deplist, xmldeplist = 
                                 (match (CmdLine.get_module_name()), (CmdLine.get_plugin_name()) with
 					(None,None) ->  
                                                 (Flatten.flatten pres
                                                 ,None
-                                                ,[])
+                                                ,[]
+						,[])
 					| (Some mn,_) -> 
                                                 (Flatten.flatten_module mn pres
                                                 ,None
-                                                ,[])
+                                                ,[]
+						,[])
 					| (_,Some pn) -> 
-                                                let bef,aft = Flatten.flatten_plugin pn pres in
+                                                let bef,aft,xmldeplist = Flatten.flatten_plugin pn pres in
                                                 let deplist = List.filter (fun p -> not (pn = p)) (List.map (fun pl -> strip_position pl.pluginname) pres.plugin_list)
-                                                in bef, Some aft, deplist)
+                                                in bef, Some aft, deplist, xmldeplist)
 				in
                         let _ = flatten_timer () in
                         let sem_an_timer = Debug.timer "semantic analysis" in
@@ -309,7 +311,7 @@ let xmain do_result fn =
 			let debug = ! Debug.debug in
 			let _ = Flow.pp_flow_map debug br.Flow.fmap in
                         let generate_timer = Debug.timer "generate" in
-			let xmlopt,cpp_code,h_code = generate fn deplist br br_after_opt uses_model in
+			let xmlopt,cpp_code,h_code = generate fn deplist xmldeplist br br_after_opt uses_model in
                         let _ = generate_timer () in
                         let dot_timer = Debug.timer "dot" in
 			let dot_flat_output = 

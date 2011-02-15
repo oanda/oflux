@@ -293,6 +293,7 @@ let pp_ufs ufs =
 		Debug.dprint_string "]\n")
 
 let make_compatible stable_change conseq_const conseq_change =
+	(* fixme remove pp_ufs:*)
         let ufs_const = conseq_const.equiv_classes in
         let ufs = conseq_change.equiv_classes in
 	let _ = (Debug.dprint_string "make_compatible (const,change):\n";
@@ -325,8 +326,12 @@ let make_compatible stable_change conseq_const conseq_change =
 					(try let n,ufs = partfor h ufs
 					    in compat (n::sofar) t ufs
 					with Not_found ->
-						compat (attempt_inplace_remove h sofar)
-							t ufs
+						(*compat (attempt_inplace_remove h sofar)
+							t ufs*)
+					    if List.exists (intersects h) sofar then
+						compat ([]::sofar) t ufs
+					    else 
+						raise (Failure ("make_compatible failure on unfound merged ec "^(ec_tostring h),noposition))
 					)
                                 with Not_found ->
                                         raise (Failure ("make_compatible failure for class containing "^(ec_tostring h),noposition))) in

@@ -173,19 +173,21 @@ SuccessorList::pretty_print(int depth, std::set<std::string> * visited)
 
 int Node::_last_id=0;
 
-Node::Node(const char * name,
-                CreateNodeFn createfn,
-                CreateDoorFn createdoorfn,
-                bool is_error_handler,
-                bool is_source,
-                bool is_door,
-                bool is_detached,
-                int input_unionnumber,
-                int output_unionnumber)
+Node::Node(       const char * name
+		, const char * function_name
+                , CreateNodeFn createfn
+                , CreateDoorFn createdoorfn
+                , bool is_error_handler
+                , bool is_source
+                , bool is_door
+                , bool is_detached
+                , const char * input_unionhash
+                , const char * output_unionhash)
         : _instances(0)
         , _executions(0)
 	, _id(__sync_fetch_and_add(&_last_id,1))
         , _name(name)
+	, _function_name(function_name)
         , _createfn(createfn)
         , _createdoorfn(createdoorfn)
         , _is_error_handler(is_error_handler)
@@ -196,8 +198,8 @@ Node::Node(const char * name,
 	, _successor_list(NULL)
 	, _error_handler_case(new Case())
         , _this_case(new Case(name,this,NULL))
-        , _input_unionnumber(input_unionnumber)
-        , _output_unionnumber(output_unionnumber)
+        , _input_unionhash(input_unionhash)
+        , _output_unionhash(output_unionhash)
         , _is_guards_completely_sorted(false)
 { 
 }

@@ -33,13 +33,12 @@ class AddTarget {
 public:
         AddTarget(flow::Case * fc
 		, const char * name
-		, int node_output_unionnumber
+		, const char * node_output_unionhash
 		, Reader * xmlreader
 		, const std::string & scope_name)
         : _fc(fc)
         , _name(name)
-        , _node_output_unionnumber(node_output_unionnumber)
-        , _target_input_unionnumber(0)
+        , _node_output_unionhash(node_output_unionhash)
         , _xmlreader(xmlreader)
 	, _scope_name(scope_name)
         {}
@@ -51,8 +50,8 @@ public:
 private:
         flow::Case * _fc;
         std::string  _name; //target
-        int          _node_output_unionnumber;
-        int          _target_input_unionnumber;
+        std::string  _node_output_unionhash;
+        std::string  _target_input_unionhash;
         Reader *     _xmlreader;
 	std::string  _scope_name;
 };
@@ -94,7 +93,7 @@ private:
 
 class ScopedFunctionMaps {
 public:
-	typedef std::set<flow::FunctionMapsAbstract *> Context;
+	typedef std::vector<flow::FunctionMapsAbstract *> Context;
 	class Scope {
 	public:
 		Scope(Context & c)
@@ -111,12 +110,12 @@ public:
 		lookup_conditional(
 			  const char * n
 			, int argno
-			, int unionnumber);
+			, const char * unionhash);
 
 		GuardTransFn
 		lookup_guard_translator(
 			  const char * guardname
-			, int union_number
+			, const char * unionhash
 			, const char * hash
 			, int wtype
 			, bool late);
@@ -125,7 +124,9 @@ public:
 		lookup_atomic_map(const char * guardname);
 
 		FlatIOConversionFun
-		lookup_io_conversion(int from_unionnumber, int to_unionnumber);
+		lookup_io_conversion(
+			  const char * from_unionhash
+			, const char * to_unionhash);
 
 		flow::Library *
 		libraryFactory(const char * dir, const char * name)
@@ -159,9 +160,9 @@ private:
 		  Context & c1
 		, const Context & c2)
 	{
-		Context::iterator itr = c2.begin();
+		Context::const_iterator itr = c2.begin();
 		while(itr != c2.end()) {
-			c1.insert(*itr);
+			c1.push_back(*itr);
 			++itr;
 		}
 	}
@@ -179,9 +180,9 @@ public:
 	static const char * attr_isnegated;
 	static const char * attr_iserrhandler;
 	static const char * attr_detached;
-	static const char * attr_unionnumber;
-	static const char * attr_inputunionnumber;
-	static const char * attr_outputunionnumber;
+	static const char * attr_unionhash;
+	static const char * attr_inputunionhash;
+	static const char * attr_outputunionhash;
 	static const char * attr_after;
 	static const char * attr_before;
 	static const char * attr_late;
@@ -420,9 +421,12 @@ public:
 			_set_error_handlers.push_back(seh);
 		}
 	}
-	void addTarget(flow::Case * c, const char * target_name, int out_unionnumber)
+	void addTarget(
+		  flow::Case * c
+		, const char * target_name
+		, const char * out_unionhash)
 	{
-                AddTarget at(c,target_name, out_unionnumber, this, _scope_name);
+                AddTarget at(c,target_name, out_unionhash, this, _scope_name);
                 _add_targets.push_back(at);
 	}
 
@@ -639,9 +643,9 @@ AddTarget::execute(flow::Flow * f)
         assert(fsrc);
         _fc->setTargetNode(fsrc);
 	oflux_log_trace("AddTarget::execute %p %s\n", _fc,_name.c_str());
-        _target_input_unionnumber = fsrc->inputUnionNumber();
+        _target_input_unionhash = fsrc->inputUnionHash();
         FlatIOConversionFun fiocf =
-		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionnumber, _target_input_unionnumber);
+		_xmlreader->fromThisScope(_scope_name.c_str())->lookup_io_conversion(_node_output_unionhash.c_str(), _target_input_unionhash.c_str());
         if(fiocf) {
                 assert(_fc->ioConverter() == &flow::IOConverter::standard_converter);
                 _fc->setIOConverter(new flow::IOConverter(fiocf));
@@ -691,7 +695,7 @@ ScopedFunctionMaps::add(
 {
 	std::pair<std::string,ScopedFunctionMaps::Context> pr;
 	pr.first = scopename;
-	pr.second.insert(fmaps);
+	pr.second.push_back(fmaps);
 	std::vector<std::string>::const_iterator itr = deps.begin();
 	while(itr != deps.end()) {
 		std::map<std::string,Context>::iterator fitr = _map.find(*itr);
@@ -706,8 +710,8 @@ CreateNodeFn
 ScopedFunctionMaps::Scope::lookup_node_function(const char *n)
 {
         CreateNodeFn res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_node_function(n);
 		++itr;
         }
@@ -730,12 +734,12 @@ ConditionFn
 ScopedFunctionMaps::Scope::lookup_conditional(
 	  const char * n
 	, int argno
-	, int unionnumber)
+	, const char * unionhash)
 {
         ConditionFn res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
-                res = (*itr)->lookup_conditional(n,argno,unionnumber);
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
+                res = (*itr)->lookup_conditional(n,argno,unionhash);
 		++itr;
         }
         return res;
@@ -744,17 +748,17 @@ ScopedFunctionMaps::Scope::lookup_conditional(
 GuardTransFn
 ScopedFunctionMaps::Scope::lookup_guard_translator(
 	  const char * guardname
-        , int union_number
+        , const char * unionhash
         , const char * hash
         , int wtype
 	, bool late)
 {
         GuardTransFn res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_guard_translator(
 			  guardname
-                        , union_number
+                        , unionhash
                         , hash
                         , wtype
 			, late);
@@ -767,8 +771,8 @@ atomic::AtomicMapAbstract *
 ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
 {
         atomic::AtomicMapAbstract * res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_atomic_map(guardname);
 		++itr;
         }
@@ -777,15 +781,15 @@ ScopedFunctionMaps::Scope::lookup_atomic_map(const char * guardname)
 
 FlatIOConversionFun
 ScopedFunctionMaps::Scope::lookup_io_conversion(
-	  int from_unionnumber
-	, int to_unionnumber)
+	  const char * from_unionhash
+	, const char * to_unionhash)
 {
         FlatIOConversionFun res = NULL;
-	ScopedFunctionMaps::Context::const_iterator itr = _c.begin();
-        while(res == NULL && itr != _c.end()) {
+	ScopedFunctionMaps::Context::const_reverse_iterator itr = _c.rbegin();
+        while(res == NULL && itr != _c.rend()) {
                 res = (*itr)->lookup_io_conversion(
-			  from_unionnumber
-			, to_unionnumber);
+			  from_unionhash
+			, to_unionhash);
 		++itr;
         }
         return res;
@@ -800,9 +804,9 @@ const char * XMLVocab::attr_door = "door";
 const char * XMLVocab::attr_isnegated = "isnegated";
 const char * XMLVocab::attr_iserrhandler = "iserrhandler";
 const char * XMLVocab::attr_detached = "detached";
-const char * XMLVocab::attr_unionnumber = "unionnumber";
-const char * XMLVocab::attr_inputunionnumber = "inputunionnumber";
-const char * XMLVocab::attr_outputunionnumber = "outputunionnumber";
+const char * XMLVocab::attr_unionhash = "unionhash";
+const char * XMLVocab::attr_inputunionhash = "inputunionhash";
+const char * XMLVocab::attr_outputunionhash = "outputunionhash";
 const char * XMLVocab::attr_after = "after";
 const char * XMLVocab::attr_before = "before";
 const char * XMLVocab::attr_late = "late";
@@ -844,9 +848,9 @@ fillAttributeMap(
 		, XMLVocab::attr_isnegated
 		, XMLVocab::attr_iserrhandler
 		, XMLVocab::attr_detached
-		, XMLVocab::attr_unionnumber
-		, XMLVocab::attr_inputunionnumber
-		, XMLVocab::attr_outputunionnumber
+		, XMLVocab::attr_unionhash
+		, XMLVocab::attr_inputunionhash
+		, XMLVocab::attr_outputunionhash
 		, XMLVocab::attr_after
 		, XMLVocab::attr_before
 		, XMLVocab::attr_late
@@ -982,11 +986,11 @@ flow_element_factory<flow::Condition>(AttributeMap & amap, Reader & reader)
 		amap.getOrThrow(XMLVocab::attr_name).c_str();
 	bool is_negated = amap.getOrThrow(XMLVocab::attr_isnegated).boolVal();
 	int argno = amap.getOrThrow(XMLVocab::attr_argno).intVal();
-	int unionnumber = amap.getOrThrow(XMLVocab::attr_unionnumber).intVal();
+	const char * unionhash = amap.getOrThrow(XMLVocab::attr_unionhash).c_str();
 	ConditionFn condfn = reader.fromThisScope()->lookup_conditional(
 		  condfunction_str
 		, argno
-		, unionnumber );
+		, unionhash );
 	if(!condfn) {
 		std::string ex_msg = "Could not create condition function ";
 		ex_msg += condfunction_str;
@@ -1013,7 +1017,7 @@ flow_element_factory<flow::GuardReference>(AttributeMap & amap, Reader & reader)
 {
 	bool is_late = amap.getOrThrow(XMLVocab::attr_late).boolVal();
 	int wtype = amap.getOrThrow(XMLVocab::attr_wtype).intVal();
-	int unionnumber = amap.getOrThrow(XMLVocab::attr_unionnumber).intVal();
+	const char * unionhash = amap.getOrThrow(XMLVocab::attr_unionhash).c_str();
 	const char * hash = amap.getOrThrow(XMLVocab::attr_hash).c_str();
 	const char * guard_name = amap.getOrThrow(XMLVocab::attr_name).c_str();
 	flow::Guard * g = reader.find<flow::Guard>(guard_name);
@@ -1023,7 +1027,7 @@ flow_element_factory<flow::GuardReference>(AttributeMap & amap, Reader & reader)
 		GuardTransFn guardfn =
                         reader.fromThisScope()->lookup_guard_translator(
                                   guard_name
-                                , unionnumber
+                                , unionhash
                                 , hash
                                 , wtype
                                 , result->late());
@@ -1045,7 +1049,7 @@ flow_element_factory<flow::Case>(AttributeMap & amap, Reader & reader)
 		amap.getOrThrow(XMLVocab::attr_nodetarget).c_str();
 	flow::Case * result = NULL;
 	flow::Node * from_node = reader.get<flow::Node>();
-	int outputunionnumber = from_node->outputUnionNumber();
+	const char * outputunionhash = from_node->outputUnionHash();
 	if(reader.allow_addition()) {
 		result = new flow::Case(target_name);
 		oflux_log_trace("flow_element_factory<flow::Case> %p %s adding t %s\n"
@@ -1055,7 +1059,7 @@ flow_element_factory<flow::Case>(AttributeMap & amap, Reader & reader)
 		reader.addTarget(
 			  result
 			, target_name
-			, outputunionnumber); // + scope_name
+			, outputunionhash); // + scope_name
 	}
 	return result;
 }
@@ -1104,6 +1108,7 @@ flow_element_factory<flow::Node>(AttributeMap & amap, Reader & reader)
 	bool is_external = amap.getOrThrow(XMLVocab::attr_external).boolVal();
 	flow::Node * result = NULL;
 	const char * node_name = amap.getOrThrow(XMLVocab::attr_name).c_str();
+	const char * function_name = amap.getOrThrow(XMLVocab::attr_function).c_str();
 
 	if(is_external) {
 		result = reader.find<flow::Node>(node_name);
@@ -1111,14 +1116,15 @@ flow_element_factory<flow::Node>(AttributeMap & amap, Reader & reader)
 	} else if(reader.allow_addition()) {
 		result = new flow::Node(
 			  node_name
+			, function_name
 			, createfn
 			, createdoorfn
 			, amap.getOrThrow(XMLVocab::attr_iserrhandler).boolVal()
 			, amap.getOrThrow(XMLVocab::attr_source).boolVal()
 			, is_door
 			, amap.getOrThrow(XMLVocab::attr_detached).boolVal()
-			, amap.getOrThrow(XMLVocab::attr_inputunionnumber).intVal()
-			, amap.getOrThrow(XMLVocab::attr_outputunionnumber).intVal());
+			, amap.getOrThrow(XMLVocab::attr_inputunionhash).c_str()
+			, amap.getOrThrow(XMLVocab::attr_outputunionhash).c_str());
 	}
 	return result;
 }
@@ -1263,6 +1269,7 @@ void Reader::readxmldir(flow::FlowHolder * flow_holder)
 		, flow_holder->flow()
 		, getState()
 		, *this);
+	std::set<std::string> files;
         while((dir_entry = ::readdir(dir)) != NULL) {
                 std::string filename = dir_entry->d_name;
                 size_t found = filename.find_last_of(".");
@@ -1271,10 +1278,18 @@ void Reader::readxmldir(flow::FlowHolder * flow_holder)
                         if(!_depends_visited.isDependency(filename.c_str())) {
                                 readxmlfile(filename.c_str());
                         }
+			files.insert(filename);
                 }
         }
 	delete popState();
         ::closedir(dir);
+	// deterministic reading order 
+	for(std::set<std::string>::iterator itr = files.begin(); itr != files.end(); ++itr) {
+		if(!_depends_visited.isDependency((*itr).c_str())) {
+			readxmlfile((*itr).c_str());
+		}
+	}
+
 }
 
 

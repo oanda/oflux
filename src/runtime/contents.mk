@@ -23,6 +23,7 @@ OFLUX_LF_OBJS = $(OFLUX_LF_SRC:.cpp=.o)
 
 OFLUX_OBJS = \
         OFlux.o \
+        OFluxExceptionsDTrace.o \
         OFluxLogging.o \
         OFluxProfiling.o \
         OFluxQueue.o \

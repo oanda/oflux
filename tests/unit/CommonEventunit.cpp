@@ -71,10 +71,12 @@ c_nextDetail::nfunctype c_nextDetail::nfunc = &f_next;
 
 oflux::CreateNodeFn OFluxCommonEventTests::c_next = oflux::create<c_nextDetail>;
 
+const char * empty = "";
+
 OFluxCommonEventTests::OFluxCommonEventTests()
-	: n_source("source",c_source,NULL,false,true,false,false,0,0)
-	, n_succ("source",c_succ,NULL,false,false,false,false,0,0)
-	, n_next("source",c_succ,NULL,false,false,false,false,0,0)
+	: n_source("source","c_source",c_source,NULL,false,true,false,false,empty,empty)
+	, n_succ("source","c_source", c_succ,NULL,false,false,false,false,empty,empty)
+	, n_next("source","c_source", c_succ,NULL,false,false,false,false,empty,empty)
 {
 }
 

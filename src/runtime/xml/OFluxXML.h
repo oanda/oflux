@@ -21,11 +21,18 @@ namespace xml {
  * @class ReaderException
  * @brief exception class for oops-es in parsing etc
  */
-class ReaderException {
+class ReaderException : public std::exception {
 public:
         ReaderException(const char * mesg)
         		: _mesg(mesg)
         {}
+
+        virtual ~ReaderException() throw ()
+        {}
+
+        virtual const char* what () const throw () {
+            return _mesg.c_str();
+        }
 private:
         std::string _mesg;
 };

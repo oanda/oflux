@@ -99,20 +99,22 @@ public:
 	typedef Flow ParentObjType;
 
         friend class NodeCounterIncrementer;
-        Node(const char * name,
+        Node(   const char * name,
+		const char * function_name,
                 CreateNodeFn createfn,
                 CreateDoorFn createdoorfn,
                 bool is_error_handler,
                 bool is_source,
 		bool is_door,
                 bool is_detached,
-                int input_unionnumber,
-                int output_unionnumber);
+                const char * input_unionhash,
+                const char * output_unionhash);
         ~Node();
         void setErrorHandler(Node *fn);
         void successor_list(SuccessorList * sl) { _successor_list = sl; }
         SuccessorList * successor_list() { return _successor_list; }
         inline const char * getName() const { return &(_name[0]); }
+        inline const char * getFunctionName() const { return _function_name.c_str(); }
         inline bool getIsSource() const { return _is_source; }
 	bool getIsInitial();
         inline bool getIsDoor() const { return _is_door; }
@@ -134,8 +136,8 @@ public:
         inline long long instances() { return _instances.value(); }
         inline long long executions() { return _executions.value(); }
         inline void turn_off_source() { _is_source = false; }
-        inline int inputUnionNumber() { return _input_unionnumber; }
-        inline int outputUnionNumber() { return _output_unionnumber; }
+        inline const char * inputUnionHash() { return _input_unionhash.c_str(); }
+        inline const char * outputUnionHash() { return _output_unionhash.c_str(); }
         void sortGuards();
         bool isGuardsCompletelySorted() { return _is_guards_completely_sorted; }
 	int id() const { return _id; }
@@ -146,6 +148,7 @@ public:
 	static int		      _last_id;
 private:
         std::string                   _name;
+	std::string                   _function_name;
         CreateNodeFn                  _createfn;
         CreateDoorFn                  _createdoorfn;
         bool                          _is_error_handler;
@@ -157,8 +160,8 @@ private:
         Case *                        _error_handler_case;
         Case *                        _this_case;
         std::vector<GuardReference *> _guard_refs;
-        int                           _input_unionnumber;
-        int                           _output_unionnumber;
+        std::string                   _input_unionhash;
+        std::string                   _output_unionhash;
         bool                          _is_guards_completely_sorted;
 #ifdef PROFILING
         TimerStats                    _real_timer_stats;

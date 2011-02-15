@@ -30,13 +30,14 @@ FunctionMaps::libraryFactory(const char * dir, const char * name)
 
 FlatIOConversionFun 
 FunctionMaps::lookup_io_conversion(
-	  int from_unionnumber
-	, int to_unionnumber) const
+	  const char * from_unionhash
+	, const char * to_unionhash) const
 {
         FlatIOConversionFun res = NULL;
         IOConverterMap * ptr = _ioconverter_map;
-        while(ptr->from > 0) {
-                if(ptr->from == from_unionnumber && ptr->to == to_unionnumber) {
+        while(ptr->from_unionhash > 0) {
+                if(strcmp(ptr->from_unionhash, from_unionhash) == 0 
+				&& strcmp(ptr->to_unionhash, to_unionhash) == 0) {
                         res = ptr->conversion_fun;
                         break;
                 }
@@ -82,14 +83,14 @@ ConditionFn
 FunctionMaps::lookup_conditional(
 	  const char * n
 	, int argno
-	, int unionnumber) const
+	, const char * unionhash) const
 {
         ConditionFn res = NULL;
         ConditionalMap * cm = _cond_map;
         while(cm->name) {
                 if(strcmp(cm->name, n) == 0
                         && argno == cm->argno
-                        && unionnumber == cm->unionnumber) {
+                        && strcmp(unionhash, cm->unionhash) == 0) {
                         res = cm->condfn;
                         break;
                 }
@@ -101,7 +102,7 @@ FunctionMaps::lookup_conditional(
 GuardTransFn 
 FunctionMaps::lookup_guard_translator(
 	  const char * guardname
-	, int union_number
+	, const char * unionhash
 	, const char * hash
 	, int wtype
 	, bool late) const
@@ -110,7 +111,7 @@ FunctionMaps::lookup_guard_translator(
         GuardTransMap * ptr = _guard_trans_map;
         while(ptr->guardname != NULL) {
                 if(strcmp(guardname, ptr->guardname) == 0
-                                && union_number == ptr->union_number
+                                && strcmp(unionhash, ptr->unionhash) == 0
                                 && 0 == strcmp(hash,ptr->hash)
                                 && wtype == ptr->wtype
                                 && late == ptr->late

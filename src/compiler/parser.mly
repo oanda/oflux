@@ -66,7 +66,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> READ, WRITE, SLASH;
 %token <ParserTypes.position*ParserTypes.position> UPGRADEABLE, NULLOK;
 %token <ParserTypes.position*ParserTypes.position> MODULE, BEGIN, END;
-%token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL;
+%token <ParserTypes.position*ParserTypes.position> PLUGIN, EXTERNAL, DEPENDS;
 %token <ParserTypes.position*ParserTypes.position> INSTANCE, IF, STATIC;
 %token <ParserTypes.position*ParserTypes.position> UNORDERED, GC;
 %token <ParserTypes.position*ParserTypes.position> BACKARROW, NOTEQUALS, ISEQUALS;
@@ -88,7 +88,7 @@ top_level_program:
 
 program:
 	code_list 
-		{ let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
+		{ let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
 		  in { cond_decl_list=List.rev cl 
 		     ; atom_decl_list=List.rev al
 		     ; node_decl_list=List.rev nl
@@ -98,6 +98,7 @@ program:
 		     ; mod_def_list=List.rev mdl
 		     ; mod_inst_list=List.rev mil
                      ; plugin_list=List.rev pl
+		     ; plugin_depend_list=List.rev pdl
                      ; terminate_list=List.rev tl
                      ; order_decl_list=List.rev odl
 		     } }
@@ -108,56 +109,60 @@ program:
 code_list:
 	code_list main_fn
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 in
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 in
 	  let findsrc s = 
 		try List.find (fun n -> (strip_position s.sourcename) = (strip_position n.nodename)) nl
 		with Not_found -> raise (Heck ("could not find source declaration before definition for "^(strip_position s.sourcename)))
 	  in  match $2 with
-		(s,None) -> (s::sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl) 
-	       |(s,Some e) -> (s::sl,e::el,erl,mil,cl,al,(make_node_decl e.exprname (findsrc s))::nl,mdl,pl,tl,odl) }
+		(s,None) -> (s::sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl) 
+	       |(s,Some e) -> (s::sl,e::el,erl,mil,cl,al,(make_node_decl e.exprname (findsrc s))::nl,mdl,pl,pdl,tl,odl) }
 	| code_list expr_part
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1
-	  in  (sl,$2::el,erl,mil,cl,al,nl,mdl,pl,tl,odl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1
+	  in  (sl,$2::el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl) }
 	| code_list err_def
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1
-	  in  (sl,el,$2::erl,mil,cl,al,nl,mdl,pl,tl,odl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1
+	  in  (sl,el,$2::erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl) }
 	| code_list mod_inst
 	{ trace_thing "code_list"; 
-	  let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1
-	  in  (sl,el,erl,$2::mil,cl,al,nl,mdl,pl,tl,odl) }
+	  let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1
+	  in  (sl,el,erl,$2::mil,cl,al,nl,mdl,pl,pdl,tl,odl) }
 	| code_list node_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-          in sl,el,erl,mil,cl,al,$2::nl,mdl,pl,tl,odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+          in sl,el,erl,mil,cl,al,$2::nl,mdl,pl,pdl,tl,odl }
 	| code_list atom_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,$2::al,nl,mdl,pl,tl,odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,$2::al,nl,mdl,pl,pdl,tl,odl }
 	| code_list cond_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-	  in sl,el,erl,mil,$2::cl,al,nl,mdl,pl,tl,odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,$2::cl,al,nl,mdl,pl,pdl,tl,odl }
 	| code_list mod_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,al,nl,$2::mdl,pl,tl,odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,$2::mdl,pl,pdl,tl,odl }
 	| code_list plugin_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,al,nl,mdl,$2::pl,tl,odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,$2::pl,pdl,tl,odl }
+	| code_list plugin_depends_decl 
+	{ trace_thing "code_list";
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$2::pdl,tl,odl }
 	| code_list term_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,$2::tl,odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,$2::tl,odl }
 	| code_list guard_order_decl
 	{ trace_thing "code_list";
-          let sl,el,erl,mil,cl,al,nl,mdl,pl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,tl,$2 @ odl }
+          let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
+	  in sl,el,erl,mil,cl,al,nl,mdl,pl,tl,pdl,$2 @ odl }
 	| /*epsilon*/
 	{ trace_thing "code_list";
-          [],[],[],[],[],[],[],[],[],[],[] }
+          [],[],[],[],[],[],[],[],[],[],[],[] }
 
 /*** modules ***/
 
@@ -203,6 +208,10 @@ mod_modifier:
 
 
 /*** plugins ***/
+
+plugin_depends_decl:
+	DEPENDS namespaced_ident SEMI
+	{ trace_thing "plugin_depends_def"; $2 }
 
 plugin_decl:
         PLUGIN namespaced_ident BEGIN program END

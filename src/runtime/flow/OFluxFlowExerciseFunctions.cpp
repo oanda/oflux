@@ -782,7 +782,10 @@ exercise_condition_function(const void *v)
 }
 
 ConditionFn 
-ExerciseFunctionMaps::lookup_conditional(const char * n, int argno, int unionnumber) const
+ExerciseFunctionMaps::lookup_conditional(
+	  const char * n
+	, int argno
+	, const char * unionhash) const
 {
 	return exercise_condition_function;
 }
@@ -799,7 +802,7 @@ exercise_guard_trans_function(
 GuardTransFn 
 ExerciseFunctionMaps::lookup_guard_translator(
 		  const char * guardname
-                , int union_number
+                , const char * unionhash
                 , const char * hash
                 , int wtype
 		, bool late) const
@@ -815,7 +818,7 @@ ExerciseFunctionMaps::lookup_atomic_map(const char * guardname) const
 }
 
 FlatIOConversionFun
-ExerciseFunctionMaps::lookup_io_conversion(int,int) const
+ExerciseFunctionMaps::lookup_io_conversion(const char *,const char *) const
 {
 	return NULL;  // should be safe
 }

@@ -52,16 +52,22 @@ public:
 	virtual Library* libraryFactory(const char * dir, const char * name);
         virtual CreateNodeFn lookup_node_function(const char * n) const;
         virtual CreateDoorFn lookup_door_function(const char * n) const;
-        virtual ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
+        virtual ConditionFn lookup_conditional(
+		  const char * n
+		, int argno
+		, const char * unionhash) const;
         virtual GuardTransFn lookup_guard_translator(
 		  const char * guardname
-                , int union_number
+                , const char * unionhash
                 , const char * hash
                 , int wtype
 		, bool late) const;
-        virtual oflux::atomic::AtomicMapAbstract * lookup_atomic_map(const char * guardname) const;
+        virtual oflux::atomic::AtomicMapAbstract * lookup_atomic_map(
+		const char * guardname) const;
 
-        virtual FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber) const;
+        virtual FlatIOConversionFun lookup_io_conversion(
+		  const char * from_unionhash
+		, const char * to_unionhash) const;
 	exercise::AtomicSetAbstract * atomic_set() { return _atomic_set; }
 private:
 	exercise::AtomicSetAbstract * _atomic_set;

@@ -21,16 +21,19 @@ public:
 	virtual Library* libraryFactory(const char * dir, const char * name) = 0;
         virtual CreateNodeFn lookup_node_function(const char * n) const = 0;
         virtual CreateDoorFn lookup_door_function(const char * d) const = 0;
-        virtual ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const = 0;
+        virtual ConditionFn lookup_conditional(const char * n, int argno, const char * unionhash) const = 0;
         virtual GuardTransFn lookup_guard_translator(
 		  const char * guardname
-                , int union_number
+                , const char * unionhash
                 , const char * hash
                 , int wtype
 		, bool late) const = 0;
-        virtual atomic::AtomicMapAbstract * lookup_atomic_map(const char * guardname) const = 0;
+        virtual atomic::AtomicMapAbstract * lookup_atomic_map(
+		const char * guardname) const = 0;
 
-        virtual FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber) const = 0;
+        virtual FlatIOConversionFun lookup_io_conversion(
+		  const char * from_unionhash
+		, const char * to_unionhash) const = 0;
 };
 
 /**
@@ -64,7 +67,7 @@ public:
          * @param unionnumber  OFluxUnionX number
          * @return 
          **/
-        virtual ConditionFn lookup_conditional(const char * n, int argno, int unionnumber) const;
+        virtual ConditionFn lookup_conditional(const char * n, int argno, const char * unionhash) const;
         /**
          * @brief lookup a guard translator function
          * @remark these functions can translate an input structure to a guard key structure
@@ -76,7 +79,7 @@ public:
          */
         virtual GuardTransFn lookup_guard_translator(
 		  const char * guardname
-                , int union_number
+                , const char * unionhash
                 , const char * hash
                 , int wtype
 		, bool late) const;
@@ -86,13 +89,16 @@ public:
          * @param guardname the guard name
          * @return the atomic map object
          */
-        virtual atomic::AtomicMapAbstract * lookup_atomic_map(const char * guardname) const;
+        virtual atomic::AtomicMapAbstract * lookup_atomic_map(
+		const char * guardname) const;
 
         /**
          * @brief lookup the conversion from one type union to another
          * @return a generic function that can create an object that does the job
          */
-        virtual FlatIOConversionFun lookup_io_conversion(int from_unionnumber, int to_unionnumber) const;
+        virtual FlatIOConversionFun lookup_io_conversion(
+		  const char * from_unionhash
+		, const char * to_unionhash) const;
 private:
         ConditionalMap *   _cond_map;
         ModularCreateMap * _create_map;
