@@ -1275,13 +1275,9 @@ void Reader::readxmldir(flow::FlowHolder * flow_holder)
                 size_t found = filename.find_last_of(".");
                 if(filename.substr(found+1) == "xml" ) {
                         filename = (std::string) pluginxmldir + "/" + filename;
-                        if(!_depends_visited.isDependency(filename.c_str())) {
-                                readxmlfile(filename.c_str());
-                        }
 			files.insert(filename);
                 }
         }
-	delete popState();
         ::closedir(dir);
 	// deterministic reading order 
 	for(std::set<std::string>::iterator itr = files.begin(); itr != files.end(); ++itr) {
@@ -1289,6 +1285,7 @@ void Reader::readxmldir(flow::FlowHolder * flow_holder)
 			readxmlfile((*itr).c_str());
 		}
 	}
+	delete popState();
 
 }
 
