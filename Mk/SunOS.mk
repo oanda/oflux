@@ -5,6 +5,7 @@ LIBS += -lsocket -lrt -ldoor
 UMEMLIB= -lumem
 CXXFLAGS += -DHAS_DOORS_IPC
 LD = /usr/ccs/bin/ld 
+OFLUXPROBEHEADER= ofluxprobe.h
 
 #EXTRA_RUN_ENVIRONMENT="export UMEM_DEBUG=default\nexport UMEM_LOGGING=transaction\nexport LD_PRELOAD=libumem.so.1"
 EXTRA_RUN_ENVIRONMENT="export LD_PRELOAD=libumem.so.1"

@@ -123,7 +123,7 @@ exercise : oflux_exercise.o liboflux.so libofshim.so
 
 exercise : LIBS += $(UMEMLIB)
 
-oflux_exercise.o: ofluxprobe.h
+oflux_exercise.o: $(OFLUXPROBEHEADER)
 
 OFLUX_DOCUMENTATION += doc/runtime
 
