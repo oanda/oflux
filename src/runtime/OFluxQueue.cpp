@@ -63,7 +63,8 @@ Queue::log_snapshot()
 	int sz = _q.size();
 	oflux_log_info("<front of the event queue here>\n");
 	while(dqitr != dqitr_end && sz > 0) {
-		(*dqitr)->log_snapshot();
+		if((*dqitr).get()) { (*dqitr)->log_snapshot();
+		}
 		dqitr++;
 		sz--; // done for safety -- never know who will access this in MT (you are bad ppl!)
 	}

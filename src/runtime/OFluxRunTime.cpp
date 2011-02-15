@@ -5,6 +5,7 @@
 #include "event/OFluxEventOperations.h"
 #include "atomic/OFluxAtomic.h"
 #include "atomic/OFluxAtomicHolder.h"
+#include "lockfree/OFluxThreadNumber.h" // used for stats now
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
 #include <unistd.h>
@@ -206,6 +207,7 @@ RunTime::start()
 	_thread_list.insert_front(rtt);
 	_thread_count++;
 	RunTime::thread_data_key.set(rtt);
+	oflux::lockfree::ThreadNumber::init();
 	// if doors, start up a service thread now
 	if(_doors.create_doors(RunTime_start_door_thread)) {
 		//START_DOORS;
@@ -332,6 +334,7 @@ RunTimeThread_start_thread(void *pthis)
 {
 	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
 	RunTime::thread_data_key.set(rtt);
+	oflux::lockfree::ThreadNumber::init();
 	rtt->start();
 	return NULL;
 }
@@ -375,6 +378,7 @@ static void *
 RunTimeThread_start_door_thread(void * pthis)
 {
 	RunTimeThread * rtt = static_cast<RunTimeThread*> (pthis);
+	oflux::lockfree::ThreadNumber::init();
 	SetTrue keep_true_during_lifetime(rtt->_thread_running);
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	OFLUX_DOOR_RETURN;
