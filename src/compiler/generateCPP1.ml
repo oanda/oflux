@@ -787,7 +787,7 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 				| _ -> false in
 		let name,pos,_ = namep
 		in  try (remove_plugin_prefix name, lookup_return_type name_canon, is_ro) 
-		    with Not_found -> raise (CppGenFailure ("can't find guard "^name^" at "^"l:"^(string_of_int pos.lineno)^" c:"^(string_of_int pos.characterno)))
+		    with Not_found -> raise (CppGenFailure ("can't find guard "^name^" at "^(position_to_string pos)^"\n"))
 		in
 	let inits nl = List.map (fun n -> "_"^(clean_dots n)^"(NULL)") nl in
 	let decls ntl = List.map (fun (n,t,_) -> 
@@ -1217,10 +1217,16 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 				if content = [] 
 				then "g_trans_nop"
 				else gtfunc in
+			let wtype_of gt gm =
+				try WType.wtype_of gt gm
+				with Not_found -> 
+					let (grname,pos,_) = gr.guardname
+					in  raise (CppGenFailure ("guard reference to "^grname^" (possibly a bad modifier for that type of guard) at "^(position_to_string pos)^"\n"))
+				in
                         let mapline = ("{ \""^gn^"\", "
                                 ^"\""^(u_h)^"\", "
                                 ^"\""^hash^"\", "
-                                ^(string_of_int (WType.wtype_of gd.SymbolTable.gtype gr.modifiers))^", "
+                                ^(string_of_int (wtype_of gd.SymbolTable.gtype gr.modifiers))^", "
 				^(if has_garg || is_gc then "true" else "false")^", "
                                 ^"&"^gtfunc
                                 ^" },  ") in

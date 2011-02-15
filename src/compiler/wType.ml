@@ -8,7 +8,7 @@ let wtype_of guarddeclstr gmlist =
 			| ("pool",[]) -> 5 
 			| ("exclusive",[]) -> 3
 			| ("free",[]) -> 6
-			| ("readwrite",(_::t)) -> determine_wtype gtype_str t
+			| (_,(ParserTypes.NullOk::t)) -> determine_wtype gtype_str t
 			| _ -> raise Not_found 
 	in  determine_wtype guarddeclstr gmlist
 
