@@ -167,7 +167,7 @@ RunTimeThread::start()
 		}
 		if(!ev.get()) {
 			++no_ev_iterations;
-#define SPIN_ITERATIONS 1000
+#define SPIN_ITERATIONS 300
 #define NO_EV_CRITICAL  100
 			// spin for a while
 			for(size_t i = 0; i < SPIN_ITERATIONS; ++i) {
