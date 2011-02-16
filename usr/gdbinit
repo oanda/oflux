@@ -1,0 +1,722 @@
+#
+#
+define findebh
+ set $ebh = $arg0
+ set $atarrptr = _atomic_array
+ print $atarrptr
+ while( $atarrptr.name != 0 ) 
+  print $atarrptr.name
+  set $atom = ('oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive>' *) $atarrptr.atomic
+  set $c = 0 
+  set $log = $atom._a._waiters.log
+  set $logend = $log.index % (4*4096)
+  set $t1 = 0
+  set $t2 = 0
+  set $t3 = 0
+  set $t4 = 0
+  set $t5 = 0
+  set $t6 = 0
+  set $t7 = 0
+  set $t8 = 0
+  while( $c < 4 * 4096 ) 
+   set $logent = $log.log[((4*4096) + $logend - $c) % (4*4096)]
+   if( $logent.d.e == $ebh) 
+     set $tnew = 0
+     if( $t1 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t1 == 0 && $logent.d.tid != $t1) 
+      set $t1 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t2 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t2 == 0 && $logent.d.tid != $t2) 
+      set $t2 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t3 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t3 == 0 && $logent.d.tid != $t3) 
+      set $t3 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t4 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t4 == 0 && $logent.d.tid != $t4) 
+      set $t4 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t5 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t5 == 0 && $logent.d.tid != $t5) 
+      set $t5 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t6 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t6 == 0 && $logent.d.tid != $t6) 
+      set $t6 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t7 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t7 == 0 && $logent.d.tid != $t7) 
+      set $t7 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t8 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t8 == 0 && $logent.d.tid != $t8) 
+      set $t8 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $tnew == 1 )
+      print $log.log[((4*4096) + $logend - $c) % (4*4096)]
+      #set $c = 4096*4
+     end
+   end
+   set $c = $c + 1
+  end
+  set $atarrptr = $atarrptr +1
+ end
+end
+
+
+#
+define findt
+ set $ebh = $arg0
+ set $atarrptr = _atomic_array
+ print $atarrptr
+ while( $atarrptr.name != 0 ) 
+  print $atarrptr.name
+  set $atom = ('oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive>' *) $atarrptr.atomic
+  set $c = 0 
+  set $log = $atom._a._waiters.log
+  set $logend = $log.index % (4*4096)
+  set $t1 = 0
+  set $t2 = 0
+  set $t3 = 0
+  set $t4 = 0
+  set $t5 = 0
+  set $t6 = 0
+  set $t7 = 0
+  set $t8 = 0
+  while( $c < 4 * 4096 ) 
+   set $logent = $log.log[((4*4096) + $logend - $c) % (4*4096)]
+   if( $logent.d.t == $ebh) 
+     set $tnew = 0
+     if( $t1 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t1 == 0 && $logent.d.tid != $t1) 
+      set $t1 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t2 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t2 == 0 && $logent.d.tid != $t2) 
+      set $t2 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t3 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t3 == 0 && $logent.d.tid != $t3) 
+      set $t3 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t4 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t4 == 0 && $logent.d.tid != $t4) 
+      set $t4 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t5 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t5 == 0 && $logent.d.tid != $t5) 
+      set $t5 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t6 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t6 == 0 && $logent.d.tid != $t6) 
+      set $t6 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t7 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t7 == 0 && $logent.d.tid != $t7) 
+      set $t7 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t8 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t8 == 0 && $logent.d.tid != $t8) 
+      set $t8 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $tnew == 1 )
+      print $log.log[((4*4096) + $logend - $c) % (4*4096)]
+      #set $c = 4096*4
+     end
+   end
+   set $c = $c + 1
+  end
+  set $atarrptr = $atarrptr +1
+ end
+end
+
+#
+define findev
+ set $ebh = $arg0
+ set $atarrptr = _atomic_array
+ print $atarrptr
+ while( $atarrptr.name != 0 ) 
+  print $atarrptr.name
+  set $atom = ('oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive>' *) $atarrptr.atomic
+  set $c = 0 
+  set $log = $atom._a._waiters.log
+  set $logend = $log.index % (4*4096)
+  set $t1 = 0
+  set $t2 = 0
+  set $t3 = 0
+  set $t4 = 0
+  set $t5 = 0
+  set $t6 = 0
+  set $t7 = 0
+  set $t8 = 0
+  while( $c < 4 * 4096 ) 
+   set $logent = $log.log[((4*4096) + $logend - $c) % (4*4096)]
+   if( $logent.d.ev == $ebh) 
+     set $tnew = 0
+     if( $t1 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t1 == 0 && $logent.d.tid != $t1) 
+      set $t1 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t2 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t2 == 0 && $logent.d.tid != $t2) 
+      set $t2 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t3 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t3 == 0 && $logent.d.tid != $t3) 
+      set $t3 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t4 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t4 == 0 && $logent.d.tid != $t4) 
+      set $t4 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t5 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t5 == 0 && $logent.d.tid != $t5) 
+      set $t5 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t6 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t6 == 0 && $logent.d.tid != $t6) 
+      set $t6 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t7 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t7 == 0 && $logent.d.tid != $t7) 
+      set $t7 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t8 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t8 == 0 && $logent.d.tid != $t8) 
+      set $t8 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $tnew == 1 )
+      print $log.log[((4*4096) + $logend - $c) % (4*4096)]
+      #set $c = 4096*4
+     end
+   end
+   set $c = $c + 1
+  end
+  set $atarrptr = $atarrptr +1
+ end
+end
+
+#
+define plog 
+ set $log = $arg0
+ print $log.index
+ set $c =  1
+ while($c <= 400)
+  print $log.log[(4*4096-$c+$log.index)%(4*4096)]
+  set $c = $c + 1
+ end
+end
+
+#
+define findcas
+ set $addr = $arg0
+ set $val = $arg1
+ set $atarrptr = _atomic_array
+ print $atarrptr
+ while( $atarrptr.name != 0 ) 
+  print $atarrptr.name
+  set $atom = ('oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive>' *) $atarrptr.atomic
+  set $c = 0 
+  set $log = $atom._a._waiters.log
+  set $logend = $log.index % (4*4096)
+  set $t1 = 0
+  set $t2 = 0
+  set $t3 = 0
+  set $t4 = 0
+  set $t5 = 0
+  set $t6 = 0
+  set $t7 = 0
+  set $t8 = 0
+  while( $c < 4 * 4096 ) 
+   set $logent = $log.log[((4*4096) + $logend - $c) % (4*4096)]
+   if( $logent.d.cas_addr == $addr && $logent.d.cas_val == $val) 
+     set $tnew = 0
+     if( $t1 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t1 == 0 && $logent.d.tid != $t1) 
+      set $t1 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t2 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t2 == 0 && $logent.d.tid != $t2) 
+      set $t2 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t3 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t3 == 0 && $logent.d.tid != $t3) 
+      set $t3 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t4 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t4 == 0 && $logent.d.tid != $t4) 
+      set $t4 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t5 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t5 == 0 && $logent.d.tid != $t5) 
+      set $t5 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t6 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t6 == 0 && $logent.d.tid != $t6) 
+      set $t6 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t7 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t7 == 0 && $logent.d.tid != $t7) 
+      set $t7 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $t8 == $logent.d.tid)
+      set $tnew = -1
+     end
+     if( $tnew ==0 && $t8 == 0 && $logent.d.tid != $t8) 
+      set $t8 = $logent.d.tid
+      set $tnew = 1
+     end
+     if( $tnew == 1 )
+      print $log.log[((4*4096) + $logend - $c) % (4*4096)]
+      #set $c = 4096*4
+     end
+   end
+   set $c = $c + 1
+  end
+  set $atarrptr = $atarrptr +1
+ end
+end
+
+#
+define palllog 
+ set $atarrptr = _atomic_array
+ while( $atarrptr.name != 0 ) 
+  set $atom = ('oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive>' *) $atarrptr.atomic
+  print $atarrptr.name
+  print  & $atom._a._waiters.log
+  set $atarrptr = $atarrptr +1
+ end
+end
+
+#
+define palllogw
+ set $atarrptr = _atomic_array
+ while( $atarrptr.name != 0 ) 
+  set $atom = ('oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicReadWrite>' *) $atarrptr.atomic
+  print $atarrptr.name
+  print & $atom._a._waiters
+  set $atarrptr = $atarrptr +1
+ end
+end
+
+define pwaitersw
+ set $waiters = $arg0
+ echo head :
+ p $waiters._head
+ echo tail :
+ p $waiters._tail
+ set $ptr = $waiters._head
+ set $lptr = 0
+ while( (int)$ptr % 2 == 0 && $ptr != 0) 
+  echo content :
+  p * $ptr
+  set $lptr = $ptr
+  set $ptr = $ptr.next.u.s2.next
+ end
+ echo ptr :
+ p $ptr
+ if( ((int)$ptr & (2)) == 0 )
+  echo wr mode, 
+ else 
+  echo rd mode,
+ end
+ echo holders :
+ p (int)$ptr >> 2
+ plog $waiters.log
+end
+
+#
+define ppool
+ set $pool = $arg0
+ echo head :
+ p $pool._head
+ echo tail :
+ p $pool._tail
+ set $xcount = 0
+ set $lptr = 0
+ set $ptr = ('oflux::lockfree::atomic::EventBaseHolder' *)((int)$pool._head._content.s.ptr & (-2))
+ set $xptr = 0
+ while( $ptr != 0 && $lptr != $ptr && $xptr != $ptr)
+  if($xptr == 0)
+   set $xptr = $ptr
+  end
+  echo content :
+  p * $ptr
+  set $lptr = $ptr
+  set $ptr = ('oflux::lockfree::atomic::EventBaseHolder' *)((int)$ptr.next & (-2))
+  set $xcount = $xcount +1
+  if( $xcount % 2 == 0) 
+   set $xptr = ('oflux::lockfree::atomic::EventBaseHolder' *)((int)$xptr.next & (-2))
+  end
+ end
+ if($xptr == $ptr)
+  echo loop in linked list detected\n
+ end
+ if($lptr != $pool._tail)
+  echo tail is not last item\n
+ end
+end
+
+#
+define searchlog
+ set $log = $arg0
+ print $log.index
+ set $c =  1
+ while($c < 4096*4-1)
+  set $ind = (4*4096+$c+$log.index)%(4*4096)
+  if( $log.log[$ind].d.trans == $log.log[($ind+1)%(4*4096)].d.trans && $log.log[$ind].d.u64 < 4294967295ULL)
+   p $log.log[$ind]
+   p $log.log[($ind+1) %(4*4096)]
+  end
+  set $c = $c + 1
+ end
+end
+ 
+#
+define revsearchlog
+ set $log = $arg0
+ print $log.index
+ set $c = 4096*4+1
+ while( $c >= 0)
+  set $ind = (4*4096-$c+$log.index)%(4*4096)
+  if( $log.log[$ind].d.trans == $log.log[($ind+1)%(4*4096)].d.trans && $log.log[$ind].d.rwptr.u._u64 < 4294967295ULL)
+   p $log.log[$ind]
+   p $log.log[($ind+1) %(4*4096)]
+  end
+  set $c = $c - 1
+ end
+end
+
+#
+define searchepoch
+ set $epo = $arg0
+ set $log = $arg1
+ print $log.index
+ set $c = 4096*4+1
+ while( $c >= 0 )
+  set $ind = (4*4096-$c+$log.index)%(4*4096)
+  if( (unsigned short)$log.log[$ind].d.rwptr.u.s1.epoch == $epo) 
+   p $log.log[$ind]
+  end
+  set $c = $c - 1
+ end
+end
+
+define logindex
+ set $ind = ((int)&obs - (int)&log.log[0]) / sizeof(log.log[0])
+ p $ind
+ p log.log[$ind]
+end
+
+define findevil
+ set $log = $arg0
+ set $c = 0
+ set $acqev = 0
+ while( $c < 4*4096 )
+  set $ind = ($c + $log.index) % (4*4096)
+  if( $log.log[$ind].d.action == 1 || $log.log[$ind].d.action == 2 )
+   p $log.log[$ind]
+  end 
+  if( $log.log[$ind].d.action == 3 )
+   if( $acqev != 0 )
+    echo mis-acquired by :
+    p $acqev
+    p $log.log[$ind]
+   end
+   set $acqev = $log.log[$ind].d.ev
+  end
+  if( $log.log[$ind].d.action == 4)
+   if( $log.log[$ind].d.by_ev != $acqev )
+    echo mis-release on :
+    p $log.log[$ind]
+    echo expected by ev :
+    p $acqev
+   end
+   set $acqev = $log.log[$ind].d.ev
+  end
+  set $c = $c + 1
+ end
+end
+
+define pstaterw
+ set $rwptr = $arg0
+ set $head = $arg1
+ set $tail = $arg2
+ if($rwptr.u.s1.rcount_mode_mkd == 0)
+  echo  1 
+ else
+  if(($rwptr.u.s1.rcount_mode_mkd % 2) == 1)
+   if(($rwptr.u.s1.rcount_mode_mkd & 2) == 1)
+    echo  R
+   else
+    echo  W
+   end
+  else
+   echo .
+  end
+  if( $head == $tail )
+   echo 2 
+  else
+   echo 3 
+  end
+ end
+end
+
+define plogentryw
+ set $le = $arg0
+ set $flagit = 0
+ printf "%d %ld %d/%d ac:", $le.d.rwptr.u.s1.epoch, $le.d.tid, $le.index, $le.d.term_index - $le.index
+ if($le.d.action == 0)
+  echo non
+ end
+ if($le.d.action == 1)
+  echo Aow
+ end
+ if($le.d.action == 2)
+  echo Rel
+ end
+ if($le.d.action == 3)
+  echo aow
+  if($checkowner == 0 && $le.d.res == 1)
+   set $checkowner = (int)$le.d.ev
+  else
+   set $flagit = $le.d.res
+  end
+ end
+ if($le.d.action == 4)
+  echo rel
+  if($checkowner == 0)
+   set $flagit = 2
+  else
+   if($checkowner != (int)$le.d.by_ev)
+    set $flagit = 3
+   end
+  end
+  set $checkowner = (int)$le.d.ev
+ end
+ printf " ev:%-8x bev:%-8x res:%d h:%-8x t:%-8x %-12s : ", $le.d.ev, $le.d.by_ev, $le.d.res, $le.d.h, $le.d.t, $le.d.trans
+ pstaterw $le.d.rwptr $le.d.h $le.d.t
+ echo ->
+ pstaterw $le.d.n_rwptr $le.d.h $le.d.t
+ if($flagit >= 1)
+  printf " INTERESTING(%d)", $flagit
+ end
+ echo \n
+end
+
+define findeprw
+ set $log = $arg0
+ set $ind = $arg1
+ set $epoch = $arg2
+ set $ret = -1
+ #printf "findeprw %d %d\n", $ind, $epoch
+ if( $ret == -1 && $log.log[$ind%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+  set $ret = $ind
+ end
+ if( $ret == -1 && $log.log[($ind-1 + 4*4096)%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+  set $ret = $ind-1
+ end
+ if( $ret == -1 && $log.log[($ind+1)%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+  set $ret = $ind+1
+ end
+ if( $ret == -1 && $log.log[($ind-2 + 4*4096)%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+  set $ret = $ind-2
+ end
+ if( $ret == -1 && $log.log[($ind+2)%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+  set $ret = $ind+2
+ end
+ # wider scan
+ set $i = -100
+ while( $i <= 100 && $ret == -1 )
+  if( $ret == -1 && $log.log[($ind+$i + 4*4096)%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+   set $ret = $ind+$i
+  end
+  set $i = $i + 1
+ end
+ set $i = -1000
+ while( $i <= 1000 && $ret == -1 )
+  if( $ret == -1 && $log.log[($ind+$i + 4*4096)%(4*4096)].d.rwptr.u.s1.epoch == $epoch )
+   set $ret = $ind+$i
+  end
+  if($i == 100)
+   set $i = $i + 200 
+   # big hop
+  else
+   set $i = $i + 1
+  end
+ end
+end
+
+# recurse the RW log forward to explain it as an exclusive 
+define explainrwat
+ set $log = $arg0
+ set $offset = $arg1
+ set $checkowner = 0
+ set $c = 0
+ set $cind = $log.index + $offset
+ set $e = $log.log[$log.index%(4*4096)].d.rwptr.u.s1.epoch
+ while( $c < 4*4096 )
+  set $en = $log.log[($cind)%(4*4096)].d.n_rwptr.u.s1.epoch
+  #printf "%d ", $e
+  plogentryw $log.log[($cind)%(4*4096)]
+  findeprw $log $cind $en
+  if($ret == -1)
+   echo did not find from-epoch number :
+   p $en
+   set $en = $en + 1
+   findeprw $log $cind $en
+   if($ret == -1)
+    echo did not find from-epoch number :
+    p $en
+    set $en = $en + 1
+    findeprw $log $cind $en
+    if($ret == -1)
+     echo did not find from-epoch number :
+     p $en
+     echo totally lost bailing!\n
+     p $cind
+     p $en
+    end
+   end
+  end
+  set $cind = $ret
+  set $c = $c + 1
+  set $e = $en
+ end
+end
+
+# for test_gca
+define pcdata
+ set $impl = $arg0
+ set $sz = 1 << $impl._log_size
+ printf "size %u, impl at %p\n", $sz, $impl
+ set $c = 4
+ echo around in:\n
+ while( $c > -5 )
+  set $ind = ($c + q._in + $sz) % $sz
+  printf " data : %10ld/%2d is (%10p, %10ld)\n", $ind, $c, $impl._data[$ind].ptr, $impl._data[$ind].at
+  set $c = $c -1
+ end
+ set $c = 4
+ echo around out:\n
+ while( $c > -5 )
+  set $ind = ($c + q._out + $sz) % $sz
+  printf " data : %10ld/%2d is (%10p, %10ld)\n", $ind, $c, $impl._data[$ind].ptr, $impl._data[$ind].at
+  set $c = $c -1
+ end
+end
+
+# for test_gca
+define pcalldata
+ set $impl = $arg0
+ set $c = 0
+ set $sz = 1 << $impl._log_size
+ printf "size %u, impl at %p\n", $sz, $impl
+ while( $c < $sz)
+  printf " data : %10ld is (%10p, %10ld)\n", $c, $impl._data[$c].ptr, $impl._data[$c].at
+  set $c = $c + 1
+ end
+end
+
+# for test_gca
+define pcircq
+ printf " in  : %ld\n", q._in
+ printf " out : %ld\n", q._out
+ pcdata &q._impl
+ pcdata &q._impl._old
+end

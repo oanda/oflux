@@ -230,7 +230,7 @@ public:
 
 class ExclusiveWaiterList : public WaiterList {
 public:
-#define LF_EX_WAITER_INSTRUMENTATION
+//#define LF_EX_WAITER_INSTRUMENTATION
 #ifdef LF_EX_WAITER_INSTRUMENTATION
 	struct Observation {
 		enum    { Action_none

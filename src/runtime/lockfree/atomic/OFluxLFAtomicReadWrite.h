@@ -148,7 +148,7 @@ struct EventBaseHolder {
 class ReadWriteWaiterList {
 public:
 	static readwrite::EventBaseHolder sentinel;
-#define LF_RW_WAITER_INSTRUMENTATION
+//#define LF_RW_WAITER_INSTRUMENTATION
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 	struct Observation {
 		enum    { Action_none

@@ -260,9 +260,17 @@ pool_init(oflux::atomic::AtomicMapAbstract * ama)
 
 class LFAtomic : public AtomicAbstract {
 public:
+#ifdef ATOM_INSTRUMENTATION
 	typedef oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicExclusive> AtomicEx;
+#else
+	typedef oflux::lockfree::atomic::AtomicExclusive AtomicEx;
+#endif
 	typedef oflux::atomic::AtomicMapTrivial<AtomicEx> AtomicExclusive;
+#ifdef ATOM_INSTRUMENTATION
 	typedef oflux::atomic::instrumented::Atomic<oflux::lockfree::atomic::AtomicReadWrite> AtomicRW;
+#else
+	typedef oflux::lockfree::atomic::AtomicReadWrite AtomicRW;
+#endif
 	typedef oflux::atomic::AtomicMapTrivial<AtomicRW> AtomicReadWrite;
 	typedef oflux::atomic::AtomicMapTrivial<oflux::lockfree::atomic::AtomicFree> AtomicFree;
 	typedef oflux::lockfree::atomic::AtomicPool AtomicPool;
@@ -345,8 +353,17 @@ LFAtomic::set_wtype(int wtype)
 
 class ClAtomic : public AtomicAbstract {
 public:
-	typedef oflux::atomic::AtomicMapTrivial<oflux::atomic::AtomicExclusive> AtomicExclusive;
+#ifdef ATOM_INSTRUMENTATION
+	typedef oflux::atomic::instrumented::Atomic<oflux::atomic::AtomicExclusive> AtomicEx;
+#else
+	typedef oflux::atomic::AtomicExclusive AtomicEx;
+#endif
+	typedef oflux::atomic::AtomicMapTrivial<AtomicEx> AtomicExclusive;
+#ifdef ATOM_INSTRUMENTATION
 	typedef oflux::atomic::instrumented::Atomic<oflux::atomic::AtomicReadWrite> AtomicRW;
+#else
+	typedef oflux::atomic::AtomicReadWrite AtomicRW;
+#endif
 	typedef oflux::atomic::AtomicMapTrivial<AtomicRW > AtomicReadWrite;
 	typedef oflux::atomic::AtomicMapTrivial<oflux::atomic::AtomicFree> AtomicFree;
 	typedef oflux::atomic::AtomicPool AtomicPool;
