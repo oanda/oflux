@@ -38,7 +38,7 @@ public:
 		, _haveit(false)
 	{}
         ~HeldAtomic()
-	{ relinquish(); }
+	{ relinquish(true); }
 	/**
 	 * @brief init is a pseudo constructor used to tell us which guard
 	 * @param fgr the FlowGuardReference indicates the guard instance
@@ -95,7 +95,7 @@ public:
 	{
 		assert(ha._atom);
 		assert(ha._haveit);
-		relinquish();
+		relinquish(true);
 		_atom = ha._atom;
 		ha._atom = NULL;
 		_haveit = ha._haveit;
@@ -178,10 +178,10 @@ public:
 	 */
 	inline Atomic * atomic() { return _atom; }
 	inline void atomic(Atomic * a) { _atom = a; }
-	inline void relinquish()
+	inline void relinquish(bool should)
 	{
 		if(_atom != NULL) {
-			_atom->relinquish();
+			_atom->relinquish(should);
 		}
 		_atom = NULL;
 	}
