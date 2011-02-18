@@ -43,9 +43,10 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	_by_ev = ev.get();
 	assert(_by_ev);
 	__sync_synchronize();
+	const char * flow_node_name = (_by_ev ? _by_ev->flow_node()->getName() : "<NULL>");
 	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::a_o_w ev %s ev*:%p  atom APD*this:%p "
 		, oflux_self()
-		, (_by_ev ? _by_ev->flow_node()->getName() : "<null>")
+		, flow_node_name
 		, _by_ev
 		, this);
 	bool acqed = _pool->waiters->acquire_or_wait(this); // try to acquire the resource
@@ -55,7 +56,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	}
 	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
 		, oflux_self()
-		, (_by_ev ? _by_ev->flow_node()->getName() : "<null>")
+		, flow_node_name
 		, _by_ev
 		, this
 		, acqed);
@@ -96,6 +97,7 @@ AtomicPooled::release(
 			, rel_apb->_by_ev->flow_node()->getName()
 			, rel_apb->_by_ev
 			, rel_apb->_data);
+		assert(rel_apb->_by_ev);
 		rel_ev_vec.push_back(EventBasePtr(rel_apb->_by_ev));
 		oflux_log_trace2("AC::alloc.p rel_apb:%p %d\n"
 			, rel_apb
