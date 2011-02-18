@@ -399,7 +399,7 @@ AtomicsHolder::release(
 			size_t post_sz = released_events.size();
 			if(post_sz == pre_sz && a->has_no_waiters() && a->held() == 0) {
  				ha->garbage_collect();
-				a = NULL;
+				if(!ha->atomic()) { a = NULL; }
  			}
 			ha->atomic(NULL);
 			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
@@ -408,7 +408,7 @@ AtomicsHolder::release(
 					: "<nil>")
 				, post_sz - pre_sz);
 			if(a) {
-			a->relinquish(should_relinquish);
+				a->relinquish(should_relinquish);
 			}
 		} else {
 			oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release skipping %d atomic for event %s %p since !haveit()\n"
