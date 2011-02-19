@@ -192,7 +192,7 @@ public:
 	{}
 	virtual ~AtomicCommon();
 	virtual void ** data() { return &_data_ptr; }
-	virtual void relinquish() {} // nothing to do
+	virtual void relinquish(bool) {} // nothing to do
 protected:
 	static void _log_snapshot_waiters(const WaiterList *);
 protected:
@@ -220,7 +220,7 @@ public:
 	}
 	inline bool has_waiters() const
 	{
-		EventBaseHolder * h = _head;
+		EventBaseHolder * h = _head->next;
 		return !is_val<0x0001>(h) && (h != NULL);
 	}
 public:

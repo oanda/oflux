@@ -80,7 +80,7 @@ public:
 	* @brief let go of this object -- a shorter release when you know
 	*    there are no events using it
 	*/
-	virtual void relinquish() = 0;
+	virtual void relinquish(bool) = 0;
 
 	virtual int wtype() const = 0;
 
@@ -106,7 +106,7 @@ public:
 	virtual bool acquire_or_wait(EventBasePtr &,int ) 
 	{ return 1; }
 	virtual size_t waiter_count() { return 0; }
-	virtual void relinquish() {}
+	virtual void relinquish(bool) {}
 	virtual int wtype() const { return 0; }
 	virtual const char * atomic_class() const { return "Free     "; }
 private:
@@ -124,7 +124,7 @@ public:
 	virtual void ** data() { return &_data_ptr; }
 	virtual int held() const { return _held; }
 	virtual size_t waiter_count() { return _waiters.size(); }
-	virtual void relinquish() {}
+	virtual void relinquish(bool) {}
 
 	struct AtomicQueueEntry {
 		AtomicQueueEntry(EventBasePtr & ev,
@@ -398,14 +398,16 @@ public:
 	}
 	virtual void * new_key() const { return NULL; }
 	virtual void delete_key(void *) const {}
-	virtual void relinquish()
+	virtual void relinquish(bool should)
 	{
-		oflux_log_trace2("apd::relinq() [%d] %p no wc %p data\n", oflux_self(), this, _data);
-		if(_data) {
-			_pool.put_data(_data);
-			_data = NULL;
+		if(should) {
+			oflux_log_trace2("apd::relinq() [%d] %p no wc %p data\n", oflux_self(), this, _data);
+			if(_data) {
+				_pool.put_data(_data);
+				_data = NULL;
+			}
+			_pool.put(this);
 		}
-		_pool.put(this);
 	}
 	virtual int wtype() const { return 0; }
 	static const char * atomic_class_str;

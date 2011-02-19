@@ -17,16 +17,18 @@ __acquire_guards(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev = EventBase::no_event)
 {
-	int __attribute__((unused)) working_on_local = ev->atomics().working_on();
-	bool res = ev->atomics().acquire_all_or_wait(
+	EventBase * evb = ev.get();
+	assert(evb);
+	int __attribute__((unused)) working_on_local = evb->atomics().working_on();
+	bool res = evb->atomics().acquire_all_or_wait(
 		  ev
 		, pred_ev);
 	if(!res) {
 		oflux_log_trace2("[%d] event::acquire_guards() failure for "
 			"%s %p on guards acquisition\n"
 			, oflux_self()
-			, ev->flow_node()->getName()
-			, ev.get());
+			, evb->flow_node()->getName()
+			, evb);
 	}
 	return res;
 }
