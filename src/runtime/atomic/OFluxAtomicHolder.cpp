@@ -140,19 +140,20 @@ AtomicsHolder::acquire_all_or_wait(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev)
 {
+	EventBase * ev_bptr = ev.get();
+	EventBase * pred_ev_bptr = pred_ev.get();
 #ifdef AH_INSTRUMENTATION
 	Observation & obs = log.submit();
 	obs.init();
 	obs.tid = oflux_self();
-	obs.ev = ev.get();
-	obs.ev_name = ev->flow_node()->getName();
+	obs.ev = ev_bptr
+	obs.ev_name = ev_bptr->flow_node()->getName();
 	obs.action = Observation::Action_Acq;
 #endif // AH_INSTRUMENTATION
 	AtomicsHolder & given_atomics =
-		( pred_ev.get() 
-		? pred_ev->atomics()
+		( pred_ev_bptr
+		? pred_ev_bptr->atomics()
 		: empty_ah);
-	EventBase * ev_bptr = ev.get();
 	const char * ev_name = ev_bptr->flow_node()->getName();
 	_NODE_ACQUIREGUARDS(
 		  ev_bptr
@@ -173,7 +174,7 @@ AtomicsHolder::acquire_all_or_wait(
 	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::aaow: %s %p needs %d atomics\n"
 		, oflux_self()
 		, ev_name
-		, ev.get()
+		, ev_b_ptr
 		, _number);
 	while(blocking_index == -1 && my_aht.next(my_ha)) {
 		my_ha->build(node_in,this,true);
@@ -274,12 +275,13 @@ AtomicsHolder::release(
 	  std::vector<EventBasePtr> & released_events
 	, EventBasePtr & by_ev)
 {
+	EventBase * by_ev_bptr = by_ev.get();
 #ifdef AH_INSTRUMENTATION
 	Observation & obs = log.submit();
 	obs.init();
 	obs.tid = oflux_self();
-	obs.ev = by_ev.get();
-	obs.ev_name = by_ev->flow_node()->getName();
+	obs.ev = by_ev_bptr;
+	obs.ev_name = by_ev_bptr->flow_node()->getName();
 	obs.action = Observation::Action_Rel;
 	hrtime_t curr_hr_time = gethrtime();
 	if(curr_hr_time - _full_acquire_time > 100000) {
@@ -322,8 +324,8 @@ AtomicsHolder::release(
 			if(released_events.size() - pre_sz > 0) {
 				oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release %s %p released no events\n"
 					, oflux_self()
-					, by_ev->flow_node()->getName()
-					, by_ev.get()
+					, by_ev_bptr->flow_node()->getName()
+					, by_ev_bptr
 					);
 			}
 #ifdef AH_INSTRUMENTATION
@@ -341,20 +343,21 @@ AtomicsHolder::release(
 			for(size_t k = pre_sz; k < released_events.size(); ++k) {
 				should_relinquish = true;
 				EventBasePtr & rel_ev = released_events[k];
-				AtomicsHolder & rel_atomics = rel_ev->atomics();
+				EventBase * rel_ev_bptr = rel_ev.get();
+				AtomicsHolder & rel_atomics = rel_ev_bptr->atomics();
 				bool fd = false;
 				HeldAtomic * rel_ha_ptr = NULL;
 				oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release %s %p released %s %p on recver atomic %p %s which is %s\n"
 					, oflux_self()
-					, by_ev->flow_node()->getName()
-					, by_ev.get()
-					, rel_ev->flow_node()->getName()
-					, rel_ev.get()
+					, by_ev_bptr->flow_node()->getName()
+					, by_ev_bptr
+					, rel_ev_bptr->flow_node()->getName()
+					, rel_ev_bptr
 					, a
 					, ha->haveit() ? "have it" : ""
 					, ha->flow_guard_ref()->getName().c_str());
 				_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
-					, by_ev->flow_node()->getName() 
+					, by_ev_bptr->flow_node()->getName() 
 					, k);
 				for(int j = rel_atomics.working_on()
 						; j < rel_atomics.number()
@@ -387,7 +390,7 @@ AtomicsHolder::release(
 						}
 						_GUARD_ACQUIRE(
 							  rel_ha_ptr->flow_guard_ref()->getName().c_str()
-							, rel_ev->flow_node()->getName() 
+							, rel_ev_bptr->flow_node()->getName() 
 							, 1);
 						break;
 					}
@@ -414,8 +417,8 @@ AtomicsHolder::release(
 			oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release skipping %d atomic for event %s %p since !haveit()\n"
 				, oflux_self()
 				, i
-				, by_ev->flow_node()->getName()
-				, by_ev.get()
+				, by_ev_bptr->flow_node()->getName()
+				, by_ev_bptr
 				);
 		}
 	}

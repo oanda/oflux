@@ -27,6 +27,28 @@ namespace lockfree {
 
 class RunTime;
 
+struct RunTimeThreadContext {
+	enum SCategories 
+		{ SC_high_guards = 0
+		, SC_low_guards = SC_high_guards+1
+		, SC_source = SC_low_guards+1
+		, SC_no_guards = SC_source+1
+		, SC_exec_gapped = SC_no_guards+1
+		, SC_num_categories = SC_exec_gapped+1
+		, SC_high_atomics_count = 3 // what is considered high
+		, SC_low_atomics_count = 1  // what is considered low
+		, SC_critical_execution_gap = 100
+		};
+	// this is used to avoid re-creating variables and vectors within the runtime loop
+	// these are roughly in the order that they are used for one handle() iteration
+	EventBasePtr ev;
+	EventBase * evb; // _this_event
+	flow::Node * flow_node_working;
+        std::vector<EventBasePtr> successor_events;
+        std::vector<EventBasePtr> successor_events_released;
+	std::vector<EventBasePtr> successors_categorized[SC_num_categories];
+};
+
 class RunTimeThread : public ::oflux::RunTimeThreadAbstract {
 public:
 	friend class RunTime;
@@ -46,7 +68,8 @@ public:
 	~RunTimeThread();
 	void start();
 	virtual void submitEvents(const std::vector<EventBasePtr> &);
-	virtual EventBase * thisEvent() const { return _this_event; }
+	virtual EventBase * thisEvent() const 
+	{ return (_context ? _context->evb : NULL); }
 	// a few functions just there for the abstract interface
 	virtual bool is_detached() { return true; }
 	virtual void set_detached(bool) {}
@@ -55,20 +78,21 @@ public:
 	//
 	inline EventBasePtr steal()
 	{
-		EventBasePtr ebptr;
+		EventBasePtr ev;
+		EventBase * evb = ev.get();
 		WSQElement * e = _queue.steal();
 		if(e && e != &WorkStealingDeque::empty 
 				&& e != &WorkStealingDeque::abort) {
-			ebptr.swap(e->ev);
+			ev.swap(e->ev);
 			allocator.put(e);
-			ebptr->state = 3;
+			evb->state = 3;
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] steal  %s %p from thread [" PTHREAD_PRINTF_FORMAT "]\n"
 			, oflux_self()
-			, ebptr.get() ? ebptr->flow_node()->getName() : "<null>"
-			, ebptr.get()
+			, evb ? evb->flow_node()->getName() : "<null>"
+			, evb
 			, self());
-		return ebptr;
+		return ev;
 	}
 	int index() const { return _index; }
 	void wake();
@@ -77,7 +101,7 @@ public:
 	oflux_thread_t self() const { return _tid; }
 	void log_snapshot()
 	{
-		flow::Node * fn = _flow_node_working;
+		flow::Node * fn = (_context ? _context->flow_node_working : NULL);
 		const char * fn_name = (fn ? fn->getName() : "<null>");
 		oflux_log_info("thread %d (pthread %lu) %s %s %s q_len:%ld q_alw:%ld slps:%lu e.run:%lu e.stl:%lu e.stl.at:%lu %s %p\n"
 			, _index
@@ -123,11 +147,10 @@ private:
 		WSQElement * e = allocator.get(ev);
 		_queue.pushBottom(e);
 	}
-	int handle(EventBasePtr & ev);
+	int handle(RunTimeThreadContext & context);
 	inline bool critical() const { return _running && _queue_allowance<0; }
 private:
 	RunTime & _rt;
-	EventBase * _this_event;
 	int _index;
 public:
 	bool _running;
@@ -143,7 +166,7 @@ private:
 		// lock for the condition var (not really used as a lock)
 	oflux_cond_t _cond;
 		// conditional used for parking this thread
-	flow::Node *_flow_node_working;
+	RunTimeThreadContext * _context;
 	struct Stats {
 		Stats() : sleeps(0) {}
 		struct Events {

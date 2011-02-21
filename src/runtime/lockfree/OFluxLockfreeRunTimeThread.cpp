@@ -26,14 +26,13 @@ RunTimeThread::allocator; //(new allocator::MemoryPool<sizeof(RunTimeThread::WSQ
 RunTimeThread::RunTimeThread(RunTime & rt, int index, oflux_thread_t tid)
 	: _next(NULL)
 	, _rt(rt)
-	, _this_event(NULL)
 	, _index(index)
 	, _running(false)
 	, _request_stop(false)
 	, _asleep(false)
 	, _queue_allowance(0)
 	, _tid(tid)
-	, _flow_node_working(NULL)
+	, _context(NULL)
 {
 	oflux_mutex_init(&_lck);
 	oflux_cond_init(&_cond);
@@ -45,12 +44,13 @@ RunTimeThread::~RunTimeThread()
 	oflux_cond_destroy(&_cond);
 	while(_queue.size()) {
 		EventBasePtr ev = popLocal();
-		if(!ev.get()) {
+		EventBase * evb = ev.get();
+		if(!evb) {
 			break;
 		} else {
 			oflux_log_debug("~RunTimeThread discarding queued event %s %p\n"
-				, ev->flow_node()->getName()
-				, ev.get()
+				, evb->flow_node()->getName()
+				, evb
 				);
 		}
 	}
@@ -139,7 +139,9 @@ RunTimeThread::start()
 		// this is only needed for the _cond (signalling)
 	SetTrue st(_running);
 	int no_ev_iterations = 0;
-	assert(_tn.index == _index);
+	assert(_tn.index == (size_t)_index);
+	RunTimeThreadContext context;
+	_context = &context;
 	while(!_request_stop && !_rt.was_soft_killed()) {
 		if(_rt.caught_soft_load_flow()) {
 			oflux_log_trace("[" 
@@ -152,20 +154,22 @@ RunTimeThread::start()
 		enum Q_Stealing {
 			QS_Frequency = 100
 		};
-		EventBasePtr ev;
+		
 		if((_queue_allowance%QS_Frequency) ==0) {
 			// skip pop local now and then 
 			//   to contribute some stealing
 			--_queue_allowance;
 		} else {
-			ev = popLocal();
+			context.ev = popLocal();
 		}
-		if(!ev.get()) {
+		context.evb = context.ev.get();
+		if(!context.evb) {
 			++_stats.events.attempts_to_steal;
-			ev = _rt.steal_first_random();
-			_stats.events.stolen += (ev.get() ? 1 : 0);
+			context.ev = _rt.steal_first_random();
+			context.evb = context.ev.get();
+			_stats.events.stolen += (context.evb ? 1 : 0);
 		}
-		if(!ev.get()) {
+		if(!context.evb) {
 			++no_ev_iterations;
 #define SPIN_ITERATIONS 300
 #define NO_EV_CRITICAL  100
@@ -175,7 +179,7 @@ RunTimeThread::start()
 			}
 		} else {
 			no_ev_iterations = 0;
-			int num_new_evs = handle(ev);
+			int num_new_evs = handle(context);
 			int num_alive_threads __attribute__((unused)) = _rt.nonsleepers();
 			int threads_to_wake = num_new_evs;
 			oflux_log_trace("[" 
@@ -217,14 +221,15 @@ RunTimeThread::start()
 		_asleep = false;
 		oflux_log_trace2("RunTimeThread::start (about to reset) "
 			"ev %d %s ev.pred %d %s\n"
-			, ev.use_count()
-			, ev.get() ? ev->flow_node()->getName() : "<null>"
-			, ev.get() && ev->get_predecessor() 
-				? ev->get_predecessor().use_count()
+			, context.ev.use_count()
+			, context.evb ? context.evb->flow_node()->getName() : "<null>"
+			, context.evb && context.evb->get_predecessor() 
+				? context.evb->get_predecessor().use_count()
 				: 0
-			, ev.get() && ev->get_predecessor()
-				? ev->get_predecessor()->flow_node()->getName()					: "<none>" );
-		ev.reset();
+			, context.evb && context.evb->get_predecessor()
+				? context.evb->get_predecessor()->flow_node()->getName()					: "<none>" );
+		context.evb = NULL;
+		context.ev.reset();
 	}
 }
 
@@ -236,50 +241,51 @@ RunTimeThread::wake()
 }
 
 int
-RunTimeThread::handle(EventBasePtr & ev)
+RunTimeThread::handle(RunTimeThreadContext & context)
 {
-	_flow_node_working = ev->flow_node();
+	context.flow_node_working = context.ev->flow_node();
+	context.successor_events.clear();
+	context.successor_events_released.clear();
+	for(size_t ct= 0; ct < RunTimeThreadContext::SC_num_categories; ++ct) {
+		context.successors_categorized[ct].clear();
+	}
 	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] RunTimeThread::handle() on %s %p\n"
 		, oflux_self()
-		, _flow_node_working->getName()
-		, ev.get());
+		, context.flow_node_working->getName()
+		, context.evb);
 	// ---------------- Execution -------------------
-	_this_event = ev.get();
-	assert(ev->state != 5 && "detect double execution");
-	int return_code = ev->execute();
-	ev->state = 5;
-	_this_event = NULL;
+	assert(context.ev->state != 5 && "detect double execution");
+	int return_code = context.ev->execute();
+	context.ev->state = 5;
 	++_stats.events.run;
         // ----------- Successor processing -------------
-        std::vector<EventBasePtr> successor_events;
         if(return_code) { // error encountered
                 event::successors_on_error(
-                          successor_events // output
-                        , ev
+                          context.successor_events // output
+                        , context.ev
                         , return_code);
         } else { // no error encountered
                 event::successors_on_no_error(
-                          successor_events // output
-                        , ev);
+                          context.successor_events // output
+                        , context.ev);
         }
 #ifdef OFLUX_DEEP_LOGGING
-	for(size_t i = 0; i < successor_events.size(); ++i) {
+	for(size_t i = 0; i < context.successor_events.size(); ++i) {
 		oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] successor of %s %p ---> %s %p\n"
 			, oflux_self()
-			, ev->flow_node()->getName()
-			, ev.get()
-			, successor_events[i]->flow_node()->getName()
-			, successor_events[i].get());
+			, context.ev->flow_node()->getName()
+			, context.evb
+			, context.successor_events[i]->flow_node()->getName()
+			, context.successor_events[i].get());
 	}
 #endif // OFLUX_DEEP_LOGGING
         // ------------ Release held atomics --------------
         // put the released events as priority on the queue
-        std::vector<EventBasePtr> successor_events_released;
-        ev->atomics().release(successor_events_released,ev);
-        for(size_t i = 0; i < successor_events_released.size(); ++i) {
-                EventBasePtr & succ_ev = successor_events_released[i];
+        context.ev->atomics().release(context.successor_events_released,context.ev);
+        for(size_t i = 0; i < context.successor_events_released.size(); ++i) {
+                EventBasePtr & succ_ev = context.successor_events_released[i];
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
-                        successor_events.push_back(succ_ev);
+                        context.successor_events.push_back(succ_ev);
                 } else {
 			oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] acquire_all_or_wait() failure for "
 				"%s %p on guards acquisition"
@@ -314,46 +320,34 @@ RunTimeThread::handle(EventBasePtr & ev)
 	//    + a source
 	//    + how many atomics it is holding
 
-	enum SCategories 
-		{ SC_high_guards = 0
-		, SC_low_guards = SC_high_guards+1
-		, SC_source = SC_low_guards+1
-		, SC_no_guards = SC_source+1
-		, SC_exec_gapped = SC_no_guards+1
-		, SC_num_categories = SC_exec_gapped+1
-		, SC_high_atomics_count = 3 // what is considered high
-		, SC_low_atomics_count = 1  // what is considered low
-		, SC_critical_execution_gap = 100
-		};
-	std::vector<EventBasePtr> successors_categorized[SC_num_categories];
 	
-        for(size_t i = 0; i < successor_events.size(); ++i) {
+        for(size_t i = 0; i < context.successor_events.size(); ++i) {
 		// categorizing successors:
-		EventBasePtr & ev_ptr = successor_events[i];
+		EventBasePtr & ev_ptr = context.successor_events[i];
 		int num_atomics_held = ev_ptr->atomics().number();
 		oflux::flow::Node * fn = ev_ptr->flow_node();
 		long long execution_gap = fn->instances() - fn->executions();
-		if(execution_gap > SC_critical_execution_gap) {
-			successors_categorized[SC_exec_gapped].push_back(ev_ptr);
+		if(execution_gap > RunTimeThreadContext::SC_critical_execution_gap) {
+			context.successors_categorized[RunTimeThreadContext::SC_exec_gapped].push_back(ev_ptr);
 		} else if(fn->getIsSource()) {
-			successors_categorized[SC_source].push_back(ev_ptr);
-		} else if(num_atomics_held >= SC_high_atomics_count) {
-			successors_categorized[SC_high_guards].push_back(ev_ptr);
-		} else if(num_atomics_held >= SC_low_atomics_count) {
-			successors_categorized[SC_low_guards].push_back(ev_ptr);
+			context.successors_categorized[RunTimeThreadContext::SC_source].push_back(ev_ptr);
+		} else if(num_atomics_held >= RunTimeThreadContext::SC_high_atomics_count) {
+			context.successors_categorized[RunTimeThreadContext::SC_high_guards].push_back(ev_ptr);
+		} else if(num_atomics_held >= RunTimeThreadContext::SC_low_atomics_count) {
+			context.successors_categorized[RunTimeThreadContext::SC_low_guards].push_back(ev_ptr);
 		} else {
-			successors_categorized[SC_no_guards].push_back(ev_ptr);
+			context.successors_categorized[RunTimeThreadContext::SC_no_guards].push_back(ev_ptr);
 		}
 	}
 	size_t ind =0;
 #define PUSH_EVENTS_FOR(X) \
-	for(size_t i = 0; i < successors_categorized[X].size(); ++i) { \
-		EventBasePtr & ev_ptr = successors_categorized[X][i]; \
+	for(size_t i = 0; i < context.successors_categorized[X].size(); ++i) { \
+		EventBasePtr & ev_ptr = context.successors_categorized[X][i]; \
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] %u handle: %s %p (%d) succcessor %s %p pushed %d\n" \
 			, oflux_self() \
 			, index() \
-			, _flow_node_working->getName() \
-			, ev.get() \
+			, context.flow_node_working->getName() \
+			, context.evb \
 			, ind \
 			, ev_ptr->flow_node()->getName() \
 			, ev_ptr.get() \
@@ -364,35 +358,35 @@ RunTimeThread::handle(EventBasePtr & ev)
 
 	const char * queue_temp = "cold";
 	if(push_sources_first) { // queue is critical
-		PUSH_EVENTS_FOR(SC_source);
-		PUSH_EVENTS_FOR(SC_no_guards);
-		PUSH_EVENTS_FOR(SC_low_guards);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_source);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_no_guards);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_low_guards);
 		queue_temp = "crit";
 	} else if(push_all_guards_last) { // queue is hot
-		PUSH_EVENTS_FOR(SC_no_guards);
-		PUSH_EVENTS_FOR(SC_source);
-		PUSH_EVENTS_FOR(SC_low_guards);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_no_guards);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_source);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_low_guards);
 		queue_temp = "hot ";
 	} else { // queue is cold
-		PUSH_EVENTS_FOR(SC_no_guards);
-		PUSH_EVENTS_FOR(SC_source);
-		PUSH_EVENTS_FOR(SC_low_guards);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_no_guards);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_source);
+		PUSH_EVENTS_FOR(RunTimeThreadContext::SC_low_guards);
 	}
-	PUSH_EVENTS_FOR(SC_high_guards);
-	PUSH_EVENTS_FOR(SC_exec_gapped);
+	PUSH_EVENTS_FOR(RunTimeThreadContext::SC_high_guards);
+	PUSH_EVENTS_FOR(RunTimeThreadContext::SC_exec_gapped);
 	oflux_log_debug("[" PTHREAD_PRINTF_FORMAT "] push evs eg:%u hg:%u lg:%u sr:%u ng:%u %s %d\n"
 		, oflux_self()
-		, successors_categorized[SC_exec_gapped].size()
-		, successors_categorized[SC_high_guards].size()
-		, successors_categorized[SC_low_guards].size()
-		, successors_categorized[SC_source].size()
-		, successors_categorized[SC_no_guards].size()
+		, context.successors_categorized[RunTimeThreadContext::SC_exec_gapped].size()
+		, context.successors_categorized[RunTimeThreadContext::SC_high_guards].size()
+		, context.successors_categorized[RunTimeThreadContext::SC_low_guards].size()
+		, context.successors_categorized[RunTimeThreadContext::SC_source].size()
+		, context.successors_categorized[RunTimeThreadContext::SC_no_guards].size()
 		, queue_temp
 		, _queue.size()
 		);
 
-	_flow_node_working = NULL;
-	return successor_events.size();
+	context.flow_node_working = NULL;
+	return context.successor_events.size();
 }
 
 } // namespace lockfree

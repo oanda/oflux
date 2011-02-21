@@ -25,14 +25,15 @@ release_all_guards(RunTimeAbstract * rt)
 	std::vector<EventBasePtr> rel_evs_full_acq;
 	for(size_t i = 0; i < rel_evs.size(); ++i) {
                 EventBasePtr & succ_ev = rel_evs[i];
+		EventBase * succ_evb = succ_ev.get();
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
                         rel_evs_full_acq.push_back(succ_ev);
                 } else {
                         oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] acquire_all_or_wait() failure for "
                                 "%s %p on guards acquisition"
                                 , oflux_self()
-                                , succ_ev->flow_node()->getName()
-                                , succ_ev.get());
+                                , succ_evb->flow_node()->getName()
+                                , succ_evb);
                 }
 
 	}

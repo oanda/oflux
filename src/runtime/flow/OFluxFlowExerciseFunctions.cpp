@@ -125,7 +125,7 @@ public:
 		o.name = 'R';
 		o.evptr = by_ev.get();
 		o.revptr = 0;
-		o.fname = (by_ev->flow_node() ? by_ev->flow_node()->getName() : NULL);
+		o.fname = (o.evptr->flow_node() ? o.evptr->flow_node()->getName() : NULL);
 		o.tid = oflux_self();
 		size_t pre_sz = rel_ev.size();
 		_a.release(rel_ev,by_ev);
@@ -147,7 +147,7 @@ public:
 		o.name = 'A';
 		o.revptr = 0;
 		o.evptr = ev.get();
-		o.fname = (ev->flow_node() ? ev->flow_node()->getName() : NULL);
+		o.fname = (o.evptr->flow_node() ? o.evptr->flow_node()->getName() : NULL);
 		o.tid = oflux_self();
 		bool res = _a.acquire_or_wait(ev,wtype);
 		o.name = 'a';

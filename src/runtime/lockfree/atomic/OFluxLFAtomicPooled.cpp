@@ -76,7 +76,7 @@ AtomicPooled::release(
 #endif // OFLUX_DEEP_LOGGING
 	assert(_data);
 	EventBase * evb = ev.get();
-	assert(ev.get() == _by_ev); 
+	assert(evb == _by_ev && "should release from the same event you acquired from"); 
 	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AP::rel   ev %s ev*:%p  APD*this:%p _data:%p\n"
 		, oflux_self()
 		, evb ? evb->flow_node()->getName() : "<NULL>"
