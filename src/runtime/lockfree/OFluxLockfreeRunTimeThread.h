@@ -44,8 +44,8 @@ struct RunTimeThreadContext {
 	EventBasePtr ev;
 	EventBase * evb; // _this_event
 	flow::Node * flow_node_working;
-        std::vector<EventBasePtr> successor_events;
-        std::vector<EventBasePtr> successor_events_released;
+	std::vector<EventBasePtr> successor_events;
+	std::vector<EventBasePtr> successor_events_released;
 	std::vector<EventBasePtr> successors_categorized[SC_num_categories];
 };
 
@@ -79,11 +79,12 @@ public:
 	inline EventBasePtr steal()
 	{
 		EventBasePtr ev;
-		EventBase * evb = ev.get();
+		EventBase * evb = NULL;
 		WSQElement * e = _queue.steal();
 		if(e && e != &WorkStealingDeque::empty 
 				&& e != &WorkStealingDeque::abort) {
 			ev.swap(e->ev);
+			evb = ev.get();
 			allocator.put(e);
 			evb->state = 3;
 		}
