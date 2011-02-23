@@ -81,6 +81,7 @@ ReadWriteWaiterList::push(readwrite::EventBaseHolder * e)
 		HAZARD_PTR_ASSIGN(h,_head,0);
 		//t = _tail;
 		HAZARD_PTR_ASSIGN(t,_tail,1);
+		__sync_synchronize();
 		RWWaiterPtr rwptr(t->next);
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 		obs.h = h;
@@ -262,6 +263,7 @@ ReadWriteWaiterList::pop(
 #ifdef LF_RW_WAITER_INSTRUMENTATION
 			++obs.retries;
 #endif // LF_RW_WAITER_INSTRUMENTATION
+			__sync_synchronize();
 			continue;
 		}
 		assert((mode==EventBaseHolder::Read ? 1 : 0) == rwptr.mode()
@@ -349,6 +351,7 @@ ReadWriteWaiterList::pop(
 						, true
 						, rwptr.epoch()+1)
 						) {
+					__sync_synchronize();
 					t = _tail;
 					rwptr = t->next;
 #ifdef LF_RW_WAITER_INSTRUMENTATION

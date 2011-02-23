@@ -226,6 +226,7 @@ ExclusiveWaiterList::pop()
 #ifdef LF_EX_WAITER_INSTRUMENTATION
 			++obs.retries;
 #endif // LF_EX_WAITER_INSTRUMENTATION
+			__sync_synchronize();
 			continue;
 		}
 		if(h != _tail && hn != NULL 
