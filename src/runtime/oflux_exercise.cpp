@@ -50,7 +50,12 @@ ex_release_guards()
 int
 main(int argc, char * argv[])
 {
-	oflux::flow::exercise::release_guards = ex_release_guards;
+	char * no_early_release = getenv("EXERCISE_NO_EARLY_RELEASE");
+	if(!no_early_release) {
+		oflux::flow::exercise::release_guards = ex_release_guards;
+	} else {
+		oflux::flow::exercise::release_guards = NULL;
+	}
 
 	if(argc <= 1) {
 		std::cout << "provide an XML flow file argument\n";
