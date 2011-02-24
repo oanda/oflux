@@ -58,7 +58,6 @@ RunTime::RunTime(const RunTimeConfiguration & rtc)
 		oflux_log_error("ERROR no SHIM file found... exiting\n%s\n",dlerror());
 		exit(0);
 	}
-	((RunTimeBase::initShim)(this));
 }
 
 static void 
@@ -208,6 +207,7 @@ RunTime::start()
 	_thread_count++;
 	RunTime::thread_data_key.set(rtt);
 	oflux::lockfree::ThreadNumber::init();
+	((RunTimeBase::initShim)(this));
 	// if doors, start up a service thread now
 	if(_doors.create_doors(RunTime_start_door_thread)) {
 		//START_DOORS;
