@@ -224,6 +224,7 @@ public:
         virtual const char * atomic_class() const { return atomic_class_str; }
 	virtual bool is_pool_like() const { return true; }
 	virtual void relinquish(bool);
+	virtual bool can_relinquish() const { return true; }
 protected:
 	AtomicPooled * _next;
 private:

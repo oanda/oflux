@@ -81,6 +81,7 @@ public:
 	*    there are no events using it
 	*/
 	virtual void relinquish(bool) = 0;
+	virtual bool can_relinquish() const { return false; }
 
 	virtual int wtype() const = 0;
 
@@ -409,6 +410,7 @@ public:
 			_pool.put(this);
 		}
 	}
+	virtual bool can_relinquish() const { return true; }
 	virtual int wtype() const { return 0; }
 	static const char * atomic_class_str;
 	virtual const char * atomic_class() const { return atomic_class_str; }

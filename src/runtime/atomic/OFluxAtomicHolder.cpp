@@ -318,6 +318,7 @@ AtomicsHolder::release(
 #endif // AH_INSTRUMENTATION
 		assert(ha->haveit() || ha->skipit());
 		Atomic * a = ha->atomic();
+		bool a_can_relinquish = a->can_relinquish();
 		if(ha->haveit() && a != NULL) {
 			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
@@ -410,7 +411,7 @@ AtomicsHolder::release(
 					? released_events.back()->flow_node()->getName() 
 					: "<nil>")
 				, post_sz - pre_sz);
-			if(a) {
+			if(a && a_can_relinquish) {
 				a->relinquish(should_relinquish);
 			}
 		} else {
