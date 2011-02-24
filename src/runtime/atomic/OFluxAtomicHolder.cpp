@@ -318,8 +318,9 @@ AtomicsHolder::release(
 #endif // AH_INSTRUMENTATION
 		assert(ha->haveit() || ha->skipit());
 		Atomic * a = ha->atomic();
-		bool a_can_relinquish = a->can_relinquish();
+		bool a_can_relinquish = false;
 		if(ha->haveit() && a != NULL) {
+			a_can_relinquish = a->can_relinquish();
 			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
 			if(released_events.size() - pre_sz > 0) {
