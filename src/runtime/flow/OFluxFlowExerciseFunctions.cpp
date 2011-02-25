@@ -577,12 +577,16 @@ ExerciseEventDetail::Atoms_::report()
 		, "     "
 		, "     "
 		};
+
+	static char * exercise_checkpool = getenv("EXERCISE_CHECKPOOL");
 		
 	for(int i = 0; i < number; ++i) {
 		oflux_log_trace(" atom[%-2d] %s %p\n"
 			, i
 			, wtype_strs[atoms[i].wtype]
 			, (atoms[i].data ? *(atoms[i].data) : 0));
+		assert((exercise_checkpool == NULL) 
+			|| (atoms[i].wtype == 5 ? *((int*)atoms[i].data) : 1));
 	}
 }
 

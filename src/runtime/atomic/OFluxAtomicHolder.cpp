@@ -111,7 +111,7 @@ compare_held_atomics(const void * v_ha1,const void * v_ha2)
                 reinterpret_cast<const HeldAtomicPtr *>(v_ha1);
 	const HeldAtomicPtr * ha2 = 
                 reinterpret_cast<const HeldAtomicPtr *>(v_ha2);
-	return (*ha1)->compare(**ha2);
+	return (*ha1)->compare(**ha2,false);
 }
 
 bool 
@@ -193,10 +193,10 @@ AtomicsHolder::acquire_all_or_wait(
 			, my_ha->atomic()
 			, my_ha->haveit() ? "have it" : ""
 			, my_ha->skipit() ? "skip it" : ""
-			, more_given ? given_ha->compare(*my_ha) : -99);
+			, more_given ? given_ha->compare(*my_ha, true) : -99);
 		while(more_given 
                                 && (!given_ha->haveit() 
-                                        || given_ha->compare(*my_ha) < 0)) {
+                                        || given_ha->compare(*my_ha,true) < 0)) {
 			more_given = given_aht.next(given_ha);
 		}
 #ifdef AH_INSTRUMENTATION
@@ -230,6 +230,7 @@ AtomicsHolder::acquire_all_or_wait(
 				obs.atomics[obs.at_index].called = true;
 			}
 #endif // AH_INSTRUMENTATION
+			_working_on = std::max(my_aht.index()-1,_working_on);
 			if(!my_ha->acquire_or_wait(ev,ev_name)) {
 				// event is now queued
 				// for waiting
@@ -323,7 +324,8 @@ AtomicsHolder::release(
 			a_can_relinquish = a->can_relinquish();
 			size_t pre_sz = released_events.size();
 			a->release(released_events,by_ev);
-			if(released_events.size() - pre_sz > 0) {
+			size_t post_sz = released_events.size();
+			if(post_sz - pre_sz > 0) {
 				oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AH::release %s %p released no events\n"
 					, oflux_self()
 					, by_ev_bptr->flow_node()->getName()
@@ -331,9 +333,10 @@ AtomicsHolder::release(
 					);
 			}
 #ifdef AH_INSTRUMENTATION
+			obs.res = post_sz;
 			if(i < Observation::max_at_index) {
 				obs.atomics[i].called = true;
-				obs.atomics[i].released = released_events.size() - pre_sz;
+				obs.atomics[i].released = post_sz - pre_sz;
 				if(obs.atomics[i].released) {
 					obs.atomics[i].rel_ev = released_events[pre_sz].get();
 					obs.atomics[i].rel_ev_name = released_events[pre_sz]->flow_node()->getName();
@@ -342,7 +345,7 @@ AtomicsHolder::release(
 #endif // AH_INSTRUMENTATION
 			// acquisition happens here for released events
 			bool should_relinquish = false;
-			for(size_t k = pre_sz; k < released_events.size(); ++k) {
+			for(size_t k = pre_sz; k < post_sz; ++k) {
 				should_relinquish = true;
 				EventBasePtr & rel_ev = released_events[k];
 				EventBase * rel_ev_bptr = rel_ev.get();
@@ -370,7 +373,7 @@ AtomicsHolder::release(
 						, rel_ha_ptr->atomic()
 						, rel_ha_ptr->haveit() ? "have it" : ""
 						, rel_ha_ptr->flow_guard_ref()->getName().c_str()
-						, rel_ha_ptr->compare(*ha)
+						, rel_ha_ptr->compare(*ha,true)
 						);
 					oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AH::release                  fd %d haveit %d pool_like %d\n"
 						, oflux_self()
@@ -380,7 +383,7 @@ AtomicsHolder::release(
 						);
 					if(rel_ha_ptr 
 						&& (rel_ha_ptr->atomic() == a
-							|| (a->is_pool_like() && (rel_ha_ptr->compare(*ha) == 0)))
+							|| (a->is_pool_like() && (rel_ha_ptr->compare(*ha, true) == 0)))
 							) {
 						rel_ha_ptr->halftakeit(*ha);
 						fd = true;
@@ -401,7 +404,6 @@ AtomicsHolder::release(
 				assert( (rel_ha_ptr==NULL) || rel_ha_ptr->haveit());
 			}
 
-			size_t post_sz = released_events.size();
 			if(post_sz == pre_sz && a->has_no_waiters() && a->held() == 0) {
  				ha->garbage_collect();
 				if(!ha->atomic()) { a = NULL; }
@@ -425,7 +427,6 @@ AtomicsHolder::release(
 		}
 	}
 #ifdef AH_INSTRUMENTATION
-	obs.res = released_events.size();
 	obs.action = Observation::Action_rel;
 	obs.term_index = log.at();
 #endif // AH_INSTRUMENTATION

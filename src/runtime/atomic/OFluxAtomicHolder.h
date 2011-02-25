@@ -62,7 +62,7 @@ public:
 	 * @param ha the RHS of the comparison
 	 * @return -1 if <, +1 if > and 0 if ==
 	 */
-	inline int compare(const HeldAtomic & ha) const
+	inline int compare(const HeldAtomic & ha, bool ignoreLates) const
 	{ 
 		int gt1 = guard_type();
 		int gt2 = ha.guard_type();
@@ -73,7 +73,7 @@ public:
 #define compare_lates(a,b) \
 (a == b ? 0 : ( (!a) && b /*a < b*/ ? -1 : 1 ))
 		return (gt1 == gt2 && wt1 == wt2
-				? (!lt1 && !lt2
+				? ((!lt1 && !lt2) || ignoreLates
 					? (_key == ha._key ? 0 : _flow_guard_ref->compare_keys(_key,ha._key))
 					: compare_lates(lt1,lt2))
 				: (gt1 == gt2 
