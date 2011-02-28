@@ -204,12 +204,12 @@ public:
 	{
 		Implementation * impl = _impl;
 		long initial_sz = impl->size();
-		printf(" grown from size %ld \n", initial_sz);
+		//printf(" grown from size %ld \n", initial_sz);
 		Implementation * n_impl = new Implementation(impl);
 		if(!__sync_bool_compare_and_swap( &_impl, impl, n_impl)) {
 			n_impl->disconnect();
 			delete n_impl;
-			printf(" deleted\n");
+			//printf(" deleted\n");
 			assert(_impl != impl && _impl->size() > initial_sz);
 		}
 		return true;

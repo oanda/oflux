@@ -445,6 +445,7 @@ ReadWriteWaiterList::rcount() const
 {
 	while(1) {
 		readwrite::EventBaseHolder * t = _tail;
+		__sync_synchronize();
 		RWWaiterPtr rwptr(t->next);
 		if(_head == t && !rwptr.mkd()) {
 			return 0;

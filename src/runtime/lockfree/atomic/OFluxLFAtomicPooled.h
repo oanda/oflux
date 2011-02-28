@@ -47,6 +47,7 @@ public:
 		ResourceHolderEntry * rsholderptr;
 		long retries = 0;
 		ev->_data = NULL;
+		oflux::lockfree::load_load_barrier();
 		while(1) {
 			rs_q_out = _rs_q_out;
 			uin.u64 = _uin.u64;
