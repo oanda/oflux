@@ -254,7 +254,8 @@ public:
 			store_load_barrier();
 			ReadWriteWaiterList::allocator.put(ebh); 
 		} else {
-			assert(ev.recover());
+			bool ev_recover_res = ev.recover();
+			assert(ev_recover_res && "ev should not be NULL on a_o_w failure");
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
 				, ev->flow_node()->getName()
 				, ev

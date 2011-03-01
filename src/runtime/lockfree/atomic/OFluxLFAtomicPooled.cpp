@@ -52,7 +52,8 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	bool acqed = _pool->waiters->acquire_or_wait(this); // try to acquire the resource
 	assert(!acqed || _data);
 	if(!acqed) {
-		assert(ev.recover());
+		bool ev_recover_res = ev.recover();
+		assert(ev_recover_res && "ev should not be NULL on a_o_w failure");
 	}
 	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
 		, oflux_self()

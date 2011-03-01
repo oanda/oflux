@@ -67,10 +67,12 @@ public:
 				)) {
 				bool cas_res = _rs_q.cas_to_null(rs_q_out,resource);
 				assert(cas_res && "must write a NULL on an rs pop");
-				assert(__sync_bool_compare_and_swap(
-					& ev->_data
-					, NULL
-					, resource));
+				bool data_cas_res = 
+					__sync_bool_compare_and_swap(
+						& ev->_data
+						, NULL
+						, resource);
+				assert(data_cas_res && "must cas ap_out._data from NULL on rs pop");
 				res = true;
 				break;
 			} else if((_uin.s._rs_q_in - rs_q_out) <= 0
@@ -124,10 +126,12 @@ public:
 					)) {
 				bool cas_res = _ev_q.cas_to_null(ev_q_out,ev_out);
 				assert(cas_res && "must write NULL on ev pop");
-				assert(__sync_bool_compare_and_swap(
-					& (ev_out->_data)
-					, NULL
-					, resource));
+				bool ev_cas_res =
+					__sync_bool_compare_and_swap(
+						& (ev_out->_data)
+						, NULL
+						, resource);
+				assert(ev_cas_res && "must cas ev._data from NULL on an ev pop");
 				res = ev_out;
 				break;
 			} else if((_uin.s._ev_q_in - ev_q_out) <= 0

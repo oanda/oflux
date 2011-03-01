@@ -294,7 +294,8 @@ public:
 			set_three(ebh->next);
 			AtomicCommon::allocator.put(ebh); // not in use - return it to pool
 		} else {
-			assert(ev.recover());
+			bool ev_recover_res = ev.recover();
+			assert(ev_recover_res && "event should not be NULL on a_o_w failure");
 		}
 		return acqed;
 	}
