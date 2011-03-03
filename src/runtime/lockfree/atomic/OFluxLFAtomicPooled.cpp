@@ -40,7 +40,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 #ifdef OFLUX_DEEP_LOGGING
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
-	_by_ev = ev.get();
+	_by_ev = get_EventBasePtr(ev);
 	assert(_by_ev);
 	__sync_synchronize();
 	const char * flow_node_name = (_by_ev ? _by_ev->flow_node()->getName() : "<NULL>");
@@ -52,8 +52,7 @@ AtomicPooled::acquire_or_wait(EventBasePtr & ev,int t)
 	bool acqed = _pool->waiters->acquire_or_wait(this); // try to acquire the resource
 	assert(!acqed || _data);
 	if(!acqed) {
-		bool ev_recover_res = ev.recover();
-		assert(ev_recover_res && "ev should not be NULL on a_o_w failure");
+		checked_recover_EventBasePtr(ev);
 	}
 	oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] AP::a_o_w ev %s ev*:%p APD*this:%p res %d\n"
 		, oflux_self()
@@ -76,7 +75,7 @@ AtomicPooled::release(
 	AtomicPool::dump(_pool);
 #endif // OFLUX_DEEP_LOGGING
 	assert(_data);
-	EventBase * evb = ev.get();
+	EventBase * evb = get_EventBasePtr(ev);
 	assert(evb == _by_ev && "should release from the same event you acquired from"); 
 	oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] AP::rel   ev %s ev*:%p  APD*this:%p _data:%p\n"
 		, oflux_self()

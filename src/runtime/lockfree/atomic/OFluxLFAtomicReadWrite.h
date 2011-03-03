@@ -135,7 +135,7 @@ namespace readwrite {
 struct EventBaseHolder {
 	EventBaseHolder(EventBasePtr & e, bool md)
 		: next(0,0,0)
-		, val(e.get())
+		, val(get_EventBasePtr(e))
 		, mode(md)
 	{}
 
@@ -254,8 +254,7 @@ public:
 			store_load_barrier();
 			ReadWriteWaiterList::allocator.put(ebh); 
 		} else {
-			bool ev_recover_res = ev.recover();
-			assert(ev_recover_res && "ev should not be NULL on a_o_w failure");
+			checked_recover_EventBasePtr(ev);
 			oflux_log_trace2("RW::a_o_w %s %p %p waited %d %d\n"
 				, ev->flow_node()->getName()
 				, ev
@@ -272,7 +271,7 @@ public:
 		readwrite::EventBaseHolder * el = NULL;
 		oflux_log_trace2("RW::rel   %s %p %p releasing %d %d\n"
 			, by_e->flow_node()->getName()
-			, by_e.get()
+			, get_EventBasePtr(by_e)
 			, this
 			, _wtype
 			, _waiters.rcount());

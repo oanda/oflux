@@ -20,8 +20,10 @@ namespace ofluximpl {
 namespace oflux {
 namespace lockfree {
 
+#ifdef SHARED_PTR_EVENTS
 Allocator<RunTimeThread::WSQElement>
 RunTimeThread::allocator; //(new allocator::MemoryPool<sizeof(RunTimeThread::WSQElement)>());
+#endif // SHARED_PTR_EVENTS
 
 RunTimeThread::RunTimeThread(RunTime & rt, int index, oflux_thread_t tid)
 	: _next(NULL)
@@ -44,7 +46,7 @@ RunTimeThread::~RunTimeThread()
 	oflux_cond_destroy(&_cond);
 	while(_queue.size()) {
 		EventBasePtr ev = popLocal();
-		EventBase * evb = ev.get();
+		EventBase * evb = get_EventBasePtr(ev);
 		if(!evb) {
 			break;
 		} else {
@@ -56,15 +58,17 @@ RunTimeThread::~RunTimeThread()
 	}
 }
 
+#ifdef SHARED_PTR_EVENTS
 RunTimeThread::WSQElement::~WSQElement()
 {}
 /*{
-	if(ev.get())  {
+	if(get_EventBasePtr(ev))  {
 		oflux_log_debug("~WSQE %s %d\n"
 			, ev->flow_node()->getName()
 			, ev.use_count());
 	}
 }*/
+#endif // SHARED_PTR_EVENTS
 
 static void *
 RunTimeThread_start_thread(void *pthis)
@@ -160,12 +164,12 @@ RunTimeThread::start()
 			//   to contribute some stealing
 			--_queue_allowance;
 		} else {
-			context.ev = popLocal();
+			context.ev = mk_EventBaseSharedPtr(popLocal());
 		}
 		context.evb = context.ev.get();
 		if(!context.evb) {
 			++_stats.events.attempts_to_steal;
-			context.ev = _rt.steal_first_random();
+			context.ev = mk_EventBaseSharedPtr(_rt.steal_first_random());
 			context.evb = context.ev.get();
 			_stats.events.stolen += (context.evb ? 1 : 0);
 		}
@@ -276,12 +280,17 @@ RunTimeThread::handle(RunTimeThreadContext & context)
 			, context.ev->flow_node()->getName()
 			, context.evb
 			, context.successor_events[i]->flow_node()->getName()
-			, context.successor_events[i].get());
+			, get_EventBasePtr(context.successor_events[i]));
 	}
 #endif // OFLUX_DEEP_LOGGING
         // ------------ Release held atomics --------------
         // put the released events as priority on the queue
-        context.ev->atomics().release(context.successor_events_released,context.ev);
+#ifdef SHARED_PTR_EVENTS
+#define LOCAL_EV context.ev // is EventBasePtr always
+#else  // SHARED_PTR_EVENTS
+#define LOCAL_EV context.evb
+#endif // SHARED_PTR_EVENTS
+        context.ev->atomics().release(context.successor_events_released,LOCAL_EV);
         for(size_t i = 0; i < context.successor_events_released.size(); ++i) {
                 EventBasePtr & succ_ev = context.successor_events_released[i];
                 if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
@@ -291,7 +300,7 @@ RunTimeThread::handle(RunTimeThreadContext & context)
 				"%s %p on guards acquisition"
 				, oflux_self()
 				, succ_ev->flow_node()->getName()
-				, succ_ev.get());
+				, get_EventBasePtr(succ_ev));
 		}
         }
 
@@ -350,7 +359,7 @@ RunTimeThread::handle(RunTimeThreadContext & context)
 			, context.evb \
 			, ind \
 			, ev_ptr->flow_node()->getName() \
-			, ev_ptr.get() \
+			, get_EventBasePtr(ev_ptr) \
 			, return_code); \
 		pushLocal(ev_ptr); \
 		++ind; \

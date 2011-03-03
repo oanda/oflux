@@ -14,8 +14,9 @@
 
 #include <cstdio>
 #include <strings.h>
-#include "OFluxThreadNumber.h"
-#include "OFluxMachineSpecific.h"
+#include "lockfree/OFluxThreadNumber.h"
+#include "lockfree/OFluxMachineSpecific.h"
+#include "lockfree/OFluxSentinel.h"
 
 namespace oflux {
 namespace lockfree {
@@ -62,10 +63,13 @@ private:
 
 template<typename T>
 class CircularWorkStealingDeque {
+private:
+	static CheapSentinel<T> empty_sentinel;
+	static CheapSentinel<T> abort_sentinel;
 public: 
 	// sentinels: 
-	static T empty;
-	static T abort;
+	static T * empty;
+	static T * abort;
 
 #ifdef CSW_DEQUE_BIG_LOG
 	size_t big_log[100000];
@@ -115,11 +119,11 @@ public:
 		long b = _bottom;
 		long size = b - t;
 		if(size <= 0) {
-			return &empty;
+			return empty;
 		}
 		T * e = a->get(t);
 		if(!cas_top(t,t+1)) {
-			return &abort;
+			return abort;
 		}
 #ifdef CSW_DEQUE_BIG_LOG
 		big_log[t%100000] |= (1 << _tn.index);
@@ -140,7 +144,7 @@ public:
 		size = b - t;
 		if(size < 0) {
 			_bottom = t;
-			return &empty;
+			return empty;
 		}
 		T * e = a->get(b);
 		if(size>0) {
@@ -150,11 +154,11 @@ public:
 			return e;
 		}
 		if(!cas_top(t,t+1)) {
-			e = &empty;
+			e = empty;
 		}
 		_bottom = t+1;
 #ifdef CSW_DEQUE_BIG_LOG
-		if(e != &empty) { big_log[b%100000] |= (1 << (_tn.index +8)); }
+		if(e != empty) { big_log[b%100000] |= (1 << (_tn.index +8)); }
 #endif
 		return e;
 	}
@@ -175,12 +179,20 @@ private:
 	char _align_dontcare[256 - 2*sizeof(long) - sizeof(CircularArray<T> *)];
 };
 
+template< typename T >
+CheapSentinel<T> 
+CircularWorkStealingDeque<T>::empty_sentinel;
 
-template<typename T>
-T CircularWorkStealingDeque<T>::empty;
+template< typename T >
+CheapSentinel<T> 
+CircularWorkStealingDeque<T>::abort_sentinel;
 
-template<typename T>
-T CircularWorkStealingDeque<T>::abort;
+
+template< typename T>
+T * CircularWorkStealingDeque<T>::empty = CircularWorkStealingDeque<T>::empty_sentinel();
+
+template< typename T>
+T * CircularWorkStealingDeque<T>::abort = CircularWorkStealingDeque<T>::abort_sentinel();
 
 } // namespace lockfree
 } // namespace oflux

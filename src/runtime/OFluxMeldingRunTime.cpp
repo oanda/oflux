@@ -19,7 +19,7 @@ classic::RunTimeThread * RunTime::new_RunTimeThread(oflux_thread_t tid)
 
 
 int RunTimeThread::execute_detached(
-	  EventBasePtr & ev
+	  EventBaseSharedPtr & ev
         , int & detached_count_to_increment)
 {
         SetTrue st(_detached);
@@ -60,8 +60,8 @@ int RunTimeThread::execute_detached(
                                         oflux_self());
                                 EventBasePtr new_ev =
                                         ( fsucc_first->getIsSource()
-                                        ? (*createfn)(EventBase::no_event,NULL,fsucc_first)
-                                        : (*createfn)(EventBasePtr(ev),iocon->convert(ev_output),fsucc_first)
+                                        ? (*createfn)(EventBase::no_event_shared,NULL,fsucc_first)
+                                        : (*createfn)(ev,iocon->convert(ev_output),fsucc_first)
                                         );
                                 new_ev->error_code(return_code);
                                 ev = new_ev;

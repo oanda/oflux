@@ -77,7 +77,7 @@ public:
 			if((rtt->index() >= start)
 					&& rtt->index() != local_index) {
 				ev = rtt->steal();
-				if(ev.get()) {
+				if(get_EventBasePtr(ev)) {
 					return ev;
 				}
 			}
@@ -87,7 +87,7 @@ public:
 		while(rtt && rtt->index() < start) {
 			if(rtt->index() != local_index) {
 				ev = rtt->steal();
-				if(ev.get()) {
+				if(get_EventBasePtr(ev)) {
 					break;
 				}
 			}

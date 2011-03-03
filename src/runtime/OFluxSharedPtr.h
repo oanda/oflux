@@ -20,7 +20,7 @@ public:
 	{}
 	explicit shared_ptr(T *p)
 		: _px(p)
-		, _pn(new int(1))
+		, _pn(p ? new int(1) : NULL)
 	{
 	}
 	shared_ptr(const shared_ptr<T> & sp)

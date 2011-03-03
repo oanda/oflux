@@ -42,9 +42,10 @@ void PUBLIC_NODE_DONE(const void *,const char * X);
  */
 class EventBase : public flow::NodeCounterIncrementer {
 public:
+	static EventBaseSharedPtr no_event_shared;
 	static EventBasePtr no_event;
 
-	EventBase(        EventBasePtr & predecessor
+	EventBase(        EventBaseSharedPtr & predecessor
 			, flow::Node *flow_node
 			, atomic::AtomicsHolder & atomics);
 	virtual ~EventBase();
@@ -61,11 +62,11 @@ public:
 	inline int error_code() { return _error_code; }
 	inline atomic::AtomicsHolder & atomics() { return _atomics_ref; }
 	void log_snapshot();
-	inline EventBasePtr & get_predecessor()
+	inline EventBaseSharedPtr & get_predecessor()
 	{ return _predecessor; }
 	bool getIsDetached();
 private:
-	EventBasePtr _predecessor;
+	EventBaseSharedPtr _predecessor;
 protected:
 	int _error_code;
 	atomic::AtomicsHolder & _atomics_ref;

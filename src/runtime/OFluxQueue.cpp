@@ -16,21 +16,21 @@ void
 Queue::push(Element & e)
 {
 	_q.push_back(e);
-	_FIFO_PUSH(e.get(),element_name(e));
+	_FIFO_PUSH(get_EventBasePtr(e),element_name(e));
 }
 
 void
 Queue::push_priority(Element & e)
 {
 	_q.push_front(e);
-	_FIFO_PUSH(e.get(),element_name(e));
+	_FIFO_PUSH(get_EventBasePtr(e),element_name(e));
 }
 void
 Queue::push_list(const std::vector<Element> & vec)
 {
 	for(int i = 0; i < (int)vec.size(); i++) {
 		_q.push_back(vec[i]);
-		_FIFO_PUSH(vec[i].get(),element_name(vec[i]));
+		_FIFO_PUSH(get_EventBasePtr(vec[i]),element_name(vec[i]));
 	}
 }
 void
@@ -39,7 +39,7 @@ Queue::push_list_priority(const std::vector<Element> & vec)
 	// reverse
 	for(int i = ((int)vec.size())-1; i >= 0; i--) {
 		_q.push_front(vec[i]);
-		_FIFO_PUSH(vec[i].get(),element_name(vec[i]));
+		_FIFO_PUSH(get_EventBasePtr(vec[i]),element_name(vec[i]));
 	}
 }
 
@@ -50,7 +50,7 @@ Queue::pop(Element & e)
 	if(res) {
 		e = _q.front();
 		_q.pop_front();
-		_FIFO_POP(e.get(),element_name(e));
+		_FIFO_POP(get_EventBasePtr(e),element_name(e));
 	}
 	return res;
 }
@@ -63,7 +63,7 @@ Queue::log_snapshot()
 	int sz = _q.size();
 	oflux_log_info("<front of the event queue here>\n");
 	while(dqitr != dqitr_end && sz > 0) {
-		if((*dqitr).get()) { (*dqitr)->log_snapshot();
+		if(get_EventBasePtr(*dqitr)) { (*dqitr)->log_snapshot();
 		}
 		dqitr++;
 		sz--; // done for safety -- never know who will access this in MT (you are bad ppl!)

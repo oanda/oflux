@@ -140,8 +140,8 @@ AtomicsHolder::acquire_all_or_wait(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev)
 {
-	EventBase * ev_bptr = ev.get();
-	EventBase * pred_ev_bptr = pred_ev.get();
+	EventBase * ev_bptr = get_EventBasePtr(ev);
+	EventBase * pred_ev_bptr = get_EventBasePtr(pred_ev);
 #ifdef AH_INSTRUMENTATION
 	Observation & obs = log.submit();
 	obs.init();
@@ -276,7 +276,7 @@ AtomicsHolder::release(
 	  std::vector<EventBasePtr> & released_events
 	, EventBasePtr & by_ev)
 {
-	EventBase * by_ev_bptr = by_ev.get();
+	EventBase * by_ev_bptr = get_EventBasePtr(by_ev);
 #ifdef AH_INSTRUMENTATION
 	Observation & obs = log.submit();
 	obs.init();
@@ -338,7 +338,7 @@ AtomicsHolder::release(
 				obs.atomics[i].called = true;
 				obs.atomics[i].released = post_sz - pre_sz;
 				if(obs.atomics[i].released) {
-					obs.atomics[i].rel_ev = released_events[pre_sz].get();
+					obs.atomics[i].rel_ev = get_EventBasePtr(released_events[pre_sz]);
 					obs.atomics[i].rel_ev_name = released_events[pre_sz]->flow_node()->getName();
 				}
 			}
@@ -348,7 +348,7 @@ AtomicsHolder::release(
 			for(size_t k = pre_sz; k < post_sz; ++k) {
 				should_relinquish = true;
 				EventBasePtr & rel_ev = released_events[k];
-				EventBase * rel_ev_bptr = rel_ev.get();
+				EventBase * rel_ev_bptr = get_EventBasePtr(rel_ev);
 				AtomicsHolder & rel_atomics = rel_ev_bptr->atomics();
 				bool fd = false;
 				HeldAtomic * rel_ha_ptr = NULL;

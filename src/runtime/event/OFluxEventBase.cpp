@@ -36,7 +36,8 @@ void PUBLIC_EVENT_DEATH(const void * E, const char * N)
  * @brief need an event that is sort of the empty event
  * This is used as a predecessor of a successor.
  */
-EventBasePtr EventBase::no_event;
+EventBasePtr EventBase::no_event(NULL);
+EventBaseSharedPtr EventBase::no_event_shared;
 
 #ifdef HAS_DTRACE
 int access_dtrace()
@@ -71,7 +72,7 @@ void EventBase::log_snapshot()
 	// could print the names of the atomics held...
 }
 
-EventBase::EventBase(        EventBasePtr & predecessor
+EventBase::EventBase( EventBaseSharedPtr & predecessor
 		, flow::Node *flow_node
 		, atomic::AtomicsHolder & atomics)
 	: flow::NodeCounterIncrementer(flow_node)

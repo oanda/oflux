@@ -41,7 +41,7 @@ struct RunTimeThreadContext {
 		};
 	// this is used to avoid re-creating variables and vectors within the runtime loop
 	// these are roughly in the order that they are used for one handle() iteration
-	EventBasePtr ev;
+	EventBaseSharedPtr ev;
 	EventBase * evb; // _this_event
 	flow::Node * flow_node_working;
 	std::vector<EventBasePtr> successor_events;
@@ -53,6 +53,7 @@ class RunTimeThread : public ::oflux::RunTimeThreadAbstract {
 public:
 	friend class RunTime;
 
+#ifdef SHARED_PTR_EVENTS
 	struct WSQElement {
 		WSQElement() {}
 		WSQElement(EventBasePtr a_ev) : ev(a_ev)  {}
@@ -60,9 +61,19 @@ public:
 
 		EventBasePtr ev;
 	};
-	typedef CircularWorkStealingDeque<WSQElement> WorkStealingDeque;
 
 	static Allocator<WSQElement> allocator;
+#define get_WSQElement(E) allocator.get(E)
+#define put_WSQElement(E) allocator.put(E)
+#define get_ev_WSQElement(E) ((E)->ev)
+#else  // SHARED_PTR_EVENTS
+	typedef EventBase WSQElement;
+#define get_WSQElement(E) E
+#define put_WSQElement(E) 
+#define get_ev_WSQElement(E) E
+#endif // SHARED_PTR_EVENTS
+
+	typedef CircularWorkStealingDeque<WSQElement> WorkStealingDeque;
 
 	RunTimeThread(RunTime & rt, int index, oflux_thread_t tid);
 	~RunTimeThread();
@@ -78,14 +89,14 @@ public:
 	//
 	inline EventBasePtr steal()
 	{
-		EventBasePtr ev;
+		EventBasePtr ev(NULL);
 		EventBase * evb = NULL;
 		WSQElement * e = _queue.steal();
-		if(e && e != &WorkStealingDeque::empty 
-				&& e != &WorkStealingDeque::abort) {
-			ev.swap(e->ev);
-			evb = ev.get();
-			allocator.put(e);
+		if(e && e != WorkStealingDeque::empty 
+				&& e != WorkStealingDeque::abort) {
+			take_EventBasePtr(ev,get_ev_WSQElement(e));
+			evb = get_EventBasePtr(ev);
+			put_WSQElement(e);
 			evb->state = 3;
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] steal  %s %p from thread [" PTHREAD_PRINTF_FORMAT "]\n"
@@ -125,17 +136,19 @@ protected:
 private:
 	inline EventBasePtr popLocal()
 	{
-		EventBasePtr ebptr;
+		EventBasePtr ebptr(NULL);
+		EventBase * ebb = NULL;
 		WSQElement * e = _queue.popBottom();
-		if(e && e != &WorkStealingDeque::empty) {
-			ebptr.swap(e->ev);
-			allocator.put(e);
+		if(e && e != WorkStealingDeque::empty) {
+			take_EventBasePtr(ebptr,get_ev_WSQElement(e));
+			ebb = get_EventBasePtr(ebptr);
+			put_WSQElement(e);
 			ebptr->state = 2;
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] popLocal %s %p\n"
 			, self()
-			, (ebptr.get() ? ebptr->flow_node()->getName() : "<null>")
-			, ebptr.get());
+			, (ebb ? ebb->flow_node()->getName() : "<null>")
+			, ebb);
 		return ebptr;
 	}
 	inline void pushLocal(const EventBasePtr & ev)
@@ -144,8 +157,8 @@ private:
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] pushLocal %s %p\n"
 			, self()
 			, ev->flow_node()->getName()
-			, ev.get());
-		WSQElement * e = allocator.get(ev);
+			, get_EventBasePtr(ev));
+		WSQElement * e = get_WSQElement(ev); 
 		_queue.pushBottom(e);
 	}
 	int handle(RunTimeThreadContext & context);

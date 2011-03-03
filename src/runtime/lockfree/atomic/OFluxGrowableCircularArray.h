@@ -3,21 +3,12 @@
 
 #include <cassert>
 #include <cstdio>
+#include "lockfree/OFluxSentinel.h"
 
 
 namespace oflux {
 namespace lockfree {
 namespace growable {
-
-template< typename T >
-class CheapSentinel { // meant to be a static instance
-public:
-	CheapSentinel() : _dontcare(0) {}
-	T * operator()() 
-	{ return static_cast<T *>(reinterpret_cast<void *>(&_dontcare)); }
-private:
-	int _dontcare;
-};
 
 template< typename T >
 struct TStructEntry {

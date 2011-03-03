@@ -17,9 +17,10 @@ __acquire_guards(
 	  EventBasePtr & ev
 	, EventBasePtr & pred_ev = EventBase::no_event)
 {
-	EventBase * evb = ev.get();
+	EventBase * evb = get_EventBasePtr(ev);
 	assert(evb);
-	int __attribute__((unused)) working_on_local = evb->atomics().working_on();
+	int __attribute__((unused)) working_on_local = 
+		evb->atomics().working_on();
 	bool res = evb->atomics().acquire_all_or_wait(
 		  ev
 		, pred_ev);
@@ -44,7 +45,7 @@ acquire_guards(
 void
 successors_on_no_error(
 	  std::vector<EventBasePtr> & successor_events
-	, EventBasePtr & ev)
+	, EventBaseSharedPtr & ev)
 {
 	enum { return_code = 0 };
 	std::vector<flow::Case *> fsuccessors;
@@ -70,14 +71,16 @@ successors_on_no_error(
 			CreateNodeFn createfn = fn->getCreateFn();
 			EventBasePtr ev_succ = 
 				( is_source
-				? (*createfn)(EventBase::no_event,NULL,fn)
+				? (*createfn)(EventBase::no_event_shared,NULL,fn)
 				: (*createfn)(ev,iocon->convert(ev_output),fn)
 				);
 			ev_succ->error_code(0);
+			EventBasePtr from_ev =
+				is_source 
+				? EventBase::no_event 
+				: get_EventBaseSharedPtr(ev);
 			if(event::__acquire_guards(ev_succ
-					, is_source
-					? EventBase::no_event
-					: ev)) {
+					, from_ev)) {
 				successor_events.push_back(ev_succ);
 			}
 		}
@@ -87,7 +90,7 @@ successors_on_no_error(
 void
 successors_on_error(
 	  std::vector<EventBasePtr> & successor_events
-	, EventBasePtr & ev
+	, EventBaseSharedPtr & ev
 	, int return_code)
 {
 	std::vector<flow::Case *> fsuccessors;
@@ -101,10 +104,11 @@ successors_on_error(
 		bool was_source = ev->flow_node()->getIsSource();
 		EventBasePtr ev_succ = 
 			( was_source
-			? (*createfn)(EventBase::no_event,NULL,fn)
+			? (*createfn)(EventBase::no_event_shared,NULL,fn)
 			: (*createfn)(ev->get_predecessor(),iocon->convert(ev->input_type()),fn));
 		ev_succ->error_code(return_code);
-		if(event::__acquire_guards(ev_succ,ev)) {
+		EventBasePtr from_ev = get_EventBaseSharedPtr(ev);
+		if(event::__acquire_guards(ev_succ,from_ev)) {
 			successor_events.push_back(ev_succ);
 		}
 	}
@@ -124,7 +128,7 @@ push_initials_and_sources(
 			oflux_log_info("load_flow pushing initial %s\n"
 				, fn->getName());
 			CreateNodeFn createfn = fn->getCreateFn();
-			EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
+			EventBasePtr ev = (*createfn)(EventBase::no_event_shared,NULL,fn);
 			if(event::__acquire_guards(ev)) {
 				if(lifo) {
 					events_vec.push_back(ev);
@@ -140,7 +144,8 @@ push_initials_and_sources(
 			oflux_log_info("load_flow pushing source  %s\n"
 				, fn->getName());
 			CreateNodeFn createfn = fn->getCreateFn();
-			EventBasePtr ev = (*createfn)(EventBase::no_event,NULL,fn);
+			EventBasePtr ev = 
+				(*createfn)(EventBase::no_event_shared,NULL,fn);
 			if(event::__acquire_guards(ev)) {
 				events_vec.push_back(ev);
 			}

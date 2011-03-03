@@ -422,7 +422,8 @@ void
 RunTimeThread::start()
 {
 	SetTrue keep_true_during_lifetime(_thread_running);
-	EventBasePtr ev;
+	EventBaseSharedPtr ev;
+	EventBasePtr evb;
 	AutoLock al(&(_rt->_manager_lock));
 
 	if(!_bootstrap) {
@@ -459,7 +460,8 @@ RunTimeThread::start()
 				break;
 			}
 		}
-		if(_rt->_queue.pop(ev)) {
+		if(_rt->_queue.pop(evb)) {
+			ev = evb;
 			handle(ev);
 		} else { // queue is empty - strange case
 			_rt->_waiting_to_run.signal();
@@ -503,7 +505,7 @@ RunTimeThread::log_snapshot()
 
 int 
 RunTimeThread::execute_detached(
-	  EventBasePtr & ev
+	  EventBaseSharedPtr & ev
 	, int & detached_count_to_increment)
 {
         SetTrue st(_detached);
@@ -521,7 +523,7 @@ RunTimeThread::execute_detached(
 }
 
 void 
-RunTimeThread::handle(EventBasePtr & ev)
+RunTimeThread::handle(EventBaseSharedPtr & ev)
 {
 	_flow_node_working = ev->flow_node();
 	// ---------------- Execution -------------------
@@ -534,12 +536,16 @@ RunTimeThread::handle(EventBasePtr & ev)
 #endif
 		_this_event = ev.get();
 		if( ev->getIsDetached() && _rt->canDetachMore()) {
-			return_code = execute_detached(ev,_rt->_detached_count);
+#ifdef SHARED_PTR_EVENTS
+#define LOCAL_EV ev
+#else // SHARED_PTR_EVENTS
+#define LOCAL_EV _this_event
+#endif // SHARED_PTR_EVENTS
+			return_code = execute_detached( ev ,_rt->_detached_count);
 			wait_to_run();
 		} else {
 			return_code = ev->execute();
 		}
-		_this_event = NULL;
 #ifdef PROFILING
 		_oflux_timer = NULL;
 #endif
@@ -559,7 +565,7 @@ RunTimeThread::handle(EventBasePtr & ev)
 	// ------------ Release held atomics --------------
 	// put the released events as priority on the queue
 	std::vector<EventBasePtr> successor_events_released;
-	ev->atomics().release(successor_events_released,ev);
+	ev->atomics().release(successor_events_released,LOCAL_EV);
 	for(int i = 0; i < (int)successor_events_released.size(); i++) {
 		EventBasePtr & succ_ev = successor_events_released[i];
 		if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
@@ -568,6 +574,7 @@ RunTimeThread::handle(EventBasePtr & ev)
 	}
 
 	enqueue_list(successor_events); // no priority
+	_this_event = NULL;
 	_flow_node_working = NULL;
 }
 

@@ -138,8 +138,8 @@ public:
 	static void * start_door(void *);
 	virtual void start();
         void disconnect_from_runtime() { _rt->remove(this); }
-	void handle(EventBasePtr & ev);
-	virtual int execute_detached(EventBasePtr & ev,
+	void handle(EventBaseSharedPtr & ev);
+	virtual int execute_detached(EventBaseSharedPtr & ev,
                 int & detached_count_to_increment);
 	virtual bool is_detached() { return _detached; }
 	virtual void set_detached(bool d) { _detached = d; }

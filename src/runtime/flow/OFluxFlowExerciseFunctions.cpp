@@ -123,7 +123,7 @@ public:
 		o.wtype = 0;
 		o.term_index = 0;
 		o.name = 'R';
-		o.evptr = by_ev.get();
+		o.evptr = get_EventBasePtr(by_ev);
 		o.revptr = 0;
 		o.fname = (o.evptr->flow_node() ? o.evptr->flow_node()->getName() : NULL);
 		o.tid = oflux_self();
@@ -133,7 +133,7 @@ public:
 		o.term_index = log.at();
 		o.res = rel_ev.size()-pre_sz;
 		if(o.res) {
-			o.revptr = rel_ev[pre_sz].get();
+			o.revptr = get_EventBasePtr(rel_ev[pre_sz]);
 		}
 	}
 	virtual bool acquire_or_wait(
@@ -146,7 +146,7 @@ public:
 		o.term_index = 0;
 		o.name = 'A';
 		o.revptr = 0;
-		o.evptr = ev.get();
+		o.evptr = get_EventBasePtr(ev);
 		o.fname = (o.evptr->flow_node() ? o.evptr->flow_node()->getName() : NULL);
 		o.tid = oflux_self();
 		bool res = _a.acquire_or_wait(ev,wtype);
@@ -743,7 +743,7 @@ check_guard_duplication(flow::Node * fn)
 
 EventBasePtr
 create_special( 
-	  EventBasePtr pred_node_ptr
+	  EventBaseSharedPtr pred_node_ptr
         , const void * im_io_convert
         , flow::Node *fn)
 {
@@ -759,7 +759,7 @@ create_special(
 			, fn);
 		ebt->atomics_argument()->node_name = fn->getName();
 		ebt->atomics_argument()->node_id = fn->id();
-		return EventBasePtr(ebt);
+		return mk_EventBasePtr(ebt);
 	} else if(fn->getIsErrorHandler()) {
 		EventBaseTyped<ExerciseErrorEventDetail> * ebt = 
 			new ErrorEvent<ExerciseErrorEventDetail>(
@@ -768,7 +768,7 @@ create_special(
 			, fn);
 		ebt->atomics_argument()->node_name = fn->getName();
 		ebt->atomics_argument()->node_id = fn->id();
-		return EventBasePtr(ebt);
+		return mk_EventBasePtr(ebt);
 	} else {
 		EventBaseTyped<ExerciseEventDetail> * ebt = 
 			new Event<ExerciseEventDetail>(
@@ -777,7 +777,7 @@ create_special(
 			, fn);
 		ebt->atomics_argument()->node_name = fn->getName();
 		ebt->atomics_argument()->node_id = fn->id();
-		return EventBasePtr(ebt);
+		return mk_EventBasePtr(ebt);
 	}
 }
 

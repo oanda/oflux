@@ -238,7 +238,7 @@ ReadWriteWaiterList::pop(
 	obs.res=0;
 	obs.e = 0;
 	obs.mode = mode;
-	obs.by_ev = by_ev.get();
+	obs.by_ev = get_EventBasePtr(by_ev);
 	obs.ev = 0;
 	obs.term_index = 0;
 	obs.retries=0;

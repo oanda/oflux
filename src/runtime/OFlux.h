@@ -169,9 +169,42 @@ private:
 
 extern E theE;
 
-class EventBase;
 
-typedef shared_ptr<EventBase> EventBasePtr;
+// ----- EventBase Pointers (pretty important items really) ----
+
+class EventBase;
+typedef shared_ptr<EventBase> EventBaseSharedPtr;
+
+/// implementation using shared pointers:
+#ifdef SHARED_PTR_EVENTS
+typedef EventBaseSharedPtr EventBasePtr; // full shared
+#define mk_EventBasePtr(X) EventBasePtr(X)
+#define mk_EventBaseSharedPtr(X) X
+#define get_EventBasePtr(X) (X.get())
+#define take_EventBasePtr(GETS,VAL) GETS.swap(VAL)
+#define get_EventBaseSharedPtr(X) X
+#define recover_EventBasePtr(X) (X.recover())
+#define recover_when_not_shared_EventBasePtr(X) X
+#define checked_recover_EventBasePtr(X) \
+  { bool ev_recover_res = X.recover(); \
+    assert(ev_recover_res && "event should not be NULL on fn recover failure"); }
+
+#else  // SHARED_PTR_EVENTS
+/// implementation that greatly limits the use of shared pointers
+typedef EventBase * EventBasePtr; // non shared
+#define mk_EventBasePtr(X) (X)
+#define mk_EventBaseSharedPtr(X) EventBaseSharedPtr(X)
+#define get_EventBasePtr(X) (X)
+#define get_EventBaseSharedPtr(X) (X.get())
+#define take_EventBasePtr(GETS,VAL) GETS = VAL
+#define recover_EventBasePtr(X) X
+#define checked_recover_EventBasePtr(X) 
+#define recover_when_not_shared_EventBasePtr(X) (X.recover());
+
+#endif // SHARED_PTR_EVENTS
+
+
+
 
 namespace flow {
  class Node;
@@ -184,7 +217,7 @@ typedef void DeInitFunction();
 
 typedef bool (*ConditionFn)(const void *);
 
-typedef EventBasePtr (*CreateNodeFn)(EventBasePtr,const void *, flow::Node *);
+typedef EventBasePtr (*CreateNodeFn)(EventBaseSharedPtr,const void *, flow::Node *);
 
 namespace doors {
   struct ServerDoorCookie;

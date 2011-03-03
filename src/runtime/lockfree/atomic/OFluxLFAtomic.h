@@ -104,7 +104,7 @@ struct EventBaseHolder {
 
 	EventBaseHolder(  EventBasePtr & a_ev
 			, int a_type = None)
-		: ev(a_ev.get())
+		: ev(get_EventBasePtr(a_ev))
 		, next(NULL)
 		, type(a_type)
 		, resource_loc(NULL)
@@ -115,7 +115,7 @@ struct EventBaseHolder {
 	EventBaseHolder(  EventBasePtr & a_ev
 			, EventBaseHolder ** a_resource_loc
 			, int a_type = None)
-		: ev(a_ev.recover())
+		: ev(recover_EventBasePtr(a_ev))
 		, next(NULL)
 		, type(a_type)
 		, resource_loc(a_resource_loc)
@@ -294,8 +294,7 @@ public:
 			set_three(ebh->next);
 			AtomicCommon::allocator.put(ebh); // not in use - return it to pool
 		} else {
-			bool ev_recover_res = ev.recover();
-			assert(ev_recover_res && "event should not be NULL on a_o_w failure");
+			checked_recover_EventBasePtr(ev);
 		}
 		return acqed;
 	}

@@ -36,7 +36,7 @@ template<typename H> const H * const_convert(const typename H::base_type *);
 template< typename Detail >
 class EventBaseTyped : public EventBase {
 public:
-	EventBaseTyped(   EventBasePtr & predecessor
+	EventBaseTyped(   EventBaseSharedPtr & predecessor
 			, const IOConversionBase<typename Detail::In_> *im_io_convert
 			, flow::Node * flow_node)
 		: EventBase(predecessor,flow_node,_atomics)
@@ -96,7 +96,7 @@ private:
 template< typename Detail >
 class Event : public EventBaseTyped<Detail> {
 public:
-	Event(    EventBasePtr & predecessor
+	Event(    EventBaseSharedPtr & predecessor
 		, const IOConversionBase<typename Detail::In_> * im_io_convert
 		, flow::Node * flow_node)
 		: EventBaseTyped<Detail>(predecessor,im_io_convert,flow_node)
@@ -143,7 +143,7 @@ public:
 template< typename Detail >
 class ErrorEvent : public EventBaseTyped<Detail> {
 public:
-	ErrorEvent(       EventBasePtr & predecessor
+	ErrorEvent(       EventBaseSharedPtr & predecessor
                         , const IOConversionBase<typename Detail::In_> * im_io_convert
                         , flow::Node * flow_node)
 		: EventBaseTyped<Detail>(predecessor,im_io_convert,flow_node)
@@ -190,11 +190,11 @@ typename Detail::In_ ErrorEvent<Detail>::_dont_care_im;
  **/
 template< typename Detail >
 EventBasePtr
-create(   EventBasePtr pred_node_ptr
+create(   EventBaseSharedPtr pred_node_ptr
 	, const void * im_io_convert
 	, flow::Node *fn)
 {
-	return EventBasePtr(new Event<Detail>(
+	return mk_EventBasePtr(new Event<Detail>(
 		  pred_node_ptr
 		, reinterpret_cast<const IOConversionBase<typename Detail::In_> *>(im_io_convert)
 		, fn));
@@ -212,11 +212,11 @@ create(   EventBasePtr pred_node_ptr
 template< typename Detail >
 EventBasePtr 
 create_error(
-	  EventBasePtr pred_node_ptr
+	  EventBaseSharedPtr pred_node_ptr
 	, const void * im_io_convert
 	, flow::Node * fn)
 {
-	return EventBasePtr(new ErrorEvent<Detail>(
+	return mk_EventBasePtr(new ErrorEvent<Detail>(
 		  pred_node_ptr
 		, reinterpret_cast<const IOConversionBase<typename Detail::In_> *>(im_io_convert)
 		, fn));

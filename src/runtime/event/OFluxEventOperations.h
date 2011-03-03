@@ -24,7 +24,9 @@ namespace flow {
 namespace event {
 
 extern int 
-acquire_guards(EventBasePtr & ev, EventBasePtr & pred_ev);
+acquire_guards(
+	  EventBasePtr & ev
+	, EventBasePtr & pred_ev);
 
 
 /**
@@ -36,7 +38,7 @@ acquire_guards(EventBasePtr & ev, EventBasePtr & pred_ev);
 void
 successors_on_no_error(
 	  std::vector<EventBasePtr> & successor_events
-	, EventBasePtr & ev);
+	, EventBaseSharedPtr & ev);
 
 
 /**
@@ -48,7 +50,7 @@ successors_on_no_error(
 void
 successors_on_error(
 	  std::vector<EventBasePtr> & successor_events
-	, EventBasePtr & ev
+	, EventBaseSharedPtr & ev
 	, int return_code);
 
 /**
