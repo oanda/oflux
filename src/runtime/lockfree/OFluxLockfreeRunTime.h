@@ -69,7 +69,7 @@ public:
 	}
 	EventBasePtr steal_first_random()
 	{ // do a steal sweep
-		EventBasePtr ev;
+		EventBasePtr ev(NULL);
 		RunTimeThread * rtt = _threads;
 		int start = rand() % _num_threads;
 		int local_index = _tn.index;

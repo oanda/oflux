@@ -9,7 +9,7 @@ namespace atomic {
 GuardInserter::~GuardInserter()
 {
         std::vector<EventBasePtr> vec;
-	EventBasePtr nullPtr;
+	EventBasePtr nullPtr(NULL);
         for(int i = 0; i < (int)_to_release.size(); i++) {
                 _to_release[i]->release(vec,nullPtr);
         }

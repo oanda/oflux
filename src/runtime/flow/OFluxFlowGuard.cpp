@@ -23,7 +23,7 @@ Guard::drain()
         shared_ptr<atomic::AtomicMapWalker> walker(_amap->walker());
         const void * v = NULL;
         atomic::Atomic * a = NULL;
-	EventBasePtr nullPtr; 
+	EventBasePtr nullPtr(NULL); 
 		// don't have the original events
 		// Atomic::release needs to handle by_ev == NULL
         while(walker->next(v,a)) {
