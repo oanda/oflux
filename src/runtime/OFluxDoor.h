@@ -142,7 +142,7 @@ public:
 			reinterpret_cast<ServerDoorCookie *>(cookie);
 		assert(sz == sizeof(typename TDetail::Out_));
 		flow::Node * flow_node = sdc->flow_node;
-		EventBasePtr ev(new DoorEvent<TDetail>(
+		EventBaseSharedPtr ev(new DoorEvent<TDetail>(
 			  argp
 			, sz
 			, flow_node
