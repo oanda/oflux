@@ -26,7 +26,7 @@ release_all_guards(RunTimeAbstract * rt)
 	for(size_t i = 0; i < rel_evs.size(); ++i) {
                 EventBasePtr & succ_ev = rel_evs[i];
 		EventBase * succ_evb = succ_ev.get();
-                if(succ_ev->atomics().acquire_all_or_wait(succ_ev)) {
+                if(succ_evb->atomics().acquire_all_or_wait(succ_ev)) {
                         rel_evs_full_acq.push_back(succ_ev);
                 } else {
                         oflux_log_trace2("[" PTHREAD_PRINTF_FORMAT "] acquire_all_or_wait() failure for "

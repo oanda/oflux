@@ -254,10 +254,10 @@ let explain_union_number br u_n =
 		^"\n containing data members: "^(describe_ios_struct synonyms_ios))
 
 let emit_program_xml' programname br usesmodel = 
-        let conseq_res = br.Flow.consequences in
-        let unionmap_find strio =
+        (*let conseq_res = br.Flow.consequences in*)
+        (*let unionmap_find strio =
                 let u_n = TypeCheck.get_union_from_strio conseq_res strio
-                in  u_n in
+                in  u_n in*)
 	let stable = br.Flow.symtable in
 	let fmap = br.Flow.fmap in
 	let sourcelist = br.Flow.sources in
@@ -309,7 +309,7 @@ let emit_program_xml' programname br usesmodel =
 		if Flow.is_null_node ehfl then None
 		else let n = get_name ehfl
                      in Some(errorhandler n, n) in
-	let gdecll = TypeCheck.get_decl_list_from_union conseq_res stable in
+	(*let gdecll = TypeCheck.get_decl_list_from_union conseq_res stable in*)
         let convert_argn (t_u_h,t_dfl) (u_h,dfl) j =
                 if t_u_h = u_h then j
                 else 
@@ -360,19 +360,19 @@ let emit_program_xml' programname br usesmodel =
                         | ([],_) -> ll2
                         | (_,[]) -> ll1
                 in
-	let find_union_number (y,io) = 
+	(*let find_union_number (y,io) = 
 		let nd = SymbolTable.lookup_node_symbol stable y
-		in  unionmap_find (nd.SymbolTable.functionname,io) in
+		in  unionmap_find (nd.SymbolTable.functionname,io) in*)
 	let find_decl_formal_opt (y,io) =
 		let nd = SymbolTable.lookup_node_symbol stable y in
 		let dfo = if io then
 			Some nd.SymbolTable.nodeinputs
 			else nd.SymbolTable.nodeoutputs
 		in  dfo in
-	let find_union_hash (y,io) = 
+	(*let find_union_hash (y,io) = 
 		match find_decl_formal_opt (y,io) with
 			(Some df) -> ParserTypes.hash_decl_formal_list df
-			| _ -> "" in
+			| _ -> "" in*)
 	let rec gen_succ' (n_out_uh,n_out_dfl) ccond fl = 
 		(***********************************
 		 * returns a ((case list) list)
@@ -714,10 +714,10 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
 			with Not_found -> "") in
 		let bef_name_ifthere = get_name_ifthere befattribs in
 		let aft_name_ifthere = get_name_ifthere aftattribs in
-		let is_unionhash attrib =
+		(*let is_unionhash attrib =
 			List.mem attrib [ xml_unionhash_str
 					; xml_inputunionhash_str
-					; xml_outputunionhash_str ] in
+					; xml_outputunionhash_str ] in*)
 		(*let explain_un br unstr = 
 			explain_union_number br (int_of_string unstr) in*)
                 let _ = if not (beftag=afttag) then
