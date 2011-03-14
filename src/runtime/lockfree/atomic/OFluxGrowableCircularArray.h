@@ -4,6 +4,13 @@
 #include <cassert>
 #include <cstdio>
 
+/**
+ * @file OFluxGrowableCircularArray.h
+ * @author Mark Pichora
+ * Lock-free Circular Array which can grow.  Also a lock-free queue based on
+ * on this circular array for its implementation.
+ */
+
 
 namespace oflux {
 namespace lockfree {
@@ -21,9 +28,19 @@ private:
 
 template< typename T >
 struct TStructEntry {
+	typedef unsigned long index_t;
+
 	T * ptr;
-	long at;
+	index_t at;
 };
+
+/**
+ * @class CircularArrayImplementation
+ * @brief Implementation class for a circular array which does not grow.
+ *   The data is held in a heap allocated C array.  Support for putting
+ *   A new bigger array in front of an older array is here with the
+ *   constructor which takes a pointer argument.
+ */
 
 template< typename T >
 class CircularArrayImplementation {
@@ -34,6 +51,7 @@ public:
 
 	typedef TStructEntry<T> TEntry;
 	
+	typedef unsigned long index_t;
 
 	typedef T * TPtr;
 
@@ -42,10 +60,10 @@ public:
 		: _log_size(default_log_size)
 		, _old(NULL)
 	{
-		_data = new TEntry[1<< _log_size];
+		_data = new TEntry[1 << _log_size];
 		_data[0].ptr = NULL;
 		_data[0].at = -1;
-		for(long i = 1; i < size(); ++i) {
+		for(index_t i = 1; i < size(); ++i) {
 			_data[i].ptr = NULL;
 			_data[i].at = -1;
 		}
@@ -57,7 +75,7 @@ public:
 		_data = new TEntry[1 << _log_size];
 		_data[0].ptr = uninit_sentinel();
 		_data[0].at = -1;
-		for(long i = 1; i < size(); ++i) {
+		for(index_t i = 1; i < size(); ++i) {
 			_data[i].ptr = _data[0].ptr;
 			_data[i].at = -1;
 		}
@@ -67,11 +85,11 @@ public:
                 delete [] _data;
                 delete _old;
         }
-        inline long size() const
+        inline unsigned long size() const
         { return 1 << _log_size; }
-        inline TEntry * get(long i, bool update = true) const
+        inline TEntry * get(index_t i, bool update = true) const
         {
-		long i_mod = i % size();
+		index_t i_mod = i % size();
 		TEntry * r =  & (_data[i_mod]);
 		static T * const u_sentin = uninit_sentinel();
 		if( r->ptr == u_sentin ) { // recurse
@@ -88,29 +106,12 @@ public:
 					if(cas_res) {
 						_data[i_mod].at = i; // bit late
 					}
-					/*printf("get() ____ block %ld "
-						"rold/%ld (%p,%ld) "
-						"r/%ld (%p,%ld) "
-						"cas %d\n"
-						, i
-						, _old->size(), rold->ptr, rold->at
-						, size(), r->ptr, r->at
-						, cas_res);*/
 				} else { // was NULL
-					//_data[i_mod].at = -1; should already be
 					bool cas_res =
 						__sync_bool_compare_and_swap(
 							& (_data[i_mod].ptr)
 							, u_sentin
 							, NULL);
-					/*printf("get() null block %ld "
-						"rold/%ld (%p,%ld) "
-						"r/%ld (%p,%ld) "
-						"cas %d\n"
-						, i
-						, _old->size(), rold->ptr, rold->at
-						, size(), r->ptr, r->at
-						, cas_res);*/
 					if(!cas_res) {
 						assert(r->ptr != u_sentin);
 					}
@@ -136,6 +137,13 @@ public:
 template< typename T >
 CheapSentinel<T> CircularArrayImplementation<T>::uninit_sentinel;
 
+/**
+ * @class CircularArray 
+ * @brief a lock-free circular array which allows growth.  Setting is
+ * done via CAS operations only (to or from NULL).  Access is done via
+ * the index type which is interpreted modulo SZ=2^_log_size 
+ * of the implementation.  So accessing at i and at i+SZ are the same entry.
+ */
 
 template< typename T >
 class CircularArray {
@@ -143,11 +151,18 @@ public:
 	typedef CircularArrayImplementation<T> Implementation;
 
 	typedef TStructEntry<T> TEntry;
+	typedef unsigned long index_t;
 
 	CircularArray()
 		: _impl(new Implementation())
 	{}
-	inline TEntry * get(long i, bool update=true) const
+	/**
+	 * @brief get the i^th entry
+	 * @param i is the index accessed
+	 * @param update underlying new array if possible
+	 * @return pointer to the i^th entry
+	 */
+	inline TEntry * get(index_t i, bool update=true) const
 	{
 		TEntry * r = NULL;
 		Implementation * impl = NULL;
@@ -157,9 +172,9 @@ public:
 		}
 		return r;
 	}
-	inline bool cas_from_null(long i, T * n) 
+	inline bool cas_from_null(index_t i, T * n) 
 	{
-		long i_mod;
+		index_t i_mod;
 		bool res = 0;
 		Implementation * impl = NULL;
 		static T * const u_sentin = Implementation::uninit_sentinel();
@@ -176,9 +191,9 @@ public:
 			, n);
 		return res;
 	}
-	inline bool cas_to_null(long i, T * o) 
+	inline bool cas_to_null(index_t i, T * o) 
 	{
-		long i_mod;
+		index_t i_mod;
 		bool res = 0;
 		Implementation * impl = NULL;
 		static T * const u_sentin = Implementation::uninit_sentinel();
@@ -195,21 +210,20 @@ public:
 			, NULL);
 		return res;
 	}
-	inline long impl_size()
+	inline unsigned long impl_size()
 	{ return _impl->size(); }
+	/**
+	 * @brief double the size of the underlying array
+	 * @return true always
+	 */
 	inline bool grow() 
-		// make it 2x bigger (ret true if you did it)
-		// given i is the starting point for the copy
-		//  which indicates where to copy things to
 	{
 		Implementation * impl = _impl;
-		long initial_sz = impl->size();
-		//printf(" grown from size %ld \n", initial_sz);
+		unsigned long initial_sz = impl->size();
 		Implementation * n_impl = new Implementation(impl);
 		if(!__sync_bool_compare_and_swap( &_impl, impl, n_impl)) {
 			n_impl->disconnect();
 			delete n_impl;
-			//printf(" deleted\n");
 			assert(_impl != impl && _impl->size() > initial_sz);
 		}
 		return true;
@@ -220,38 +234,33 @@ public:
 	Implementation * _impl;
 };
 
+/**
+ * @class LFArrayQueue
+ * @brief a lock-free queue based on the circular array.  
+ * Augments the underlying array with indexes for IN and OUT positions.
+ * T is the type of the items managed by the queue.
+ */
+
 template< typename T >
 class LFArrayQueue : public CircularArray<T> {
 public:
 	typedef TStructEntry<T> TEntry;
+	typedef unsigned long index_t;
 
 	LFArrayQueue()
 		: _in(0)
 		, _out(0)
 	{}
+	/**
+	 * @brief pop a value if available (NULL if none) from queue
+	 * @return a value on success or NULL otherwise
+	 */
 	inline T * pop() // return NULL when non available
 	{
 		long retries = 0;
 		T * res = NULL;
 		TEntry * r = NULL;
-		long out = 0;
-		/*
-		const size_t ie_sz = 5;
-		struct IE {
-			long out;
-			size_t ind;
-			CircularArrayImplementation<T> * impl;
-			T * ptr;
-			long at;
-		} ies[ie_sz];
-		ies[0].impl = this->_impl;
-		for(size_t k = 0; (k < ie_sz-1) && ies[k].impl ; ++k) {
-			ies[k].out = _out;
-			ies[k].ind = ies[k].out % ies[k].impl->size();
-			ies[k].ptr = ies[k].impl->_data[ies[k].ind ].ptr;
-			ies[k].at = ies[k].impl->_data[ies[k].ind ].at;
-			ies[k+1].impl = ies[k].impl->_old;
-		}*/
+		index_t out = 0;
 		do {
 			out = _out;
 			if(out >= _in) {
@@ -274,29 +283,15 @@ public:
 		}
 		return res;
 	}
+	/**
+	 * @brief push a non-NULL value (will assert on NULL) into queue
+	 * @param o object to push
+	 */
 	inline void push(T *o) // only allow non-NULL o's to be pushed
 	{
 		long retries = 0;
 		assert(o);
-		long in = 0;
-		/*
-		const size_t ie_sz = 5;
-		struct IE {
-			long in;
-			size_t ind;
-			CircularArrayImplementation<T> * impl;
-			T * ptr;
-			long at;
-		} ies[ie_sz];
-		ies[0].impl = this->_impl;
-		for(size_t k = 0; (k < ie_sz-1) && ies[k].impl ; ++k) {
-			ies[k].in = _in;
-			ies[k].ind = ies[k].in % ies[k].impl->size();
-			ies[k].ptr = ies[k].impl->_data[ies[k].ind ].ptr;
-			ies[k].at = ies[k].impl->_data[ies[k].ind ].at;
-			ies[k+1].impl = ies[k].impl->_old;
-		}
-		*/
+		index_t in = 0;
 		while(1) {
 			in = _in;
 			if((in-_out)+1 >= CircularArray<T>::impl_size()) {
@@ -320,9 +315,9 @@ public:
 		return (_in - _out);
 	}
 private:
-	/** invariant: _out <= _in **/
-	volatile long _in; // index for pushes
-	volatile long _out; // index for pops
+	/** idealized invariant: _out <= _in **/
+	volatile index_t _in;  // index for pushes
+	volatile index_t _out; // index for pops
 };
 
 } // namespace growable

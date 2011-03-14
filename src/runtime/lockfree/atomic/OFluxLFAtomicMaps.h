@@ -6,6 +6,12 @@
 #include "lockfree/atomic/OFluxLFAtomicPooled.h"
 #include "lockfree/atomic/OFluxLFHashTable.h"
 
+/**
+ * @file OFluxLFAtomicMaps.h
+ * @author Mark Pichora
+ * AtomicMap structures used by the lock-free run time.
+ */
+
 namespace oflux {
 namespace lockfree {
 namespace atomic {
@@ -14,13 +20,16 @@ namespace atomic {
 //       so no need to implement Trivial maps
 
 
+/**
+ * @class AtomicMapUnorderedWalker
+ * @brief A walker which can traverse a lock-free hash map based AtomicMap
+ */
+
 template< typename K
 	, typename A=oflux::lockfree::atomic::AtomicExclusive >
 class AtomicMapUnorderedWalker : public oflux::atomic::AtomicMapWalker {
 public:
-	//AtomicMapUnorderedWalker(KVEnumeratorRef<K,A> & enumRef)
 	AtomicMapUnorderedWalker(KeyValueHashTableEnumerator<K,A> * enumer)
-		//: _enumRef(enumRef)
 		: _enumer(enumer)
 	{}
 	virtual ~AtomicMapUnorderedWalker() 
@@ -35,9 +44,13 @@ public:
 		return res;
 	}
 private:
-	//KVEnumeratorRef<K,A> _enumRef;
 	KeyValueHashTableEnumerator<K,A> * _enumer;
 };
+
+/**
+ * @class AtomicMapUnordered
+ * @brief AtomicMap compatible wrapper around the lock-free hash map
+ */
 
 template< typename K
 	, typename A=oflux::lockfree::atomic::AtomicExclusive >
@@ -58,7 +71,6 @@ public:
 		while(res == &_tombstone) {
 			res = const_cast<A *>(_table.get(*k));
 		}
-		//int path = 0;
 		const A * cas_res = NULL;
 		if(res == Table::HTC::Does_Not_Exist) {
 			// insert it
@@ -67,10 +79,8 @@ public:
 				  *k
 				, Table::HTC::Does_Not_Exist
 				, res);
-			//path = 1;
 			if(Table::HTC::Does_Not_Exist != cas_res) { // cas succeeds
 				res = const_cast<A *>(_table.get(*k));
-				//path=2;
 			}
 			//printf("%d get k had to cas hash %u casres %d\n"
 				//, pthread_self()
