@@ -14,9 +14,7 @@ namespace oflux {
 
 /**
  * @brief anonymizer template for a condition function on type T
- *
  * @param t  (anonymous pointer to the object to test)
- *
  * @return true if the condition is true
  **/
 template<typename T, bool (*test)(const T *) >

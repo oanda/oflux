@@ -64,7 +64,7 @@ public:
          * @brief lookup a conditional function usable on a particular input
          * @param n  name of the conditional
          * @param argno  the number of the field in the object
-         * @param unionnumber  OFluxUnionX number
+         * @param unionhash  OFluxUnionX hash
          * @return 
          **/
         virtual ConditionFn lookup_conditional(const char * n, int argno, const char * unionhash) const;
@@ -72,7 +72,7 @@ public:
          * @brief lookup a guard translator function
          * @remark these functions can translate an input structure to a guard key structure
          * @param guardname name of the guard
-         * @param union_number union number (indicates the input structure)
+         * @param unionhash OFluxUnionX hash (indicates the input structure)
          * @param hash is the hash result of on the expression (compiler's)
          * @param wtype is the enumerated type for the guard(Read/Exclusive/...)
          * @return the compiled function (pointer to it)

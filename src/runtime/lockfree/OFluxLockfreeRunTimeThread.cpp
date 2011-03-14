@@ -12,6 +12,7 @@
 #include "OFluxLogging.h"
 
 #include "atomic/OFluxLFAtomic.h"
+#include "OFluxLibDTrace.h"
 
 namespace ofluximpl {
     extern oflux::atomic::AtomicMapAbstract * IntPool_map_ptr;
@@ -19,6 +20,17 @@ namespace ofluximpl {
 
 namespace oflux {
 namespace lockfree {
+
+#ifdef HAS_DTRACE
+void PUBLIC_FIFO_POP(void *A, const char *B)
+{
+	_FIFO_POP(A,B);
+}
+void PUBLIC_FIFO_PUSH(void *A, const char *B)
+{
+	_FIFO_PUSH(A,B);
+}
+#endif // HAS_DTRACE
 
 #ifdef SHARED_PTR_EVENTS
 Allocator<RunTimeThread::WSQElement>
@@ -61,13 +73,6 @@ RunTimeThread::~RunTimeThread()
 #ifdef SHARED_PTR_EVENTS
 RunTimeThread::WSQElement::~WSQElement()
 {}
-/*{
-	if(get_EventBasePtr(ev))  {
-		oflux_log_debug("~WSQE %s %d\n"
-			, ev->flow_node()->getName()
-			, ev.use_count());
-	}
-}*/
 #endif // SHARED_PTR_EVENTS
 
 static void *
@@ -89,7 +94,7 @@ RunTimeThread::submitEvents(const std::vector<EventBasePtr> & evs)
 		pushLocal(*itr);
 		++itr;
 	}
-	_rt.wake_threads(1); // uhm....
+	_rt.wake_threads(1); 
 }
 
 extern bool __ignore_sig_int;
@@ -231,7 +236,8 @@ RunTimeThread::start()
 				? context.evb->get_predecessor().use_count()
 				: 0
 			, context.evb && context.evb->get_predecessor()
-				? context.evb->get_predecessor()->flow_node()->getName()					: "<none>" );
+				? context.evb->get_predecessor()->flow_node()->getName()
+				: "<none>" );
 		context.evb = NULL;
 		context.ev.reset();
 	}

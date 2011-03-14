@@ -63,6 +63,19 @@ store_load_barrier(void) {
 }
 
 EXTERN_INLINE void
+mfence_or_equiv_barrier(void) {
+#if i386_HOST_ARCH
+    __asm__ __volatile__("mfence");
+#elif x86_64_HOST_ARCH
+    __asm__ __volatile__("mfence");
+#elif sparc_HOST_ARCH
+    __sync_synchronize();
+#else
+#error memory barriers unimplemented on this architecture
+#endif
+}
+
+EXTERN_INLINE void
 load_load_barrier(void) {
 #if i386_HOST_ARCH
     __asm__ __volatile__ ("" : : : "memory");

@@ -6,12 +6,14 @@
 #include <cstdlib>
 #include <cassert>
 
-//
-// SMR (aka hazard pointers)
-//
-// "Safe Memory Reclamation for Dynamic Lock-free Objects Using Atomic Reads
-//  and Writes" by Maged M. Michael, PODC 2002
-//
+/**
+ * @file OFluxSMR.h
+ * @author Mark Pichora
+ * SMR (aka hazard pointers)
+ *
+ * "Safe Memory Reclamation for Dynamic Lock-free Objects Using Atomic Reads
+ *  and Writes" by Maged M. Michael, PODC 2002
+ */
 
 namespace oflux {
  class AllocatorImplementation;
@@ -87,7 +89,7 @@ inline void set(T * hp, size_t n)
 {
 	size_t thr_ind = oflux::lockfree::_tn.index;
 	hazard[thr_ind].h[n] = hp;
-	__asm__ __volatile__("mfence");
+	oflux::lockfree::mfence_or_equiv_barrier();
 }
 
 #define HAZARD_PTR_ASSIGN(H,HFROM,N) \

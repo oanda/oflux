@@ -5,6 +5,11 @@
 #include "lockfree/OFluxMachineSpecific.h"
 #include "OFluxRollingLog.h"
 
+/**
+ * @file OFluxLFAtomicReadWrite.h
+ * @author Mark Pichora
+ * Lock-free version of the Read-write atomic
+ */
 
 namespace oflux {
 namespace lockfree {
@@ -183,8 +188,6 @@ public:
 	ReadWriteWaiterList()
 		: _head(allocator.get(EventBase::no_event,0))
 		, _tail(_head)
-		//, _owner((EventBase*)&EventBase::no_event)
-		//, _error_count(0)
 	{}
 	~ReadWriteWaiterList();
 	bool push(readwrite::EventBaseHolder * e);
@@ -200,8 +203,6 @@ public:
 public:
 	readwrite::EventBaseHolder * _head;
 	readwrite::EventBaseHolder * _tail;
-	//EventBase * _owner;
-	//size_t _error_count;
 };
 
 class AtomicReadWrite : public AtomicCommon {
@@ -277,7 +278,6 @@ public:
 			, _waiters.rcount());
 		store_load_barrier();
 		_waiters.pop(el,by_e,_wtype);
-		//_wtype = EventBaseHolder::None;
 		readwrite::EventBaseHolder * e = el;
 		readwrite::EventBaseHolder * n_e = NULL;
 		while(e && e != &ReadWriteWaiterList::sentinel) {
