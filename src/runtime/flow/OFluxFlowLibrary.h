@@ -2,7 +2,7 @@
 #define _OFLUX_FLOW_LIBRARY
 
 /**
- * @file OFluxFlowLibrary
+ * @file OFluxFlowLibrary.h
  * @author Mark Pichora
  * Wrapper for dynamically loaded libraries (which are used to implement 
  * plugins).  The top-level flow manages these and ensures that they are

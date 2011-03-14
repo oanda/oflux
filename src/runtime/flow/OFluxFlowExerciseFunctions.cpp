@@ -546,7 +546,11 @@ struct ExerciseEventDetail {
 	};
 	typedef Out_ In_;
 	struct Atoms_ {
-		Atoms_() : number(0) {}
+		Atoms_() 
+			: node_name(0)
+			, node_id(0)
+			, number(0) 
+		{}
 
 		void fill(oflux::atomic::AtomicsHolder *);
 		void report();

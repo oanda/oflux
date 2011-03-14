@@ -37,7 +37,6 @@ N(        const N_in * in
 	, N_atoms * atoms)
 {
 	int in_a = in->a;
-        int b = 0;
 
 	bool have_ga = atoms->have_ga();
 	int * & ga = atoms->ga();

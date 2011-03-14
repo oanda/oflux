@@ -2,7 +2,7 @@
 #define OFLUX_ORDERABLE
 
 /**
- * @file FluxOrderable.h
+ * @file OFluxOrderable.h
  * @author Mark Pichora
  *  These classes define the properties things that are
  *  numberable (in the sense that they can be assigned integral values
