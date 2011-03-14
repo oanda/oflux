@@ -22,7 +22,6 @@ int
 NS(const NS_in *in, NS_out *out, NS_atoms * atoms)
 {
 	int * & ab = atoms->ab();
-	static int x = 0;
 	out->a = in->a;
 	printf("NS %d\n",in->a);
 	if(ab == NULL) {

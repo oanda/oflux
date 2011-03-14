@@ -118,7 +118,7 @@ ServerDoorsContainer::create_doors(RunTime_start_door_function sdfc)
 	flow::Flow * flow = _rt->flow();
 	assert(flow);
 	std::vector<flow::Node *> & doors = flow->doors();
-	if(doors.size()) {
+	if(!doors.empty()) {
 		door_server_create(sdfc);
 	}
 	for(size_t i = 0; i < doors.size(); ++i) {

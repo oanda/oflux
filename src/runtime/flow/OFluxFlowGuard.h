@@ -136,6 +136,7 @@ public:
          *        and persistent key
          * @param a_out output atomic pointer
          * @param node_in the node input structure (used to generate a key)
+	 * @param ah is the atomic holder structure for guard chains
          */
         inline const void * 
 	get(      atomic::Atomic * & a_out

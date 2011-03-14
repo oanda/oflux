@@ -2,6 +2,7 @@
 #include "OFluxGenerate_rwguard.h"
 #include "atomic/OFluxAtomicInit.h"
 #include "OFlux.h"
+#include "OFluxThreads.h"
 #include <pthread.h>
 
 int S(const S_in *, S_out * out, S_atoms * atoms)
@@ -19,7 +20,7 @@ int S(const S_in *, S_out * out, S_atoms * atoms)
 int NS(const NS_in *in, NS_out *, NS_atoms * atoms)
 {
 	const int * ptr = atoms->G();
-	printf("::%d ns out: %d is %d %p\n"
+	printf("::" PTHREAD_PRINTF_FORMAT " ns out: %d is %d %p\n"
 		, pthread_self()
 		, in->b
 		, (ptr == NULL ? 0 : *ptr)

@@ -13,7 +13,7 @@ GuardInserter::~GuardInserter()
         for(int i = 0; i < (int)_to_release.size(); i++) {
                 _to_release[i]->release(vec,nullPtr);
         }
-        assert(vec.size() == 0);
+        assert(vec.empty());
 }
 
 bool GuardInserter::insert(const void * key, void * value)

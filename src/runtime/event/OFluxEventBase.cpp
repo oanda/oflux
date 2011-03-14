@@ -4,7 +4,8 @@
 #include "OFluxLibDTrace.h"
 #include "atomic/OFluxAtomicHolder.h"
 /**
- * @file OFluxEvent.cpp
+ * @file OFluxEventBase.cpp
+ * @brief simple things in the base object part of the event (type independent)
  */
 
 namespace oflux {

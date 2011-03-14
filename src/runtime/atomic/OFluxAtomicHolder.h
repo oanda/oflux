@@ -60,6 +60,7 @@ public:
 	 * @brief compare is a classical compare function for heldatomics
 	 * @remark key values are taken into account in this ordering
 	 * @param ha the RHS of the comparison
+	 * @param ignoreLates will do the compare without consideration of the late attribute (often useful)
 	 * @return -1 if <, +1 if > and 0 if ==
 	 */
 	inline int compare(const HeldAtomic & ha, bool ignoreLates) const
@@ -228,7 +229,7 @@ public:
 	 * @brief given a bunch of held atomics and a node input try to acquire (in order) what you need.
 	 * @remark returns true on sucess
 	 * @param ev that gets 'waited' onto a queue if waiting is necessary
-	 * @param given_atomics (available to be captured
+	 * @param pred_ev is the predecessor event which is giving up atomics
 	 * @return true if we succeed in acquiring all that is needed
 	 */
 	int acquire_all_or_wait(
