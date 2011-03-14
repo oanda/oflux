@@ -87,7 +87,7 @@ inline void set(T * hp, size_t n)
 {
 	size_t thr_ind = oflux::lockfree::_tn.index;
 	hazard[thr_ind].h[n] = hp;
-	__asm__ __volatile__("mfence");
+	oflux::lockfree::mfence_or_equiv_barrier();
 }
 
 #define HAZARD_PTR_ASSIGN(H,HFROM,N) \
