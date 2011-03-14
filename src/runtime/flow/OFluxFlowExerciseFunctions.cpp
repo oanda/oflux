@@ -610,11 +610,16 @@ ExerciseEventDetail::Atoms_::fill(oflux::atomic::AtomicsHolder *ah)
 	number = std::min(MAX_ATOMICS_PER_NODE,ah->number());
 	for(int i = 0; i < number; ++i) {
 		oflux::atomic::Atomic * atomic = ah->get(i,oflux::atomic::AtomicsHolder::HA_get_lexical)->atomic();
-		atoms[i].data = atomic->data();
-		if(!*(atoms[i].data)) {
-			*(reinterpret_cast<int * *>(atoms[i].data)) = &dontcare;
+		if(atomic) {
+			atoms[i].data = atomic->data();
+			if(!*(atoms[i].data)) {
+				*(reinterpret_cast<int * *>(atoms[i].data)) = &dontcare;
+			}
+			atoms[i].wtype = atomic->wtype();
+		} else {
+			atoms[i].data = NULL;
+			atoms[i].wtype = -1;
 		}
-		atoms[i].wtype = atomic->wtype();
 	}
 }
 
@@ -818,10 +823,12 @@ ExerciseFunctionMaps::lookup_conditional(
 bool 
 exercise_guard_trans_function(
 	  void *
-	, const void *
+	, const void * in_str_v
 	, atomic::AtomicsHolderAbstract *)
 {
-	return true; // a nop translator;
+	const ExerciseEventDetail::In_ * in_str =
+		reinterpret_cast<const ExerciseEventDetail::In_ *>(in_str_v);
+	return (in_str != NULL && (in_str->value%10) == 1 ? false : true); // a nop translator;
 }
 
 GuardTransFn 

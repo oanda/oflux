@@ -70,13 +70,6 @@ RunTimeThread::~RunTimeThread()
 
 RunTimeThread::WSQElement::~WSQElement()
 {}
-/*{
-	if(ev.get())  {
-		oflux_log_debug("~WSQE %s %d\n"
-			, ev->flow_node()->getName()
-			, ev.use_count());
-	}
-}*/
 
 static void *
 RunTimeThread_start_thread(void *pthis)
@@ -97,7 +90,7 @@ RunTimeThread::submitEvents(const std::vector<EventBasePtr> & evs)
 		pushLocal(*itr);
 		++itr;
 	}
-	_rt.wake_threads(1); // uhm....
+	_rt.wake_threads(1); 
 }
 
 extern bool __ignore_sig_int;
@@ -239,7 +232,8 @@ RunTimeThread::start()
 				? context.evb->get_predecessor().use_count()
 				: 0
 			, context.evb && context.evb->get_predecessor()
-				? context.evb->get_predecessor()->flow_node()->getName()					: "<none>" );
+				? context.evb->get_predecessor()->flow_node()->getName()
+				: "<none>" );
 		context.evb = NULL;
 		context.ev.reset();
 	}

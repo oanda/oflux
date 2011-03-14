@@ -21,6 +21,10 @@ public:
 	typedef oflux::lockfree::growable::TStructEntry<AtomicPooledBase> APBHolderEntry;
 	typedef oflux::lockfree::growable::TStructEntry<void> ResourceHolderEntry;
 
+
+	typedef unsigned long index_t; 
+
+
 	PoolEventList()
 		: _ev_q_out(0)
 		, _rs_q_out(0)
@@ -39,7 +43,7 @@ public:
 	{
 		::oflux::lockfree::smr::set(ev,0);
 		bool res = false;
-		long rs_q_out;
+		index_t rs_q_out;
 		UIn uin;
 		UIn n_uin;
 		void * resource = NULL;
@@ -99,7 +103,7 @@ public:
 	{
 		AtomicPooledBase * res = NULL;
 		AtomicPooledBase * ev_out = NULL;
-		long ev_q_out;
+		index_t ev_q_out;
 		UIn uin;
 		UIn n_uin;
 		APBHolderEntry * apbptr;
@@ -163,11 +167,11 @@ private:
 private:
 	oflux::lockfree::growable::CircularArray<AtomicPooledBase> _ev_q;
 	oflux::lockfree::growable::CircularArray<void> _rs_q;
-	volatile long _ev_q_out;
-	volatile long _rs_q_out;
+	volatile index_t _ev_q_out;
+	volatile index_t _rs_q_out;
 	volatile union UIn { 
 		uint64_t u64; 
-		struct S { long _ev_q_in; long _rs_q_in; } s; 
+		struct S { index_t _ev_q_in; index_t _rs_q_in; } s; 
 		} _uin;
 };
 

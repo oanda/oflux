@@ -299,7 +299,7 @@ Node::log_snapshot()
                 _oflux_timer_stats.avg_usec(),
                 _oflux_timer_stats.max_usec());        
 #else
-        oflux_log_info("%s (%c%c%c) %d instances %d executions\n",
+        oflux_log_info("%s (%c%c%c) %lld instances %lld executions\n",
                 _name.c_str(),
                 (_is_source ? 's' : '-'),
                 (_is_detached ? 'd' : '-'),

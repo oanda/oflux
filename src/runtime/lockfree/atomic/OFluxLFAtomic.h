@@ -1,19 +1,23 @@
 #ifndef OFLUX_LOCKFREE_ATOMIC
 #define OFLUX_LOCKFREE_ATOMIC
 
-#include <inttypes.h>
-#include <strings.h>
+#include "OFlux.h"
 #include "atomic/OFluxAtomic.h"
 #include "lockfree/OFluxMachineSpecific.h"
 #include "event/OFluxEventBase.h"
-#include "OFluxSharedPtr.h"
 #include "OFluxAllocator.h"
 #include "lockfree/allocator/OFluxSMR.h"
-
-#include "OFlux.h"
 #include "OFluxLogging.h"
 #include "OFluxRollingLog.h"
 #include "flow/OFluxFlowNode.h"
+#include <inttypes.h>
+#include <strings.h>
+
+/**
+ * @file OFluxLFAtomic.h
+ * @author Mark Pichora
+ * Lock-free version of the exclusive atomic and some common things.
+ */
 
 namespace oflux {
 namespace lockfree {
@@ -67,22 +71,6 @@ inline bool mkd(T * p)
 		, B \
 		, B->resource_loc)
 
-/*
-struct SafeEventBasePtr : public EventBasePtr {
-        ~SafeEventBasePtr()
-        {
-                if(!get()) {
-                        // This is dangerous and won't work if
-                        // EventBasePtr ever grows a vtable.
-                        // reasoning is that the shared count can be corrupted
-                        // on a swap with a thread that is checking for !=NULL o
-                        //
-                        // This avoid the awkward call to release() on 0xdeadbee
-                        bzero(this,sizeof(*this));
-                }
-        }
-};
-*/
 
 inline void ev_swap(EventBase * & ev1, EventBase * & ev2)
 {
@@ -228,6 +216,11 @@ public:
 	EventBaseHolder * _tail;
 };
 
+/**
+ * @class ExclusiveWaiterList
+ * @brief Lock-free structure used to control access to the AtomicExclusive
+ */
+
 class ExclusiveWaiterList : public WaiterList {
 public:
 //#define LF_EX_WAITER_INSTRUMENTATION
@@ -262,6 +255,13 @@ public:
 	EventBaseHolder * pop();
 	void dump();
 };
+
+/**
+ * @class AtomicExclusive
+ * @brief Lock-free exclusive atomic.  
+ *   These objects are used in exclusive guards by the LF runtime to
+ *   control access to guard entries.
+ */
 
 class AtomicExclusive : public AtomicCommon {
 public:

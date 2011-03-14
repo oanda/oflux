@@ -8,16 +8,21 @@
 #include "lockfree/OFluxMachineSpecific.h"
 #include "lockfree/OFluxDistributedCounter.h"
 
-//
-// This hash table is originally attributable to Cliff Click's
-// scalable concurrent hash table (he did it in Java).  What is 
-// here is a C++ port of Josh Lybnis' C port:
-//
-// Josh L:
-//    http://code.google.com/p/nbds/
-// Cliff Click:
-//    http://www.azulsystems.com/events/javaone_2008/2008_CodingNonBlock.pdf
-//
+/**
+ * @file OFluxLFHashTable.h
+ * @author Mark Pichora
+ *
+ * This hash table is originally attributable to Cliff Click's
+ * scalable concurrent hash table (he did it in Java).  What is 
+ * here is a C++ port of Josh Lybnis' C port:
+ *
+ * Josh L:
+ *    http://code.google.com/p/nbds/
+ * Cliff Click:
+ *    http://www.azulsystems.com/events/javaone_2008/2008_CodingNonBlock.pdf
+ *
+ * The was done by Cliff Click, the rest is just porting and testing.
+ */
 
 
 
