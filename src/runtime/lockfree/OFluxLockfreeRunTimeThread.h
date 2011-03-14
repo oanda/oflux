@@ -19,11 +19,20 @@
 #include "event/OFluxEventBase.h"
 #include "flow/OFluxFlowNode.h"
 
+
 namespace oflux {
 namespace flow {
  class Node;
 } //namespace flow
 namespace lockfree {
+
+#ifdef HAS_DTRACE
+void PUBLIC_FIFO_POP(void *, const char *);
+void PUBLIC_FIFO_PUSH(void *, const char *);
+#else  // HAS_DTRACE
+# define PUBLIC_FIFO_POP(X,Y)
+# define PUBLIC_FIFO_PUSH(X,Y)
+#endif // HAS_DTRACE
 
 class RunTime;
 
@@ -87,6 +96,7 @@ public:
 			evb = ev.get();
 			allocator.put(e);
 			evb->state = 3;
+			PUBLIC_FIFO_POP(evb,evb->flow_node()->getName());
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] steal  %s %p from thread [" PTHREAD_PRINTF_FORMAT "]\n"
 			, oflux_self()
@@ -131,6 +141,7 @@ private:
 			ebptr.swap(e->ev);
 			allocator.put(e);
 			ebptr->state = 2;
+			PUBLIC_FIFO_POP(ebptr.get(),ebptr->flow_node()->getName());
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] popLocal %s %p\n"
 			, self()
@@ -147,6 +158,7 @@ private:
 			, ev.get());
 		WSQElement * e = allocator.get(ev);
 		_queue.pushBottom(e);
+		PUBLIC_FIFO_PUSH(ev.get(),ev->flow_node()->getName());
 	}
 	int handle(RunTimeThreadContext & context);
 	inline bool critical() const { return _running && _queue_allowance<0; }

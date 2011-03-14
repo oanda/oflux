@@ -12,6 +12,7 @@
 #include "OFluxLogging.h"
 
 #include "atomic/OFluxLFAtomic.h"
+#include "OFluxLibDTrace.h"
 
 namespace ofluximpl {
     extern oflux::atomic::AtomicMapAbstract * IntPool_map_ptr;
@@ -19,6 +20,17 @@ namespace ofluximpl {
 
 namespace oflux {
 namespace lockfree {
+
+#ifdef HAS_DTRACE
+void PUBLIC_FIFO_POP(void *A, const char *B)
+{
+	_FIFO_POP(A,B);
+}
+void PUBLIC_FIFO_PUSH(void *A, const char *B)
+{
+	_FIFO_PUSH(A,B);
+}
+#endif // HAS_DTRACE
 
 Allocator<RunTimeThread::WSQElement>
 RunTimeThread::allocator; //(new allocator::MemoryPool<sizeof(RunTimeThread::WSQElement)>());

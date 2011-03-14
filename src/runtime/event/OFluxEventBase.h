@@ -26,12 +26,12 @@ void PUBLIC_EVENT_BORN(const void *,const char * X);
 void PUBLIC_EVENT_DEATH(const void *,const char * X);
 void PUBLIC_NODE_START(const void *,const char * X,int Y,int Z);
 void PUBLIC_NODE_DONE(const void *,const char * X);
-#else
+#else // HAS_DTRACE
 # define PUBLIC_NODE_START(E,X,Y,Z)
 # define PUBLIC_NODE_DONE(E,X)
 # define PUBLIC_EVENT_BORN(E,X)
 # define PUBLIC_EVENT_DEATH(E,X)
-#endif
+#endif // HAS_DTRACE
 
 /**
  * @class EventBase
