@@ -17,7 +17,7 @@ template< typename Detail >
 class DoorEvent : public EventBaseTyped<Detail> {
 public:
 	DoorEvent(const void * ptr, size_t sz, flow::Node *fn) 
-		: EventBaseTyped<Detail>(EventBase::no_event, NULL, fn) 
+		: EventBaseTyped<Detail>(EventBase::no_event_shared, NULL, fn) 
 	{
 		assert(sz == sizeof(typename Detail::Out_));
 		memcpy(EventBaseTyped<Detail>::pr_output_type(), ptr, sz);

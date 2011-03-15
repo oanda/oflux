@@ -51,7 +51,8 @@ OFluxAtomicTests::checkRelease(
 	EXPECT_EQ(test_rel_ev.size(),rel_ev.size())
 		<< " number of released events";
 	for(size_t i = 0 ; i < std::min(test_rel_ev.size(),rel_ev.size()); ++i) {
-		EXPECT_EQ(test_rel_ev[i].get(),rel_ev[i].get())
+		EXPECT_EQ(get_EventBasePtr(test_rel_ev[i])
+				,get_EventBasePtr(rel_ev[i]))
 			<< " released event " << i << " comparison";
 	}
 }
@@ -81,12 +82,15 @@ public:
 const int OFluxAtomicExclusiveTests::excl = atomic::AtomicExclusive::Exclusive;
 
 TEST_F(OFluxAtomicExclusiveTests,ThreeEventsDrain) {
-        EventBasePtr ev_source =
-                (*createfn_source)(EventBase::no_event,NULL,&n_source);
-        EventBasePtr ev_succ =
-                (*createfn_succ)(ev_source,NULL,&n_succ);
-        EventBasePtr ev_next =
-                (*createfn_next)(ev_succ,NULL,&n_next);
+        EventBaseSharedPtr ev_source_shared (
+                (*createfn_source)(EventBase::no_event_shared,NULL,&n_source));
+        EventBasePtr ev_source = get_EventBaseSharedPtr(ev_source_shared); 
+        EventBaseSharedPtr ev_succ_shared (
+                (*createfn_succ)(ev_source_shared,NULL,&n_succ));
+        EventBasePtr ev_succ = get_EventBaseSharedPtr(ev_succ_shared); 
+        EventBaseSharedPtr ev_next_shared (
+                (*createfn_next)(ev_succ_shared,NULL,&n_next));
+        EventBasePtr ev_next = get_EventBaseSharedPtr(ev_next_shared); 
 
         EXPECT_TRUE (atom.acquire_or_wait(ev_source,excl));
         EXPECT_TRUE (atom.held());
@@ -128,13 +132,15 @@ const int OFluxAtomicReadWriteTests::read = atomic::AtomicReadWrite::Read;
 const int OFluxAtomicReadWriteTests::write = atomic::AtomicReadWrite::Write;
 
 TEST_F(OFluxAtomicReadWriteTests,TwoReadThenOneWrite1) {
-        EventBasePtr ev_nothing;
-        EventBasePtr ev_any_reader1 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev_any_reader2 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev_writer =
-                (*createfn_source)(EventBase::no_event,NULL,&n_source);
+        EventBaseSharedPtr ev_any_reader1_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev_any_reader1 = get_EventBaseSharedPtr(ev_any_reader1_shared); 
+        EventBaseSharedPtr ev_any_reader2_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev_any_reader2 = get_EventBaseSharedPtr(ev_any_reader2_shared); 
+        EventBaseSharedPtr ev_writer_shared (
+                (*createfn_source)(EventBase::no_event_shared,NULL,&n_source));
+        EventBasePtr ev_writer = get_EventBaseSharedPtr(ev_writer_shared); 
 
         // 2 readers added:
         EXPECT_EQ(0,atom.held());
@@ -165,13 +171,15 @@ TEST_F(OFluxAtomicReadWriteTests,TwoReadThenOneWrite1) {
 }
 
 TEST_F(OFluxAtomicReadWriteTests,ReadWriteRead1) {
-        EventBasePtr ev_nothing;
-        EventBasePtr ev_reader1 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev_reader2 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev_writer =
-                (*createfn_source)(EventBase::no_event,NULL,&n_source);
+        EventBaseSharedPtr ev_reader1_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev_reader1 = get_EventBaseSharedPtr(ev_reader1_shared); 
+        EventBaseSharedPtr ev_reader2_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev_reader2 = get_EventBaseSharedPtr(ev_reader2_shared); 
+        EventBaseSharedPtr ev_writer_shared (
+                (*createfn_source)(EventBase::no_event_shared,NULL,&n_source));
+        EventBasePtr ev_writer = get_EventBaseSharedPtr(ev_writer_shared); 
 
         // 1 readers added:
         EXPECT_EQ(0,atom.held());
@@ -202,13 +210,15 @@ TEST_F(OFluxAtomicReadWriteTests,ReadWriteRead1) {
 }
 
 TEST_F(OFluxAtomicReadWriteTests,WriteReadRead1) {
-        EventBasePtr ev_nothing;
-        EventBasePtr ev_reader1 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev_reader2 =
-                (*createfn_source)(EventBase::no_event,NULL,&n_source);
-        EventBasePtr ev_writer =
-                (*createfn_source)(EventBase::no_event,NULL,&n_source);
+        EventBaseSharedPtr ev_reader1_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev_reader1 = get_EventBaseSharedPtr(ev_reader1_shared); 
+        EventBaseSharedPtr ev_reader2_shared (
+                (*createfn_source)(EventBase::no_event_shared,NULL,&n_source));
+        EventBasePtr ev_reader2 = get_EventBaseSharedPtr(ev_reader2_shared); 
+        EventBaseSharedPtr ev_writer_shared (
+                (*createfn_source)(EventBase::no_event_shared,NULL,&n_source));
+        EventBasePtr ev_writer = get_EventBaseSharedPtr(ev_writer_shared); 
 
         // 1 writer added:
         EXPECT_EQ(0,atom.held());
@@ -323,13 +333,15 @@ public:
 const int OFluxAtomicPooledTests::pl = 0; // don't care really
 
 TEST_F(OFluxAtomicPooledTests,Simple1) {
-        EventBasePtr ev_nothing;
-        EventBasePtr ev1 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev2 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
-        EventBasePtr ev3 =
-                (*createfn_next)(EventBase::no_event,NULL,&n_next);
+        EventBaseSharedPtr ev1_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev1 = get_EventBaseSharedPtr(ev1_shared); 
+        EventBaseSharedPtr ev2_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev2 = get_EventBaseSharedPtr(ev2_shared); 
+        EventBaseSharedPtr ev3_shared (
+                (*createfn_next)(EventBase::no_event_shared,NULL,&n_next));
+        EventBasePtr ev3 = get_EventBaseSharedPtr(ev3_shared); 
 
         // initialize pool with 2 things
 

@@ -154,7 +154,7 @@ private:
 			ebb = get_EventBasePtr(ebptr);
 			put_WSQElement(e);
 			ebptr->state = 2;
-			PUBLIC_FIFO_POP(ebptr.get(),ebptr->flow_node()->getName());
+			PUBLIC_FIFO_POP(ebb,ebb->flow_node()->getName());
 		}
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] popLocal %s %p\n"
 			, self()
@@ -171,7 +171,7 @@ private:
 			, get_EventBasePtr(ev));
 		WSQElement * e = get_WSQElement(ev); 
 		_queue.pushBottom(e);
-		PUBLIC_FIFO_PUSH(ev.get(),ev->flow_node()->getName());
+		PUBLIC_FIFO_PUSH(get_EventBasePtr(ev),ev->flow_node()->getName());
 	}
 	int handle(RunTimeThreadContext & context);
 	inline bool critical() const { return _running && _queue_allowance<0; }
