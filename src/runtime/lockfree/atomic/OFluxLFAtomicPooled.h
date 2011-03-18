@@ -69,13 +69,15 @@ public:
 					, rs_q_out
 					, rs_q_out+1
 				)) {
-				bool cas_res = _rs_q.cas_to_null(rs_q_out,resource);
+				const bool cas_res = _rs_q.cas_to_null(rs_q_out,resource);
+				(void)cas_res;
 				assert(cas_res && "must write a NULL on an rs pop");
-				bool data_cas_res = 
+				const bool data_cas_res = 
 					__sync_bool_compare_and_swap(
 						& ev->_data
 						, NULL
 						, resource);
+				(void)data_cas_res;
 				assert(data_cas_res && "must cas ap_out._data from NULL on rs pop");
 				res = true;
 				break;
@@ -89,7 +91,8 @@ public:
 					, uin.u64
 					, n_uin.u64
 				)) {
-				bool cas_res = _ev_q.cas_from_null(uin.s._ev_q_in, ev);
+				const bool cas_res = _ev_q.cas_from_null(uin.s._ev_q_in, ev);
+				(void)cas_res;
 				assert(cas_res && "must write on ev push");
 				res = false;
 				break;
@@ -128,13 +131,15 @@ public:
 					, ev_q_out
 					, ev_q_out+1
 					)) {
-				bool cas_res = _ev_q.cas_to_null(ev_q_out,ev_out);
+				const bool cas_res = _ev_q.cas_to_null(ev_q_out,ev_out);
+				(void)cas_res;
 				assert(cas_res && "must write NULL on ev pop");
-				bool ev_cas_res =
+				const bool ev_cas_res =
 					__sync_bool_compare_and_swap(
 						& (ev_out->_data)
 						, NULL
 						, resource);
+				(void)ev_cas_res;
 				assert(ev_cas_res && "must cas ev._data from NULL on an ev pop");
 				res = ev_out;
 				break;
@@ -150,7 +155,8 @@ public:
 					, uin.u64
 					, n_uin.u64
 					)) {
-				bool cas_res = _rs_q.cas_from_null(uin.s._rs_q_in,resource);
+				const bool cas_res = _rs_q.cas_from_null(uin.s._rs_q_in,resource);
+				(void)cas_res;
 				assert(cas_res && "must write on an rs push");
 				res = NULL;
 				break;
