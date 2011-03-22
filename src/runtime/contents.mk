@@ -7,7 +7,7 @@ APPS += exercise
 
 OFLUX_SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
 
-DTRACECALLINGCPPS := $(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f)))
+DTRACECALLINGCPPS := $(if $(DTRACE),$(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f))),)
 DTRACE_FLAGS := -G
 
 OFLUX_LF_SRC := \

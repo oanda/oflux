@@ -119,7 +119,7 @@ AtomicPool::put_data(void * p)
 EventBasePtr 
 AtomicPool::get_waiter()
 {
-        EventBasePtr r;
+        EventBasePtr r(NULL);
         if(_q.size()) {
                 r = _q.front();
                 _q.pop_front();
