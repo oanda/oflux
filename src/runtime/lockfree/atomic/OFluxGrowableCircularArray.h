@@ -210,7 +210,8 @@ public:
 	inline bool grow() 
 	{
 		Implementation * impl = _impl;
-		unsigned long initial_sz = impl->size();
+		const unsigned long initial_sz = impl->size();
+		(void)initial_sz;
 		Implementation * n_impl = new Implementation(impl);
 		if(!__sync_bool_compare_and_swap( &_impl, impl, n_impl)) {
 			n_impl->disconnect();

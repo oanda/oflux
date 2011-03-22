@@ -38,6 +38,7 @@ Successor::remove(Case * fc)
 		if(fc == (*itr)) {
 			_cases.erase(itr);
 			delete fc;
+			fd = true;
 			break;
 		}
 		++itr;

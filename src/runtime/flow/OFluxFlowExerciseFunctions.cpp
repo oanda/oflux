@@ -583,6 +583,7 @@ ExerciseEventDetail::Atoms_::report()
 		};
 
 	static char * exercise_checkpool = getenv("EXERCISE_CHECKPOOL");
+	(void)exercise_checkpool;
 		
 	for(int i = 0; i < number; ++i) {
 		oflux_log_trace(" atom[%-2d] %s %p\n"
@@ -730,7 +731,10 @@ convert<flow::ExerciseEventDetail::Out_ >( flow::ExerciseEventDetail::Out_::base
 namespace flow {
 
 static bool
-check_guard_duplication(flow::Node * fn)
+check_guard_duplication (flow::Node * fn) __attribute__((used));
+
+static bool
+check_guard_duplication (flow::Node * fn)
 {
 	bool res = false;
 	std::vector<GuardReference *> grefs = fn->guards();

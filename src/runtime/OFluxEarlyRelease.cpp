@@ -20,7 +20,7 @@ release_all_guards(RunTimeAbstract * rt)
 	std::vector<EventBasePtr> rel_evs;
 	EventBasePtr by_ev(evb);
 	evb->atomics().release(rel_evs,by_ev);
-	recover_EventBasePtr(by_ev);  // disable reclaimation
+	recover_EventBasePtr((void)by_ev);  // disable reclaimation
 	// now resubmit events which have fully acquired 
 	std::vector<EventBasePtr> rel_evs_full_acq;
 	for(size_t i = 0; i < rel_evs.size(); ++i) {
