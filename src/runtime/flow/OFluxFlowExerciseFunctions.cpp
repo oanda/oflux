@@ -238,7 +238,7 @@ public:
 	}
 	inline AB * get() { return reinterpret_cast<AB *>(buffer); }
 private:
-	char buffer[max_size];
+	char buffer[max_size] __attribute__ ((aligned (16)));
 };
 
 
