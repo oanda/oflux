@@ -29,7 +29,12 @@ class MallocAllocatorImplementation : public AllocatorImplementation {
 public:
 	MallocAllocatorImplementation() {}
 	virtual ~MallocAllocatorImplementation() {}
-	virtual void * get() { return malloc(size); }
+	virtual void * get() 
+	{ 
+		void * v = malloc(size); 
+		if (!v) throw std::bad_alloc();
+		return v;
+	}
 	virtual void put(void * o) { free(o); }
 };
 

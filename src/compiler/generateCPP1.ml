@@ -792,6 +792,10 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 	let inits nl = List.map (fun n -> "_"^(clean_dots n)^"(NULL)") nl in
 	let decls ntl = List.map (fun (n,t,_) -> 
 		t^" * _"^(clean_dots n)^";") ntl in
+	let check_ptrs ntl = List.map 
+		(fun (n,t,_) -> "oflux::InsistOnIsPtr<"^t^"> "
+			^(clean_dots n)^"_ptr_check;")
+		ntl in
 	let accessor (n,t,iro) =
 		let rop = if iro then ro_prefix else "" in
 		let n = clean_dots n
@@ -833,6 +837,7 @@ let emit_node_atomic_structs pluginopt readonly symtable aliases code =
 				  ; "private:"
 				  ]
 				@ (decls ntl)
+				@ (check_ptrs ntl)
 				@ [ "};" ] )
 	in  SymbolTable.fold_nodes e_one symtable code
 
