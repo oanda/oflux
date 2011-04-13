@@ -209,6 +209,7 @@ public:
 			assert(!(res < &_pt[0] || res >= &_pt[num_threads]));
                 } else if(!res) {
                         res = malloc(el_sz);
+			if(!res) throw std::bad_alloc();
 			//++malloc_counter;
 			assert(res < &_pt[0] || res >= &_pt[num_threads]);
                 }

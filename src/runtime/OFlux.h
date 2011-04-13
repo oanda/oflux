@@ -33,9 +33,18 @@ class Abstract;
 extern Abstract * logger;
 } // namespace logging
 
+// concept checking
+template<typename T> struct IsPtr { enum { val = false }; };
+template<typename R> struct IsPtr<R *> { enum { val = true }; };
+
 // compile-time assertions
 template <bool> struct CompileTimeAssert;
 template<> struct CompileTimeAssert<true> {};
+
+template<typename T>
+class InsistOnIsPtr {
+  CompileTimeAssert<IsPtr<T>::val> type_must_be_ptr;
+};
 
 template<typename C>
 struct hash {
