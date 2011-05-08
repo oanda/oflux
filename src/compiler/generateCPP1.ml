@@ -1168,7 +1168,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                         let gn = strip_position gr.guardname in
                         let gd = SymbolTable.lookup_guard_symbol symtable gn in
 			let is_gc = gd.SymbolTable.ggc in
-                        let hash = HashString.hash (gr.arguments, gr.guardcond) in
+                        let hash = HashString.hash (nn,gr.arguments, gr.guardcond) in
                         let gtfunc = clean_dots ("g_trans_"^nn^"_"^gn^"_"^hash) in
                         if (not with_map) && List.mem gtfunc donel then
                                 (code,donel)

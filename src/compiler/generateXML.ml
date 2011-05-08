@@ -564,7 +564,7 @@ let emit_program_xml' programname br usesmodel =
 			guardref 
 				(ParserTypes.strip_position gr.ParserTypes.guardname)
 				(ParserTypes.hash_decl_formal_list nd.SymbolTable.nodeinputs)
-				(HashString.hash (gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
+				(HashString.hash (n,gr.ParserTypes.arguments,gr.ParserTypes.guardcond))
 				(determine_wtype gd.SymbolTable.gtype gr.ParserTypes.modifiers)
 				(if has_gargs then "true" else "false")
 			with Not_found ->

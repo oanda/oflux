@@ -414,7 +414,7 @@ let flatten prog =
 			let on_gr gr =
 				let orderl = List.map (on_garg gr.guardname)
 					(List.filter filt_garg
-					(List.concat gr.arguments))
+					(List.concat (gr.guardcond::gr.arguments)))
 				in  orderl
 			in  List.concat (List.map on_gr nd.guardrefs)
 		in  List.concat (List.map get_one ndl) in
