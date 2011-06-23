@@ -628,7 +628,7 @@ uninterpreted_cpp_code_fragment:
         { (" || "::$2) }
         | LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
         { ("("::(comma_separate $2)) @ [")"] }
-        | LEFT_SQ_BRACE uninterpreted_cpp_code_fragment LEFT_SQ_BRACE
+        | LEFT_SQ_BRACE uninterpreted_cpp_code RIGHT_SQ_BRACE
 	{ ("["::$2) @ [ "]" ] }
         | EXCLAMATION uninterpreted_cpp_code_fragment
 	{ "!"::$2 }
