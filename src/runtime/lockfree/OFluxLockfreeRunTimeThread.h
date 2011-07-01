@@ -18,6 +18,7 @@
 #include "OFluxLogging.h"
 #include "event/OFluxEventBase.h"
 #include "flow/OFluxFlowNode.h"
+#include "OFluxLibDTrace.h"
 
 
 namespace oflux {
@@ -25,14 +26,6 @@ namespace flow {
  class Node;
 } //namespace flow
 namespace lockfree {
-
-#ifdef HAS_DTRACE
-void PUBLIC_FIFO_POP(void *, const char *);
-void PUBLIC_FIFO_PUSH(void *, const char *);
-#else  // HAS_DTRACE
-# define PUBLIC_FIFO_POP(X,Y)
-# define PUBLIC_FIFO_PUSH(X,Y)
-#endif // HAS_DTRACE
 
 class RunTime;
 

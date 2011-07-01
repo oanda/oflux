@@ -16,21 +16,21 @@ void
 Queue::push(Element & e)
 {
 	_q.push_back(e);
-	_FIFO_PUSH(get_EventBasePtr(e),element_name(e));
+	PUBLIC_FIFO_PUSH(get_EventBasePtr(e),element_name(e));
 }
 
 void
 Queue::push_priority(Element & e)
 {
 	_q.push_front(e);
-	_FIFO_PUSH(get_EventBasePtr(e),element_name(e));
+	PUBLIC_FIFO_PUSH(get_EventBasePtr(e),element_name(e));
 }
 void
 Queue::push_list(const std::vector<Element> & vec)
 {
 	for(int i = 0; i < (int)vec.size(); i++) {
 		_q.push_back(vec[i]);
-		_FIFO_PUSH(get_EventBasePtr(vec[i]),element_name(vec[i]));
+		PUBLIC_FIFO_PUSH(get_EventBasePtr(vec[i]),element_name(vec[i]));
 	}
 }
 void
@@ -39,7 +39,7 @@ Queue::push_list_priority(const std::vector<Element> & vec)
 	// reverse
 	for(int i = ((int)vec.size())-1; i >= 0; i--) {
 		_q.push_front(vec[i]);
-		_FIFO_PUSH(get_EventBasePtr(vec[i]),element_name(vec[i]));
+		PUBLIC_FIFO_PUSH(get_EventBasePtr(vec[i]),element_name(vec[i]));
 	}
 }
 
@@ -50,7 +50,7 @@ Queue::pop(Element & e)
 	if(res) {
 		e = _q.front();
 		_q.pop_front();
-		_FIFO_POP(get_EventBasePtr(e),element_name(e));
+		PUBLIC_FIFO_POP(get_EventBasePtr(e),element_name(e));
 	}
 	return res;
 }

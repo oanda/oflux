@@ -12,6 +12,7 @@
 namespace oflux {
 namespace atomic {
 
+
 EventBasePtr &
 AtomicsHolder::no_event = EventBase::no_event;
 
@@ -155,7 +156,7 @@ AtomicsHolder::acquire_all_or_wait(
 		? pred_ev_bptr->atomics()
 		: empty_ah);
 	const char * ev_name = ev_bptr->flow_node()->getName();
-	_NODE_ACQUIREGUARDS(
+	PUBLIC_NODE_ACQUIREGUARDS(
 		  ev_bptr
 		, ev_name);
 	const void * node_in = ev_bptr->input_type();
@@ -252,7 +253,7 @@ AtomicsHolder::acquire_all_or_wait(
 	// NOTE: can't access this thing after you fail to acquire
 	//       since it is not your event (atomic holder) any more
 	if(blocking_index == -1) {
-		_NODE_HAVEALLGUARDS(
+		PUBLIC_NODE_HAVEALLGUARDS(
 			  static_cast<void *>(ev_bptr)
 			, ev_name);
 	}
@@ -361,7 +362,7 @@ AtomicsHolder::release(
 					, a
 					, ha->haveit() ? "have it" : ""
 					, ha->flow_guard_ref()->getName().c_str());
-				_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
+				PUBLIC_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
 					, by_ev_bptr->flow_node()->getName() 
 					, k);
 				for(int j = rel_atomics.working_on()
@@ -393,7 +394,7 @@ AtomicsHolder::release(
 								? _sorted[_working_on-1]->haveit() || _sorted[_working_on-1]->skipit()
 								: true) );
 						}
-						_GUARD_ACQUIRE(
+						PUBLIC_GUARD_ACQUIRE(
 							  rel_ha_ptr->flow_guard_ref()->getName().c_str()
 							, rel_ev_bptr->flow_node()->getName() 
 							, 1);
@@ -409,7 +410,7 @@ AtomicsHolder::release(
 				if(!ha->atomic()) { a = NULL; }
  			}
 			ha->atomic(NULL);
-			_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
+			PUBLIC_GUARD_RELEASE(ha->flow_guard_ref()->getName().c_str()
 				, (post_sz > pre_sz 
 					? released_events.back()->flow_node()->getName() 
 					: "<nil>")

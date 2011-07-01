@@ -21,7 +21,7 @@ CPPFLAGS = $(COMPONENT_FLAGS) $(ARCH_FLAGS) $(INCS) -D$(_ARCH) -D_REENTRANT
 
 # CXXFLAGS are the flags that will be given to the C++ Compiler
 # Place things here that will alter how the compilation will occur
-CXXFLAGS = $(BASECXXFLAGS) $(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) $(WARN_FLAGS)
+CXXFLAGS = $(BASECXXFLAGS) $(_OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) $(WARN_FLAGS)
 
 BOOSTDIR ?= /oanda/system/include/boost-1_34_1
 
@@ -82,6 +82,10 @@ DTRACE:=$(shell which dtrace | grep -v no)
 ARCH_FLAGS += $(if $(DTRACE),-DHAS_DTRACE,)
 DTRACE_LIB_PROBE_HEADER:=$(if $(DTRACE),ofluxprobe.h,)
 DTRACE_SHIM_PROBE_HEADER:=$(if $(DTRACE),ofluxshimprobe.h,)
+ifeq ($(OPTIMIZATION_FLAGS),-O0)
+DTRACE_GCC_OPTIMIZATIONS:=-O0
+else
 DTRACE_GCC_OPTIMIZATIONS:=-O1 -finline-functions
+endif
 endif
 -include $(OFLUXSRCDIR)/Mk/$(_PROC).mk

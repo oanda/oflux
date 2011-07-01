@@ -7,7 +7,7 @@ APPS += exercise
 
 OFLUX_SHIMOBJS := OFluxRunTimeAbstractForShim.pic.o OFluxIOShim.pic.o
 
-DTRACECALLINGCPPS := $(if $(DTRACE),$(foreach f,$(shell grep -l "OFluxLibDTrace.h\|ofluxshimprobe.h" $(OFLUX_LIB_COMPONENT_DIR)/*.cpp),$(notdir $(f))),)
+DTRACECALLINGCPPS := $(if $(DTRACE),$(foreach f,$(shell grep -l "ofluxshimprobe.h\|ofluxprobe.h" `find $(OFLUX_LIB_COMPONENT_DIR) -name '*.cpp'`),$(notdir $(f))),)
 DTRACE_FLAGS := -G
 
 OFLUX_LF_SRC := \
@@ -41,6 +41,7 @@ OFLUX_OBJS = \
         OFluxAtomicHolder.o \
         OFluxEarlyRelease.o \
         OFluxEventBase.o \
+        OFluxLibDTrace.o \
         OFluxEventOperations.o \
         OFluxRunTimeAbstractForShim.o \
         OFluxRunTimeBase.o \
@@ -51,8 +52,8 @@ OFLUX_OBJS = \
         OFluxXML.o \
 	oflux_vers.o
 
-# disable optimization for dtrace USDT code (PIC code not affected):
-$(DTRACECALLINGCPPS:.cpp=.o) : OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)
+# disable optimization for dtrace USDT code 
+$(DTRACECALLINGCPPS:%.cpp=%.o) $(DTRACECALLINGCPPS:%.cpp=%.pic.o) : _OPTIMIZATION_FLAGS := $(DTRACE_GCC_OPTIMIZATIONS)
 
 $(OFLUX_OBJS) $(OFLUX_OBJS:.o=.pic.o) $(OFLUX_SHIMOBJS) : $(DTRACE_LIB_PROBE_HEADER) $(DTRACE_SHIM_PROBE_HEADER)
 
@@ -67,6 +68,7 @@ endif
 
 liboflux.so: $(OFLUX_OBJS:%.o=%.pic.o)
 ifneq ($(DTRACE),)
+	$(foreach f,$(shell grep -l "include.*probe.h" `find $(OFLUX_LIB_COMPONENT_DIR) -name '*.h' | grep -v OFluxLibDTrace.h`), $(error must not expose OFluxLibDTrace.h or *probe.h in headers : $(f))) \
 	$(LD) -r -o glommedobj_so.o $^
 	$(DTRACE) $(DTRACE_FLAGS) -s $(OFLUX_LIB_COMPONENT_DIR)/ofluxprobe.d glommedobj_so.o -o ofluxprobe_glommed_so.o
 	$(CXX) -shared glommedobj_so.o ofluxprobe_glommed_so.o $(OFLUXRTLIBS) -o $@
