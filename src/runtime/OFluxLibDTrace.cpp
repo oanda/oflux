@@ -2,10 +2,10 @@
 
 // These thunks are needed since dtrace and -O do not get along in gcc
 
-namespace oflux { 
-
 #ifdef HAS_DTRACE
 # include "ofluxprobe.h"
+namespace oflux {
+
 
 int access_dtrace()
 {

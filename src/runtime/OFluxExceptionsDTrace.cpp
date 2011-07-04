@@ -1,4 +1,6 @@
-#include "ofluxprobe.h"
+#ifdef HAS_DTRACE
+# include "ofluxprobe.h"
+#endif
 
 extern "C" {
 

@@ -22,14 +22,6 @@
 namespace oflux {
 namespace atomic {
 
-
-#ifdef HAS_DTRACE
-#else // HAS_DTRACE
-# define PUBLIC_GUARD_ACQUIRE(E,X,W)
-# define PUBLIC_GUARD_WAIT(E,X,W)
-#endif // HAS_DTRACE
-
-
 /**
  * @class HeldAtomic
  * @brief The information that an event should have on hand for a held atomic
