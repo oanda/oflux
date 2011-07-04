@@ -647,6 +647,22 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
 				    in prec_bef^"<"^prec_aft
 				with Not_found -> "")
                 in  (Xml.get_tag xml_node_or_guard)^name in
+        let key_diff xmlcontents1 xmlcontents2 =
+                let kxml x = (get_key x, x) in
+                let sort kxmlcontents = List.sort (fun (k1,_) -> (fun (k2,_) -> compare k1 k2)) kxmlcontents in
+                let rec diff_str kxc1 kxc2 =
+                        match kxc1,kxc2 with
+                                ((k1,v1)::t1,(k2,v2)::t2) ->
+                                        let cres = compare k1 k2 in
+                                        if cres = 0 then diff_str t1 t2
+                                        else if cres < 0 then ("- "^(Xml.to_string_fmt v1)^"\n"^(diff_str t1 kxc2))
+                                        else ("+ "^(Xml.to_string_fmt v2)^"\n"^(diff_str kxc1 t2))
+                                | ([],(k2,v2)::t2) -> ("+ "^(Xml.to_string_fmt v2)^"\n"^(diff_str kxc1 t2))
+                                | ((k1,v1)::t1,[]) -> ("- "^(Xml.to_string_fmt v1)^"\n"^(diff_str t1 kxc2)) 
+                                | _ -> "" in
+                let oneachside xmlc = sort (List.map kxml xmlc)
+                in  diff_str (oneachside xmlcontents1) (oneachside xmlcontents2) in
+
         let xml_bef = emit_program_xml' "before" br_bef usesmodel in
         let xml_aft = emit_program_xml' "after" br_aft usesmodel in
         let xml_compare xml1 xml2 = compare (get_key xml1) (get_key xml2) in
@@ -657,7 +673,8 @@ let emit_plugin_xml fn dependslist br_bef br_aft usesmodel =
                 let old_keys = List.map get_key xml_before_contents
                 in  List.partition (fun norg -> List.mem (get_key norg) old_keys) xml_aft_contents in
         let _ = if not ((List.length aft_old) = (List.length xml_before_contents)) then
-                        raise (XMLConversion ("something <internal> is wrong - please report this - number of nodes changed",ParserTypes.noposition))
+			let expressive_error_context = key_diff aft_old xml_before_contents
+                        in  raise (XMLConversion (("something <internal> is wrong - please report this - number of nodes changed:\n"^expressive_error_context),ParserTypes.noposition))
                 else () in
         let ordered_tags = (* tags whose content is ordered *)
                         [ xml_guardref_str
