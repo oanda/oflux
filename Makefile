@@ -5,7 +5,7 @@ include Mk/target.mk
 else
 #----- Begin Boilerplate
 
-RELEASE := production
+RELEASE ?= production
 VPATH := $(SRCDIR)
 OFLUX_PROJECTS :=
 OFLUX_PLUGIN_PROJECTS :=

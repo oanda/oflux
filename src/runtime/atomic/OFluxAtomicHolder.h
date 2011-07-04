@@ -15,13 +15,19 @@
 #include <cassert>
 #include "atomic/OFluxAtomic.h"
 #include "flow/OFluxFlowGuard.h"
-#include "OFluxLibDTrace.h"
 #include "lockfree/OFluxMachineSpecific.h"
-
+#include "OFluxLibDTrace.h"
 #include "OFluxLogging.h"
 
 namespace oflux {
 namespace atomic {
+
+
+#ifdef HAS_DTRACE
+#else // HAS_DTRACE
+# define PUBLIC_GUARD_ACQUIRE(E,X,W)
+# define PUBLIC_GUARD_WAIT(E,X,W)
+#endif // HAS_DTRACE
 
 
 /**
@@ -153,12 +159,12 @@ public:
 		res = _atom->acquire_or_wait(ev,flow_guard_ref->wtype());
 		if(res) _haveit = true;
 		if(res) {
-			_GUARD_ACQUIRE(
+			PUBLIC_GUARD_ACQUIRE(
 				  flow_guard_ref->getName().c_str()
 				, ev_name
 				, 0); 
 		} else {
-			_GUARD_WAIT(
+			PUBLIC_GUARD_WAIT(
 				  flow_guard_ref->getName().c_str()
 				, ev_name
 				, flow_guard_ref->wtype()); 

@@ -285,6 +285,7 @@ rule token = parse
 	| ( ( ['a' - 'z'] | ['A' - 'Z'] | '_' )( '.' | ['a' - 'z'] | ['A' - 'Z'] | '_' | ['0' - '9'] )* )
 			{ updatePosInTok lexbuf
 				(fun (x1,x2) -> IDENTIFIER (Lexing.lexeme lexbuf,x1,x2)) }
+	| "."			{ updatePosInTok lexbuf (fun x -> DOT x) }
 	| eof                   { updatePos lexbuf ENDOFFILE (*; raise Eof*) }
 	| "/**" { doccomment lexbuf; token lexbuf }
 	| "/*" { comment lexbuf; token lexbuf }

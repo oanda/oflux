@@ -53,7 +53,7 @@ let rec break_dotted_name nsn =
 %token <ParserTypes.position*ParserTypes.position> PIPE, COLON, COMMA, EQUALS, SEMI;
 %token <ParserTypes.position*ParserTypes.position> LEFT_PAREN, RIGHT_PAREN, LEFT_SQ_BRACE, RIGHT_SQ_BRACE;
 %token <ParserTypes.position*ParserTypes.position> TYPEDEF, SOURCE, TERMINATE, INITIAL, DOOR;
-%token <ParserTypes.position*ParserTypes.position> PLUS, QUESTION, DOUBLECOLON;
+%token <ParserTypes.position*ParserTypes.position> PLUS, QUESTION, DOUBLECOLON, DOT;
 %token <ParserTypes.position*ParserTypes.position> MINUS, ELLIPSIS;
 %token <ParserTypes.position*ParserTypes.position> LESSTHAN, GREATERTHAN, AMPERSAND;
 %token <ParserTypes.position*ParserTypes.position> AMPERSANDEQUALS;
@@ -627,8 +627,11 @@ uninterpreted_cpp_code_fragment:
         | DOUBLEBAR uninterpreted_cpp_code_fragment 
         { (" || "::$2) }
         | LEFT_PAREN uninterpreted_cpp_code_comma_list RIGHT_PAREN
-        { ("("::(comma_separate $2)) @ [")"] 
-	}
+        { ("("::(comma_separate $2)) @ [")"] }
+        | LEFT_SQ_BRACE uninterpreted_cpp_code RIGHT_SQ_BRACE
+	{ ("["::$2) @ [ "]" ] }
+        | EXCLAMATION uninterpreted_cpp_code_fragment
+	{ "!"::$2 }
         | PIPE uninterpreted_cpp_code_fragment
         { "->"::$2 }
         | STAR uninterpreted_cpp_code_fragment
@@ -641,6 +644,8 @@ uninterpreted_cpp_code_fragment:
         { ("?"::$2) }
         | COLON uninterpreted_cpp_code_fragment
         { (":"::$2) }
+        | DOT uninterpreted_cpp_code_fragment
+        { ("."::$2) }
 
 uninterpreted_cpp_code_comma_list:
         uninterpreted_cpp_code 
