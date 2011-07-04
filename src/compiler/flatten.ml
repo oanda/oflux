@@ -431,9 +431,14 @@ let flatten prog =
                 ; plugin_depend_list = []
                 ; terminate_list = List.map (prefix_sp pre_mi) pr.terminate_list
                 ; order_decl_list = 
+                        let uniq_str_posed_pairs ll =
+                                let comp (x1,x2) (y1,y2) = 
+                                        compare (strip_position x1,strip_position x2) (strip_position y1,strip_position y2)
+                                in  Uniquify.uniq_discard comp ll in
+
 			let explicit_odl = pr.order_decl_list in
 			let implicit_odl = get_implicit_gr_orderings pr.node_decl_list
-			in  List.map (for_order_decl pre_mi pre_md) (explicit_odl @ implicit_odl)
+			in  uniq_str_posed_pairs (List.map (for_order_decl pre_mi pre_md) (explicit_odl @ implicit_odl))
 			
 		}
 		in
