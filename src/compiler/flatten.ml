@@ -320,6 +320,47 @@ let prefix_sp pre (s,p1,p2) =
 
 let prefix pre s = pre^s
 
+let hollow_out pr = (* used to make external instances for program append *)
+	let on_atom at =
+		{ atomname = at.atomname
+		; atominputs = at.atominputs
+		; outputtype = at.outputtype
+		; atomtype = at.atomtype
+		; externalatom = true (* change done here *)
+		; atommodifiers = at.atommodifiers 
+		} in
+	let on_node nd =
+		{ detached = nd.detached
+		; abstract = nd.abstract
+		; ismutable = nd.ismutable
+		; externalnode = true (* change done here *)
+		; nodename = nd.nodename
+		; nodefunction = nd.nodefunction
+		; inputs = nd.inputs
+		; guardrefs = nd.guardrefs
+		; outputs = nd.outputs
+		} in
+	let on_mod_inst mi =
+		{ modsourcename = mi.modsourcename
+		; externalinst = true (* change done here *)
+		; modinstname = mi.modinstname
+		; guardaliases = mi.guardaliases
+		}
+	in
+	{ cond_decl_list = pr.cond_decl_list
+	; atom_decl_list = List.map on_atom pr.atom_decl_list
+	; node_decl_list = List.map on_node pr.node_decl_list
+	; mainfun_list = [] (* no flow code *)
+	; expr_list = [] (* no flow code *)
+	; err_list = [] (* no flow code *)
+	; mod_def_list = pr.mod_def_list
+	; mod_inst_list = List.map on_mod_inst pr.mod_inst_list
+	; plugin_list = [] (* should be empty *)
+	; plugin_depend_list = pr.plugin_depend_list
+	; terminate_list = [] (* no flow code *)
+	; order_decl_list = []
+	}
+
 let flatten prog =
 	(** instantiate modules  etc *)
         let prog = remove_reductions prog in
@@ -488,7 +529,10 @@ let flatten prog =
                                 else mp^"::"
                                 in
                         let moddefpr = flt ip mp modl gsubst moddefpr in
-                        let moddefpr = apply_guardref_subst gsubst moddefpr
+                        let moddefpr = apply_guardref_subst gsubst moddefpr in
+			let moddefpr = 
+				if mi.externalinst then hollow_out moddefpr
+				else moddefpr 
 			in  add_atom_decl ip mp isstaticmod
 				(program_append true pr_sofar moddefpr)
 			in
@@ -647,10 +691,26 @@ let flatten_plugin' plugin_name prog =
                 let ext_atoms = List.map (fun a -> strip_position a.atomname) (List.filter (fun a -> a.externalatom) pr.atom_decl_list) in
                 let ext_conds = List.map (fun c -> strip_position c.condname) (List.filter (fun c -> c.externalcond) pr.cond_decl_list) in
                 let ext_insts = List.map (fun c -> strip_position c.modinstname) (List.filter (fun c -> c.externalinst) pr.mod_inst_list) in
-                let is_ext_node n = List.mem (remove_amper_name n) ext_nodes in
+		let has_ext_inst_part s =
+			let no_amp_s = remove_amper_name s in
+			let no_amp_s_len = String.length no_amp_s in
+			let rec is_pref i n p s =
+				if i >= n then true
+				else (p.[i] = s.[i]) && (is_pref (i+1) n p s) in
+			let has_prefix_in prefmaybe =
+				let len = String.length prefmaybe
+				in  (len <= no_amp_s_len)
+					&& (is_pref 0 len prefmaybe no_amp_s)
+			in  List.exists has_prefix_in ext_insts
+			in
+                let is_ext_node n = 
+			(List.mem (remove_amper_name n) ext_nodes) 
+			|| (has_ext_inst_part n) in
                 let is_ext_inst i = List.mem i ext_insts in
-                let is_ext_atom a = List.mem a ext_atoms in
-                let is_ext_cond c = List.mem c ext_conds
+                let is_ext_atom a = (List.mem a ext_atoms) 
+			|| (has_ext_inst_part a) in
+                let is_ext_cond c = (List.mem c ext_conds)
+			|| (has_ext_inst_part c)
                 in
 		{ cond_decl_list = List.map for_cond_decl pr.cond_decl_list
 		; atom_decl_list = List.map for_atom_decl pr.atom_decl_list

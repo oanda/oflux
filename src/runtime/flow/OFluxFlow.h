@@ -54,6 +54,7 @@ public:
          **/
         std::vector<Node *> & sources() { return _sources; }
         std::vector<Node *> & doors() { return _doors; }
+        std::map<std::string, Node *> & nodes() { return _nodes; }
 
         /**
          * @brief add a flow node
