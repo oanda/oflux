@@ -361,6 +361,27 @@ let hollow_out pr = (* used to make external instances for program append *)
 	; order_decl_list = []
 	}
 
+let disallow_duplicate whatstr getnamefun ll =
+	let strip_getname x = strip_position (getnamefun x) in
+	let comp a b = 
+		compare (strip_getname a) (strip_getname b) in
+	let resolve a b =
+		let an,ap,_ = getnamefun a in
+		let _,bp,_ = getnamefun b
+		in raise (FlattenFailure ("Duplicate "^whatstr^" detected: "^an^" at "^(position_to_string bp),ap)) in
+	let _ = Uniquify.uniq comp resolve ll
+	in  ()
+
+let check_for_duplicates pr =
+	begin
+	  disallow_duplicate "condition" (fun c -> c.condname) pr.cond_decl_list
+	; disallow_duplicate "guard" (fun a -> a.atomname) pr.atom_decl_list
+	; disallow_duplicate "node" (fun n -> n.nodename) pr.node_decl_list
+	; disallow_duplicate "instance" (fun i -> i.modinstname) pr.mod_inst_list
+	; disallow_duplicate "plugin" (fun p -> p.pluginname) pr.plugin_list
+	end
+	
+
 let flatten prog =
 	(** instantiate modules  etc *)
         let prog = remove_reductions prog in
