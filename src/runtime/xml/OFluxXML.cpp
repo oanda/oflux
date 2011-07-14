@@ -1227,7 +1227,9 @@ Reader::readxmlfile( const char * filename )
         std::ifstream in(filename);
 
         if ( !in ) {
-                throw ReaderException("Cannot open XML config file.");
+		std::string msg = "Cannot open XML config file: ";
+		msg += filename ? filename : "<NULL>" ;
+                throw ReaderException(msg.c_str());
         }
 
         XML_Parser p = XML_ParserCreate(NULL);
