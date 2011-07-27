@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "OFlux.h"
+#include "OFluxConfiguration.h"
 
 namespace oflux {
 
@@ -11,28 +12,6 @@ namespace flow {
  class Flow;
  class FunctionMapsAbstract;
 } // namespace flow
-
-/**
- * @class RunTimeConfiguration
- * @brief struct for holding the run-time configuration of the run time.
- * size of the stack, thread pool size (ignored), flow XML file name and
- * the flow maps structure.
- */
-struct RunTimeConfiguration {
-	int stack_size;
-	int initial_thread_pool_size;
-	int max_thread_pool_size;
-	int max_detached_threads;
-	int min_waiting_thread_collect; // waiting in pool collector
-	int thread_collection_sample_period;
-	const char * flow_filename;
-	flow::FunctionMapsAbstract * flow_maps;
-	const char * plugin_xml_dir;    // plugin xml directory
-	const char * plugin_lib_dir;    // plugin lib directory
-	void * init_plugin_params;
-	void (*initAtomicMapsF)(int);
-	const char * doors_dir;
-};
 
 struct EnvironmentVar {
 public:

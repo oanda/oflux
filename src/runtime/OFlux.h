@@ -43,7 +43,7 @@ template<> struct CompileTimeAssert<true> {};
 
 template<typename T>
 class InsistOnIsPtr {
-  CompileTimeAssert<IsPtr<T>::val> type_must_be_ptr;
+  static CompileTimeAssert<IsPtr<T>::val> type_must_be_ptr;
 };
 
 template<typename C>
