@@ -10,6 +10,7 @@
  */
 
 namespace oflux {
+ class PluginSourceAbstract;
 namespace flow {
  class FunctionMapsAbstract;
  class Flow;
@@ -54,7 +55,7 @@ flow::Library * flow__Library_factory(const char * dir, const char * name);
 flow::Flow *
 read(     const char * filename
 	, flow::FunctionMapsAbstract *fmaps
-	, const char * pluginxmldir
+	, PluginSourceAbstract * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
 	, const flow::Flow * existing_flow

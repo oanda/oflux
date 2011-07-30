@@ -120,7 +120,7 @@ RunTime::hard_kill()
 void 
 RunTime::load_flow(
 	  const char * flname
-	, const char * pluginxmldir
+	, PluginSourceAbstract * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams)
 {
@@ -129,8 +129,8 @@ RunTime::load_flow(
 	if(*flname == '\0') {
 		flname = _rtc.flow_filename;
 	}
-	if(*pluginxmldir == '\0') {
-		pluginxmldir = _rtc.plugin_xml_dir;
+	if(!pluginxmldir) {
+		pluginxmldir = _rtc.plugin_name_source;
 	}
 	if(*pluginlibdir == '\0') {
 		pluginlibdir = _rtc.plugin_lib_dir;

@@ -45,7 +45,7 @@ public:
          * @brief load a particular flow
          */
 	void load_flow(const char * filename = "", 
-                   const char * pluginxmldir = "", 
+                   PluginSourceAbstract * pluginxmldir = 0, 
                    const char * pluginlibdir = "",
                    void * initpluginparams = NULL);
 

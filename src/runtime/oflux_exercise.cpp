@@ -10,6 +10,7 @@
 //     outputs
 
 #include "OFlux.h"
+#include "OFluxConfiguration.h"
 #include "flow/OFluxFlowExerciseFunctions.h"
 #include "flow/OFluxFlow.h"
 #include "atomic/OFluxAtomic.h"
@@ -70,6 +71,7 @@ main(int argc, char * argv[])
 	if(init_threads_str) {
 		init_threads = atoi(init_threads_str);
 	}
+	oflux::DirPluginSource dirSource("xml");
 	oflux::RunTimeConfiguration rtc = {
 		  1024*1024 // stack size
 		, init_threads // initial threads (ignored really)
@@ -79,7 +81,7 @@ main(int argc, char * argv[])
 		, 1000 // thread collection sample period (every N node execs)
 		, argv[1] // XML file
 		, NULL // temporary
-		, "xml" // xml subdir for plugins
+		, &dirSource
 		, "lib" // lib subdir for plugins
 		, NULL
 		, init_atomic_maps

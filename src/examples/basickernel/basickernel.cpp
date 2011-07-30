@@ -24,6 +24,7 @@ int pmain(int argc, char * argv[])
     assert(argc >= 2);
     int initPluginParams = 237;
     static flow::FunctionMaps ffmaps(ofluximpl::__conditional_map, ofluximpl::__master_create_map, ofluximpl::__master_create_door_map, ofluximpl::__theGuardTransMap, ofluximpl::__atomic_map_map, ofluximpl::__ioconverter_map);
+    DirPluginSource dirSource("xml");
     RunTimeConfiguration rtc = {
           1024*1024 // stack size
         , 1 // initial threads (ignored really)
@@ -33,7 +34,7 @@ int pmain(int argc, char * argv[])
         , 1000 // thread collection sample period (every N node execs)
         , argv[1] // XML file
         , &ffmaps
-        , "xml"
+        , &dirSource
         , "lib"
         , &initPluginParams
 	, ofluximpl::init_atomic_maps

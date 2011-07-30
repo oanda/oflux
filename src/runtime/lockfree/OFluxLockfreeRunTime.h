@@ -10,6 +10,7 @@
  */
 
 #include "OFluxRunTimeAbstract.h"
+#include "OFluxConfiguration.h"
 #include "lockfree/OFluxLockfreeRunTimeThread.h"
 #include "lockfree/OFluxThreadNumber.h"
 #include "OFluxDoor.h"
@@ -96,7 +97,7 @@ public:
 		return ev;
 	}
 	void load_flow(const char * filename = "", 
-                   const char * pluginxmldir = "", 
+                   PluginSourceAbstract * pluginxmldir = 0, 
                    const char * pluginlibdir = "",
                    void * initpluginparams = NULL);
 

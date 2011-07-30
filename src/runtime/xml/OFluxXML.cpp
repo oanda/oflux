@@ -7,6 +7,7 @@
 #include "flow/OFluxFlowGuard.h"
 #include "flow/OFluxFlowLibrary.h"
 #include "flow/OFluxFlowFunctions.h"
+#include "OFluxConfiguration.h"
 #include "OFluxLogging.h"
 #include <vector>
 #include <set>
@@ -367,7 +368,7 @@ public:
 
 	// primary interface:
         Reader(   flow::FunctionMapsAbstract *fmaps
-		, const char * pluginxmldir
+		, PluginSourceAbstract * pluginxmldir
 		, const char * pluginlibdir
 		, void * initpluginparams
 		, const flow::Flow * existing_flow
@@ -379,17 +380,30 @@ public:
 	int style() const { return _atomics_style; }
 	void readPluginIfUnread(const char * plugin_name)
 	{
-		std::string depxml = _plugin_xml_dir;
-		depxml += "/";
-		depxml += plugin_name;
-		depxml += ".xml";
+		const char * depxml = NULL;
+		const char * candidate = NULL;
+		_plugin_source->reset();
+		std::string plug = plugin_name;
+		plug += ".xml";
+		while((candidate = _plugin_source->nextXmlFile())) {
+			if(strstr(candidate,plug.c_str())) {
+				depxml = candidate;
+				break;
+			}
+		}
+		if(!depxml) {
+			std::string exmsg = depxml;
+			exmsg += " circular dependency -- already loading";
+			throw ReaderException(exmsg.c_str());
+		}
 		flow::Flow * flow = get<flow::Flow>();
 		if(!flow->haveLibrary(plugin_name)) {
-			if(_depends_visited.isDependency(depxml.c_str())) {
-				depxml += " circular dependency -- already loading";
-				throw ReaderException(depxml.c_str());
+			if(_depends_visited.isDependency(depxml)) {
+				std::string exmsg = depxml;
+				exmsg += " circular dependency -- already loading";
+				throw ReaderException(exmsg.c_str());
 			}
-			_depends_visited.addDependency(depxml.c_str());
+			_depends_visited.addDependency(depxml);
 			ReaderStateAbstract * preserve = _reader_state;
 			while(_reader_state && _reader_state->elementName()
 					!= XMLVocab::element_flow) {
@@ -399,7 +413,7 @@ public:
                                         != XMLVocab::element_flow) {
 				throw ReaderException("readPluginIfUnread() failed to find flow reader state");
 			}
-			readxmlfile(depxml.c_str());
+			readxmlfile(depxml);
 			_reader_state = preserve;
 		}
 	}
@@ -483,7 +497,7 @@ private:
 	ScopedFunctionMaps _scoped_fmaps;
 	std::string _scope_name;
 	const char * _plugin_lib_dir;
-	const char * _plugin_xml_dir;
+	PluginSourceAbstract * _plugin_source;
 	void * _init_plugin_params;
 	const flow::Flow * _existing_flow;
 	ReaderStateAbstract * _reader_state;
@@ -1182,13 +1196,13 @@ const char * Reader::currentDir = ".";
 
 Reader::Reader(
 	  flow::FunctionMapsAbstract *fmaps
-	, const char * pluginxmldir
+	, PluginSourceAbstract * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
 	, const flow::Flow * existing_flow
 	, int atomics_style)
 	: _plugin_lib_dir(pluginlibdir ? pluginlibdir : Reader::currentDir)
-	, _plugin_xml_dir(pluginxmldir ? pluginxmldir : Reader::currentDir)
+	, _plugin_source(pluginxmldir)
 	, _init_plugin_params(initpluginparams)
 	, _existing_flow(existing_flow)
 	, _reader_state(NULL)
@@ -1257,13 +1271,6 @@ Reader::readxmlfile( const char * filename )
 
 void Reader::readxmldir(flow::FlowHolder * flow_holder)
 {
-        const char * pluginxmldir = _plugin_xml_dir;
-        DIR * dir = ::opendir(pluginxmldir);
-        if(!dir) {
-                oflux_log_warn("xml::Reader::readxmldir() directory %s does not exist or cannot be opened\n",pluginxmldir);
-                return;
-        }
-        struct dirent * dir_entry;
 	AttributeMap empty_map;
 	//pushState("flow",empty_map);
 	_reader_state = new ReaderState<flow::Flow>(
@@ -1272,15 +1279,11 @@ void Reader::readxmldir(flow::FlowHolder * flow_holder)
 		, getState()
 		, *this);
 	std::set<std::string> files;
-        while((dir_entry = ::readdir(dir)) != NULL) {
-                std::string filename = dir_entry->d_name;
-                size_t found = filename.find_last_of(".");
-                if(filename.substr(found+1) == "xml" ) {
-                        filename = (std::string) pluginxmldir + "/" + filename;
-			files.insert(filename);
-                }
+	const char * afile = NULL;
+	_plugin_source->reset();
+        while((afile = _plugin_source->nextXmlFile())) {
+		files.insert(afile);
         }
-        ::closedir(dir);
 	// deterministic reading order 
 	for(std::set<std::string>::iterator itr = files.begin(); itr != files.end(); ++itr) {
 		if(!_depends_visited.isDependency((*itr).c_str())) {
@@ -1383,7 +1386,7 @@ void Reader::commentHandler(void *data, const char *comment)
 flow::Flow *
 read(     const char * filename
 	, flow::FunctionMapsAbstract *fmaps
-	, const char * pluginxmldir
+	, PluginSourceAbstract * pluginxmldir
 	, const char * pluginlibdir
 	, void * initpluginparams
 	, const flow::Flow * existing_flow

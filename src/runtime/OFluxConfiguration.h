@@ -2,20 +2,26 @@
 #define OFLUX_RUNTIME_CONFIGURATION_H
 
 namespace oflux {
+namespace flow {
+ class FunctionMapsAbstract;
+} // namespace flow
 
 class PluginSourceAbstract {
 public:
 	virtual ~PluginSourceAbstract() {}
-	virtual const char * nextXmlFile() const = 0; 
+	virtual const char * nextXmlFile() = 0; 
 		// NULL indicates its at the end
 		// XML filenames are made available here
+		// accessible relative paths or full paths should be acceptable
+	virtual void reset() = 0;
 };
 
 class DirPluginSource : public PluginSourceAbstract {
 public:
 	DirPluginSource(const char * plugin_dir);
 	virtual ~DirPluginSource();
-	virtual const char * nextXmlFile() const;
+	virtual const char * nextXmlFile();
+	virtual void reset() { _index = 0; }
 private:
 	void * _hidden_vector;
 	int _index;
@@ -24,32 +30,34 @@ private:
 class SimpleCharArrayPluginSource : public PluginSourceAbstract {
 public:
 	SimpleCharArrayPluginSource(const char * plugin_names[]);
-	virtual const char * nextXmlFile() const;
+	virtual const char * nextXmlFile();
 private:
+	const char * * _pnames_orig;
 	const char * * _pnames;
 };
 
 template< typename StdContainerOfStdString >
-class SimpleCharArrayPluginSource : public PluginSourceAbstract {
+class StdContainerPluginSource : public PluginSourceAbstract {
 public:
-	SimpleCharArrayPluginSource(StdContainerOfStdString & cont)
+	StdContainerPluginSource(StdContainerOfStdString & cont)
 		: _cont(cont)
 		, _itr(cont.begin())
 		, _itr_end(cont.end())
 	{}
 	virtual const char * nextXmlFile() const
 	{
-		if(_itr == _end_itr) {
-			return NULL;
+		if(_itr == _itr_end) {
+			return 0;
 		}
 		const char * res = (*_itr).c_str();
 		++_itr;
 		return res;
 	}
+	virtual void reset() { _itr = _cont.begin(); }
 private:
 	StdContainerOfStdString & _cont;
 	typename StdContainerOfStdString::const_iterator _itr;
-	typename StdContainerOfStdString::const_iterator _end_itr;
+	typename StdContainerOfStdString::const_iterator _itr_end;
 };
 
 /**
@@ -67,7 +75,7 @@ struct RunTimeConfiguration {
 	int thread_collection_sample_period;
 	const char * flow_filename;
 	flow::FunctionMapsAbstract * flow_maps;
-	const PluginSourceAbstract * plugin_name_source;
+	PluginSourceAbstract * plugin_name_source;
 	const char * plugin_lib_dir;    // plugin lib directory
 	void * init_plugin_params;
 	void (*initAtomicMapsF)(int);

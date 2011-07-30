@@ -2,6 +2,9 @@
 #include "OFluxLogging.h"
 #include <set>
 #include <string>
+#include <dirent.h>
+#include <sys/types.h>
+
 
 namespace oflux {
 
@@ -11,7 +14,7 @@ DirPluginSource::DirPluginSource(const char * pluginxmldir)
 {
 	std::set<std::string>* vec_ptr = new std::set<std::string>();
 	_hidden_vector = vec_ptr;
-	DIR * dir ::opendir(pluginxmldir);
+	DIR * dir = ::opendir(pluginxmldir);
 	if(!dir) {
 		oflux_log_warn("xml::Reader::readxmldir() directory %s does not exist or cannot be opened\n",pluginxmldir);
                 return;
@@ -25,7 +28,7 @@ DirPluginSource::DirPluginSource(const char * pluginxmldir)
                         vec_ptr->insert(filename);
                 }
         }
-	::closedir(dir)
+	::closedir(dir);
 }
 
 DirPluginSource::~DirPluginSource()
@@ -36,7 +39,7 @@ DirPluginSource::~DirPluginSource()
 }
 
 const char *
-DirPluginSource::nextXmlFile() const
+DirPluginSource::nextXmlFile()
 {
 	std::set<std::string>* vec_ptr = 
 		reinterpret_cast<std::set<std::string>* >(_hidden_vector);
@@ -46,6 +49,7 @@ DirPluginSource::nextXmlFile() const
 		size_t i = 0;
 		while(i < _index && itr != vec_ptr->end()) {
 			++itr;
+			++i;
 		}
 		if(itr != vec_ptr->end()) {
 			res = (*itr).c_str();
@@ -57,12 +61,13 @@ DirPluginSource::nextXmlFile() const
 
 
 SimpleCharArrayPluginSource::SimpleCharArrayPluginSource(const char * plugin_names[])
-	: _pnames(plugin_names)
+	: _pnames_orig(plugin_names)
+	, _pnames(plugin_names)
 {
 }
 
 const char *
-SimpleCharArrayPluginSource::nextXmlFile() const
+SimpleCharArrayPluginSource::nextXmlFile()
 {
 	const char * res = *_pnames;
 	if(res) {
