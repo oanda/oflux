@@ -44,7 +44,7 @@ public:
 		, _itr(cont.begin())
 		, _itr_end(cont.end())
 	{}
-	virtual const char * nextXmlFile() const
+	virtual const char * nextXmlFile()
 	{
 		if(_itr == _itr_end) {
 			return 0;

@@ -46,7 +46,7 @@ DirPluginSource::nextXmlFile()
 	const char * res = 0;
 	if(vec_ptr) {
 		std::set<std::string>::const_iterator itr = vec_ptr->begin();
-		size_t i = 0;
+		int i = 0;
 		while(i < _index && itr != vec_ptr->end()) {
 			++itr;
 			++i;
