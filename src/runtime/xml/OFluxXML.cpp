@@ -383,7 +383,8 @@ public:
 		const char * depxml = NULL;
 		const char * candidate = NULL;
 		_plugin_source->reset();
-		std::string plug = plugin_name;
+		std::string plug("/");
+		plug += plugin_name;
 		plug += ".xml";
 		while((candidate = _plugin_source->nextXmlFile())) {
 			if(strstr(candidate,plug.c_str())) {
