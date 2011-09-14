@@ -155,11 +155,11 @@ code_list:
 	| code_list term_decl
 	{ trace_thing "code_list";
           let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,$2::tl,odl }
+	  in  sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,$2::tl,odl }
 	| code_list guard_order_decl
 	{ trace_thing "code_list";
           let sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,odl = $1 
-	  in sl,el,erl,mil,cl,al,nl,mdl,pl,tl,pdl,$2 @ odl }
+	  in  sl,el,erl,mil,cl,al,nl,mdl,pl,pdl,tl,$2 @ odl }
 	| /*epsilon*/
 	{ trace_thing "code_list";
           [],[],[],[],[],[],[],[],[],[],[],[] }
