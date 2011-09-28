@@ -45,7 +45,7 @@ run_thread (void *vp)
 		Event * e = NULL;
 		size_t num_executed = 0;
 		std::deque<Event*> local_events;
-		while((e = deque.popBottom()) != &CircularWorkStealingDeque<Event>::empty && num_executed < num_events_per_thread+1) {
+		while((e = deque.popBottom()) != CircularWorkStealingDeque<Event>::empty && num_executed < num_events_per_thread+1) {
 			assert(!e->content);
 			e->content = *ip;
 			local_events.push_back(e);
@@ -63,8 +63,8 @@ run_thread (void *vp)
 			++num_executed;
 			if((*ip) == which) continue; // no self stealing
 			e = deque.steal();
-			if(e == &CircularWorkStealingDeque<Event>::empty
-					|| e == &CircularWorkStealingDeque<Event>::abort) {
+			if(e == CircularWorkStealingDeque<Event>::empty
+					|| e == CircularWorkStealingDeque<Event>::abort) {
 				++total_steal_failures;
 				continue;
 			}
