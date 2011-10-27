@@ -44,6 +44,7 @@ OFLUX_OBJS = \
         OFluxEventBase.o \
         OFluxLibDTrace.o \
         OFluxEventOperations.o \
+        OFluxEventInjected.o \
         OFluxRunTimeAbstractForShim.o \
         OFluxRunTimeBase.o \
         OFluxRunTime.o \

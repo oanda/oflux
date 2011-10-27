@@ -8,8 +8,8 @@
  *  Only systems with support for doors should compile this into their runtime.
  */
 
-#ifdef HAS_DOORS_IPC
-# include "event/OFluxEvent.h"
+#include "event/OFluxEvent.h"
+#include <string.h>
 
 namespace oflux {
 
@@ -31,7 +31,5 @@ public:
 
 } // namespace oflux
 
-
-#endif // HAS_DOORS_IPC
 
 #endif // OFLUX_EVENT_DOOR_H

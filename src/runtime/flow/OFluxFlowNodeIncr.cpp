@@ -13,7 +13,9 @@ get_node_name(const flow::Node *n)
 NodeCounterIncrementer::NodeCounterIncrementer(Node * flow_node)
 	: _flow_node(flow_node)
 {
-	_flow_node->_instances++;
+	if(_flow_node) {
+		_flow_node->_instances++;
+	}
 }
 
 NodeCounterIncrementer::~NodeCounterIncrementer()

@@ -33,7 +33,7 @@ public:
                 {}
         virtual const GivenClass * value() const { return _gclass; }
 private:
-        GivenClass * _gclass;
+        const GivenClass * _gclass;
 };
 
 template<typename TargetClass,typename GivenClass>
