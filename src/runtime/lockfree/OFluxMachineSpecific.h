@@ -89,6 +89,19 @@ load_load_barrier(void) {
 #endif
 }
 
+EXTERN_INLINE void
+write_barrier(void) {
+#if i386_HOST_ARCH
+    __asm__ __volatile__ ("" : : : "memory");
+#elif x86_64_HOST_ARCH
+    __asm__ __volatile__ ("" : : : "memory");
+#elif sparc_HOST_ARCH
+    __asm__ __volatile__ ("" : : : "memory");
+#else
+#error memory barriers unimplemented on this architecture
+#endif
+}
+
 
 } // namespace lockfree
 } // namespace oflux

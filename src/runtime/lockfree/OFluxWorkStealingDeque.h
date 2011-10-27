@@ -108,15 +108,16 @@ public:
 		assert(b < 100000);
 #endif
 		a->put(b,e);
+		write_barrier();
 		_bottom = b+1;
 	}
 
 	inline T * steal()
 	{
-		CircularArray<T> * a = _active_array;
 		long t = _top;
 		load_load_barrier();
 		long b = _bottom;
+		CircularArray<T> * a = _active_array;
 		long size = b - t;
 		if(size <= 0) {
 			return empty;
