@@ -52,6 +52,7 @@ OFLUX_OBJS = \
         OFluxMeldingRunTime.o \
 	$(OFLUX_LF_OBJS) \
         OFluxXML.o \
+        OFluxStats.o \
 	oflux_vers.o
 
 # disable optimization for dtrace USDT code 

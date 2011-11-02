@@ -8,6 +8,7 @@
 #include "lockfree/OFluxThreadNumber.h" // used for stats now
 #include "OFluxLogging.h"
 #include "OFluxProfiling.h"
+#include "OFluxStats.h"
 #include <unistd.h>
 #include <dlfcn.h>
 #include <cstdio>
@@ -312,7 +313,14 @@ RunTime::new_RunTimeThread(oflux_thread_t tid)
 int 
 RunTime::wake_another_thread()
 {
-	if(_running && _waiting_in_pool.count() == 0 && canThreadMore()) {
+
+        const int& poolCount = _waiting_in_pool.count();
+        // update the stats
+        OFluxStats::UnusedThreadCount = _rtc.max_thread_pool_size - _thread_count;
+        OFluxStats::IdleThreadCount = poolCount - 1;
+        OFluxStats::DetachedThreadCount = _detached_count;
+
+        if(_running && poolCount == 0 && canThreadMore()) {
 		RunTimeThread * rtt = new_RunTimeThread();
 		++_thread_count;
 		_thread_list.insert_front(rtt);
