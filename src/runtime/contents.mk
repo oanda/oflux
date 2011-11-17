@@ -92,7 +92,7 @@ $(DTRACE_SHIM_PROBE_HEADER): ofluxshimprobe.d
 ifeq ($(_ARCH),SunOS)
 OFLUXRTLIBS= -lposix4 -lexpat -lm -lc -lpthread
 else ifeq ($(_ARCH),Linux)
-OFLUXRTLIBS=
+OFLUXRTLIBS= -lexpat
 else ifeq ($(_ARCH),Darwin)
 OFLUXRTLIBS= -lexpat -lm -lc -lpthread
 endif
