@@ -158,13 +158,16 @@ private:
 	inline void pushLocal(const EventBasePtr & ev)
 	{
 		ev->state = 1;
+		const char * fn_name = (ev && ev->flow_node() 
+			? ev->flow_node()->getName() 
+			: "<null>");
 		oflux_log_trace("[" PTHREAD_PRINTF_FORMAT "] pushLocal %s %p\n"
 			, self()
-			, ev->flow_node()->getName()
+			, fn_name
 			, get_EventBasePtr(ev));
 		WSQElement * e = get_WSQElement(ev); 
 		_queue.pushBottom(e);
-		PUBLIC_FIFO_PUSH(get_EventBasePtr(ev),ev->flow_node()->getName());
+		PUBLIC_FIFO_PUSH(get_EventBasePtr(ev),fn_name);
 	}
 	int handle(RunTimeThreadContext & context);
 	inline bool critical() const { return _running && _queue_allowance<0; }
