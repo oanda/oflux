@@ -10,7 +10,7 @@ namespace smr {
 HazardPtrForThread hazard[DEFAULT_MEMPOOL_MAX_THREADS];
 
 static int plist_compare(const void * l, const void * r)
-{ return l == r ? 0 : ( l < r ? -1 : 1 ); }
+{ return *(void**)l == *(void**)r ? 0 : ( *(void**)l < *(void**)r ? -1 : 1 ); }
 
 inline bool 
 binary_search(DListEntry & ent, const size_t plist_size, void * plist[])
