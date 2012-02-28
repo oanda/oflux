@@ -66,6 +66,8 @@ public:
 	virtual int wake_another_thread() = 0;
 
 	virtual RunTimeThreadAbstract * thread() = 0;
+
+	virtual bool currently_detached() = 0;
 public: // sorry C++ ppl
 	ConditionVariable<IntegerCounter>     _waiting_to_run;
 #ifdef THREAD_COLLECTION

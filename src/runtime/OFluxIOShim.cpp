@@ -186,7 +186,7 @@ extern "C" void deinitShim()
 
 extern "C" unsigned int sleep(unsigned int seconds)
 {
-	if (!eminfo || eminfo->thread()->is_detached()) {
+	if (!eminfo || eminfo->currently_detached()) {
 		if (!shim_sleep) {
 			shim_sleep = (unsigned int (*)(unsigned int)) dlsym(RTLD_NEXT, "sleep");
 		}
@@ -216,7 +216,7 @@ extern "C" unsigned int sleep(unsigned int seconds)
 extern "C" int usleep(useconds_t useconds)
 {
         oflux::RunTimeAbstractForShim *local_eminfo = eminfo;
-	if (!local_eminfo || local_eminfo->thread()->is_detached()) {
+	if (!local_eminfo || local_eminfo->currently_detached()) {
 		if (!shim_usleep) {
 			shim_usleep = (int (*)(useconds_t)) dlsym(RTLD_NEXT, "usleep");
 		}
@@ -252,7 +252,7 @@ extern "C" int usleep(useconds_t useconds)
 
 extern "C" int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
-	if (!eminfo || eminfo->thread()->is_detached()) {
+	if (!eminfo || eminfo->currently_detached()) {
 		if (!shim_accept) {
 			shim_accept = (int (*) (int, struct sockaddr *, socklen_t *)) dlsym(RTLD_NEXT, "accept");
 		}
@@ -289,7 +289,7 @@ extern "C" ssize_t read(int fd, void *buf, size_t count)
 {
 	ssize_t ret;
 
-	if (!eminfo || eminfo->thread()->is_detached()) {
+	if (!eminfo || eminfo->currently_detached()) {
 		if (!shim_read)  {
 			shim_read = (ssize_t (*)(int, void *, size_t))dlsym (RTLD_NEXT, "read");
 		}
@@ -418,7 +418,7 @@ extern "C" int close(int fd)
 }
 
 extern "C" ssize_t write(int fd, const void *buf, size_t count) {
-	if (!eminfo || eminfo->thread()->is_detached()) {
+	if (!eminfo || eminfo->currently_detached()) {
 		if (!shim_write) {
 			shim_write = (writeFnType) dlsym (RTLD_NEXT, "write");
 		}
@@ -454,7 +454,7 @@ extern "C" ssize_t write(int fd, const void *buf, size_t count) {
 }
 
 extern "C" int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
-	if (!eminfo || eminfo->thread()->is_detached()) {
+	if (!eminfo || eminfo->currently_detached()) {
 		if (!shim_select) {
 			shim_select = get_select_fn();
 		}
@@ -482,7 +482,7 @@ extern "C" int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfd
 extern "C" ssize_t recvfrom(int s, void * buf, size_t len, int flags, struct sockaddr *socketaddress, socklen_t * address_len) {
     ssize_t ret;
 
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_recvfrom)  {
             shim_recvfrom = (recvfromFnType) dlsym (RTLD_NEXT, "recvfrom");
         }
@@ -518,7 +518,7 @@ extern "C" ssize_t recvfrom(int s, void * buf, size_t len, int flags, struct soc
 extern "C" ssize_t recv(int s, void * buf, size_t len, int flags) {
     ssize_t ret;
 
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_recv)  {
             shim_recv = (recvFnType) dlsym (RTLD_NEXT, "recv");
         }
@@ -552,7 +552,7 @@ extern "C" ssize_t recv(int s, void * buf, size_t len, int flags) {
 }
 
 extern "C" int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_poll) {
             shim_poll = (pollFnType) dlsym (RTLD_NEXT, "poll");
         }
@@ -580,7 +580,7 @@ extern "C" int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
 
 extern "C" ssize_t send(int s, const void * msg, size_t len, int flags) {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_send) {
             shim_send = (sendFnType) dlsym (RTLD_NEXT, "send");
         }
@@ -620,7 +620,7 @@ extern "C" int gethostbyname_r(const char *name,
                                struct hostent *ret, char *buf, size_t buflen,
                                struct hostent **result, int *h_errnop)
 {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_gethostbyname_r) {
             shim_gethostbyname_r = (gethostbyname_rFnType) dlsym (RTLD_NEXT, "gethostbyname_r");
         }
@@ -648,7 +648,7 @@ extern "C" int gethostbyname_r(const char *name,
 extern "C" int epoll_wait(int epfd, struct epoll_event * events,
                           int maxevents, int timeout)
 {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_epoll_wait) {
             shim_epoll_wait = (epoll_waitFnType) dlsym (RTLD_NEXT, "epoll_wait");
         }
@@ -723,7 +723,7 @@ extern "C" struct hostent *gethostbyname_r(const char *name,
                                struct hostent *result, char *buffer, int buflen,
                                int *h_errnop)
 {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_gethostbyname_r) {
             shim_gethostbyname_r = (gethostbyname_rFnType) dlsym (RTLD_NEXT, "gethostbyname_r");
         }
@@ -751,7 +751,7 @@ extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout)
 
     oflux::RunTimeAbstractForShim *local_eminfo = eminfo;
 
-    if (!local_eminfo || local_eminfo->thread()->is_detached()) {
+    if (!local_eminfo || local_eminfo->currently_detached()) {
         if (!shim_port_get) {
             shim_port_get = (port_getFnType) dlsym (RTLD_NEXT, "port_get");
         }
@@ -798,7 +798,7 @@ extern "C" int port_get(int port, port_event_t * pe, const timespec_t * timeout)
 
 extern "C" int port_getn(int port, port_event_t list[], uint_t max,
                          uint_t * nget, const timespec_t * timeout) {
-    if (!eminfo || eminfo->thread()->is_detached()) {
+    if (!eminfo || eminfo->currently_detached()) {
         if (!shim_port_getn) {
             shim_port_getn = (port_getnFnType) dlsym (RTLD_NEXT, "port_getn");
         }

@@ -56,6 +56,8 @@ public:
 
 	virtual RunTimeThreadAbstractForShim * thread();
 
+	virtual bool currently_detached();
+
 	/**
 	 * @brief thread local data (RunTimeThread object)
 	 */

@@ -290,6 +290,16 @@ RunTime::thread()
 	return rtt;
 }
 
+bool
+RunTime::currently_detached()
+{
+	RunTimeThread * rtt = thread_data_key.get();
+	if(rtt) {
+		return rtt->is_detached();
+	}
+	return true;
+}
+
 bool 
 RunTime::canThreadMore() const
 {
