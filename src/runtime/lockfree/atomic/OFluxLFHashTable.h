@@ -72,13 +72,13 @@ public:
 
 	static CompileCheck<sizeof(unsigned int) == sizeof(const V *)> cc_v_ptr_size;
 	static inline const V * Tag_Value(const V * v) {
-		return reinterpret_cast<const V*>((unsigned int)v | TAG1);
+		return reinterpret_cast<const V*>((uintptr_t)v | TAG1);
 	}
 	static inline const V * Strip_Tag(const V * v) {
-		return reinterpret_cast<const V*>((unsigned int)v & ~TAG1);
+		return reinterpret_cast<const V*>((uintptr_t)v & ~TAG1);
 	}
 	static inline bool Is_Tagged(const V * v) {
-		return (unsigned int)v & TAG1;
+		return (uintptr_t)v & TAG1;
 	}
 };
 

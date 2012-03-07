@@ -401,6 +401,7 @@ AtomicsHolder::release(
 						break;
 					}
 				}
+				(void)fd;
 				assert(fd && "should have found a held atomic for this released event"); 
 				assert( (rel_ha_ptr==NULL) || rel_ha_ptr->haveit());
 			}

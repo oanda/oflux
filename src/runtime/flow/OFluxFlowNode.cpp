@@ -4,6 +4,7 @@
 #include "flow/OFluxFlowCommon.h"
 #include "OFluxLogging.h"
 #include <algorithm>
+#include <string.h>
 
 namespace oflux {
 namespace flow {
@@ -44,6 +45,12 @@ Successor::remove(Case * fc)
 		++itr;
 	}
 	assert(fd && "Successor::remove failed to find");
+	if(!fd) {
+		const char* error = "Successor::remove failed to find";
+		const ssize_t ret = write(STDERR_FILENO, error, strlen(error));
+		(void)ret;
+		abort();
+	}
 }
 
 Case * 

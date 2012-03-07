@@ -172,11 +172,10 @@ RunTime::load_flow(
 void * 
 __fold_pthread_kill_int(void * v_count, RunTimeThread * rtt)
 {
-	int * count = reinterpret_cast<int *>(v_count);
 	oflux_thread_t tt = rtt->tid();
 	int res = oflux_kill_int(tt); // send thread a SIGINT
 	if(!res) {
-		*count++;
+		(*reinterpret_cast<int *>(v_count))++;
 	}
 	return v_count;
 }
