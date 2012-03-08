@@ -415,7 +415,10 @@ let flatten prog =
 		{ guardname = prefix_sp pre_mi gr.guardname
 		; arguments = (List.map (List.map (prefix_garg pre_mi)) gr.arguments)
 		; modifiers = gr.modifiers
-		; localgname = gr.localgname 
+		; localgname = 
+			(match gr.localgname with
+				(Some l) -> (Some (prefix_sp pre_mi l))
+				| _ -> None)
                 ; guardcond = List.map (prefix_garg pre_mi) gr.guardcond
                 } in
 	let for_node_decl pre_mi pre_md nd =
