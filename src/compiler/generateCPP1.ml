@@ -1136,7 +1136,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
                                 match ue with
                                         (Arg s) -> ("(reinterpret_cast<const "
                                                 ^nf^"_in *>(in)->"^s^")")
-					| (GArg g) -> g
+					| (GArg g) -> clean_dots g
                                         | (Context s) -> s in
                         let ffun str ue = 
                                 str^(on_ue ue)
@@ -1188,7 +1188,7 @@ let emit_guard_trans_map (with_proto,with_code,with_map) conseq_res symtable cod
 					(GArg s) ->
 						let i,t = get_lexical_ind_and_type s
 						in
-						t^" "^s
+						t^" "^(clean_dots s)
 						^" = ah->getDataLexical"
 						^(if nullok then ""
 						 else "ThrowOnNull" )

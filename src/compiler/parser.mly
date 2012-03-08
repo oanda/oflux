@@ -356,6 +356,7 @@ node_decl:
 				strip_position (match xo with
 							(Some x') -> x'
 							| _ -> x)) grefs in
+		let strgargs = "self"::strgargs in
                 let rec on_str_list' firstisarg firstisgarg strl = 
                         match strl with
                                 (h1::h2::tl) ->

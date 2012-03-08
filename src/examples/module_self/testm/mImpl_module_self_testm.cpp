@@ -1,6 +1,6 @@
-#include "OFluxGenerate_module_self_testm.h"
+#include "OFluxGenerate_module_self_testm_self.h"
 
-namespace testm {
+namespace testm_self {
 
 int Process(const Process_in * in, Process_out * out, Process_atoms * atoms)
 {

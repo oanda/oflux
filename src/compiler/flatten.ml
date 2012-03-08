@@ -407,12 +407,16 @@ let flatten prog =
                 ; externalatom = ad.externalatom
                 ; atommodifiers = ad.atommodifiers
                 } in
+	let prefix_garg p x =
+		(match x with
+			(GArg ga) -> (GArg (prefix p ga))
+			| _ -> x) in
 	let for_guard_ref pre_mi pre_md gr =
 		{ guardname = prefix_sp pre_mi gr.guardname
-		; arguments = gr.arguments
+		; arguments = (List.map (List.map (prefix_garg pre_mi)) gr.arguments)
 		; modifiers = gr.modifiers
 		; localgname = gr.localgname 
-                ; guardcond = gr.guardcond
+                ; guardcond = List.map (prefix_garg pre_mi) gr.guardcond
                 } in
 	let for_node_decl pre_mi pre_md nd =
 		{ detached = nd.detached
