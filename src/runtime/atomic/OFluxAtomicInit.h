@@ -37,6 +37,7 @@ public:
 	 */
 	bool insert(const void * key, void * value);
 	void * swap(const void * key, void * newvalue);
+	void * get(const void * key);
 private:
 	AtomicMapAbstract *   _ama;
         std::vector<Atomic *> _to_release;
@@ -100,6 +101,16 @@ private:
                 OFLUX_GUARD_POPULATER(INST##_self,instpop); \
                 MODULENAME::ModuleConfig * mc = MODULENAME::init( __VA_ARGS__ ); \
                 instpop.insert(NULL, mc); \
+        }
+#define OFLUX_MODULE_GET_CONFIG_NS(NS,MODULENAME,INST,VAR) \
+        { \
+                OFLUX_GUARD_POPULATER_NS(NS,INST##_self,instpop); \
+                VAR = (MODULENAME::ModuleConfig *)instpop.get(NULL); \
+        }
+#define OFLUX_MODULE_GET_CONFIG(MODULENAME,INST,VAR) \
+        { \
+                OFLUX_GUARD_POPULATER(INST##_self,instpop); \
+                VAR = (MODULENAME::ModuleConfig *)instpop.get(NULL); \
         }
 #define OFLUX_MODULE_DEINIT(MODULENAME,INST) \
         OFLUX_GUARD_CLEAN(INST##_self, MODULENAME::ModuleConfig)
