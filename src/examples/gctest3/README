@@ -1,0 +1,5 @@
+An attempt to reproduce an issue with using a guard walker
+in a node (which is voodoo of a kind).  The problem is/was that
+the enumerator does some helpful things to copy the growing 
+hashtable along -- but that gets stuck in helpCopy() code
+on the lockfree runtime.
