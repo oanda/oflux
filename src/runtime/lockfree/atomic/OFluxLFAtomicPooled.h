@@ -22,7 +22,7 @@ public:
 	typedef oflux::lockfree::growable::TStructEntry<void> ResourceHolderEntry;
 
 
-	typedef unsigned long index_t; 
+	typedef uint32_t index_t; 
 
 
 	PoolEventList()
@@ -178,7 +178,7 @@ private:
 	volatile union UIn { 
 		uint64_t u64; 
 		struct S { index_t _ev_q_in; index_t _rs_q_in; } s; 
-		} _uin;
+		} __attribute__((__packed__))_uin;
 };
 
 class AtomicPooled;
