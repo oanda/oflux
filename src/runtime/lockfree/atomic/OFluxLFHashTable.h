@@ -504,7 +504,13 @@ protected:
 				|| ent_val == HTC::Tag_Value(HTC::TombStone)) {
 			return false;
 		} else if(ent_val == HTC::Does_Not_Exist) {
-			return true;
+			ent_val = __sync_val_compare_and_swap(
+					  &ent->value
+					, HTC::Does_Not_Exist
+					, HTC::Copied_Value);
+			if(ent_val == HTC::Does_Not_Exist) {
+				return true;
+			}
 		}
 		ent_val = __sync_fetch_and_or(
 			  &ent->value
